@@ -5,6 +5,10 @@ import { NextRequest, NextResponse } from 'next/server';
 // it's live on a public URL. Credentials come from env vars only (never
 // hardcoded here), so the deploy fails closed if they're not set.
 export function middleware(request: NextRequest) {
+  if (process.env.NODE_ENV !== 'production') {
+    return NextResponse.next();
+  }
+
   const expectedUser = process.env.AUTH_USER;
   const expectedPassword = process.env.AUTH_PASSWORD;
 
