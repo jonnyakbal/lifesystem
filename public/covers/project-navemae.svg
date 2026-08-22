@@ -1,0 +1,111 @@
+<svg viewBox="0 0 400 180" width="400" height="180" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0d1a12" />
+      <stop offset="100%" stop-color="#04100a" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#22c55e" stop-opacity="0.55" />
+      <stop offset="100%" stop-color="#22c55e" stop-opacity="0" />
+    </radialGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18" />
+    </filter>
+  </defs>
+  <rect width="400" height="180" fill="url(#bg)" />
+  <ellipse cx="374" cy="156" rx="160" ry="70" fill="#22c55e" opacity="0.12" filter="url(#blur)" />
+  <circle cx="141.3" cy="161.5" r="0.66" fill="#fff" opacity="0.35">
+      <animate attributeName="opacity" values="0.35;0.09;0.35" dur="3.5s" begin="1.9s" repeatCount="indefinite" />
+    </circle>
+<circle cx="289.8" cy="62.7" r="0.79" fill="#fff" opacity="0.44">
+      <animate attributeName="opacity" values="0.44;0.11;0.44" dur="4.9s" begin="0.1s" repeatCount="indefinite" />
+    </circle>
+<circle cx="326.7" cy="51.5" r="0.99" fill="#fff" opacity="0.75">
+      <animate attributeName="opacity" values="0.75;0.19;0.75" dur="4.2s" begin="1.6s" repeatCount="indefinite" />
+    </circle>
+<circle cx="258.6" cy="133.5" r="0.91" fill="#fff" opacity="0.55">
+      <animate attributeName="opacity" values="0.55;0.14;0.55" dur="3.7s" begin="0.9s" repeatCount="indefinite" />
+    </circle>
+<circle cx="112.4" cy="85.3" r="1.49" fill="#fff" opacity="0.74">
+      <animate attributeName="opacity" values="0.74;0.18;0.74" dur="2.3s" begin="2.4s" repeatCount="indefinite" />
+    </circle>
+<circle cx="100.7" cy="71.8" r="1.21" fill="#fff" opacity="0.34">
+      <animate attributeName="opacity" values="0.34;0.09;0.34" dur="4.1s" begin="2.5s" repeatCount="indefinite" />
+    </circle>
+<circle cx="133.3" cy="176.1" r="1.27" fill="#fff" opacity="0.52">
+      <animate attributeName="opacity" values="0.52;0.13;0.52" dur="3.2s" begin="2.3s" repeatCount="indefinite" />
+    </circle>
+<circle cx="389.4" cy="131.7" r="1.21" fill="#fff" opacity="0.36">
+      <animate attributeName="opacity" values="0.36;0.09;0.36" dur="3.4s" begin="2.7s" repeatCount="indefinite" />
+    </circle>
+<circle cx="314.7" cy="101.3" r="1.14" fill="#fff" opacity="0.29">
+      <animate attributeName="opacity" values="0.29;0.07;0.29" dur="3.3s" begin="1.5s" repeatCount="indefinite" />
+    </circle>
+<circle cx="364.4" cy="76.1" r="0.82" fill="#fff" opacity="0.51">
+      <animate attributeName="opacity" values="0.51;0.13;0.51" dur="4.7s" begin="2.6s" repeatCount="indefinite" />
+    </circle>
+<circle cx="316.7" cy="143.5" r="1.24" fill="#fff" opacity="0.60">
+      <animate attributeName="opacity" values="0.60;0.15;0.60" dur="2.5s" begin="0.0s" repeatCount="indefinite" />
+    </circle>
+<circle cx="148.0" cy="173.5" r="1.00" fill="#fff" opacity="0.30">
+      <animate attributeName="opacity" values="0.30;0.07;0.30" dur="4.0s" begin="0.5s" repeatCount="indefinite" />
+    </circle>
+<circle cx="41.0" cy="100.0" r="0.93" fill="#fff" opacity="0.83">
+      <animate attributeName="opacity" values="0.83;0.21;0.83" dur="2.3s" begin="0.1s" repeatCount="indefinite" />
+    </circle>
+<circle cx="391.0" cy="93.7" r="0.82" fill="#fff" opacity="0.51">
+      <animate attributeName="opacity" values="0.51;0.13;0.51" dur="3.6s" begin="2.6s" repeatCount="indefinite" />
+    </circle>
+<circle cx="27.7" cy="157.3" r="1.17" fill="#fff" opacity="0.89">
+      <animate attributeName="opacity" values="0.89;0.22;0.89" dur="4.1s" begin="2.2s" repeatCount="indefinite" />
+    </circle>
+<circle cx="48.5" cy="20.4" r="0.85" fill="#fff" opacity="0.32">
+      <animate attributeName="opacity" values="0.32;0.08;0.32" dur="2.1s" begin="2.8s" repeatCount="indefinite" />
+    </circle>
+<circle cx="5.9" cy="25.6" r="1.05" fill="#fff" opacity="0.70">
+      <animate attributeName="opacity" values="0.70;0.17;0.70" dur="3.0s" begin="1.0s" repeatCount="indefinite" />
+    </circle>
+<circle cx="15.1" cy="114.3" r="0.65" fill="#fff" opacity="0.57">
+      <animate attributeName="opacity" values="0.57;0.14;0.57" dur="2.4s" begin="1.0s" repeatCount="indefinite" />
+    </circle>
+<circle cx="311.9" cy="28.7" r="1.51" fill="#fff" opacity="0.71">
+      <animate attributeName="opacity" values="0.71;0.18;0.71" dur="3.1s" begin="1.8s" repeatCount="indefinite" />
+    </circle>
+<circle cx="332.8" cy="169.3" r="1.58" fill="#fff" opacity="0.74">
+      <animate attributeName="opacity" values="0.74;0.18;0.74" dur="3.1s" begin="2.6s" repeatCount="indefinite" />
+    </circle>
+<circle cx="189.5" cy="162.7" r="0.62" fill="#fff" opacity="0.30">
+      <animate attributeName="opacity" values="0.30;0.07;0.30" dur="2.0s" begin="1.5s" repeatCount="indefinite" />
+    </circle>
+<circle cx="348.1" cy="86.9" r="1.53" fill="#fff" opacity="0.50">
+      <animate attributeName="opacity" values="0.50;0.13;0.50" dur="2.8s" begin="1.7s" repeatCount="indefinite" />
+    </circle>
+<circle cx="318.2" cy="121.0" r="1.35" fill="#fff" opacity="0.34">
+      <animate attributeName="opacity" values="0.34;0.09;0.34" dur="2.0s" begin="1.6s" repeatCount="indefinite" />
+    </circle>
+<circle cx="170.8" cy="103.3" r="0.75" fill="#fff" opacity="0.74">
+      <animate attributeName="opacity" values="0.74;0.18;0.74" dur="4.4s" begin="2.2s" repeatCount="indefinite" />
+    </circle>
+<circle cx="267.8" cy="45.5" r="1.16" fill="#fff" opacity="0.87">
+      <animate attributeName="opacity" values="0.87;0.22;0.87" dur="3.5s" begin="0.5s" repeatCount="indefinite" />
+    </circle>
+<circle cx="178.2" cy="179.0" r="1.25" fill="#fff" opacity="0.82">
+      <animate attributeName="opacity" values="0.82;0.20;0.82" dur="4.4s" begin="0.1s" repeatCount="indefinite" />
+    </circle>
+
+  <g transform="translate(200 80) scale(1.25)">
+    <ellipse cx="0" cy="0" rx="70" ry="30" fill="url(#glow)" />
+    <ellipse cx="0" cy="-4" rx="64" ry="18" fill="#475569" />
+    <ellipse cx="0" cy="-14" rx="26" ry="12" fill="#4ade80" opacity="0.85" />
+    <ellipse cx="0" cy="-4" rx="64" ry="18" fill="none" stroke="#4ade80" stroke-width="1.2" opacity="0.5" />
+    <circle cx="-38" cy="-2" r="2" fill="#fff" opacity="0.9" />
+    <circle cx="-14" cy="2" r="2" fill="#fff" opacity="0.9" />
+    <circle cx="14" cy="2" r="2" fill="#fff" opacity="0.9" />
+    <circle cx="38" cy="-2" r="2" fill="#fff" opacity="0.9" />
+    <path d="M-30,12 L30,12 L44,40 L-44,40 Z" fill="#4ade80" opacity="0.3">
+      <animate attributeName="opacity" values="0.18;0.4;0.18" dur="2.4s" repeatCount="indefinite" />
+    </path>
+    <circle cx="80" cy="-30" r="5" fill="#4ade80" opacity="0.8" />
+    <circle cx="-88" cy="20" r="4" fill="#4ade80" opacity="0.6" />
+  </g>
+</svg>

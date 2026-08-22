@@ -1,0 +1,90 @@
+[
+  {
+    "id": "pillar-faith",
+    "name": "Fé & Propósito",
+    "description": "Espiritualidade, direção, por que tudo isso existe. Guiado pelos povos das estrelas, da floresta, antepassados, artes e ouro.",
+    "icon": "✨",
+    "color": "stellar",
+    "sortOrder": 1,
+    "currentStatus": "Fé presente, mas falta tempo dedicado pra alinhamento.",
+    "target": "Reservar 15 min/semana pra alinhamento espiritual. Manter diário de reflexão.",
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  },
+  {
+    "id": "pillar-body",
+    "name": "Físico / Corpo",
+    "description": "Saúde, alimentação, exercício, sono. O corpo é o veículo que leva tudo o resto.",
+    "icon": "💪",
+    "color": "critical",
+    "sortOrder": 2,
+    "currentStatus": "CRÍTICO — alimentação irregular, sem exercício, sono inadequado (madrugadas no bar).",
+    "target": "Academia 4x/semana (mín 3x). 1 refeição no horário. Dormir até 1h.",
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  },
+  {
+    "id": "pillar-mind",
+    "name": "Mente / Conhecimento",
+    "description": "Aprendizado, reflexão, TCC. Aprende fazendo, assistindo vídeos e escrevendo.",
+    "icon": "🧠",
+    "color": "qty",
+    "sortOrder": 3,
+    "currentStatus": "TCC da UFSM pendente. Captures de longa data precisando organizar.",
+    "target": "Escrever TCC (2-3 páginas/semana). Organizar captures. 30 min/dia de foco.",
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-19T13:18:06.658Z",
+    "actions": [
+      {
+        "id": "96fdc1f4-e70f-4e6a-b635-486f9234ff12",
+        "pillarId": "pillar-mind",
+        "title": "ENTREGA TCC",
+        "completed": false,
+        "sortOrder": 0
+      },
+      {
+        "id": "9a90947d-91cb-4613-84c5-6c9fd149fa11",
+        "pillarId": "pillar-mind",
+        "title": "CADASTRO ESTÁGIO",
+        "completed": false,
+        "sortOrder": 1
+      }
+    ]
+  },
+  {
+    "id": "pillar-professional",
+    "name": "Profissional / Talentos",
+    "description": "Dona Maria, ARCO LABS, ARCO PASS, DJ, projetos. O pilar mais forte.",
+    "icon": "🚀",
+    "color": "money",
+    "sortOrder": 4,
+    "currentStatus": "Dona Maria ativo, ARCO PASS em protótipo, ARCO LABS embrionário, RATARIA ativo.",
+    "target": "Delegar Dona Maria. Evoluir ARCO PASS. Criar conteúdo ARCO LABS. Enviar Edital Circula.",
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  },
+  {
+    "id": "pillar-money",
+    "name": "Dinheiro & Patrimônio",
+    "description": "Finanças, investimentos, fluxo de caixa. Controle financeiro é liberdade.",
+    "icon": "💰",
+    "color": "primary",
+    "sortOrder": 5,
+    "currentStatus": "Em organização. Falta controle detalhado. Pessoal vs empresa não separado.",
+    "target": "Mapear rendas e despesas. Criar planilha. Reserva de emergência. Separar contas.",
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  },
+  {
+    "id": "pillar-community",
+    "name": "Comunidade",
+    "description": "Relações, rede de contatos, coletivos culturais. Manoel, ALLGHETTO, equipe Dona Maria, cena Hip Hop.",
+    "icon": "👥",
+    "color": "qty",
+    "sortOrder": 6,
+    "currentStatus": "Forte — vivência diária no bar e na cena cultural.",
+    "target": "Manter contatos ativos. Participar de eventos. Construir presença online.",
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  }
+]

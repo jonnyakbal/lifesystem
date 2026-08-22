@@ -1,0 +1,17 @@
+[
+  {
+    "name": "PicPay Card",
+    "type": "credit",
+    "lastDigits": "4035",
+    "brand": "Visa",
+    "limit": 300,
+    "used": 0,
+    "closingDay": 5,
+    "dueDay": 10,
+    "color": "#64748b",
+    "isActive": true,
+    "id": "03dba9d9-8131-4ad6-ab12-1485111594f6",
+    "createdAt": "2026-08-19T16:57:42.148Z",
+    "updatedAt": "2026-08-19T16:57:42.148Z"
+  }
+]

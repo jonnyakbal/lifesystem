@@ -1,0 +1,22 @@
+[
+  {
+    "category": "Moradia",
+    "type": "expense_variable",
+    "monthlyLimit": 600,
+    "spent": 400,
+    "month": "2026-08",
+    "id": "bde786da-d571-4ae3-9c3d-a6a07178fc0f",
+    "createdAt": "2026-08-19T11:45:16.509Z",
+    "updatedAt": "2026-08-19T11:45:16.509Z"
+  },
+  {
+    "category": "Contas",
+    "type": "expense_variable",
+    "monthlyLimit": 350,
+    "spent": 0,
+    "month": "2026-08",
+    "id": "d22b3d3c-4bc0-4c6f-a385-2da66c90908c",
+    "createdAt": "2026-08-19T11:45:33.374Z",
+    "updatedAt": "2026-08-19T11:45:33.374Z"
+  }
+]

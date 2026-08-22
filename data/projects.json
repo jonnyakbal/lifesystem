@@ -1,0 +1,185 @@
+[
+  {
+    "id": "project-dona-maria",
+    "name": "DONA MARIA",
+    "description": "Ecossistema completo em Santa Maria/RS — bar, cafeteria, tabacaria, salas de atendimento (tattoo, masso, estética), eventos culturais. Sistemas: Nave-Mãe, Órbita, Plano de Voo. Necessidade: delegar operacional.",
+    "status": "active",
+    "stack": [
+      "PHP",
+      "Next.js",
+      "Supabase",
+      "MySQL"
+    ],
+    "needs": "Delegação de tarefas para a equipe. Documentação de processos.",
+    "links": [
+      {
+        "label": "Plano de Voo",
+        "url": "https://plan.donamarialounge.com/"
+      },
+      {
+        "label": "Código",
+        "url": "C:\\dev\\dona-maria"
+      }
+    ],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z",
+    "coverUrl": "/covers/project-dona-maria.svg"
+  },
+  {
+    "id": "project-arco-pass",
+    "name": "ARCO PASS",
+    "description": "Plataforma white-label de ingressos e gestão de eventos. Node + Express + Prisma + React + Docker. Protótipo funcional. Potencial de principal fonte de renda.",
+    "status": "active",
+    "stack": [
+      "Node",
+      "TypeScript",
+      "Express",
+      "Prisma",
+      "React",
+      "Docker"
+    ],
+    "needs": "Melhorar UX de compra. Dashboard do produtor. App de check-in. Validar com mais produtores.",
+    "links": [
+      {
+        "label": "Site",
+        "url": "https://arcopass.com.br"
+      },
+      {
+        "label": "Código",
+        "url": "C:\\dev\\arco-pass"
+      }
+    ],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T23:28:48.992Z",
+    "coverUrl": "/covers/project-arco-pass.svg"
+  },
+  {
+    "id": "project-arco-labs",
+    "name": "ARCO LABS",
+    "description": "Agência/produtora embrionária. Consultoria em automação, IA e processos criativos. Espírito indie hacker: compartilhar a rota com a comunidade.",
+    "status": "idea",
+    "stack": [
+      "Next.js",
+      "Supabase",
+      "TypeScript"
+    ],
+    "needs": "Criar conteúdo para atrair clientes. Posicionamento. Primeira audiência.",
+    "links": [],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T13:53:31.893Z",
+    "coverUrl": "/covers/project-arco-labs.svg"
+  },
+  {
+    "id": "project-navemae",
+    "name": "NAVEMÃE",
+    "description": "SaaS de gestão de bar/restaurantes. Em uso interno no Dona Maria. Potencial de produto comercializável.",
+    "status": "active",
+    "stack": [
+      "PHP",
+      "Vite",
+      "MySQL"
+    ],
+    "needs": "Documentar como produto. Decidir se vira SaaS público.",
+    "links": [
+      {
+        "label": "Código",
+        "url": "C:\\dev\\dona-maria\\nave-mae"
+      }
+    ],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T23:28:16.964Z",
+    "coverUrl": "/covers/project-navemae.svg",
+    "coverColor": ""
+  },
+  {
+    "id": "project-orbita",
+    "name": "ÓRBITA",
+    "description": "Agendamento de salas do Complexo Dona Maria — tattoo, bem-estar, estética. Next.js + Supabase. Repasse automático toda segunda.",
+    "status": "development",
+    "stack": [
+      "Next.js",
+      "Supabase",
+      "TypeScript"
+    ],
+    "needs": "Evoluir com base no uso real.",
+    "links": [
+      {
+        "label": "Site",
+        "url": "https://orbita.donamarialounge.com"
+      }
+    ],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T23:28:32.814Z",
+    "coverUrl": "/covers/project-orbita.svg"
+  },
+  {
+    "id": "project-rataria",
+    "name": "RATARIA S.A.",
+    "description": "Trio de Hip Hop pela ALLGREEN RECORDS. Jonny como DJ e Produtor. Porta de entrada para editais, eventos e conexões na cena.",
+    "status": "development",
+    "stack": [
+      "Música",
+      "Produção"
+    ],
+    "needs": "Capitalizar o Edital Circula. Criar conteúdo. Agendar shows. Gravar material.",
+    "links": [],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T23:28:37.926Z",
+    "coverUrl": "/covers/project-rataria.svg"
+  },
+  {
+    "id": "project-atelie",
+    "name": "ATELIE STUDIO",
+    "description": "SaaS de gestão de casamentos. Ideia embrionária — definir escopo e MVP.",
+    "status": "development",
+    "stack": [],
+    "needs": "Definir escopo. Validar. MVP.",
+    "links": [],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T13:53:28.983Z",
+    "coverUrl": "/covers/project-atelie.svg"
+  },
+  {
+    "id": "project-edital",
+    "name": "EDITAL CIRCULA MUSEU HIP HOP RS",
+    "description": "Edital cultural em aberto. Enviar perfis dos artistas administrados e do evento ALLGHETTO. Acesso a recursos da cultura.",
+    "status": "active",
+    "stack": [],
+    "needs": "URGENTE: criar perfis e enviar antes do prazo.",
+    "links": [],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-21T13:53:38.446Z",
+    "coverUrl": "/covers/project-edital.svg"
+  },
+  {
+    "name": "TCC - ADM UFSM",
+    "description": "Trabalho de Conclusão de Curso de Administração pela UFSM. Prioridade urgente do semestre — Jonny está sobrecarregado com o Dona Maria e não consegue dedicar tempo focado.",
+    "status": "active",
+    "stack": [],
+    "needs": "Definir tema. Revisão bibliográfica. 2-3 páginas/semana. 30 min/dia de foco.",
+    "links": [],
+    "tasksCount": 0,
+    "tasksDone": 0,
+    "coverUrl": "/covers/53274a55-21a4-4608-b1de-be166c3fb91e.svg",
+    "coverColor": "",
+    "id": "53274a55-21a4-4608-b1de-be166c3fb91e",
+    "createdAt": "2026-08-19T14:27:29.648Z",
+    "updatedAt": "2026-08-21T23:28:41.434Z"
+  }
+]

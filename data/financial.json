@@ -1,0 +1,53 @@
+[
+  {
+    "type": "expense_fixed",
+    "category": "Moradia",
+    "description": "mãe",
+    "amount": 400,
+    "date": "2026-08-19",
+    "recurring": false,
+    "id": "1ef6b5d7-b38b-4c3f-ba82-8d979d66eae1",
+    "createdAt": "2026-08-19T04:55:15.219Z",
+    "updatedAt": "2026-08-19T17:01:39.569Z",
+    "status": "paid",
+    "paidDate": "2026-08-19"
+  },
+  {
+    "type": "income",
+    "category": "DJ",
+    "description": "suburbio",
+    "amount": 180,
+    "date": "2026-08-19",
+    "recurring": false,
+    "id": "2835c668-3179-4350-b2a9-7f00946fd597",
+    "createdAt": "2026-08-19T04:55:48.344Z",
+    "updatedAt": "2026-08-19T04:55:48.344Z"
+  },
+  {
+    "type": "expense_fixed",
+    "category": "Apps",
+    "description": "Spotify",
+    "amount": 23.9,
+    "date": "2026-08-10",
+    "recurring": false,
+    "id": "74026433-60c1-43a8-b8ab-d2dd18237b9d",
+    "createdAt": "2026-08-19T11:46:05.600Z",
+    "updatedAt": "2026-08-19T17:01:46.420Z",
+    "status": "paid",
+    "paidDate": "2026-08-19"
+  },
+  {
+    "type": "income",
+    "category": "Dona Maria",
+    "description": "prólabore",
+    "amount": 500,
+    "date": "2026-08-19",
+    "recurring": "none",
+    "tags": [],
+    "status": "paid",
+    "dueDate": "2026-08-12",
+    "id": "f3614ab7-d4d5-4ca7-acda-af7a556e334e",
+    "createdAt": "2026-08-19T16:49:45.336Z",
+    "updatedAt": "2026-08-19T16:49:45.336Z"
+  }
+]

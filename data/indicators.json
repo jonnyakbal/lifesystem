@@ -1,0 +1,91 @@
+[
+  {
+    "id": "8da94f27-32ea-4e05-9e3d-afe6aa38ec4c",
+    "pillarId": "pillar-body",
+    "name": "Treinos/semana",
+    "type": "count",
+    "targetValue": 4,
+    "currentValue": 0,
+    "frequency": "Semanal",
+    "createdAt": "2026-08-19T04:47:23.139Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "70a91b85-ec67-45f2-8d76-a36d092d8bd1",
+    "pillarId": "pillar-money",
+    "name": "Investimento Caixa",
+    "type": "currency",
+    "targetValue": 200,
+    "currentValue": 0,
+    "frequency": "Mensal",
+    "history": [1, 2, 1, 0],
+    "createdAt": "2026-08-19T04:51:34.694Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "ind-refeicoes",
+    "pillarId": "pillar-body",
+    "name": "Refeições/dia no horário",
+    "type": "count",
+    "targetValue": 3,
+    "currentValue": 0,
+    "frequency": "Diário",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "ind-sono",
+    "pillarId": "pillar-body",
+    "name": "Horas de sono",
+    "type": "count",
+    "targetValue": 8,
+    "currentValue": 0,
+    "frequency": "Diário",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "ind-tcc-horas",
+    "pillarId": "pillar-mind",
+    "name": "Horas foco TCC/semana",
+    "type": "count",
+    "targetValue": 3,
+    "currentValue": 0,
+    "frequency": "Semanal",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "ind-tcc-paginas",
+    "pillarId": "pillar-mind",
+    "name": "Páginas escritas TCC/semana",
+    "type": "count",
+    "targetValue": 3,
+    "currentValue": 0,
+    "frequency": "Semanal",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "ind-alinhamento",
+    "pillarId": "pillar-faith",
+    "name": "Momentos de alinhamento espiritual",
+    "type": "count",
+    "targetValue": 1,
+    "currentValue": 0,
+    "frequency": "Semanal",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "ind-eventos-cena",
+    "pillarId": "pillar-community",
+    "name": "Eventos da cena/mês",
+    "type": "count",
+    "targetValue": 1,
+    "currentValue": 0,
+    "frequency": "Mensal",
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  }
+]

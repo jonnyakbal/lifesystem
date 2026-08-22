@@ -1,0 +1,47 @@
+[
+  {
+    "id": "vision-identity",
+    "section": "identity",
+    "title": "Identidade",
+    "content": "QUEM EU QUERO SER\n\n• Produtor cultural de referência — o cara que cria experiências, não apenas eventos\n• Empresário de sucesso — Dona Maria em múltiplas filiais\n• Porta-voz hackermaker — quem mostra que dá pra construir tecnologia do zero\n• O cara dos eventos\n\nVALORES QUE GUIA\n\n1. Cultura primeiro — tudo começa da cultura e volta pra ela\n2. Compartilhar o caminho — a jornada é tão importante quanto o destino\n3. Construir sistemas, não apenas negócios\n4. Respeitar o corpo — sem saúde, nada disso importa\n5. Fé e conexão — povos das estrelas, da floresta, antepassados, artes e ouro",
+    "sortOrder": 1,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  },
+  {
+    "id": "vision-5y",
+    "section": "vision_5y",
+    "title": "Visão 5 Anos",
+    "content": "VISÃO 2031\n\nDONA MARIA\n• Múltiplas filiais por todo o Brasil\n• Modelos: DM LAB (cafeteria), HEADSHOP, LOUNGE bar, ou ecossistema completo\n• Equipes treinadas, Jonny no remote/estratégia\n\nARCO LABS\n• Produtora consolidada, não depende do Jonny\n• Devs contratados tocando os produtos\n• Compartilhar a jornada indie hacker com a comunidade\n\nPRODUTOS\n• ARCO PASS — tickets + gestão completa de eventos (principal fonte de renda)\n• ATELIE STUDIO — SaaS de gestão de casamentos\n• NAVEMÃE — SaaS de gestão de bar/restaurantes\n• ÓRBITA — agendamento para tatuadores\n\nRATARIA\n• Rodar o Brasil em turnê\n\nPESSOAL\n• Liberdade geográfica\n• Renda passiva com sistemas\n• Saúde em dia",
+    "sortOrder": 2,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-19T03:23:51.551Z"
+  },
+  {
+    "id": "vision-timeline",
+    "section": "timeline",
+    "title": "Linha do Tempo",
+    "content": "LINHA DO TEMPO\n\n2026 — Consolidar Dona Maria, lançar ARCO PASS, escrever TCC\n2027 — Primeira filial DM, ARCO PASS faturando, time de dev\n2028 — 3+ filiais, ARCO LABS produtora, 2+ SaaS rodando\n2029 — Expansão nacional, RATARIA S.A. em turnê\n2030-2031 — Ecossistema completo, liberdade geográfica",
+    "sortOrder": 3,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T21:08:24.596Z"
+  },
+  {
+    "id": "vision-dream",
+    "section": "dream",
+    "title": "Sonho Grande",
+    "content": "SONHO GRANDE\n\nRodar o Brasil com o RATARIA S.A.\nEnquanto isso, os empreendimentos rodam com as equipes.\nTrabalho remoto + viagem + novas operações + gente nova.\n\nLiberdade geográfica total. Cultura como vida.\nO trabalho é a expressão artística.",
+    "sortOrder": 4,
+    "createdAt": "2026-08-18T12:00:00.000Z",
+    "updatedAt": "2026-08-18T12:00:00.000Z"
+  },
+  {
+    "id": "vision-methodology",
+    "section": "custom",
+    "title": "Metodologia",
+    "content": "POR TRÁS DO LIFESYSTEM\n\nO LIFESYSTEM não é só um app de tarefas — é um Segundo Cérebro (Tiago Forte). A metodologia por trás dele já existe há décadas, só nunca tinha nome:\n\nCODE — o ciclo que o app segue\n• Capture → INBOX (joga qualquer ideia sem julgamento)\n• Organize → Pilares e Projetos (categoriza pelo que precisa de ação)\n• Distill → Diário (destila o dia no que realmente importa)\n• Express → Conteúdo (transforma tudo em algo publicável)\n\nPARA — como as coisas são categorizadas\n• Projects → Projetos (ARCO PASS, Dona Maria, TCC — coisas com fim definido)\n• Areas → Pilares (Físico, Mente, Dinheiro — responsabilidades contínuas, sem fim)\n• Resources → Conteúdo e referências guardadas\n• Archives → o que já foi concluído ou pausado\n\nZettelkasten — o que ainda falta\n• GTD/PARA resolve execução (o que fazer). Zettelkasten resolve pensamento (conectar ideias).\n• O INBOX hoje é uma lista linear de capturas. Uma rede de notas conectadas por link é o próximo passo — pra ideias soltas gerarem conexões novas, não só virarem tarefa ou serem esquecidas.\n\nMemória de longo prazo — a regra mais importante\n• Escrita de memória tem que ser um evento explícito, não automático. É por isso que a Revisão Semanal existe: sem ela, o sistema acumula captura e nunca vira conhecimento.\n• Fatos registrados sem revisão ficam desatualizados (memory staleness) — um pilar marcado 'CRÍTICO' há meses continua sendo lido como verdade se ninguém volta pra atualizar.\n\nConstelação dos Pilares\n• Cada estrela na página de Pilares é literalmente uma Area do PARA. A luz mais fraca marca a Area que está sendo negligenciada — e é onde a próxima Revisão Semanal deveria começar.",
+    "sortOrder": 5,
+    "createdAt": "2026-08-21T14:00:00.000Z",
+    "updatedAt": "2026-08-21T14:00:00.000Z"
+  }
+]

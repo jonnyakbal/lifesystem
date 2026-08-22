@@ -1,0 +1,439 @@
+[
+  {
+    "id": "task-tcc-tema",
+    "title": "Definir tema/título do TCC",
+    "priority": "urgent",
+    "status": "todo",
+    "pillarId": "pillar-mind",
+    "projectId": "53274a55-21a4-4608-b1de-be166c3fb91e",
+    "sortOrder": 0,
+    "tags": [
+      "TCC",
+      "UFSM"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T13:42:37.612Z"
+  },
+  {
+    "id": "task-tcc-bibliografia",
+    "title": "Fazer revisão bibliográfica",
+    "priority": "urgent",
+    "status": "todo",
+    "pillarId": "pillar-mind",
+    "projectId": "53274a55-21a4-4608-b1de-be166c3fb91e",
+    "sortOrder": 1,
+    "tags": [
+      "TCC",
+      "UFSM"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-tcc-escrever",
+    "title": "Escrever 2-3 páginas do TCC",
+    "description": "Meta semanal. Reservar 30 min/dia pra foco.",
+    "priority": "urgent",
+    "status": "doing",
+    "pillarId": "pillar-mind",
+    "projectId": "53274a55-21a4-4608-b1de-be166c3fb91e",
+    "sortOrder": 2,
+    "tags": [
+      "TCC",
+      "UFSM",
+      "semanal"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-edital-allghetto",
+    "title": "Criar perfil do evento ALLGHETTO",
+    "description": "Pra submissão no Edital Circula Museu Hip Hop RS.",
+    "priority": "urgent",
+    "status": "todo",
+    "projectId": "project-edital",
+    "pillarId": "pillar-community",
+    "sortOrder": 3,
+    "tags": [
+      "edital",
+      "RATARIA"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-edital-artistas",
+    "title": "Criar perfis dos artistas administrados",
+    "priority": "urgent",
+    "status": "todo",
+    "projectId": "project-edital",
+    "pillarId": "pillar-community",
+    "sortOrder": 4,
+    "tags": [
+      "edital",
+      "RATARIA"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-edital-doc",
+    "title": "Montar documentação pra submissão do Edital Circula",
+    "description": "Verificar data exata de encerramento e enviar antes do prazo.",
+    "priority": "urgent",
+    "status": "todo",
+    "projectId": "project-edital",
+    "sortOrder": 5,
+    "tags": [
+      "edital"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-academia-horario",
+    "title": "Definir horário fixo de academia",
+    "priority": "important",
+    "status": "todo",
+    "pillarId": "pillar-body",
+    "sortOrder": 6,
+    "tags": [
+      "saúde"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-academia-escolher",
+    "title": "Escolher academia",
+    "priority": "important",
+    "status": "todo",
+    "pillarId": "pillar-body",
+    "sortOrder": 7,
+    "tags": [
+      "saúde"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-alarme-sono",
+    "title": "Configurar alarme pra dormir às 23h",
+    "priority": "important",
+    "status": "todo",
+    "pillarId": "pillar-body",
+    "sortOrder": 8,
+    "tags": [
+      "saúde",
+      "sono"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-meal-prep",
+    "title": "Preparar refeições de domingo (meal prep)",
+    "priority": "important",
+    "status": "todo",
+    "pillarId": "pillar-body",
+    "sortOrder": 9,
+    "tags": [
+      "saúde",
+      "alimentação"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-dm-reuniao",
+    "title": "Reunião de equipe pra delegação",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-dona-maria",
+    "sortOrder": 10,
+    "tags": [
+      "delegação"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-dm-delegaveis",
+    "title": "Identificar tarefas que podem ser delegadas",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-dona-maria",
+    "sortOrder": 11,
+    "tags": [
+      "delegação"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-dm-processos",
+    "title": "Criar processos documentados pras equipes",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-dona-maria",
+    "sortOrder": 12,
+    "tags": [
+      "delegação"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-labs-conteudo",
+    "title": "Definir primeiro conteúdo pra criar (ARCO LABS)",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-arco-labs",
+    "sortOrder": 13,
+    "tags": [
+      "conteúdo"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-labs-plataforma",
+    "title": "Escolher plataforma (YouTube, Instagram, LinkedIn)",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-arco-labs",
+    "sortOrder": 14,
+    "tags": [
+      "conteúdo"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-labs-roteiro",
+    "title": "Roteiro do primeiro vídeo/post",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-arco-labs",
+    "sortOrder": 15,
+    "tags": [
+      "conteúdo"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-pass-revisar",
+    "title": "Revisar protótipo atual do ARCO PASS",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-arco-pass",
+    "sortOrder": 16,
+    "tags": [
+      "produto"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-pass-ux",
+    "title": "Identificar melhorias de UX no fluxo de compra",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-arco-pass",
+    "sortOrder": 17,
+    "tags": [
+      "produto",
+      "UX"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-pass-sprint",
+    "title": "Planejar próxima sprint de dev do ARCO PASS",
+    "priority": "important",
+    "status": "todo",
+    "projectId": "project-arco-pass",
+    "sortOrder": 18,
+    "tags": [
+      "produto"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-financeiro-rendas",
+    "title": "Mapear todas as fontes de renda com valores",
+    "priority": "normal",
+    "status": "todo",
+    "pillarId": "pillar-money",
+    "sortOrder": 19,
+    "tags": [
+      "financeiro"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-financeiro-despesas",
+    "title": "Listar todas as despesas fixas com valores",
+    "priority": "normal",
+    "status": "todo",
+    "pillarId": "pillar-money",
+    "sortOrder": 20,
+    "tags": [
+      "financeiro"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-financeiro-separar",
+    "title": "Separar contas pessoais vs. empresa",
+    "priority": "normal",
+    "status": "todo",
+    "pillarId": "pillar-money",
+    "sortOrder": 21,
+    "tags": [
+      "financeiro"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-organizar-captures",
+    "title": "Organizar captures de longa data (Notion, ClickUp, WhatsApp)",
+    "priority": "normal",
+    "status": "todo",
+    "sortOrder": 22,
+    "tags": [
+      "organização"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-calendario-editorial",
+    "title": "Criar calendário editorial ARCO LABS",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-arco-labs",
+    "sortOrder": 23,
+    "tags": [
+      "conteúdo"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-navemae-saas",
+    "title": "NAVEMÃE → documentar e decidir se vira SaaS",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-navemae",
+    "sortOrder": 24,
+    "tags": [
+      "produto"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-atelie-escopo",
+    "title": "ATELIE STUDIO → definir escopo e MVP",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-atelie",
+    "sortOrder": 25,
+    "tags": [
+      "produto"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-rataria-shows",
+    "title": "RATARIA → agendar 2-3 shows nos próximos meses",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-rataria",
+    "sortOrder": 26,
+    "tags": [
+      "música"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-rataria-gravar",
+    "title": "RATARIA → gravar material novo",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-rataria",
+    "sortOrder": 27,
+    "tags": [
+      "música"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-dm-filial",
+    "title": "Dona Maria → planejar 1ª filial",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-dona-maria",
+    "sortOrder": 28,
+    "tags": [
+      "expansão"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  },
+  {
+    "id": "task-arco-pass-validar",
+    "title": "ARCO PASS → validar com 10 produtores",
+    "priority": "normal",
+    "status": "todo",
+    "projectId": "project-arco-pass",
+    "sortOrder": 29,
+    "tags": [
+      "produto",
+      "validação"
+    ],
+    "checklist": [],
+    "createdAt": "2026-08-21T12:00:00.000Z",
+    "updatedAt": "2026-08-21T12:00:00.000Z"
+  }
+]

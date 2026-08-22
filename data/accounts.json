@@ -1,0 +1,28 @@
+[
+  {
+    "name": "Nubank",
+    "type": "checking",
+    "bank": "Nubank",
+    "balance": 6.76,
+    "color": "#8b5cf6",
+    "icon": "🏦",
+    "isActive": true,
+    "isDefault": false,
+    "id": "2eccf3aa-2e0a-47b2-9ae3-6d88ba38eba4",
+    "createdAt": "2026-08-19T16:51:23.661Z",
+    "updatedAt": "2026-08-19T16:51:23.661Z"
+  },
+  {
+    "name": "PicPay",
+    "type": "checking",
+    "bank": "PicPay",
+    "balance": 0,
+    "color": "#22c55e",
+    "icon": "🏦",
+    "isActive": true,
+    "isDefault": false,
+    "id": "7726c6da-1516-4ce0-b235-37a81cfac14e",
+    "createdAt": "2026-08-19T16:51:47.253Z",
+    "updatedAt": "2026-08-19T16:51:47.253Z"
+  }
+]
