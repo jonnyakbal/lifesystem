@@ -63,6 +63,13 @@ function getTitle(content: string): string {
   return firstLine || 'Nova página';
 }
 
+function stripLeadingTitle(content: string): string {
+  // handleSaveEditor() re-prepends `<h2>${editorTitle}</h2>` on every save.
+  // If we don't strip the previous one here, editing a capture repeatedly
+  // duplicates the title heading on each save.
+  return content.replace(/^\s*<h2>[\s\S]*?<\/h2>\s*\n?/, '');
+}
+
 function getPreview(content: string): string {
   const text = content.replace(/<[^>]*>/g, '').trim();
   const lines = text.split('\n').slice(1, 4);
@@ -138,7 +145,7 @@ export default function InboxPage() {
   function openEdit(capture: Capture) {
     setEditingCapture(capture);
     setEditorTitle(getTitle(capture.content));
-    setEditorContent(capture.content);
+    setEditorContent(stripLeadingTitle(capture.content));
     setEditorCategory(capture.category || 'ideias');
     setEditorCoverUrl((capture as any).coverUrl || '');
     editorOpenedAtRef.current = Date.now();
