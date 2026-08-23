@@ -1,42 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 
-// Simple HTTP Basic Auth gate — the whole app is personal data (finanças,
-// diário, tarefas), so it must never be reachable without a password once
-// it's live on a public URL. Credentials come from env vars only (never
-// hardcoded here), so the deploy fails closed if they're not set.
-export function middleware(request: NextRequest) {
+// Cookie-based auth gate — the whole app is personal data (finanças, diário,
+// tarefas), so it must never be reachable without logging in once it's live
+// on a public URL. Credentials come from AUTH_USER/AUTH_PASSWORD env vars
+// only (never hardcoded here), so the deploy fails closed if they're not set.
+const PUBLIC_PATHS = ['/login', '/api/login'];
+
+export async function middleware(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
     return NextResponse.next();
   }
 
-  const expectedUser = process.env.AUTH_USER;
-  const expectedPassword = process.env.AUTH_PASSWORD;
+  const { pathname } = request.nextUrl;
+  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+    return NextResponse.next();
+  }
 
-  if (!expectedUser || !expectedPassword) {
+  if (!process.env.AUTH_USER || !process.env.AUTH_PASSWORD) {
     return new NextResponse(
       'Auth not configured: set AUTH_USER and AUTH_PASSWORD environment variables.',
       { status: 503 }
     );
   }
 
-  const authHeader = request.headers.get('authorization');
-
-  if (authHeader) {
-    const [scheme, encoded] = authHeader.split(' ');
-    if (scheme === 'Basic' && encoded) {
-      const [user, password] = Buffer.from(encoded, 'base64').toString().split(':');
-      if (user === expectedUser && password === expectedPassword) {
-        return NextResponse.next();
-      }
-    }
+  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  if (await isValidSessionToken(token)) {
+    return NextResponse.next();
   }
 
-  return new NextResponse('Autenticação necessária.', {
-    status: 401,
-    headers: { 'WWW-Authenticate': 'Basic realm="LIFESYSTEM"' },
-  });
+  if (pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+  }
+
+  const loginUrl = new URL('/login', request.url);
+  loginUrl.searchParams.set('from', pathname);
+  return NextResponse.redirect(loginUrl);
 }
 
 export const config = {
-  matcher: '/((?!_next/static|_next/image|favicon.ico).*)',
+  matcher: '/((?!_next/static|_next/image|favicon.ico|covers/).*)',
 };

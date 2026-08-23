@@ -1,11 +1,9 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/layout/sidebar";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
-import { AppShell } from "@/components/layout/app-shell";
-import { CommandPalette } from "@/components/layout/command-palette";
+import { ChromeGate } from "@/components/layout/chrome-gate";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -49,12 +47,8 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${fraunces.variable} ${jetbrainsMono.variable} min-h-screen bg-background font-sans antialiased`}
       >
         <TooltipProvider>
-          <Sidebar />
-          <main className="pt-14 lg:pl-64 lg:pt-0">
-            <AppShell>{children}</AppShell>
-          </main>
+          <ChromeGate>{children}</ChromeGate>
           <Toaster richColors position="bottom-right" />
-          <CommandPalette />
         </TooltipProvider>
       </body>
     </html>

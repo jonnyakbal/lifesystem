@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Inbox, Home, Target, Layers, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
-  Sun, Moon
+  Sun, Moon, LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -206,6 +206,18 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
                 }}
               >
                 <Settings className="h-3.5 w-3.5 text-muted-foreground" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 shrink-0"
+                title="Sair"
+                onClick={async () => {
+                  await fetch('/api/logout', { method: 'POST' });
+                  window.location.href = '/login';
+                }}
+              >
+                <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
               </Button>
             </>
           )}
