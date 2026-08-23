@@ -1,6 +1,8 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import { SlashCommand } from '@/lib/tiptap-extensions/slash-command';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -14,6 +16,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { Image } from '@tiptap/extension-image';
+import { Link } from '@tiptap/extension-link';
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -88,6 +91,11 @@ export function NotionEditor({
         inline: true,
         allowBase64: true,
       }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+      }),
+      SlashCommand,
     ],
     content,
     editable,
@@ -137,13 +145,84 @@ export function NotionEditor({
     }
   }, [content]);
 
+  // The slash menu's "Imagem" item can't open a file picker itself (it runs
+  // inside a detached React root outside this component's tree), so it
+  // dispatches this event and lets the editor that owns the upload logic
+  // handle it instead.
+  useEffect(() => {
+    if (!editor) return;
+    function handleInsertImage() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/jpeg,image/png,image/gif,image/webp';
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0];
+        if (file) uploadAndInsertImage(file, editor);
+      };
+      input.click();
+    }
+    window.addEventListener('notion-editor-insert-image', handleInsertImage);
+    return () => window.removeEventListener('notion-editor-insert-image', handleInsertImage);
+  }, [editor]);
+
   if (!editor) return null;
 
   return (
     <div className="relative group/editor">
       {showToolbar && editable && <EnhancedToolbar editor={editor} compact={compact} />}
+      {editable && (
+        <BubbleMenu
+          editor={editor}
+          shouldShow={({ state }) => !state.selection.empty}
+          appendTo={() => document.body}
+          className="z-[200]"
+          options={{ strategy: 'fixed', placement: 'bottom', offset: 8 }}
+        >
+          <SelectionToolbar editor={editor} />
+        </BubbleMenu>
+      )}
       <EditorContent editor={editor} className="mt-2" />
       {editable && <TableControls editor={editor} />}
+    </div>
+  );
+}
+
+// ─── Selection Bubble Menu ─────────────────────────────────────────────────────
+// Notion's core formatting UX: select text, a floating toolbar appears right
+// above the selection. No persistent chrome needed for basic formatting.
+
+function SelectionToolbar({ editor }: { editor: any }) {
+  const btn = (active: boolean, onClick: () => void, children: React.ReactNode, title: string) => (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={onClick}
+      title={title}
+      className={cn(
+        'h-7 w-7 flex items-center justify-center rounded text-xs transition-colors',
+        active ? 'bg-primary/25 text-primary' : 'text-foreground/80 hover:bg-white/10'
+      )}
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <div className="z-50 flex items-center gap-0.5 rounded-lg glass-strong shadow-xl px-1 py-1">
+      {btn(editor.isActive('bold'), () => editor.chain().focus().toggleBold().run(), <Bold className="w-3.5 h-3.5" />, 'Negrito')}
+      {btn(editor.isActive('italic'), () => editor.chain().focus().toggleItalic().run(), <Italic className="w-3.5 h-3.5" />, 'Itálico')}
+      {btn(editor.isActive('strike'), () => editor.chain().focus().toggleStrike().run(), <Strikethrough className="w-3.5 h-3.5" />, 'Tachado')}
+      {btn(editor.isActive('code'), () => editor.chain().focus().toggleCode().run(), <Code className="w-3.5 h-3.5" />, 'Código')}
+      <div className="w-px h-4 bg-border/60 mx-0.5" />
+      {btn(editor.isActive('highlight'), () => editor.chain().focus().toggleHighlight({ color: '#fbbf24' }).run(), <Highlighter className="w-3.5 h-3.5" />, 'Destacar')}
+      {btn(editor.isActive('link'), () => {
+        if (editor.isActive('link')) {
+          editor.chain().focus().unsetLink().run();
+          return;
+        }
+        const url = window.prompt('URL do link:');
+        if (url) editor.chain().focus().setLink({ href: url }).run();
+      }, <LinkIcon className="w-3.5 h-3.5" />, 'Link')}
     </div>
   );
 }
