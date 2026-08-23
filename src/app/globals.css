@@ -46,6 +46,36 @@
   }
 }
 
+/* Light theme — overrides the @theme defaults (which are dark-first) when
+   the Settings dialog's theme toggle (useTheme in settings.tsx) puts
+   `.light` on <html>. Same hues as the dark palette, tuned for a light
+   background, so the app keeps its cosmic/purple identity either way. */
+.light {
+  --color-background: hsl(250 45% 98%);
+  --color-foreground: hsl(256 35% 12%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-foreground: hsl(256 35% 12%);
+  --color-popover: hsl(0 0% 100%);
+  --color-popover-foreground: hsl(256 35% 12%);
+  --color-primary: hsl(262 75% 52%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(255 30% 94%);
+  --color-secondary-foreground: hsl(256 35% 18%);
+  --color-muted: hsl(255 25% 95%);
+  --color-muted-foreground: hsl(252 15% 42%);
+  --color-accent: hsl(262 55% 93%);
+  --color-accent-foreground: hsl(262 65% 32%);
+  --color-destructive: hsl(350 78% 48%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(255 22% 88%);
+  --color-input: hsl(255 22% 88%);
+  --color-ring: hsl(262 75% 52%);
+  --color-stellar: hsl(262 80% 52%);
+  --color-money: hsl(162 75% 32%);
+  --color-qty: hsl(207 82% 46%);
+  --color-critical: hsl(350 78% 48%);
+}
+
 @layer base {
   * {
     @apply border-border;
