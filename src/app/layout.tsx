@@ -30,6 +30,14 @@ export const metadata: Metadata = {
   description: "Meu ecossistema inteiro num só lugar",
 };
 
+// This is a personal, password-gated app — every page is behind the Basic
+// Auth middleware, so nothing here should ever be a cacheable static
+// artifact. Static generation produced a page that got cached (by an
+// intermediary in front of the Node process) BEFORE auth was configured,
+// and kept serving that stale unauthenticated copy of "/" after the fact.
+// Forcing dynamic rendering means every request is always evaluated fresh.
+export const dynamic = 'force-dynamic';
+
 export default function RootLayout({
   children,
 }: Readonly<{
