@@ -4,6 +4,7 @@ import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { ChromeGate } from "@/components/layout/chrome-gate";
+import { PWARegister } from "@/components/pwa-register";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -26,6 +27,22 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "LIFESYSTEM",
   description: "Meu ecossistema inteiro num só lugar",
+  manifest: "/manifest.json",
+  themeColor: "#8B5CF6",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "LIFESYSTEM",
+  },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
 };
 
 // This is a personal, password-gated app — every page is behind the Basic
@@ -49,6 +66,7 @@ export default function RootLayout({
         <TooltipProvider>
           <ChromeGate>{children}</ChromeGate>
           <Toaster richColors position="bottom-right" />
+          <PWARegister />
         </TooltipProvider>
       </body>
     </html>
