@@ -632,55 +632,55 @@ export default function FinanceiroPage() {
       </motion.div>
 
       {/* ─── Balances Overview (Organizze-style) ──────────────────────────── */}
-      <motion.div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4" variants={stagger}>
+      <motion.div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" variants={stagger}>
         {isLoading ? Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}><CardContent className="p-5"><Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-8 w-32" /></CardContent></Card>
+          <Card key={i}><CardContent className="p-3 lg:p-5"><Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-6 w-24" /></CardContent></Card>
         )) : (
           <>
             <motion.div variants={fade}>
               <Card className="border-l-4 border-l-money bg-money/5">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Saldo Total</span>
-                    <Landmark className="h-5 w-5 text-money" />
+                <CardContent className="p-3 lg:p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Saldo Total</span>
+                    <Landmark className="h-4 w-4 text-money" />
                   </div>
-                  <div className="text-3xl font-bold text-money font-mono-num">R$ {totalBalance.toLocaleString('pt-BR')}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{accounts.filter(a => a.isActive).length} contas ativas</p>
+                  <div className="text-xl lg:text-3xl font-bold text-money font-mono-num">R$ {totalBalance.toLocaleString('pt-BR')}</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{accounts.filter(a => a.isActive).length} contas ativas</p>
                 </CardContent>
               </Card>
             </motion.div>
             <motion.div variants={fade}>
               <Card className="border-l-4 border-l-primary bg-primary/5">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Receitas</span>
-                    <TrendingUp className="h-5 w-5 text-primary" />
+                <CardContent className="p-3 lg:p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Receitas</span>
+                    <TrendingUp className="h-4 w-4 text-primary" />
                   </div>
-                  <div className="text-3xl font-bold text-primary font-mono-num">R$ {totalIncome.toLocaleString('pt-BR')}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{range.label}</p>
+                  <div className="text-xl lg:text-3xl font-bold text-primary font-mono-num">R$ {totalIncome.toLocaleString('pt-BR')}</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{range.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
             <motion.div variants={fade}>
               <Card className="border-l-4 border-l-critical bg-critical/5">
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Despesas</span>
-                    <TrendingDown className="h-5 w-5 text-critical" />
+                <CardContent className="p-3 lg:p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Despesas</span>
+                    <TrendingDown className="h-4 w-4 text-critical" />
                   </div>
-                  <div className="text-3xl font-bold text-critical font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{range.label}</p>
+                  <div className="text-xl lg:text-3xl font-bold text-critical font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{range.label}</p>
                 </CardContent>
               </Card>
             </motion.div>
             <motion.div variants={fade}>
               <Card className={cn('border-l-4', balance >= 0 ? 'border-l-money bg-money/5' : 'border-l-critical bg-critical/5')}>
-                <CardContent className="p-5">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-muted-foreground">Fluxo Líquido</span>
-                    <CircleDollarSign className={cn('h-5 w-5', balance >= 0 ? 'text-money' : 'text-critical')} />
+                <CardContent className="p-3 lg:p-5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Fluxo Líquido</span>
+                    <CircleDollarSign className={cn('h-4 w-4', balance >= 0 ? 'text-money' : 'text-critical')} />
                   </div>
-                  <div className={cn('text-3xl font-bold font-mono-num', balance >= 0 ? 'text-money' : 'text-critical')}>
+                  <div className={cn('text-xl lg:text-3xl font-bold font-mono-num', balance >= 0 ? 'text-money' : 'text-critical')}>
                     {balance >= 0 ? '+' : ''} R$ {balance.toLocaleString('pt-BR')}
                   </div>
                   <div className="flex items-center gap-2 mt-1">
@@ -1218,7 +1218,7 @@ export default function FinanceiroPage() {
                                   </Badge>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-6 w-6"><MoreHorizontal className="h-3 w-3" /></Button>
+                                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end">
                                       {bill.status !== 'paid' && (

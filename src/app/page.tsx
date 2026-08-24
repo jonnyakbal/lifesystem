@@ -312,7 +312,7 @@ export default function HomePage() {
       {/* ─── Hero Section with Gradient ─── */}
       <motion.div className="mb-8" variants={fade}>
         <div className="relative mb-6 overflow-hidden">
-          <h1 className="font-display text-4xl md:text-5xl font-bold tracking-tight text-shimmer">
+          <h1 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-shimmer">
             Command Center
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -350,7 +350,7 @@ export default function HomePage() {
 
       {/* ─── Stats Row (5 Cards) ─── */}
       <motion.div className="mb-6" variants={fade}>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <Card key={i}>
@@ -366,15 +366,15 @@ export default function HomePage() {
               <motion.div key={card.title} variants={fade}>
                 <Link href={card.href}>
                   <Card className={cn("group transition-all border-2 hover:shadow-lg", card.className)}>
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground">{card.title}</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-1 p-3">
+                      <CardTitle className="text-xs font-medium text-muted-foreground">{card.title}</CardTitle>
                       <motion.div whileHover={{ y: -2, scale: 1.1 }} transition={{ type: 'spring', stiffness: 400, damping: 17 }}>
-                        <card.icon className={cn('h-4 w-4', card.color)} />
+                        <card.icon className={cn('h-3.5 w-3.5', card.color)} />
                       </motion.div>
                     </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold"><AnimatedNumber value={card.value} /></div>
-                      <p className="text-sm text-muted-foreground/60 mt-1">{card.subtitle}</p>
+                    <CardContent className="p-3 pt-0">
+                      <div className="text-xl font-bold"><AnimatedNumber value={card.value} /></div>
+                      <p className="text-xs text-muted-foreground/60 mt-0.5">{card.subtitle}</p>
                     </CardContent>
                   </Card>
                 </Link>

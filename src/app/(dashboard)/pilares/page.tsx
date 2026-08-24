@@ -471,7 +471,7 @@ export default function PilaresPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-6 w-6 opacity-0 group-hover/action:opacity-100 transition-opacity shrink-0"
+                                    className="h-8 w-8 opacity-0 group-hover/action:opacity-100 transition-opacity shrink-0"
                                     onClick={() => deleteAction(pillar, action.id)}
                                   >
                                     <Trash2 className="h-3.5 w-3.5 text-destructive" />

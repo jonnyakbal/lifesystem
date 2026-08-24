@@ -282,13 +282,13 @@ export default function DiarioPage() {
                   {new Date(calendarYear, calendarMonth).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 </CardTitle>
                 <div className="flex gap-1">
-                  <Button variant="ghost" size="icon" className="h-6 w-6"
+                  <Button variant="ghost" size="icon" className="h-8 w-8"
                     onClick={() => calendarMonth === 0 ? (setCalendarMonth(11), setCalendarYear(calendarYear - 1)) : setCalendarMonth(calendarMonth - 1)}>
-                    <ChevronLeft className="h-3 w-3" />
+                    <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <Button variant="ghost" size="icon" className="h-6 w-6"
+                  <Button variant="ghost" size="icon" className="h-8 w-8"
                     onClick={() => calendarMonth === 11 ? (setCalendarMonth(0), setCalendarYear(calendarYear + 1)) : setCalendarMonth(calendarMonth + 1)}>
-                    <ChevronRight className="h-3 w-3" />
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </CardHeader>

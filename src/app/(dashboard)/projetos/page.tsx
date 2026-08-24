@@ -422,7 +422,7 @@ export default function ProjectsPage() {
                     <button
                       type="button"
                       onClick={() => setEditCoverUrl('')}
-                      className="absolute top-2 right-2 h-6 w-6 rounded-full bg-background/80 flex items-center justify-center hover:bg-background"
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full bg-background/80 flex items-center justify-center hover:bg-background"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -529,7 +529,7 @@ export default function ProjectsPage() {
                   <div key={i} className="flex items-center gap-2">
                     <LinkIcon className="h-3 w-3 text-muted-foreground shrink-0" />
                     <span className="text-sm flex-1 truncate">{link.label}: {link.url}</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => removeLink(i)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => removeLink(i)}>
                       <X className="h-3 w-3" />
                     </Button>
                   </div>
