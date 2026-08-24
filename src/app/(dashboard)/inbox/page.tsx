@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Trash2, FileText, Link as LinkIcon, Image, Mic, Inbox as InboxIcon,
   Search, X, ChevronLeft, Sparkles, BookOpen, Briefcase, Home, GraduationCap,
-  Tag, MoreHorizontal, Copy, Archive
+  Tag, MoreHorizontal, Copy, Archive, PanelRight, Square, Maximize2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -81,6 +81,49 @@ const stagger = { animate: { transition: { staggerChildren: 0.04, delayChildren:
 
 type ViewMode = 'gallery' | 'list';
 
+// How the capture editor opens — a per-user preference, persisted so the
+// last choice becomes the default next time (not just for this session).
+type EditorLayout = 'corner' | 'center' | 'fullscreen';
+const EDITOR_LAYOUT_KEY = 'lifesystem-capture-editor-layout';
+
+const LAYOUT_OPTIONS: { id: EditorLayout; label: string; icon: typeof PanelRight }[] = [
+  { id: 'corner', label: 'Canto', icon: PanelRight },
+  { id: 'center', label: 'Centralizado', icon: Square },
+  { id: 'fullscreen', label: 'Tela cheia', icon: Maximize2 },
+];
+
+const LAYOUT_CONFIG: Record<EditorLayout, {
+  panelClassName: string;
+  motionProps: { initial: Record<string, any>; animate: Record<string, any>; exit: Record<string, any> };
+}> = {
+  corner: {
+    panelClassName: 'fixed right-0 top-0 z-[101] h-screen w-full max-w-3xl bg-background border-l border-border flex flex-col',
+    motionProps: {
+      initial: { x: '100%', opacity: 0 },
+      animate: { x: 0, opacity: 1 },
+      exit: { x: '100%', opacity: 0 },
+    },
+  },
+  center: {
+    panelClassName: 'fixed left-1/2 top-1/2 z-[101] h-[85vh] w-full max-w-3xl bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden',
+    motionProps: {
+      // x/y (not Tailwind's translate classes) so Framer Motion's own
+      // transform composition doesn't clobber the centering offset.
+      initial: { x: '-50%', y: '-50%', opacity: 0, scale: 0.96 },
+      animate: { x: '-50%', y: '-50%', opacity: 1, scale: 1 },
+      exit: { x: '-50%', y: '-50%', opacity: 0, scale: 0.96 },
+    },
+  },
+  fullscreen: {
+    panelClassName: 'fixed inset-0 z-[101] bg-background flex flex-col',
+    motionProps: {
+      initial: { opacity: 0, scale: 0.98 },
+      animate: { opacity: 1, scale: 1 },
+      exit: { opacity: 0, scale: 0.98 },
+    },
+  },
+};
+
 export default function InboxPage() {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +133,7 @@ export default function InboxPage() {
 
   // Editor state
   const [editorOpen, setEditorOpen] = useState(false);
+  const [editorLayout, setEditorLayoutState] = useState<EditorLayout>('corner');
   const [editingCapture, setEditingCapture] = useState<Capture | null>(null);
   const [editorTitle, setEditorTitle] = useState('');
   const [editorContent, setEditorContent] = useState('');
@@ -104,6 +148,16 @@ export default function InboxPage() {
   const editorOpenedAtRef = useRef(0);
 
   useEffect(() => { loadCaptures(); }, []);
+
+  useEffect(() => {
+    const stored = localStorage.getItem(EDITOR_LAYOUT_KEY) as EditorLayout | null;
+    if (stored && LAYOUT_CONFIG[stored]) setEditorLayoutState(stored);
+  }, []);
+
+  function setEditorLayout(mode: EditorLayout) {
+    setEditorLayoutState(mode);
+    localStorage.setItem(EDITOR_LAYOUT_KEY, mode);
+  }
 
   async function loadCaptures() {
     try {
@@ -477,11 +531,10 @@ export default function InboxPage() {
               onClick={closeEditorFromBackdrop}
             />
             <motion.div
-              initial={{ x: '100%', opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: '100%', opacity: 0 }}
+              key={editorLayout}
+              {...LAYOUT_CONFIG[editorLayout].motionProps}
               transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-              className="fixed right-0 top-0 z-[101] h-screen w-full max-w-3xl bg-background border-l border-border flex flex-col"
+              className={LAYOUT_CONFIG[editorLayout].panelClassName}
             >
               {/* Editor Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
@@ -492,6 +545,24 @@ export default function InboxPage() {
                   <span className="text-sm text-muted-foreground">
                     {editingCapture ? 'Editando' : 'Nova captura'}
                   </span>
+                  <div className="flex items-center gap-0.5 rounded-lg border border-border/60 p-0.5 ml-1">
+                    {LAYOUT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        title={opt.label}
+                        onClick={() => setEditorLayout(opt.id)}
+                        className={cn(
+                          'flex h-6 w-6 items-center justify-center rounded transition-colors',
+                          editorLayout === opt.id
+                            ? 'bg-primary/20 text-primary'
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        )}
+                      >
+                        <opt.icon className="h-3.5 w-3.5" />
+                      </button>
+                    ))}
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
