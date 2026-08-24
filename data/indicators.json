@@ -45,6 +45,27 @@
     "updatedAt": "2026-08-21T12:00:00.000Z"
   },
   {
+    "id": "ind-agua",
+    "pillarId": "pillar-body",
+    "name": "Litros de água",
+    "type": "count",
+    "targetValue": 2,
+    "currentValue": 0,
+    "frequency": "Diário",
+    "createdAt": "2026-08-24T12:00:00.000Z",
+    "updatedAt": "2026-08-24T12:00:00.000Z"
+  },
+  {
+    "id": "ind-peso",
+    "pillarId": "pillar-body",
+    "name": "Peso corporal (kg)",
+    "type": "count",
+    "currentValue": 0,
+    "frequency": "Semanal",
+    "createdAt": "2026-08-24T12:00:00.000Z",
+    "updatedAt": "2026-08-24T12:00:00.000Z"
+  },
+  {
     "id": "ind-tcc-horas",
     "pillarId": "pillar-mind",
     "name": "Horas foco TCC/semana",

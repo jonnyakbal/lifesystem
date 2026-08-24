@@ -199,18 +199,18 @@ export default function IndicadoresPage() {
     >
       <motion.div className="mb-8 flex items-center justify-between" variants={fade}>
         <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Indicadores</h1>
-          <p className="text-muted-foreground">Métricas pessoais por pilar</p>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Metas</h1>
+          <p className="text-muted-foreground">Métricas e metas pessoais por pilar</p>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Novo Indicador
+            <Plus className="mr-2 h-4 w-4" /> Nova Meta
           </Button>
           <DialogContent>
             <form onSubmit={handleCreate}>
               <DialogHeader>
-                <DialogTitle>Novo Indicador</DialogTitle>
-                <DialogDescription>Crie uma nova métrica para acompanhar.</DialogDescription>
+                <DialogTitle>Nova Meta</DialogTitle>
+                <DialogDescription>Crie uma nova métrica ou meta pra acompanhar.</DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
@@ -312,8 +312,8 @@ export default function IndicadoresPage() {
                    <Card className="border-dashed">
                      <CardContent className="flex flex-col items-center justify-center py-8">
                        <BarChart3 className="h-10 w-10 text-muted-foreground/30 empty-state-icon mb-2" />
-                       <p className="text-sm text-muted-foreground text-center">Nenhum indicador neste pilar</p>
-                       <p className="text-xs text-muted-foreground/50 text-center mt-1">Clique em "Novo Indicador" para começar</p>
+                       <p className="text-sm text-muted-foreground text-center">Nenhuma meta neste pilar</p>
+                       <p className="text-xs text-muted-foreground/50 text-center mt-1">Clique em "Nova Meta" para começar</p>
                      </CardContent>
                    </Card>
                  ) : (
@@ -400,7 +400,7 @@ export default function IndicadoresPage() {
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar Indicador</DialogTitle>
+            <DialogTitle>Editar Meta</DialogTitle>
             <DialogDescription>Altere os dados e registre um novo valor</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">

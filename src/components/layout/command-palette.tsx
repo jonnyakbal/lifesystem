@@ -174,7 +174,7 @@ export function CommandPalette() {
     { id: 'projetos', label: 'Ir para Projetos', icon: FolderKanban, shortcut: '⌘J', action: () => router.push('/projetos'), category: 'Navegação' },
     { id: 'tarefas', label: 'Ir para Tarefas', icon: CheckSquare, shortcut: '⌘T', action: () => router.push('/tarefas'), category: 'Navegação' },
     { id: 'conteudo', label: 'Ir para Conteúdo', icon: FileText, shortcut: '⌘N', action: () => router.push('/conteudo'), category: 'Navegação' },
-    { id: 'indicadores', label: 'Ir para Indicadores', icon: BarChart3, shortcut: '⌘D', action: () => router.push('/indicadores'), category: 'Navegação' },
+    { id: 'indicadores', label: 'Ir para Metas', icon: BarChart3, shortcut: '⌘D', action: () => router.push('/indicadores'), category: 'Navegação' },
     { id: 'financeiro', label: 'Ir para Financeiro', icon: Wallet, shortcut: '⌘F', action: () => router.push('/financeiro'), category: 'Navegação' },
     { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: '⌘L', action: () => router.push('/diario'), category: 'Navegação' },
     { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: '⌘H', action: () => router.push('/'), category: 'Navegação' },

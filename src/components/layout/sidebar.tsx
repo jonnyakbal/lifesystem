@@ -25,7 +25,7 @@ const navigation = [
   { name: 'Projetos', href: '/projetos', icon: FolderKanban, shortcut: '⌘J' },
   { name: 'Tarefas', href: '/tarefas', icon: CheckSquare, shortcut: '⌘T' },
   { name: 'Conteúdo', href: '/conteudo', icon: FileText, shortcut: '⌘N' },
-  { name: 'Indicadores', href: '/indicadores', icon: BarChart3, shortcut: '⌘D' },
+  { name: 'Metas', href: '/indicadores', icon: BarChart3, shortcut: '⌘D' },
   { name: 'Financeiro', href: '/financeiro', icon: Wallet, shortcut: '⌘F' },
   { name: 'Diário', href: '/diario', icon: BookOpen, shortcut: '⌘L' },
 ];
