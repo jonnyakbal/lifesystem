@@ -704,7 +704,7 @@ export default function FinanceiroPage() {
             </div>
             <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Tipo</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tipo</Label>
                 <Select value={quickType} onValueChange={(v) => { setQuickType(v as FinancialEntry['type']); setQuickCategory(''); }}>
                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -715,7 +715,7 @@ export default function FinanceiroPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Categoria</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Categoria</Label>
                 <Select value={quickCategory} onValueChange={setQuickCategory}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Selecionar" /></SelectTrigger>
                   <SelectContent>
@@ -724,15 +724,15 @@ export default function FinanceiroPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Valor (R$)</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Valor (R$)</Label>
                 <Input ref={quickAmountRef} type="number" step="0.01" value={quickAmount} onChange={(e) => setQuickAmount(e.target.value)} placeholder="0,00" className="h-10 font-mono-num text-lg" />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Descrição</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Descrição</Label>
                 <Input value={quickDescription} onChange={(e) => setQuickDescription(e.target.value)} placeholder="O que foi?" className="h-10" />
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Conta</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Conta</Label>
                 <Select value={quickAccountId} onValueChange={setQuickAccountId}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Selecione" /></SelectTrigger>
                   <SelectContent>
@@ -741,7 +741,7 @@ export default function FinanceiroPage() {
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Frequência</Label>
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Frequência</Label>
                 <Select value={quickRecurring} onValueChange={(v) => setQuickRecurring(v as RecurringType)}>
                   <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -955,7 +955,7 @@ export default function FinanceiroPage() {
                         <div key={budget.id} className="rounded-xl border p-4">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-medium">{budget.category}</span>
-                            {isOver && <Badge variant="destructive" className="text-[10px]">Estourado</Badge>}
+                            {isOver && <Badge variant="destructive" className="text-xs">Estourado</Badge>}
                           </div>
                           <div className="text-lg font-bold font-mono-num">R$ {budget.spent.toLocaleString('pt-BR')}</div>
                           <div className="text-xs text-muted-foreground">de R$ {budget.monthlyLimit.toLocaleString('pt-BR')}</div>
@@ -1213,7 +1213,7 @@ export default function FinanceiroPage() {
                                 <div key={bill.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                                   <span className="text-xs text-muted-foreground w-16">{bill.month}</span>
                                   <span className="flex-1 text-sm font-mono-num">R$ {bill.amount.toLocaleString('pt-BR')}</span>
-                                  <Badge variant={bill.status === 'paid' ? 'default' : 'destructive'} className={cn('text-[10px]', bill.status === 'paid' && 'bg-money/10 text-money')}>
+                                  <Badge variant={bill.status === 'paid' ? 'default' : 'destructive'} className={cn('text-xs', bill.status === 'paid' && 'bg-money/10 text-money')}>
                                     {bill.status === 'paid' ? 'Paga' : bill.status === 'closed' ? 'Fechada' : bill.status === 'partial' ? 'Parcial' : 'Aberta'}
                                   </Badge>
                                   <DropdownMenu>
@@ -1332,7 +1332,7 @@ export default function FinanceiroPage() {
                             {entry.description && <p className="text-sm text-muted-foreground truncate mt-0.5">{entry.description}</p>}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-muted-foreground">{new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                              {entry.recurring && entry.recurring !== 'none' && <Badge variant="secondary" className="text-[9px] px-1 py-0"><Repeat className="h-2 w-2 mr-0.5" />{recurringLabels[entry.recurring]}</Badge>}
+                              {entry.recurring && entry.recurring !== 'none' && <Badge variant="secondary" className="text-xs px-1 py-0"><Repeat className="h-2 w-2 mr-0.5" />{recurringLabels[entry.recurring]}</Badge>}
                               {entry.dueDate && <span className="text-xs text-muted-foreground">Vence {new Date(entry.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
                             </div>
                           </div>

@@ -178,7 +178,7 @@ export function NotificationCenter() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-0.5 text-[8px] font-bold text-destructive-foreground"
+                className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-destructive px-0.5 text-xs font-bold text-destructive-foreground"
               >
                 {unread.length > 9 ? '9+' : unread.length}
               </motion.span>
@@ -190,7 +190,7 @@ export function NotificationCenter() {
         <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
           <span className="text-sm font-semibold">Notificações</span>
           {unread.length > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">
               {unread.length} nova{unread.length > 1 ? 's' : ''}
             </Badge>
           )}

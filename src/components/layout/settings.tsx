@@ -165,7 +165,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 Importar JSON
               </Button>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground mt-1">
               Exporte um backup completo ou importe dados de outra instância
             </p>
           </div>

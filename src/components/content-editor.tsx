@@ -233,7 +233,7 @@ function SlashCommandMenu({
             >
               <cmd.icon className="h-4 w-4 shrink-0" />
               <span className="flex-1 text-left">{cmd.label}</span>
-              <kbd className="text-[10px] text-muted-foreground/50 font-mono">/</kbd>
+              <kbd className="text-xs text-muted-foreground/50 font-mono">/</kbd>
             </button>
           ))}
           {filtered.length === 0 && (
@@ -269,7 +269,7 @@ function PlatformPreview({
           </div>
           <div>
             <p className="text-xs font-medium">jonny</p>
-            <p className="text-[10px] text-muted-foreground">agora</p>
+            <p className="text-xs text-muted-foreground">agora</p>
           </div>
         </div>
         <div className="aspect-square rounded-lg bg-muted/50 mb-3 flex items-center justify-center">
@@ -557,7 +557,7 @@ export function ContentEditor({
             <div className="flex items-center gap-2 min-w-0">
               <ChIcon className={cn('h-4 w-4 shrink-0', ch.color)} />
               <span className="text-sm font-medium truncate">{editingItem ? 'Editando' : 'Novo Conteúdo'}</span>
-              <Badge variant="outline" className="text-[10px] shrink-0 gap-1">
+              <Badge variant="outline" className="text-xs shrink-0 gap-1">
                 <div className={cn('h-1.5 w-1.5 rounded-full', st.dot)} /> {st.label}
               </Badge>
             </div>
@@ -567,7 +567,7 @@ export function ContentEditor({
             {/* Platform stats */}
             <div className="hidden sm:flex items-center gap-2 mr-2">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] text-muted-foreground">{platformStats.value}</span>
+                <span className="text-xs text-muted-foreground">{platformStats.value}</span>
                 {charLimit < 999999 && (
                   <div className="w-16 h-1.5 rounded-full bg-muted overflow-hidden">
                     <div
@@ -661,7 +661,7 @@ export function ContentEditor({
                       key={line.id}
                       onClick={() => setEditorialLine(editorialLine === line.id ? '' : line.id)}
                       className={cn(
-                        'flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-all border',
+                        'flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium transition-all border',
                         editorialLine === line.id
                           ? 'border-current shadow-sm'
                           : 'border-border/50 text-muted-foreground hover:bg-muted/50'
@@ -695,9 +695,9 @@ export function ContentEditor({
                       </Button>
                     ))}
                     <div className="ml-auto flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground font-mono">{currentChars.toLocaleString('pt-BR')} chars</span>
-                      <span className="text-[10px] text-muted-foreground">·</span>
-                      <span className="text-[10px] text-muted-foreground">{wordCount(body)} palavras</span>
+                      <span className="text-xs text-muted-foreground font-mono">{currentChars.toLocaleString('pt-BR')} chars</span>
+                      <span className="text-xs text-muted-foreground">·</span>
+                      <span className="text-xs text-muted-foreground">{wordCount(body)} palavras</span>
                     </div>
                   </div>
 
@@ -713,43 +713,43 @@ export function ContentEditor({
                 {/* Meta Fields */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                   <div className="grid gap-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Categoria</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Categoria</Label>
                     <Select value={category} onValueChange={setCategory}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>{CHANNEL_CATEGORIES[channel].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Formato</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Formato</Label>
                     <Select value={format} onValueChange={setFormat}>
                       <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>{FORMATS[channel].map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
                   <div className="grid gap-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Data</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data</Label>
                     <Input type="date" value={scheduledDate} onChange={e => setScheduledDate(e.target.value)} className="h-8 text-xs" />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Horário</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Horário</Label>
                     <Input type="time" value={scheduledTime} onChange={e => setScheduledTime(e.target.value)} className="h-8 text-xs" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="grid gap-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">Responsável</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Responsável</Label>
                     <Input value={responsible} onChange={e => setResponsible(e.target.value)} placeholder="Nome" className="h-8 text-xs" />
                   </div>
                   <div className="grid gap-1.5">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-wider">URL Publicada</Label>
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">URL Publicada</Label>
                     <Input value={publishedUrl} onChange={e => setPublishedUrl(e.target.value)} placeholder="https://..." className="h-8 text-xs" />
                   </div>
                 </div>
 
                 {/* Checklist */}
                 <div className="mb-6">
-                  <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block">Checklist de Produção</Label>
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Checklist de Produção</Label>
                   <div className="space-y-1 mb-2">
                     {checklist.map(item => (
                       <div key={item.id} className="flex items-center gap-2 group">
@@ -784,7 +784,7 @@ export function ContentEditor({
 
                 {/* Tags */}
                 <div className="mb-6">
-                  <Label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 block">Tags</Label>
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Tags</Label>
                   <div className="flex flex-wrap gap-1.5 mb-2">
                     {tags.map(tag => (
                       <Badge key={tag} variant="secondary" className="gap-1 text-xs">

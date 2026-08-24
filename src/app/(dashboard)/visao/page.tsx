@@ -198,7 +198,7 @@ export default function VisaoPage() {
                     <Eye className="mr-1 h-3 w-3" /> Preview
                   </Button>
                 </div>
-                <div className="text-[10px] text-muted-foreground">
+                <div className="text-xs text-muted-foreground">
                   {wordCount(content)} palavras
                 </div>
                 <Button onClick={handleSave} disabled={isSaving} size="sm">

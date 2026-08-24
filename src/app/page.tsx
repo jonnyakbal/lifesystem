@@ -145,7 +145,7 @@ function MiniProgressRing({ value, max, color }: { value: number; max: number; c
         className="transition-all duration-700 ease-out"
       />
       <text x="20" y="20" textAnchor="middle" dominantBaseline="central"
-        className="fill-foreground text-[8px] font-bold font-mono-num">
+        className="fill-foreground text-xs font-bold font-mono-num">
         {Math.round(pct)}%
       </text>
     </svg>
@@ -374,7 +374,7 @@ export default function HomePage() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold"><AnimatedNumber value={card.value} /></div>
-                      <p className="text-[10px] text-muted-foreground/60 mt-1">{card.subtitle}</p>
+                      <p className="text-sm text-muted-foreground/60 mt-1">{card.subtitle}</p>
                     </CardContent>
                   </Card>
                 </Link>
@@ -444,7 +444,7 @@ export default function HomePage() {
                       <div key={task.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50 transition-colors group">
                         <div className={cn('h-2 w-2 rounded-full shrink-0', priorityConfig[task.priority]?.dot)} />
                         <span className="text-sm flex-1 truncate group-hover:text-foreground transition-colors">{task.title}</span>
-                        <Badge variant="outline" className={cn('text-[10px] px-1.5 py-0',
+                        <Badge variant="outline" className={cn('text-xs px-1.5 py-0',
                           task.priority === 'urgent' ? 'border-destructive text-destructive' :
                           task.priority === 'important' ? 'border-primary text-primary' :
                           'text-muted-foreground'
@@ -453,7 +453,7 @@ export default function HomePage() {
                         </Badge>
                         {task.projectId && (() => {
                           const proj = projects.find(p => p.id === task.projectId);
-                          return proj ? <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{proj.emoji || '📁'}</Badge> : null;
+                          return proj ? <Badge variant="secondary" className="text-xs px-1.5 py-0">{proj.emoji || '📁'}</Badge> : null;
                         })()}
                       </div>
                     ))}
@@ -487,7 +487,7 @@ export default function HomePage() {
                         <div key={stage} className="flex items-center gap-1.5">
                           <span className={cn('h-2.5 w-2.5 rounded-full', stageColors[stage])} />
                           <span className="text-xs text-muted-foreground">{stageLabels[stage]}</span>
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 font-mono-num">{count}</Badge>
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0 h-4 font-mono-num">{count}</Badge>
                         </div>
                       ))}
                     </div>
@@ -546,7 +546,7 @@ export default function HomePage() {
                       <div key={capture.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50 transition-colors">
                         <span className="text-xs text-muted-foreground shrink-0 w-12">{timeAgo(capture.createdAt)}</span>
                         <span className="text-sm truncate flex-1">{capture.title || capture.content.slice(0, 50) + '...'}</span>
-                        <Badge variant="secondary" className="text-[10px] px-1 py-0 shrink-0">{capture.category || 'Geral'}</Badge>
+                        <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">{capture.category || 'Geral'}</Badge>
                       </div>
                     ))}
                   </div>
@@ -595,7 +595,7 @@ export default function HomePage() {
                       <span className="font-mono-num text-lg text-stellar">{projects.filter(p => p.status === 'active' || p.status === 'development').length}</span>
                     </div>
                     <div className="pt-2">
-                      <div className="flex justify-between text-xs mb-1">
+                      <div className="flex justify-between text-sm mb-1">
                         <span className="text-muted-foreground">Taxa de Conclusão</span>
                         <span className="font-mono-num text-money">{completionRate}%</span>
                       </div>
@@ -631,20 +631,20 @@ export default function HomePage() {
                       >
                         R$ {balance.toLocaleString('pt-BR')}
                       </motion.span>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">Saldo atual</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">Saldo atual</p>
                     </div>
                     <div className="grid grid-cols-2 gap-2 pt-2">
                       <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Entradas</p>
-                        <p className="text-sm font-bold text-money font-mono-num">R$ {totalIncome.toLocaleString('pt-BR')}</p>
+                        <p className="text-sm text-muted-foreground">Entradas</p>
+                        <p className="text-base font-bold text-money font-mono-num">R$ {totalIncome.toLocaleString('pt-BR')}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] text-muted-foreground">Saídas</p>
-                        <p className="text-sm font-bold text-destructive font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</p>
+                        <p className="text-sm text-muted-foreground">Saídas</p>
+                        <p className="text-base font-bold text-destructive font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</p>
                       </div>
                     </div>
                     {overBudgetBudgets.length > 0 && (
-                      <Badge variant="destructive" className="w-full justify-center text-[10px] mt-2 gap-1">
+                      <Badge variant="destructive" className="w-full justify-center text-xs mt-2 gap-1">
                         <AlertTriangle className="h-3 w-3" /> {overBudgetBudgets.length} orçamento{overBudgetBudgets.length > 1 ? 's' : ''} estourado{overBudgetBudgets.length > 1 ? 's' : ''}
                       </Badge>
                     )}
@@ -681,8 +681,8 @@ export default function HomePage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between mb-1">
-                            <span className="text-xs font-medium truncate max-w-[120px]">{p.name}</span>
-                            <span className="text-xs text-muted-foreground font-mono-num">{p.indicatorCount}i</span>
+                            <span className="text-sm font-medium truncate max-w-[120px]">{p.name}</span>
+                            <span className="text-sm text-muted-foreground font-mono-num">{p.indicatorCount}i</span>
                           </div>
                           <Progress value={pct} className="h-1.5" />
                         </div>
@@ -729,7 +729,7 @@ export default function HomePage() {
                           >
                             {hasEntry ? moodEmoji[mood || ''] : day.label.substring(0, 1)}
                           </div>
-                          <span className="text-[8px] text-muted-foreground">{day.label.substring(0, 2)}</span>
+                          <span className="text-sm text-muted-foreground">{day.label.substring(0, 2)}</span>
                         </Link>
                       );
                     })}
@@ -796,7 +796,7 @@ export default function HomePage() {
                         <CardContent className="p-3">
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-sm truncate">{project.name}</span>
-                            <Badge variant="secondary" className={cn('ml-auto text-[10px] capitalize', statusColorMap[project.status])}>
+                            <Badge variant="secondary" className={cn('ml-auto text-xs capitalize', statusColorMap[project.status])}>
                               {statusLabel[project.status]}
                             </Badge>
                           </div>

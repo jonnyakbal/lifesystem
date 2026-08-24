@@ -401,7 +401,7 @@ export function CommandPalette() {
                   placeholder="Buscar comandos, telas, entidades..."
                   className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                 />
-                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
                   ESC
                 </kbd>
               </div>
@@ -423,7 +423,7 @@ export function CommandPalette() {
                     }}
                   />
                   {quickCapture.trim() && (
-                    <kbd className="rounded border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary">
+                    <kbd className="rounded border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-xs text-primary">
                       ↵
                     </kbd>
                   )}
@@ -452,7 +452,7 @@ export function CommandPalette() {
                       const entityColor = config?.color || 'text-muted-foreground';
                       return (
                         <div key={entityLabel} className="mb-2">
-                          <div className={cn('px-3 py-1.5 text-[10px] font-medium uppercase tracking-wider flex items-center gap-1.5', entityColor)}>
+                          <div className={cn('px-3 py-1.5 text-xs font-medium uppercase tracking-wider flex items-center gap-1.5', entityColor)}>
                             <EntityIcon className="h-3 w-3" />
                             {entityLabel}
                             <span className="text-muted-foreground/60 ml-1">({results.length})</span>
@@ -500,7 +500,7 @@ export function CommandPalette() {
                       });
                       return Array.from(groups.entries()).map(([category, cmds]) => (
                         <div key={category} className="mb-1">
-                          <div className="px-3 py-1.5 text-[10px] font-medium text-muted-foreground/60 uppercase tracking-wider">
+                          <div className="px-3 py-1.5 text-xs font-medium text-muted-foreground/60 uppercase tracking-wider">
                             {category}
                           </div>
                           {cmds.map(cmd => {
@@ -521,7 +521,7 @@ export function CommandPalette() {
                                 <cmd.icon className="h-4 w-4 shrink-0" />
                                 <span className="flex-1 text-left">{cmd.label}</span>
                                 {cmd.shortcut && (
-                                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px]">
+                                  <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-xs">
                                     {cmd.shortcut}
                                   </kbd>
                                 )}
@@ -536,7 +536,7 @@ export function CommandPalette() {
               </div>
 
               {/* Footer */}
-              <div className="border-t border-border/50 px-4 py-2 flex items-center gap-4 text-[10px] text-muted-foreground/60">
+              <div className="border-t border-border/50 px-4 py-2 flex items-center gap-4 text-xs text-muted-foreground/60">
                 <span className="flex items-center gap-1">
                   <kbd className="rounded border border-border bg-muted px-1 py-0.5">↑↓</kbd> navegar
                 </span>

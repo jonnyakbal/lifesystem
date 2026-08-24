@@ -372,10 +372,10 @@ export default function ProjectsPage() {
                             {project.stack.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-1">
                                 {project.stack.slice(0, 3).map((tech) => (
-                                  <Badge key={tech} variant="outline" className="text-[10px]">{tech}</Badge>
+                                  <Badge key={tech} variant="outline" className="text-xs">{tech}</Badge>
                                 ))}
                                 {project.stack.length > 3 && (
-                                  <Badge variant="secondary" className="text-[10px]">+{project.stack.length - 3}</Badge>
+                                  <Badge variant="secondary" className="text-xs">+{project.stack.length - 3}</Badge>
                                 )}
                               </div>
                             )}

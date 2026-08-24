@@ -121,7 +121,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
                     isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                   )} />
                   {count !== undefined && count > 0 && (
-                    <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground">
+                    <span className="absolute -top-1.5 -right-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                       {count > 9 ? '9+' : count}
                     </span>
                   )}
@@ -131,7 +131,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
                 <>
                   <span className="relative z-10 flex-1">{item.name}</span>
                   <kbd className={cn(
-                    "relative z-10 hidden rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-medium transition-colors lg:inline-block",
+                    "relative z-10 hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-medium transition-colors lg:inline-block",
                     isActive
                       ? "border-primary/20 bg-primary/5 text-primary"
                       : "text-muted-foreground"
@@ -172,7 +172,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
              >
                <Sparkles className="h-4 w-4" />
                <span>Captura Rápida</span>
-               <kbd className="ml-auto rounded border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px]">
+               <kbd className="ml-auto rounded border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-xs">
                  ⌘K
                </kbd>
              </Button>

@@ -344,7 +344,7 @@ export default function InboxPage() {
             >
               <Icon className="h-3.5 w-3.5" style={cat.color ? { color: cat.color } : undefined} />
               {cat.label}
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 ml-0.5">
+              <Badge variant="secondary" className="text-xs px-1.5 py-0 ml-0.5">
                 {categoryCounts[cat.id] || 0}
               </Badge>
             </button>
@@ -450,7 +450,7 @@ export default function InboxPage() {
                     <CardContent className="p-4">
                       <div className="flex items-center gap-1.5 mb-1.5">
                         {cat && (
-                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-1" style={{ borderColor: cat.color + '40', color: cat.color }}>
+                          <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1" style={{ borderColor: cat.color + '40', color: cat.color }}>
                             {cat.label}
                           </Badge>
                         )}
@@ -459,7 +459,7 @@ export default function InboxPage() {
                       {preview && (
                         <p className="text-xs text-muted-foreground line-clamp-3">{preview}</p>
                       )}
-                      <p className="text-[10px] text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground mt-2">
                         {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
                       </p>
                     </CardContent>
@@ -573,7 +573,7 @@ export default function InboxPage() {
                           key={cat.id}
                           onClick={() => setEditorCategory(cat.id)}
                           className={cn(
-                            'flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium transition-all border',
+                            'flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-all border',
                             editorCategory === cat.id
                               ? 'border-current shadow-sm'
                               : 'border-transparent text-muted-foreground hover:bg-muted/50'

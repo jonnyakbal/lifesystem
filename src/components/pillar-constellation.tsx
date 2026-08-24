@@ -107,7 +107,7 @@ export function PillarConstellation({ pillars, onSelect }: PillarConstellationPr
       <div className="pointer-events-none absolute inset-0 grid grid-cols-6 px-2 sm:px-4">
         {points.map(p => (
           <div key={`label-${p.id}`} className="flex flex-col items-center justify-end pb-1">
-            <span className="text-xs sm:text-[10px] text-muted-foreground/70 text-center leading-tight">
+            <span className="text-xs sm:text-xs text-muted-foreground/70 text-center leading-tight">
               {p.icon}
               <span className="hidden sm:inline"> {p.name.split(' ')[0].split('/')[0]}</span>
             </span>

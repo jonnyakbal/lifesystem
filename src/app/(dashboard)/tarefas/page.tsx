@@ -710,31 +710,31 @@ export default function TasksPage() {
                 {!dense && task.checklist?.length > 0 && (
                   <div className="flex items-center gap-1.5 mt-1.5">
                     <CheckSquare className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] text-muted-foreground">{task.checklist.filter(c => c.done).length}/{task.checklist.length}</span>
+                    <span className="text-xs text-muted-foreground">{task.checklist.filter(c => c.done).length}/{task.checklist.length}</span>
                     <Progress value={checkProgress} className="h-1 flex-1" />
                   </div>
                 )}
                 <div className={cn('flex flex-wrap items-center gap-1', dense ? 'mt-1' : 'mt-2')}>
-                  <Badge variant="outline" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[10px] px-1.5 py-0', priorityConfig[task.priority].textColor)}>
+                  <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', priorityConfig[task.priority].textColor)}>
                     {priorityConfig[task.priority].label}
                   </Badge>
                   {(task.tags ?? []).slice(0, dense ? 0 : 2).map(tag => (
-                    <Badge key={tag} variant="secondary" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[10px] px-1.5 py-0')}>
+                    <Badge key={tag} variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                       <Tag className="mr-1 h-2.5 w-2.5" /> {tag}
                     </Badge>
                   ))}
                   {(task.tags ?? []).length > (dense ? 0 : 2) && (
-                    <Badge variant="secondary" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[10px] px-1.5 py-0')}>+{(task.tags ?? []).length - (dense ? 0 : 2)}</Badge>
+                    <Badge variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>+{(task.tags ?? []).length - (dense ? 0 : 2)}</Badge>
                   )}
                   {task.checklist?.length > 0 && (
-                    <Badge variant="outline" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[10px] px-1.5 py-0', 'gap-1')}>
+                    <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', 'gap-1')}>
                       <ListChecks className="h-2.5 w-2.5" /> {task.checklist.filter(c => c.done).length}/{task.checklist.length}
                     </Badge>
                   )}
                   {!dense && task.projectId && (() => {
                     const proj = projects.find(p => p.id === task.projectId);
                     return proj ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 border-white/10 bg-white/5">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-white/10 bg-white/5">
                         {proj.emoji || '📁'} {proj.name}
                       </Badge>
                     ) : null;
@@ -742,18 +742,18 @@ export default function TasksPage() {
                   {!dense && task.pillarId && (() => {
                     const pil = pillars.find(p => p.id === task.pillarId);
                     return pil ? (
-                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1 border-white/10 bg-white/5">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-white/10 bg-white/5">
                         {pil.emoji || '🏛️'} {pil.name}
                       </Badge>
                     ) : null;
                   })()}
                   {task.dueDate && (
-                    <Badge variant="outline" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[10px] px-1.5 py-0', 'gap-1', isOverdue(task) ? 'border-destructive text-destructive' : 'text-muted-foreground')}>
+                    <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', 'gap-1', isOverdue(task) ? 'border-destructive text-destructive' : 'text-muted-foreground')}>
                       <CalendarDays className="h-2.5 w-2.5" /> {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                     </Badge>
                   )}
                   {!dense && task.assignee && (
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-1">
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1">
                       <User className="h-2.5 w-2.5" /> {task.assignee}
                     </Badge>
                   )}
@@ -799,7 +799,7 @@ export default function TasksPage() {
           <h3 className="text-sm font-medium">{cfg.label}</h3>
           <Badge variant="secondary" className="ml-auto text-xs">{taskList.length}</Badge>
           {bulkMode && taskList.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-5 text-[10px] px-1.5" onClick={() => selectAll(status)}>Todos</Button>
+            <Button variant="ghost" size="sm" className="h-5 text-xs px-1.5" onClick={() => selectAll(status)}>Todos</Button>
           )}
         </div>
         <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[200px]">
@@ -814,8 +814,8 @@ export default function TasksPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(status); if (e.key === 'Escape') { setQuickAddStatus(null); setQuickAddTitle(''); } }}
                   onBlur={() => { if (!quickAddTitle.trim()) setQuickAddStatus(null); }} />
                 <div className="flex gap-1 mt-1">
-                  <Button size="sm" className="h-6 text-[10px] px-2" onClick={() => handleQuickAdd(status)}>Adicionar</Button>
-                  <Button size="sm" variant="ghost" className="h-6 text-[10px] px-2" onClick={() => { setQuickAddStatus(null); setQuickAddTitle(''); }}>Cancelar</Button>
+                  <Button size="sm" className="h-6 text-xs px-2" onClick={() => handleQuickAdd(status)}>Adicionar</Button>
+                  <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => { setQuickAddStatus(null); setQuickAddTitle(''); }}>Cancelar</Button>
                 </div>
               </CardContent></Card>
             </motion.div>
@@ -851,7 +851,7 @@ export default function TasksPage() {
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <div className={cn('h-2.5 w-2.5 rounded-full', getGroupDot(key))} />
                   <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
-                  <Badge variant="secondary" className="ml-auto text-[10px]">{items.length}</Badge>
+                  <Badge variant="secondary" className="ml-auto text-xs">{items.length}</Badge>
                 </div>
                 <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
                   <AnimatePresence>{items.map(renderTaskCard)}</AnimatePresence>
@@ -875,7 +875,7 @@ export default function TasksPage() {
               <div className="flex items-center gap-2 mb-2 px-1">
                 <div className={cn('h-2.5 w-2.5 rounded-full', getGroupDot(key))} />
                 <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
-                <Badge variant="secondary" className="text-[10px]">{items.length}</Badge>
+                <Badge variant="secondary" className="text-xs">{items.length}</Badge>
               </div>
               <div className="space-y-1">
                 {items.map(renderTaskCard)}
@@ -946,7 +946,7 @@ export default function TasksPage() {
                           <div
                             key={task.id}
                             className={cn(
-                              'text-[9px] truncate px-1.5 py-0.5 rounded',
+                              'text-xs truncate px-1.5 py-0.5 rounded',
                               task.status === 'done'
                                 ? 'line-through text-muted-foreground bg-muted/20'
                                 : `${prio.color.replace('bg-', 'bg-')}/15 text-foreground border-l-2 ${prio.dot}`
@@ -958,7 +958,7 @@ export default function TasksPage() {
                         );
                       })}
                       {dayTasks.length > 2 && (
-                        <span className="text-[8px] text-muted-foreground/60">
+                        <span className="text-xs text-muted-foreground/60">
                           +{dayTasks.length - 2}
                         </span>
                       )}
@@ -972,7 +972,7 @@ export default function TasksPage() {
                           <div key={task.id} className="w-1.5 h-1.5 rounded-full bg-money" />
                         ))}
                       </div>
-                      <span className="text-[8px] text-muted-foreground/60">
+                      <span className="text-xs text-muted-foreground/60">
                         {completedToday.length} feitas
                       </span>
                     </div>
@@ -1048,7 +1048,7 @@ export default function TasksPage() {
                             <div className="flex flex-wrap items-center gap-1 mt-1">
                               <Badge
                                 variant="outline"
-                                className={cn('text-[10px] px-1.5 py-0', prio.textColor)}
+                                className={cn('text-xs px-1.5 py-0', prio.textColor)}
                               >
                                 {prio.label}
                               </Badge>
@@ -1057,7 +1057,7 @@ export default function TasksPage() {
                                 return proj ? (
                                   <Badge
                                     variant="outline"
-                                    className="text-[10px] px-1.5 py-0 border-white/10 bg-white/5 gap-1"
+                                    className="text-xs px-1.5 py-0 border-white/10 bg-white/5 gap-1"
                                   >
                                     {proj.emoji || '📁'} {proj.name}
                                   </Badge>
@@ -1067,7 +1067,7 @@ export default function TasksPage() {
                                 <Badge
                                   variant="outline"
                                   className={cn(
-                                    'text-[10px] px-1.5 py-0 gap-1',
+                                    'text-xs px-1.5 py-0 gap-1',
                                     isOverdue(task) ? 'border-destructive text-destructive' : 'text-muted-foreground'
                                   )}
                                 >
@@ -1140,10 +1140,10 @@ export default function TasksPage() {
                           <span className="text-xs font-medium text-muted-foreground">
                             {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
                           </span>
-                          <span className="text-[10px] text-muted-foreground">
+                          <span className="text-xs text-muted-foreground">
                             {day.getDate()}
                           </span>
-                          <Badge variant="secondary" className="ml-auto text-[9px] h-4">
+                          <Badge variant="secondary" className="ml-auto text-xs h-4">
                             {dayTasks.length}
                           </Badge>
                         </div>
@@ -1208,14 +1208,14 @@ export default function TasksPage() {
                   <span className={cn('text-xs font-medium', day.day === now.getDate() ? 'text-primary font-bold' : 'text-muted-foreground')}>{day.day}</span>
                   <div className="mt-1 space-y-0.5">
                     {day.tasks.slice(0, 3).map(task => (
-                      <div key={task.id} className="rounded px-1 py-0.5 text-[9px] cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1"
+                      <div key={task.id} className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1"
                         style={{ backgroundColor: priorityConfig[task.priority]?.color?.replace('bg-', '') ? `var(--${priorityConfig[task.priority].color.replace('bg-', '')})` + '20' : undefined }}
                         onClick={() => openEdit(task)}>
                         {task.status === 'done' ? <CheckCircle2 className="h-2 w-2 text-money shrink-0" /> : <Circle className="h-2 w-2 shrink-0" style={{ color: priorityConfig[task.priority]?.dot === 'bg-destructive' ? '#ef4444' : priorityConfig[task.priority]?.dot === 'bg-primary' ? '#8b5cf6' : '#64748b' }} />}
                         {task.title}
                       </div>
                     ))}
-                    {day.tasks.length > 3 && <span className="text-[9px] text-muted-foreground">+{day.tasks.length - 3}</span>}
+                    {day.tasks.length > 3 && <span className="text-xs text-muted-foreground">+{day.tasks.length - 3}</span>}
                   </div>
                 </>
               )}
@@ -1503,7 +1503,7 @@ export default function TasksPage() {
                 <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
                 <div className="flex flex-wrap gap-1">
                   {[{ label: 'Hoje', offset: 0 }, { label: 'Amanhã', offset: 1 }, { label: '2 dias', offset: 2 }, { label: 'Fim de semana', offset: (6 - new Date().getDay() + 7) % 7 || 7 }].map(s => (
-                    <Button key={s.label} variant="outline" size="sm" className="h-6 text-[10px] px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
+                    <Button key={s.label} variant="outline" size="sm" className="h-6 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
                   ))}
                 </div>
               </div>

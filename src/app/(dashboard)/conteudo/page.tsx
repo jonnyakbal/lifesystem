@@ -613,7 +613,7 @@ export default function ConteudoPage() {
             {!dense && item.checklist && item.checklist.length > 0 && (
               <div className="flex items-center gap-1.5 mb-2">
                 <CheckSquare className="h-3 w-3 text-muted-foreground" />
-                <span className="text-[10px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   {item.checklist.filter(c => c.done).length}/{item.checklist.length}
                 </span>
                 <Progress value={(item.checklist.filter(c => c.done).length / item.checklist.length) * 100} className="h-1 flex-1" />
@@ -621,26 +621,26 @@ export default function ConteudoPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-1">
-              <Badge variant="outline" className={cn('gap-0.5', dense ? 'text-[8px] px-1 py-0' : 'text-[9px] px-1.5 py-0')}>
+              <Badge variant="outline" className={cn('gap-0.5', dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                 <ChIcon className={cn('h-2 w-2', ch.color)} /> {item.category}
               </Badge>
               {item.format && (
-                <Badge variant="secondary" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[9px] px-1.5 py-0')}>
+                <Badge variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                   {item.format}
                 </Badge>
               )}
               {item.editorialLine && (
-                <Badge variant="outline" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[9px] px-1.5 py-0')} style={{ borderColor: getLineColor(item.editorialLine) + '40', color: getLineColor(item.editorialLine) }}>
+                <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')} style={{ borderColor: getLineColor(item.editorialLine) + '40', color: getLineColor(item.editorialLine) }}>
                   {EDITORIAL_LINES.find(l => l.id === item.editorialLine)?.icon} {EDITORIAL_LINES.find(l => l.id === item.editorialLine)?.label}
                 </Badge>
               )}
               {(item.tags || []).slice(0, dense ? 0 : 1).map(tag => (
-                <Badge key={tag} variant="secondary" className={cn(dense ? 'text-[8px] px-1 py-0' : 'text-[9px] px-1.5 py-0')}>
+                <Badge key={tag} variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                   {tag}
                 </Badge>
               ))}
               {item.scheduledDate && (
-                <Badge variant="outline" className={cn('gap-0.5 text-blue-400', dense ? 'text-[8px] px-1 py-0' : 'text-[9px] px-1.5 py-0')}>
+                <Badge variant="outline" className={cn('gap-0.5 text-blue-400', dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                   <Calendar className="h-2 w-2" />
                   {new Date(item.scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                   {item.scheduledTime && ` ${item.scheduledTime}`}
@@ -649,14 +649,14 @@ export default function ConteudoPage() {
             </div>
 
             {!dense && item.metrics && (
-              <div className="flex items-center gap-2 mt-2 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                 {item.metrics.views !== undefined && <span className="flex items-center gap-0.5"><Eye className="h-2.5 w-2.5" />{item.metrics.views.toLocaleString('pt-BR')}</span>}
                 {item.metrics.likes !== undefined && <span className="flex items-center gap-0.5"><Star className="h-2.5 w-2.5" />{item.metrics.likes.toLocaleString('pt-BR')}</span>}
                 {item.metrics.comments !== undefined && <span className="flex items-center gap-0.5"><Hash className="h-2.5 w-2.5" />{item.metrics.comments.toLocaleString('pt-BR')}</span>}
               </div>
             )}
 
-            <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground">
+            <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
               <Clock className="h-2.5 w-2.5" /> {timeAgo(item.updatedAt)}
             </div>
           </CardContent>
@@ -679,7 +679,7 @@ export default function ConteudoPage() {
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <div className={cn('h-2.5 w-2.5 rounded-full', stage.dot)} />
                     <h3 className="text-sm font-medium">{stage.label}</h3>
-                    <Badge variant="secondary" className="ml-auto text-[10px]">{stageItems.length}</Badge>
+                    <Badge variant="secondary" className="ml-auto text-xs">{stageItems.length}</Badge>
                   </div>
                   <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
                     <AnimatePresence>
@@ -711,7 +711,7 @@ export default function ConteudoPage() {
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <div className={cn('h-2.5 w-2.5 rounded-full', getGroupColor(key))} style={groupBy === 'line' ? { backgroundColor: getLineColor(key) } : undefined} />
                   <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
-                  <Badge variant="secondary" className="ml-auto text-[10px]">{groupItems.length}</Badge>
+                  <Badge variant="secondary" className="ml-auto text-xs">{groupItems.length}</Badge>
                 </div>
                 <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
                   <AnimatePresence>
@@ -744,7 +744,7 @@ export default function ConteudoPage() {
               <div className="flex items-center gap-2 mb-2 px-1">
                 <div className={cn('h-2.5 w-2.5 rounded-full', st?.dot || 'bg-muted-foreground')} style={groupBy === 'line' ? { backgroundColor: getLineColor(key) } : undefined} />
                 <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
-                <Badge variant="secondary" className="text-[10px]">{groupItems.length}</Badge>
+                <Badge variant="secondary" className="text-xs">{groupItems.length}</Badge>
               </div>
               <div className="space-y-1">
                 {groupItems.map(item => {
@@ -762,16 +762,16 @@ export default function ConteudoPage() {
                             <span className="text-sm font-medium truncate">{item.title}</span>
                           </div>
                         </div>
-                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 shrink-0">
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 gap-0.5 shrink-0">
                           <StIcon className="h-2 w-2" /> {st2.label}
                         </Badge>
-                        <Badge variant="secondary" className="text-[9px] px-1.5 py-0 shrink-0">{item.category}</Badge>
+                        <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">{item.category}</Badge>
                         {item.scheduledDate && (
-                          <span className="text-[10px] text-muted-foreground shrink-0">
+                          <span className="text-xs text-muted-foreground shrink-0">
                             {new Date(item.scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </span>
                         )}
-                        <span className="text-[10px] text-muted-foreground shrink-0">{timeAgo(item.updatedAt)}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{timeAgo(item.updatedAt)}</span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" onClick={(e) => e.stopPropagation()}>
@@ -842,13 +842,13 @@ export default function ConteudoPage() {
                     {day.items.slice(0, calendarMode === 'week' ? 10 : 3).map(item => {
                       const ch = getChannelData(item.channel);
                       return (
-                        <div key={item.id} className="rounded px-1 py-0.5 text-[9px] cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1" style={{ backgroundColor: getLineColor(item.editorialLine || '') + '20', color: getLineColor(item.editorialLine || '') }} onClick={() => openEdit(item)}>
+                        <div key={item.id} className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1" style={{ backgroundColor: getLineColor(item.editorialLine || '') + '20', color: getLineColor(item.editorialLine || '') }} onClick={() => openEdit(item)}>
                           <ch.icon className="h-2 w-2 shrink-0" /> {item.title}
                         </div>
                       );
                     })}
                     {day.items.length > (calendarMode === 'week' ? 10 : 3) && (
-                      <span className="text-[9px] text-muted-foreground">+{day.items.length - (calendarMode === 'week' ? 10 : 3)}</span>
+                      <span className="text-xs text-muted-foreground">+{day.items.length - (calendarMode === 'week' ? 10 : 3)}</span>
                     )}
                   </div>
                 </>
@@ -895,7 +895,7 @@ export default function ConteudoPage() {
             )}
           >
             Todos
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{items.length}</Badge>
+            <Badge variant="secondary" className="text-xs px-1.5 py-0">{items.length}</Badge>
           </button>
           {totalByChannel.map(ch => {
             const Icon = ch.icon;
@@ -912,7 +912,7 @@ export default function ConteudoPage() {
               >
                 <Icon className="h-4 w-4" />
                 {ch.label}
-                {ch.count > 0 && <Badge variant="secondary" className="text-[10px] px-1.5 py-0">{ch.count}</Badge>}
+                {ch.count > 0 && <Badge variant="secondary" className="text-xs px-1.5 py-0">{ch.count}</Badge>}
               </button>
             );
           })}

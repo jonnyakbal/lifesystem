@@ -192,7 +192,7 @@ export default function DiarioPage() {
                       )}
                     >
                       <span className="text-2xl">{m.icon}</span>
-                      <span className="text-[10px] text-muted-foreground">{m.label}</span>
+                      <span className="text-xs text-muted-foreground">{m.label}</span>
                     </button>
                   ))}
                 </div>
@@ -295,7 +295,7 @@ export default function DiarioPage() {
               <CardContent>
                 <div className="grid grid-cols-7 gap-1">
                   {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, i) => (
-                    <div key={i} className="text-center text-[10px] text-muted-foreground font-medium py-1">{d}</div>
+                    <div key={i} className="text-center text-xs text-muted-foreground font-medium py-1">{d}</div>
                   ))}
                   {calendarDays.map((day, i) => {
                     if (!day) return <div key={`empty-${i}`} />;

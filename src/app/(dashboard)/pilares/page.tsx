@@ -285,7 +285,7 @@ export default function PilaresPage() {
               document.getElementById(`pillar-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }}
           />
-          <p className="mt-2 text-center text-[11px] text-muted-foreground/60">
+          <p className="mt-2 text-center text-xs text-muted-foreground/60">
             Cada estrela é um Pilar — quanto mais fraca a luz, mais esse lado da constelação está pedindo atenção.
           </p>
         </motion.div>
@@ -351,7 +351,7 @@ export default function PilaresPage() {
                           {actionCount > 0 && (
                             <div className="relative">
                               <ProgressRing value={progress} color={pillar.color} size={40} />
-                              <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold">
+                              <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
                                 {progress}%
                               </span>
                             </div>
