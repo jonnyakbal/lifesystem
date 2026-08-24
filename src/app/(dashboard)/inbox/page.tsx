@@ -537,7 +537,7 @@ export default function InboxPage() {
               className={LAYOUT_CONFIG[editorLayout].panelClassName}
             >
               {/* Editor Header */}
-              <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+              <div className="flex flex-wrap items-center justify-between gap-y-2 px-4 py-3 border-b border-border shrink-0">
                 <div className="flex items-center gap-3">
                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setEditorOpen(false)}>
                     <ChevronLeft className="h-4 w-4" />
@@ -581,12 +581,12 @@ export default function InboxPage() {
                           style={editorCategory === cat.id ? { color: cat.color, borderColor: cat.color, backgroundColor: cat.color + '15' } : undefined}
                         >
                           <Icon className="h-3 w-3" />
-                          {cat.label}
+                          <span className="hidden sm:inline">{cat.label}</span>
                         </button>
                       );
                     })}
                   </div>
-                  <Button size="sm" onClick={handleSaveEditor} disabled={!editorContent.trim()} className="gap-1.5">
+                  <Button size="sm" onClick={handleSaveEditor} disabled={!editorContent.trim()} className="gap-1.5 shrink-0">
                     <Sparkles className="h-3.5 w-3.5" /> Salvar
                   </Button>
                 </div>
