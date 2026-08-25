@@ -178,12 +178,13 @@ export function CommandPalette() {
     { id: 'financeiro', label: 'Ir para Financeiro', icon: Wallet, shortcut: '⌘F', action: () => router.push('/financeiro'), category: 'Navegação' },
     { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: '⌘L', action: () => router.push('/diario'), category: 'Navegação' },
     { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: '⌘H', action: () => router.push('/'), category: 'Navegação' },
+    { id: 'hoje-nav', label: 'Ir para Hoje', icon: Calendar, shortcut: '⌘G', action: () => router.push('/hoje'), category: 'Navegação' },
     { id: 'nova-tarefa', label: 'Criar nova tarefa', icon: Plus, action: () => { router.push('/tarefas'); }, category: 'Ações Rápidas' },
     { id: 'nova-captura', label: 'Criar nova captura', icon: Plus, action: () => { router.push('/inbox'); }, category: 'Ações Rápidas' },
     { id: 'nova-nota', label: 'Criar nova nota', icon: Plus, action: () => { router.push('/conteudo'); }, category: 'Ações Rápidas' },
     { id: 'nova-entrada-diario', label: 'Escrever no diário', icon: Plus, action: () => { router.push('/diario'); }, category: 'Ações Rápidas' },
-    { id: 'hoje', label: 'Ir para hoje', icon: Calendar, action: () => { router.push('/diario'); }, category: 'Atalhos' },
-    { id: 'tarefas-atrasadas', label: 'Ver tarefas atrasadas', icon: TrendingUp, action: () => { router.push('/tarefas'); }, category: 'Atalhos' },
+    { id: 'hoje', label: 'Ir para hoje', icon: Calendar, action: () => { router.push('/hoje'); }, category: 'Atalhos' },
+    { id: 'tarefas-atrasadas', label: 'Ver tarefas atrasadas', icon: TrendingUp, action: () => { router.push('/hoje'); }, category: 'Atalhos' },
   ];
 
   const filteredCommands = commands.filter(cmd =>
