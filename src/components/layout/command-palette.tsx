@@ -141,6 +141,37 @@ const ENTITY_CONFIG: Record<string, {
       return `${prefix} ${formatted}`;
     },
   },
+  pillars: {
+    endpoint: '/api/pillars',
+    label: 'Pilares',
+    color: 'text-indigo-500',
+    icon: Layers,
+    getHref: () => '/pilares',
+    getTitle: (item) => (item.name as string) || 'Sem nome',
+    getSubtitle: (item) => (item.currentStatus as string) || 'Pilar',
+  },
+  indicators: {
+    endpoint: '/api/indicators',
+    label: 'Metas',
+    color: 'text-fuchsia-500',
+    icon: BarChart3,
+    getHref: () => '/indicadores',
+    getTitle: (item) => (item.name as string) || 'Sem nome',
+    getSubtitle: (item) => {
+      const current = item.currentValue as number;
+      const target = item.targetValue as number;
+      return target ? `${current || 0}/${target}` : (item.frequency as string) || 'Meta';
+    },
+  },
+  vision: {
+    endpoint: '/api/vision',
+    label: 'Visão',
+    color: 'text-teal-500',
+    icon: Target,
+    getHref: () => '/visao',
+    getTitle: (item) => (item.title as string) || 'Sem título',
+    getSubtitle: () => 'Plano de Voo',
+  },
 };
 
 const ENTITY_SLUG_MAP: Record<string, string> = {

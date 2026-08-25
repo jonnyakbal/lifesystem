@@ -17,7 +17,7 @@ export function ChromeGate({ children }: { children: React.ReactNode }) {
   return (
     <>
       <Sidebar />
-      <main className="pt-14 lg:pl-64 lg:pt-0">
+      <main className="pt-14 pb-16 lg:pl-64 lg:pt-0 lg:pb-0">
         <AppShell>{children}</AppShell>
       </main>
       <CommandPalette />

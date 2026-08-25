@@ -229,7 +229,19 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
   );
 }
 
+// The 4 most-used destinations, thumb-reachable at the bottom of the
+// screen — the Things3/Todoist pattern. Everything else (including the
+// full nav list) stays one tap away behind "Mais", which reuses the same
+// Sheet the old hamburger opened rather than duplicating that UI.
+const BOTTOM_NAV_ITEMS = [
+  { name: 'Home', href: '/', icon: Home },
+  { name: 'Hoje', href: '/hoje', icon: CalendarCheck },
+  { name: 'INBOX', href: '/inbox', icon: Inbox },
+  { name: 'Tarefas', href: '/tarefas', icon: CheckSquare },
+];
+
 export function Sidebar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -260,18 +272,10 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Header */}
+      {/* Mobile Header — no hamburger here anymore: the bottom nav's "Mais"
+          opens the same full-list Sheet, so this bar is just branding +
+          the actions that don't fit in the bottom nav's 5 thumb-reach slots. */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center gap-3 border-b border-border bg-background/80 backdrop-blur-xl px-4 lg:hidden">
-        <Sheet open={open} onOpenChange={setOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="w-64 p-0">
-            <SidebarContent collapsed={false} onToggleCollapse={() => {}} onNavigate={() => setOpen(false)} />
-          </SheetContent>
-        </Sheet>
         <div className="flex items-center gap-2">
           <Command className="h-4 w-4 text-primary" />
           <span className="font-display text-sm font-bold">LIFESYSTEM</span>
@@ -283,6 +287,41 @@ export function Sidebar() {
           <NotificationCenter />
         </div>
       </div>
+
+      {/* Mobile Bottom Nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center border-t border-border bg-background/95 backdrop-blur-xl lg:hidden">
+        {BOTTOM_NAV_ITEMS.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5"
+            >
+              {isActive && (
+                <motion.span
+                  layoutId="bottom-nav-active"
+                  className="absolute inset-x-3 top-1 h-8 rounded-lg bg-primary/10"
+                  transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                />
+              )}
+              <item.icon className={cn('relative z-10 h-5 w-5', isActive ? 'text-primary' : 'text-muted-foreground')} />
+              <span className={cn('relative z-10 text-[10px] font-medium', isActive ? 'text-primary' : 'text-muted-foreground')}>{item.name}</span>
+            </Link>
+          );
+        })}
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger asChild>
+            <button className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
+              <Menu className="h-5 w-5 text-muted-foreground" />
+              <span className="text-[10px] font-medium text-muted-foreground">Mais</span>
+            </button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-64 p-0">
+            <SidebarContent collapsed={false} onToggleCollapse={() => {}} onNavigate={() => setOpen(false)} />
+          </SheetContent>
+        </Sheet>
+      </nav>
 
       {/* Desktop Sidebar */}
       <motion.aside
