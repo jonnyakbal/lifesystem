@@ -94,6 +94,8 @@ export interface Task extends BaseEntity {
   tags: string[];
   checklist: TaskChecklistItem[];
   assignee?: string;
+  recurring?: boolean;
+  recurringFrequency?: 'daily' | 'weekly' | 'monthly';
 }
 
 // Content

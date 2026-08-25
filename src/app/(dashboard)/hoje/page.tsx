@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   CheckCircle2, Circle, AlertTriangle, Calendar, Sparkles, FileText,
-  Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper,
+  Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper, Repeat,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,10 +19,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 
 interface Task {
   id: string; title: string; status: 'todo' | 'doing' | 'review' | 'done';
   priority: 'urgent' | 'important' | 'normal'; dueDate?: string;
+  description?: string; projectId?: string; pillarId?: string; tags?: string[];
+  recurring?: boolean; recurringFrequency?: RecurringFrequency;
 }
 interface Indicator {
   id: string; pillarId: string; name: string; targetValue?: number;
@@ -96,7 +99,11 @@ export default function HojePage() {
     try {
       const nextStatus = task.status === 'done' ? 'todo' : 'done';
       await apiFetch(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
-      if (nextStatus === 'done') { fireConfetti(); toast.success('Tarefa concluída! 🎉'); }
+      if (nextStatus === 'done') {
+        fireConfetti();
+        toast.success('Tarefa concluída! 🎉');
+        await spawnNextOccurrenceIfRecurring(task);
+      }
       loadAll();
     } catch (err) { toast.error(showError(err)); }
   }
@@ -204,6 +211,7 @@ export default function HojePage() {
                           >
                             <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
                             <span className="flex-1 truncate">{task.title}</span>
+                            {task.recurring && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" />}
                             {task.priority !== 'normal' && <span className={cn('text-xs', pc.color)}>{pc.label}</span>}
                           </motion.button>
                         );

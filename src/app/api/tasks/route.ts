@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
           checklist: task.checklist || [],
           assignee: task.assignee,
           sortOrder: task.sortOrder || 0,
+          recurring: task.recurring,
+          recurringFrequency: task.recurringFrequency,
         })
       )
     );
@@ -43,6 +45,8 @@ export async function POST(request: NextRequest) {
     checklist: body.checklist || [],
     assignee: body.assignee,
     sortOrder: body.sortOrder || 0,
+    recurring: body.recurring,
+    recurringFrequency: body.recurringFrequency,
   });
   return NextResponse.json(task, { status: 201 });
 }

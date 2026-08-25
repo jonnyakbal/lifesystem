@@ -19,11 +19,16 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 
 interface Capture { id: string; content: string; title?: string; status: string; targetId?: string; createdAt: string; }
 interface Indicator { id: string; pillarId: string; name: string; targetValue?: number; currentValue?: number; frequency: string; }
 interface Pillar { id: string; name: string; icon: string; }
-interface Task { id: string; title: string; status: string; priority: string; dueDate?: string; }
+interface Task {
+  id: string; title: string; status: string; priority: string; dueDate?: string;
+  description?: string; projectId?: string; pillarId?: string; tags?: string[];
+  recurring?: boolean; recurringFrequency?: RecurringFrequency;
+}
 interface VisionDoc { id: string; section: string; title: string; content?: string; }
 
 const LAST_REVIEW_KEY = 'lifesystem-last-weekly-review';
@@ -101,6 +106,7 @@ export default function RevisaoPage() {
     try {
       await apiFetch(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'done' }) });
       toast.success('Tarefa concluída! 🎉');
+      await spawnNextOccurrenceIfRecurring(task);
       loadAll();
     } catch (err) { toast.error(showError(err)); }
   }

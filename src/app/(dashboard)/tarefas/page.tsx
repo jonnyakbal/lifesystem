@@ -7,7 +7,7 @@ import {
   GripVertical, CalendarDays, List, LayoutGrid, X, Tag, User, AlertTriangle,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square, PartyPopper,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar, Zap,
-  ArrowRight, Clock, Target, Flame, Filter
+  ArrowRight, Clock, Target, Flame, Filter, Repeat
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
+import { spawnNextOccurrenceIfRecurring, RECURRING_LABELS, type RecurringFrequency } from '@/lib/recurring';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -57,6 +58,8 @@ interface Task {
   checklist: TaskChecklistItem[];
   assignee?: string;
   sortOrder: number;
+  recurring?: boolean;
+  recurringFrequency?: RecurringFrequency;
 }
 
 interface Project {
@@ -244,6 +247,8 @@ export default function TasksPage() {
   const [newAssignee, setNewAssignee] = useState('');
   const [newProjectId, setNewProjectId] = useState('');
   const [newPillarId, setNewPillarId] = useState('');
+  const [newRecurring, setNewRecurring] = useState(false);
+  const [newRecurringFrequency, setNewRecurringFrequency] = useState<RecurringFrequency>('daily');
 
   // Quick add
   const [quickAddStatus, setQuickAddStatus] = useState<Task['status'] | null>(null);
@@ -366,6 +371,8 @@ export default function TasksPage() {
     setNewAssignee('');
     setNewProjectId('');
     setNewPillarId('');
+    setNewRecurring(false);
+    setNewRecurringFrequency('daily');
     setIsDialogOpen(true);
   }
 
@@ -382,6 +389,8 @@ export default function TasksPage() {
     setNewAssignee(task.assignee || '');
     setNewProjectId(task.projectId || '');
     setNewPillarId(task.pillarId || '');
+    setNewRecurring(task.recurring || false);
+    setNewRecurringFrequency(task.recurringFrequency || 'daily');
     setIsDialogOpen(true);
   }
 
@@ -398,6 +407,8 @@ export default function TasksPage() {
         assignee: newAssignee || undefined,
         projectId: newProjectId || undefined,
         pillarId: newPillarId || undefined,
+        recurring: newRecurring,
+        recurringFrequency: newRecurring ? newRecurringFrequency : undefined,
       };
       if (editingTask) {
         await apiFetch(`/api/tasks/${editingTask.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -515,7 +526,11 @@ export default function TasksPage() {
     try {
       const nextStatus = task.status === 'done' ? 'todo' : 'done';
       await apiFetch(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
-      if (nextStatus === 'done') { fireConfetti(); toast.success('Tarefa concluída! 🎉'); }
+      if (nextStatus === 'done') {
+        fireConfetti();
+        toast.success('Tarefa concluída! 🎉');
+        await spawnNextOccurrenceIfRecurring(task);
+      }
       loadTasks();
     } catch (err) {
       toast.error(showError(err));
@@ -786,6 +801,11 @@ export default function TasksPage() {
                   {task.dueDate && (
                     <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', 'gap-1', isOverdue(task) ? 'border-destructive text-destructive' : 'text-muted-foreground')}>
                       <CalendarDays className="h-2.5 w-2.5" /> {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                    </Badge>
+                  )}
+                  {task.recurring && (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
+                      <Repeat className="h-2.5 w-2.5" /> {RECURRING_LABELS[task.recurringFrequency || 'daily']}
                     </Badge>
                   )}
                   {!dense && task.assignee && (
@@ -1109,6 +1129,11 @@ export default function TasksPage() {
                                 >
                                   <CalendarDays className="h-2.5 w-2.5" />
                                   {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                                </Badge>
+                              )}
+                              {task.recurring && (
+                                <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
+                                  <Repeat className="h-2.5 w-2.5" /> {RECURRING_LABELS[task.recurringFrequency || 'daily']}
                                 </Badge>
                               )}
                             </div>
@@ -1547,6 +1572,27 @@ export default function TasksPage() {
                 <Label>Responsável</Label>
                 <Input value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} placeholder="Nome" />
               </div>
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
+                <Label className="flex items-center gap-1.5 text-sm font-normal">
+                  <Repeat className="h-3.5 w-3.5 text-muted-foreground" /> Tarefa recorrente
+                </Label>
+                <Switch checked={newRecurring} onCheckedChange={setNewRecurring} />
+              </div>
+              {newRecurring && (
+                <Select value={newRecurringFrequency} onValueChange={(v) => setNewRecurringFrequency(v as RecurringFrequency)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(RECURRING_LABELS) as RecurringFrequency[]).map(f => (
+                      <SelectItem key={f} value={f}>{RECURRING_LABELS[f]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {newRecurring && (
+                <p className="text-xs text-muted-foreground">Ao concluir, uma nova tarefa é criada automaticamente com o próximo prazo.</p>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
