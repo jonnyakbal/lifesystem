@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
+import Link from 'next/link';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   Plus, CheckCircle2, Circle, Trash2, Search, Copy, Eye, EyeOff,
   GripVertical, CalendarDays, List, LayoutGrid, X, Tag, User, AlertTriangle,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square, PartyPopper,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar, Zap,
-  ArrowRight, Clock, Target, Flame, Filter, Repeat
+  ArrowRight, Clock, Target, Flame, Filter, Repeat, FileText, Wallet
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -78,6 +79,12 @@ interface Pillar {
 }
 
 type ViewMode = 'kanban' | 'list' | 'week' | 'calendar';
+
+// Lightweight shapes for the two other entity types the unified calendar
+// overlays alongside Task — just enough fields to plot + link out, not a
+// full duplicate of their own pages' interfaces.
+interface CalendarContentItem { id: string; title: string; channel: string; scheduledDate?: string; }
+interface CalendarFinancialEntry { id: string; description?: string; category: string; amount: number; type: string; dueDate?: string; status?: string; }
 type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'pillar';
 type SortBy = 'date' | 'title' | 'priority' | 'status' | 'dueDate';
 
@@ -206,6 +213,7 @@ export default function TasksPage() {
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [linkedContent, setLinkedContent] = useState<any[]>([]);
   const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
+  const [calendarFinancial, setCalendarFinancial] = useState<CalendarFinancialEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // View state
@@ -261,6 +269,9 @@ export default function TasksPage() {
     // itself doesn't store the reverse link, so it's computed here.
     fetch('/api/content').then(r => r.json()).then(setLinkedContent).catch(() => {});
     fetch('/api/captures').then(r => r.json()).then(setLinkedCaptures).catch(() => {});
+    // For the unified Calendar view (Fase 5) — Conteúdo agendado e contas a
+    // vencer plotados junto das tarefas em vez de precisar abrir 3 telas.
+    fetch('/api/financial').then(r => r.json()).then(setCalendarFinancial).catch(() => {});
   }, []);
 
   // Deep-link support: ⌘K search results for tasks land here with ?open=<id>
@@ -704,14 +715,19 @@ export default function TasksPage() {
     const month = now.getMonth();
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days: { day: number; tasks: Task[] }[] = [];
-    for (let i = 0; i < firstDay; i++) days.push({ day: 0, tasks: [] });
+    const days: { day: number; tasks: Task[]; content: CalendarContentItem[]; financial: CalendarFinancialEntry[] }[] = [];
+    for (let i = 0; i < firstDay; i++) days.push({ day: 0, tasks: [], content: [], financial: [] });
     for (let d = 1; d <= daysInMonth; d++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({ day: d, tasks: sortedTasks.filter(t => t.dueDate === dateStr) });
+      days.push({
+        day: d,
+        tasks: sortedTasks.filter(t => t.dueDate === dateStr),
+        content: linkedContent.filter((c: any) => c.scheduledDate === dateStr),
+        financial: calendarFinancial.filter(f => f.dueDate === dateStr && f.status !== 'paid'),
+      });
     }
     return days;
-  }, [sortedTasks]);
+  }, [sortedTasks, linkedContent, calendarFinancial]);
 
   // ─── Render Card ─────────────────────────────────────────────────────────
 
@@ -1259,16 +1275,25 @@ export default function TasksPage() {
     const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     return (
       <div>
-        <h3 className="text-lg font-medium mb-4 capitalize">{monthName}</h3>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-lg font-medium capitalize">{monthName}</h3>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1"><Circle className="h-2 w-2 fill-current" /> Tarefa</span>
+            <span className="flex items-center gap-1"><FileText className="h-2.5 w-2.5" /> Conteúdo</span>
+            <span className="flex items-center gap-1"><Wallet className="h-2.5 w-2.5" /> Financeiro</span>
+          </div>
+        </div>
         <div className="grid grid-cols-7 gap-1">
           {weekDays.map(d => <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>)}
-          {calendarDays.map((day, i) => (
+          {calendarDays.map((day, i) => {
+            const totalItems = day.tasks.length + day.content.length + day.financial.length;
+            return (
             <div key={i} className={cn('min-h-[80px] rounded-lg border p-1.5', day.day === 0 ? 'border-transparent' : day.day === now.getDate() ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-muted/10')}>
               {day.day > 0 && (
                 <>
                   <span className={cn('text-xs font-medium', day.day === now.getDate() ? 'text-primary font-bold' : 'text-muted-foreground')}>{day.day}</span>
                   <div className="mt-1 space-y-0.5">
-                    {day.tasks.slice(0, 3).map(task => (
+                    {day.tasks.slice(0, 2).map(task => (
                       <div key={task.id} className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1"
                         style={{ backgroundColor: priorityConfig[task.priority]?.color?.replace('bg-', '') ? `var(--${priorityConfig[task.priority].color.replace('bg-', '')})` + '20' : undefined }}
                         onClick={() => openEdit(task)}>
@@ -1276,12 +1301,22 @@ export default function TasksPage() {
                         {task.title}
                       </div>
                     ))}
-                    {day.tasks.length > 3 && <span className="text-xs text-muted-foreground">+{day.tasks.length - 3}</span>}
+                    {day.content.slice(0, 2).map(item => (
+                      <Link key={item.id} href="/conteudo" className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1 bg-purple-500/10 text-purple-400">
+                        <FileText className="h-2 w-2 shrink-0" /> {item.title}
+                      </Link>
+                    ))}
+                    {day.financial.slice(0, 2).map(entry => (
+                      <Link key={entry.id} href="/financeiro" className={cn('rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1', entry.type === 'income' ? 'bg-money/10 text-money' : 'bg-destructive/10 text-destructive')}>
+                        <Wallet className="h-2 w-2 shrink-0" /> {entry.description || entry.category}
+                      </Link>
+                    ))}
+                    {totalItems > 6 && <span className="text-xs text-muted-foreground">+{totalItems - 6}</span>}
                   </div>
                 </>
               )}
             </div>
-          ))}
+          );})}
         </div>
       </div>
     );
