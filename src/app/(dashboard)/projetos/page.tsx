@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, FolderKanban, ExternalLink, MoreHorizontal, Trash2, GripVertical, X, Link as LinkIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -12,6 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
@@ -50,7 +52,11 @@ const stagger = {
 };
 
 export default function ProjectsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [linkedContent, setLinkedContent] = useState<any[]>([]);
+  const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({ name: '', description: '', status: 'idea' as Project['status'] });
@@ -69,7 +75,35 @@ export default function ProjectsPage() {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const dragClickRef = useRef(false);
 
-  useEffect(() => { loadProjects(); }, []);
+  useEffect(() => {
+    loadProjects();
+    fetch('/api/content').then(r => r.json()).then(setLinkedContent).catch(() => {});
+    fetch('/api/captures').then(r => r.json()).then(setLinkedCaptures).catch(() => {});
+  }, []);
+
+  // Deep-link support: ⌘K search + the Inbox "Virou projeto" badge land here
+  // with ?open=<id> so they jump straight to the project instead of the
+  // general board.
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId || projects.length === 0) return;
+    const project = projects.find(p => p.id === openId);
+    if (project) {
+      openEdit(project);
+      router.replace('/projetos');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projects, searchParams]);
+
+  function getProjectBacklinks(projectId: string) {
+    const fromContent = linkedContent
+      .filter((c: any) => (c.linkedProjectIds || []).includes(projectId))
+      .map((c: any) => ({ id: c.id, type: 'content' as const, title: c.title || 'Sem título' }));
+    const fromCaptures = linkedCaptures
+      .filter((c: any) => c.targetType === 'project' && c.targetId === projectId)
+      .map((c: any) => ({ id: c.id, type: 'capture' as const, title: (c.title || (c.content as string)?.replace(/<[^>]*>/g, '').slice(0, 60)) || 'Sem título' }));
+    return [...fromContent, ...fromCaptures];
+  }
 
   async function loadProjects() {
     try {
@@ -541,6 +575,18 @@ export default function ProjectsPage() {
                 <Button type="button" variant="outline" size="sm" onClick={addLink}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
+            {editingProject && (
+              <div className="grid gap-2">
+                <Label>Vínculos</Label>
+                <LinkedItemsPanel
+                  readOnly
+                  linkableTypes={[]}
+                  linkedIds={{}}
+                  onChange={() => {}}
+                  backlinks={getProjectBacklinks(editingProject.id)}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2">
             {editingProject && (

@@ -3,9 +3,13 @@ import { storage } from '@/lib/storage';
 import { Capture } from '@/types';
 
 export async function GET() {
+  // Returns every capture regardless of status — filtering to just
+  // status:'inbox' here would hide converted/organized captures from
+  // callers that need the full list (backlinks on Task/Project, the
+  // "Virou tarefa" provenance badge on the capture itself). The Inbox
+  // page applies its own default view filter client-side instead.
   const captures = await storage.getAll<Capture>('captures');
-  const inbox = captures.filter(c => c.status === 'inbox');
-  return NextResponse.json(inbox);
+  return NextResponse.json(captures);
 }
 
 export async function POST(request: NextRequest) {

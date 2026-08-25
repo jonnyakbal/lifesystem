@@ -2,11 +2,13 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import NextLink from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Trash2, FileText, Link as LinkIcon, Image, Mic, Inbox as InboxIcon,
   Search, X, ChevronLeft, Sparkles, BookOpen, Briefcase, Home, GraduationCap,
-  Tag, MoreHorizontal, Copy, Archive, PanelRight, Square, Maximize2
+  Tag, MoreHorizontal, Copy, Archive, PanelRight, Square, Maximize2,
+  CheckSquare, FolderKanban, ArrowRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { NotionEditor } from '@/components/notion-editor';
+import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -29,6 +32,9 @@ interface Capture {
   status: string;
   createdAt: string;
   updatedAt?: string;
+  targetType?: 'task' | 'project';
+  targetId?: string;
+  linkedCaptureIds?: string[];
 }
 
 const CATEGORIES = [
@@ -137,6 +143,7 @@ export default function InboxPage() {
   const [editingCapture, setEditingCapture] = useState<Capture | null>(null);
   const [editorTitle, setEditorTitle] = useState('');
   const [editorContent, setEditorContent] = useState('');
+  const [editorLinkedCaptureIds, setEditorLinkedCaptureIds] = useState<string[]>([]);
   const [editorCategory, setEditorCategory] = useState('ideias');
   const [editorCoverUrl, setEditorCoverUrl] = useState('');
   const [newCaptureTitle, setNewCaptureTitle] = useState('');
@@ -192,6 +199,7 @@ export default function InboxPage() {
     setEditorContent('');
     setEditorCategory('ideias');
     setEditorCoverUrl('');
+    setEditorLinkedCaptureIds([]);
     editorOpenedAtRef.current = Date.now();
     setEditorOpen(true);
   }
@@ -202,6 +210,7 @@ export default function InboxPage() {
     setEditorContent(stripLeadingTitle(capture.content));
     setEditorCategory(capture.category || 'ideias');
     setEditorCoverUrl((capture as any).coverUrl || '');
+    setEditorLinkedCaptureIds(capture.linkedCaptureIds || []);
     editorOpenedAtRef.current = Date.now();
     setEditorOpen(true);
   }
@@ -221,7 +230,7 @@ export default function InboxPage() {
         await apiFetch(`/api/captures/${editingCapture.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: fullContent, category: editorCategory, coverUrl: editorCoverUrl }),
+          body: JSON.stringify({ content: fullContent, category: editorCategory, coverUrl: editorCoverUrl, linkedCaptureIds: editorLinkedCaptureIds }),
         });
         toast.success('Captura atualizada!');
       } else {
@@ -274,6 +283,34 @@ export default function InboxPage() {
       });
       loadCaptures();
       toast.success('Duplicada!');
+    } catch (err) { toast.error(showError(err)); }
+  }
+
+  // The "Organize" step of CODE that was missing: turn a raw capture into a
+  // real Task/Project instead of just tagging it with a category. Marks the
+  // capture as processed (targetType/targetId/status) so it shows a
+  // "→ Virou tarefa" badge instead of just sitting in the inbox forever.
+  async function handleConvert(capture: Capture, targetType: 'task' | 'project') {
+    try {
+      const title = getTitle(capture.content);
+      const created = targetType === 'task'
+        ? await apiFetch<{ id: string }>('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, priority: 'normal', status: 'todo', sortOrder: 0, tags: [], checklist: [] }),
+          })
+        : await apiFetch<{ id: string }>('/api/projects', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: title, description: capture.content.replace(/<[^>]*>/g, '').slice(0, 300), status: 'idea', stack: [], needs: '', links: [], tasksCount: 0, tasksDone: 0 }),
+          });
+      await apiFetch(`/api/captures/${capture.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetType, targetId: created.id, status: 'organized' }),
+      });
+      loadCaptures();
+      toast.success(targetType === 'task' ? 'Virou tarefa!' : 'Virou projeto!');
     } catch (err) { toast.error(showError(err)); }
   }
 
@@ -438,6 +475,17 @@ export default function InboxPage() {
                             <DropdownMenuItem onClick={() => handleDuplicate(capture)}>
                               <Copy className="mr-2 h-4 w-4" /> Duplicar
                             </DropdownMenuItem>
+                            {!capture.targetId && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
+                                  <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
+                                  <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
+                                </DropdownMenuItem>
+                              </>
+                            )}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
                               <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -458,6 +506,15 @@ export default function InboxPage() {
                       <h3 className="font-medium text-sm leading-snug line-clamp-2 mb-1">{title}</h3>
                       {preview && (
                         <p className="text-xs text-muted-foreground line-clamp-3">{preview}</p>
+                      )}
+                      {capture.targetId && (
+                        <NextLink
+                          href={capture.targetType === 'project' ? `/projetos?open=${capture.targetId}` : `/tarefas?open=${capture.targetId}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 inline-flex items-center gap-1 rounded-md bg-money/10 px-1.5 py-0.5 text-[11px] font-medium text-money hover:bg-money/20"
+                        >
+                          <ArrowRight className="h-3 w-3" /> Virou {capture.targetType === 'project' ? 'projeto' : 'tarefa'}
+                        </NextLink>
                       )}
                       <p className="text-xs text-muted-foreground mt-2">
                         {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
@@ -490,6 +547,18 @@ export default function InboxPage() {
                         <p className="text-sm font-medium truncate">{title}</p>
                         <p className="text-xs text-muted-foreground">
                           {cat?.label} · {new Date(capture.createdAt).toLocaleDateString('pt-BR')}
+                          {capture.targetId && (
+                            <>
+                              {' · '}
+                              <NextLink
+                                href={capture.targetType === 'project' ? `/projetos?open=${capture.targetId}` : `/tarefas?open=${capture.targetId}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-money hover:underline"
+                              >
+                                Virou {capture.targetType === 'project' ? 'projeto' : 'tarefa'}
+                              </NextLink>
+                            </>
+                          )}
                         </p>
                       </div>
                       <DropdownMenu>
@@ -502,6 +571,17 @@ export default function InboxPage() {
                           <DropdownMenuItem onClick={() => handleDuplicate(capture)}>
                             <Copy className="mr-2 h-4 w-4" /> Duplicar
                           </DropdownMenuItem>
+                          {!capture.targetId && (
+                            <>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
+                                <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
+                                <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
+                              </DropdownMenuItem>
+                            </>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -659,6 +739,16 @@ export default function InboxPage() {
                     onChange={setEditorContent}
                     placeholder="Comece a escrever..."
                   />
+                  {editingCapture && (
+                    <div className="mt-8 border-t border-border pt-4">
+                      <LinkedItemsPanel
+                        linkableTypes={['capture']}
+                        excludeId={editingCapture.id}
+                        linkedIds={{ capture: editorLinkedCaptureIds }}
+                        onChange={(next) => setEditorLinkedCaptureIds(next.capture || [])}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

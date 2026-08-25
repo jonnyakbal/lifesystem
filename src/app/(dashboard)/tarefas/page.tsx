@@ -22,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { LinkedItemsPanel } from '@/components/linked-items-panel';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -194,9 +196,13 @@ function FilterChip({ label, value, onRemove }: { label: string; value: string; 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function TasksPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
+  const [linkedContent, setLinkedContent] = useState<any[]>([]);
+  const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // View state
@@ -243,7 +249,37 @@ export default function TasksPage() {
   const [quickAddStatus, setQuickAddStatus] = useState<Task['status'] | null>(null);
   const [quickAddTitle, setQuickAddTitle] = useState('');
 
-  useEffect(() => { loadTasks(); loadProjects(); loadPillars(); loadSavedViews(); }, []);
+  useEffect(() => {
+    loadTasks(); loadProjects(); loadPillars(); loadSavedViews();
+    // Loaded once for the "Referenciado por" backlinks panel — Content and
+    // Captures can point at a Task via linkedTaskIds/targetId, but Task
+    // itself doesn't store the reverse link, so it's computed here.
+    fetch('/api/content').then(r => r.json()).then(setLinkedContent).catch(() => {});
+    fetch('/api/captures').then(r => r.json()).then(setLinkedCaptures).catch(() => {});
+  }, []);
+
+  // Deep-link support: ⌘K search results for tasks land here with ?open=<id>
+  // instead of just the bare page, so search actually jumps to the item.
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId || tasks.length === 0) return;
+    const task = tasks.find(t => t.id === openId);
+    if (task) {
+      openEdit(task);
+      router.replace('/tarefas');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, searchParams]);
+
+  function getTaskBacklinks(taskId: string) {
+    const fromContent = linkedContent
+      .filter((c: any) => (c.linkedTaskIds || []).includes(taskId))
+      .map((c: any) => ({ id: c.id, type: 'content' as const, title: c.title || 'Sem título' }));
+    const fromCaptures = linkedCaptures
+      .filter((c: any) => c.targetType === 'task' && c.targetId === taskId)
+      .map((c: any) => ({ id: c.id, type: 'capture' as const, title: (c.title || (c.content as string)?.replace(/<[^>]*>/g, '').slice(0, 60)) || 'Sem título' }));
+    return [...fromContent, ...fromCaptures];
+  }
 
   async function loadTasks() {
     try {
@@ -1565,6 +1601,18 @@ export default function TasksPage() {
                 <Button type="button" variant="outline" size="sm" onClick={addChecklistItem}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
+            {editingTask && (
+              <div className="grid gap-2">
+                <Label>Vínculos</Label>
+                <LinkedItemsPanel
+                  readOnly
+                  linkableTypes={[]}
+                  linkedIds={{}}
+                  onChange={() => {}}
+                  backlinks={getTaskBacklinks(editingTask.id)}
+                />
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2">
             {editingTask && <Button variant="destructive" onClick={() => { handleDelete(editingTask.id); setIsDialogOpen(false); }}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}

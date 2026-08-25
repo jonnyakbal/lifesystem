@@ -25,6 +25,7 @@ export interface Capture extends BaseEntity {
   coverUrl?: string;
   coverColor?: string;
   category?: string;
+  linkedCaptureIds?: string[];
 }
 
 // Pillars

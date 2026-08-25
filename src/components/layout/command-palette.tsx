@@ -46,7 +46,7 @@ const ENTITY_CONFIG: Record<string, {
     label: 'Tarefas',
     color: 'text-blue-500',
     icon: CheckSquare,
-    getHref: (item) => `/tarefas`,
+    getHref: (item) => `/tarefas?open=${item.id}`,
     getTitle: (item) => (item.title as string) || 'Sem título',
     getSubtitle: (item) => {
       const status = item.status as string;
@@ -74,7 +74,7 @@ const ENTITY_CONFIG: Record<string, {
     label: 'Conteúdo',
     color: 'text-purple-500',
     icon: FileText,
-    getHref: () => '/conteudo',
+    getHref: (item) => `/conteudo?open=${item.id}`,
     getTitle: (item) => (item.title as string) || 'Sem título',
     getSubtitle: (item) => {
       const channel = item.channel as string;
@@ -113,7 +113,7 @@ const ENTITY_CONFIG: Record<string, {
     label: 'Projetos',
     color: 'text-orange-500',
     icon: FolderKanban,
-    getHref: () => '/projetos',
+    getHref: (item) => `/projetos?open=${item.id}`,
     getTitle: (item) => (item.name as string) || 'Sem nome',
     getSubtitle: (item) => {
       const status = item.status as string;

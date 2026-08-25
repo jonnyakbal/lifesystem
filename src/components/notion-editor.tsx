@@ -75,6 +75,10 @@ export function NotionEditor({
           color: 'hsl(262 90% 70%)',
           width: 2,
         },
+        // StarterKit bundles its own Link extension; we configure Link
+        // separately below (autolink, openOnClick), so disable the
+        // built-in one to avoid a duplicate-extension warning/conflict.
+        link: false,
       }),
       Placeholder.configure({ placeholder }),
       TaskList,

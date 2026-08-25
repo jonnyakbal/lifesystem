@@ -26,6 +26,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { LinkedItemsPanel } from '@/components/linked-items-panel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,8 @@ interface ContentItem {
   editorialLine?: string;
   checklist?: { id: string; text: string; done: boolean }[];
   metrics?: { views?: number; likes?: number; comments?: number; shares?: number };
+  linkedTaskIds?: string[];
+  linkedProjectIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -361,6 +364,8 @@ export function ContentEditor({
   const [responsible, setResponsible] = useState('');
   const [editorialLine, setEditorialLine] = useState('');
   const [checklist, setChecklist] = useState<{ id: string; text: string; done: boolean }[]>([]);
+  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>([]);
+  const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>([]);
   // Guards the backdrop's close-on-click against the same click gesture that
   // opened the panel: a fast click can dispatch mousedown/mouseup far enough
   // apart that React mounts the full-viewport backdrop under the cursor
@@ -386,6 +391,8 @@ export function ContentEditor({
       setResponsible(editingItem.responsible || '');
       setEditorialLine(editingItem.editorialLine || '');
       setChecklist(editingItem.checklist?.map(c => ({ ...c })) || []);
+      setLinkedTaskIds(editingItem.linkedTaskIds || []);
+      setLinkedProjectIds(editingItem.linkedProjectIds || []);
     } else {
       const ch = activeChannel === 'all' ? 'blog' : activeChannel;
       setTitle('');
@@ -401,6 +408,8 @@ export function ContentEditor({
       setResponsible('');
       setEditorialLine('');
       setChecklist([]);
+      setLinkedTaskIds([]);
+      setLinkedProjectIds([]);
     }
     setShowPreview(false);
     setFocusMode(false);
@@ -468,6 +477,8 @@ export function ContentEditor({
         responsible: responsible || undefined,
         editorialLine: editorialLine || undefined,
         checklist,
+        linkedTaskIds,
+        linkedProjectIds,
       };
       if (editingItem) {
         await apiFetch(`/api/content/${editingItem.id}`, {
@@ -798,6 +809,19 @@ export function ContentEditor({
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }} />
                     <Button type="button" variant="outline" size="sm" className="h-8" onClick={addTag}><Tag className="h-3 w-3" /></Button>
                   </div>
+                </div>
+
+                {/* Linked items */}
+                <div className="mb-6">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Vínculos</Label>
+                  <LinkedItemsPanel
+                    linkableTypes={['task', 'project']}
+                    linkedIds={{ task: linkedTaskIds, project: linkedProjectIds }}
+                    onChange={(next) => {
+                      setLinkedTaskIds(next.task || []);
+                      setLinkedProjectIds(next.project || []);
+                    }}
+                  />
                 </div>
               </div>
             </ScrollArea>

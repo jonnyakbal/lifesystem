@@ -22,6 +22,7 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
@@ -55,6 +56,8 @@ interface ContentItem {
   editorialLine?: string;
   checklist?: { id: string; text: string; done: boolean }[];
   metrics?: { views?: number; likes?: number; comments?: number; shares?: number };
+  linkedTaskIds?: string[];
+  linkedProjectIds?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -220,6 +223,8 @@ function FilterChip({ label, value, onRemove }: { label: string; value: string; 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ConteudoPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -250,6 +255,20 @@ export default function ConteudoPage() {
     loadItems();
     loadSavedViews();
   }, []);
+
+  // Deep-link support: ⌘K search results for content land here with
+  // ?open=<id> instead of just the bare page, so search actually jumps to
+  // the item instead of just the general kanban.
+  useEffect(() => {
+    const openId = searchParams.get('open');
+    if (!openId || items.length === 0) return;
+    const item = items.find(i => i.id === openId);
+    if (item) {
+      openEdit(item);
+      router.replace('/conteudo');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, searchParams]);
 
   async function loadItems() {
     try {
