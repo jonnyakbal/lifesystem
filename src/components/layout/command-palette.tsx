@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, Inbox, Target, Layers, FolderKanban, CheckSquare,
   BarChart3, Wallet, BookOpen, FileText, Plus, ArrowRight, Command,
-  Zap, Hash, Calendar, TrendingUp, Loader2
+  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -179,6 +179,7 @@ export function CommandPalette() {
     { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: '⌘L', action: () => router.push('/diario'), category: 'Navegação' },
     { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: '⌘H', action: () => router.push('/'), category: 'Navegação' },
     { id: 'hoje-nav', label: 'Ir para Hoje', icon: Calendar, shortcut: '⌘G', action: () => router.push('/hoje'), category: 'Navegação' },
+    { id: 'revisao-nav', label: 'Ir para Revisão Semanal', icon: ListChecks, shortcut: '⌘R', action: () => router.push('/revisao'), category: 'Navegação' },
     { id: 'nova-tarefa', label: 'Criar nova tarefa', icon: Plus, action: () => { router.push('/tarefas'); }, category: 'Ações Rápidas' },
     { id: 'nova-captura', label: 'Criar nova captura', icon: Plus, action: () => { router.push('/inbox'); }, category: 'Ações Rápidas' },
     { id: 'nova-nota', label: 'Criar nova nota', icon: Plus, action: () => { router.push('/conteudo'); }, category: 'Ações Rápidas' },
