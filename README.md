@@ -53,7 +53,17 @@ data/                       # JSON "banco" (gerado em runtime + seed)
 
 ### Variáveis de ambiente
 
-Nenhuma necessária no MVP (storage é arquivo local).
+- `AUTH_USER` / `AUTH_PASSWORD` — credenciais de login da interface web.
+- `MCP_API_KEY` — token usado por agentes de IA externos (ex: Hermes Agent) pra chamar `/api/mcp` (ver seção abaixo). Gere um valor aleatório longo; sem essa variável configurada, o endpoint MCP fica bloqueado (fail closed).
+
+## Servidor MCP (integração com Hermes Agent)
+
+`/api/mcp` expõe as ferramentas do LIFESYSTEM (Tarefas, Conteúdo, INBOX/Notas, Pilares, Metas, Projetos — CRUD completo) via [Model Context Protocol](https://modelcontextprotocol.io), pra qualquer agente de IA que suporte MCP (ex: [Hermes Agent](https://hermes-agent.nousresearch.com/), que roda na VPS do Jonny e conecta por Telegram).
+
+- Autenticação própria por `Authorization: Bearer <MCP_API_KEY>` — não usa o login/cookie da interface web.
+- Implementação: `src/lib/mcp/tools.ts` (definição das ferramentas), `src/lib/mcp/server.ts` (instancia o servidor), `src/app/api/mcp/route.ts` (endpoint HTTP).
+- Pra conectar o Hermes: configurar nele um MCP server apontando pra `https://lifesystem.oj0nny.com/api/mcp` com o `MCP_API_KEY` como Bearer token.
+- Pra testar manualmente: `npx @modelcontextprotocol/inspector` apontado pro endpoint local ou de produção.
 
 ## Storage Layer
 

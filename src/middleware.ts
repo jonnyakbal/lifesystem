@@ -5,7 +5,10 @@ import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 // tarefas), so it must never be reachable without logging in once it's live
 // on a public URL. Credentials come from AUTH_USER/AUTH_PASSWORD env vars
 // only (never hardcoded here), so the deploy fails closed if they're not set.
-const PUBLIC_PATHS = ['/login', '/api/login'];
+// /api/mcp does its own Bearer-token auth (see src/app/api/mcp/route.ts) —
+// it's called by external agents with no browser session, so the cookie
+// gate below doesn't apply to it.
+const PUBLIC_PATHS = ['/login', '/api/login', '/api/mcp'];
 
 export async function middleware(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
