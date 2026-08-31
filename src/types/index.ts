@@ -338,6 +338,17 @@ export interface AiClassification {
   alternatives?: { type: string; title: string }[];
 }
 
+// Diário de Bordo — living technical/product logbook (distinct from the
+// personal Journal above: this one tracks system evolution, not the day).
+export type LogEntryCategory = 'stack' | 'infra' | 'deploy' | 'seguranca' | 'testes' | 'produto' | 'roadmap' | 'geral';
+
+export interface LogEntry extends BaseEntity {
+  title: string;
+  body: string; // rich text HTML, same convention as Content.body
+  category: LogEntryCategory;
+  date: string; // YYYY-MM-DD — "as of" date, may differ from createdAt for backfilled entries
+}
+
 // User Settings
 export interface UserSettings extends BaseEntity {
   theme: 'dark' | 'light' | 'system';

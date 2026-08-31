@@ -334,4 +334,32 @@ export function registerAllTools(server: McpServer) {
       tasksDone: 0,
     }),
   });
+
+  // Log entries — Diário de Bordo (/diario-bordo). Mirrors
+  // src/app/api/log-entries/route.ts POST body. Lets an agent record
+  // technical/product decisions directly from a conversation.
+  registerCrudTools(server, {
+    entity: 'log_entry',
+    collection: 'log-entries',
+    plural: 'log_entries',
+    listFilters: ['category'],
+    createShape: {
+      title: z.string().describe('Título da entrada'),
+      body: z.string().optional().describe('Corpo em HTML simples (ex: <p>...</p>)'),
+      category: z.enum(['stack', 'infra', 'deploy', 'seguranca', 'testes', 'produto', 'roadmap', 'geral']).optional().describe('Padrão: geral'),
+      date: z.string().optional().describe('Formato YYYY-MM-DD. Padrão: hoje'),
+    },
+    updateShape: {
+      title: z.string().optional(),
+      body: z.string().optional(),
+      category: z.enum(['stack', 'infra', 'deploy', 'seguranca', 'testes', 'produto', 'roadmap', 'geral']).optional(),
+      date: z.string().optional(),
+    },
+    buildCreatePayload: (input) => ({
+      title: input.title || 'Sem título',
+      body: input.body || '',
+      category: input.category || 'geral',
+      date: input.date || new Date().toISOString().split('T')[0],
+    }),
+  });
 }

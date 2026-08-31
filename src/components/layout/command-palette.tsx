@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, Inbox, Target, Layers, FolderKanban, CheckSquare,
   BarChart3, Wallet, BookOpen, FileText, Plus, ArrowRight, Command,
-  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks, NotebookText, Wand2
+  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks, NotebookText, Wand2, ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -225,6 +225,7 @@ export function CommandPalette() {
     { id: 'indicadores', label: 'Ir para Metas', icon: BarChart3, shortcut: '⌘D', action: () => router.push('/indicadores'), category: 'Navegação' },
     { id: 'financeiro', label: 'Ir para Financeiro', icon: Wallet, shortcut: '⌘F', action: () => router.push('/financeiro'), category: 'Navegação' },
     { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: '⌘L', action: () => router.push('/diario'), category: 'Navegação' },
+    { id: 'diario-bordo', label: 'Ir para Diário de Bordo', icon: ScrollText, shortcut: '⌘B', action: () => router.push('/diario-bordo'), category: 'Navegação' },
     { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: '⌘H', action: () => router.push('/'), category: 'Navegação' },
     { id: 'hoje-nav', label: 'Ir para Hoje', icon: Calendar, shortcut: '⌘G', action: () => router.push('/hoje'), category: 'Navegação' },
     { id: 'revisao-nav', label: 'Ir para Revisão Semanal', icon: ListChecks, shortcut: '⌘R', action: () => router.push('/revisao'), category: 'Navegação' },

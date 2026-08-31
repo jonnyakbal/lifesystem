@@ -1,6 +1,8 @@
 # Diário de Bordo — LIFESYSTEM
 
-> Registro técnico e de produto do LIFESYSTEM: stack, infraestrutura, segurança, testes, linha do tempo de evolução e roadmap. Atualizado conforme o sistema evolui — cada entrada nova vai no topo da seção "Linha do tempo".
+> **Este diário agora também vive dentro do app**, em `/diario-bordo` — uma timeline editável (categoria, data, texto rico), com as 4 entradas da seção 7 abaixo como registro inicial. O Hermes Agent também pode escrever entradas ali via MCP (`create_log_entry`). Novas entradas de evolução do dia a dia devem ser adicionadas por lá; este arquivo continua como a referência técnica mais completa (stack, infra, segurança, roadmap) — as duas seções abaixo (stack e infra) não são duplicadas na UI.
+
+Registro técnico e de produto do LIFESYSTEM: stack, infraestrutura, segurança, testes, linha do tempo de evolução e roadmap.
 
 ---
 
@@ -90,7 +92,7 @@ data/*.json                    # "banco de dados" — 14 coleções hoje
 
 ### 4.3 Integração de IA — servidor MCP
 
-- `/api/mcp` expõe CRUD completo (Model Context Protocol) sobre Tarefas, Conteúdo, INBOX/Notas, Pilares (leitura+update), Metas e Projetos — 22 ferramentas ao todo, geradas por uma factory (`registerCrudTools` em `src/lib/mcp/tools.ts`) pra não repetir o mesmo código 6 vezes.
+- `/api/mcp` expõe CRUD completo (Model Context Protocol) sobre Tarefas, Conteúdo, INBOX/Notas, Pilares (leitura+update), Metas, Projetos e as entradas deste próprio Diário de Bordo — 26 ferramentas ao todo, geradas por uma factory (`registerCrudTools` em `src/lib/mcp/tools.ts`) pra não repetir o mesmo código 7 vezes.
 - Transporte: `WebStandardStreamableHTTPServerTransport` do SDK oficial, modo stateless (uma instância de servidor MCP por request — sem estado de sessão entre chamadas).
 - Consumidor alvo: **Hermes Agent** (open source, Nous Research), instância pessoal do Jonny rodando na própria VPS, conectando por Telegram — o LIFESYSTEM vira uma "ferramenta" que o Hermes descobre e usa sozinho, sem glue code manual.
 - Testado ponta a ponta manualmente via `curl` antes do commit: handshake, listagem das 22 tools, `create_task` → confirmado gravado em `data/tasks.json` → `list_tasks` com filtro → `delete_task` → confirmado removido.

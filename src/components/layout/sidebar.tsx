@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
-  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2
+  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,7 @@ const navigation = [
   { name: 'Metas', href: '/indicadores', icon: BarChart3, shortcut: '⌘D' },
   { name: 'Financeiro', href: '/financeiro', icon: Wallet, shortcut: '⌘F' },
   { name: 'Diário', href: '/diario', icon: BookOpen, shortcut: '⌘L' },
+  { name: 'Diário de Bordo', href: '/diario-bordo', icon: ScrollText, shortcut: '⌘B' },
 ];
 
 function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {

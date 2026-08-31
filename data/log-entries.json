@@ -1,0 +1,38 @@
+[
+  {
+    "id": "cf520a77-dd62-4af9-8d72-33316aa28dc2",
+    "title": "Fila de 10 alterações + Wizard \"Planejar\" + Servidor MCP",
+    "body": "<p>Sessão longa de evolução guiada por uma fila de pedidos do Jonny (protocolo: mandar item por item, só implementar no \"VAI\").</p><ul><li><strong>Fix:</strong> bug de HTML cru aparecendo nas \"Últimas Capturas\" da Home.</li><li><strong>UX:</strong> reordenação da Home, seção de Conteúdo do dia sempre visível na página Hoje, INBOX virou grid de sticky notes com cor/rotação por hash determinístico do id.</li><li><strong>Fluxo:</strong> Revisão Semanal saiu do menu lateral e virou botão animado dentro do INBOX que abre um modal (extraído pra componente <code>WeeklyReviewFlow</code>).</li><li><strong>Dado real + migração:</strong> <code>Project.stack</code> renomeado pra <code>Project.tags</code> em 6 arquivos + migração dos 9 projetos existentes.</li><li><strong>Modelo de dado:</strong> cards de Pilar passaram a mostrar Metas (Indicator) linkadas por pillarId; <code>Pillar.target</code> promovido visualmente a \"Meta do Ano / BHAG\".</li><li><strong>Consolidação:</strong> <code>/visao</code> e <code>/pilares</code> viraram uma página só com abas internas.</li><li><strong>Feature nova:</strong> editor de rótulos de status (Tarefas, Projetos, Conteúdo).</li><li><strong>Feature nova — Wizard \"Planejar\"</strong> (<code>/planejar</code>): fluxo passo-a-passo (Dia/Semana/Mês → um passo por Pilar) que cria Tarefas/Conteúdo/Notas reais via API.</li><li><strong>Feature nova — Servidor MCP</strong> (<code>/api/mcp</code>): integração com o Hermes Agent, CRUD completo via Model Context Protocol.</li></ul><p>Todas as entregas passaram por <code>tsc</code>/<code>build</code> limpos + verificação manual em navegador antes do commit.</p>",
+    "category": "produto",
+    "date": "2026-08-31",
+    "createdAt": "2026-08-31T12:00:00.000Z",
+    "updatedAt": "2026-08-31T12:00:00.000Z"
+  },
+  {
+    "id": "40f49633-aed6-4984-9dc3-b4a765fa2bee",
+    "title": "INBOX vira captura rápida de verdade",
+    "body": "<p>Split do INBOX antigo em duas telas: uma fila de triagem rápida (INBOX) e um hub mais profundo de edição (Notas) — a distinção \"captura vs. nota processada\" que sustenta o fluxo da Revisão Semanal e do Wizard hoje.</p>",
+    "category": "produto",
+    "date": "2026-08-30",
+    "createdAt": "2026-08-30T12:00:00.000Z",
+    "updatedAt": "2026-08-30T12:00:00.000Z"
+  },
+  {
+    "id": "56e11394-7efb-49ed-8789-f4f4c43d2e11",
+    "title": "Seis fases de maturação do produto core",
+    "body": "<p>Sequência de fases que transformou o app de \"telas isoladas por entidade\" pra um sistema conectado:</p><ol><li><strong>Vínculos</strong> — camada de cross-entity linking entre Tarefas/Projetos/Conteúdo/Capturas.</li><li><strong>Hoje</strong> — visão unificada do dia.</li><li><strong>Revisão Semanal</strong> — ritual guiado de 5 passos.</li><li><strong>Tarefas recorrentes</strong> — fecha o loop de hábito.</li><li><strong>Calendário unificado</strong> — Tarefas + Conteúdo + Financeiro.</li><li><strong>Mobile bottom nav + busca global</strong> (⌘K cobrindo todas as entidades).</li></ol>",
+    "category": "produto",
+    "date": "2026-08-25",
+    "createdAt": "2026-08-25T12:00:00.000Z",
+    "updatedAt": "2026-08-25T12:00:00.000Z"
+  },
+  {
+    "id": "135263b5-ee5c-4066-a3e1-9f750c661489",
+    "title": "Fundação: primeira versão, deploy e segurança inicial",
+    "body": "<p>Commit inicial do app (estrutura base, todas as telas principais). Deploy na Hostinger ajustado ($PORT dinâmico).</p><p>Primeira camada de segurança: Basic Auth → depois substituída por login de verdade com página própria (modelo de cookie HMAC), corrigindo no processo um bug de cache que permitia bypass de auth.</p><p>Tema claro implementado. Editor de texto ganhou slash commands e bubble menu estilo Notion. PWA: app instalável no celular. Rodada de polish mobile. \"Indicadores\" renomeado pra \"Metas\".</p>",
+    "category": "infra",
+    "date": "2026-08-22",
+    "createdAt": "2026-08-22T12:00:00.000Z",
+    "updatedAt": "2026-08-24T12:00:00.000Z"
+  }
+]
