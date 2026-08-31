@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   Plus, CheckCircle2, Circle, Trash2, Search, Copy, Eye, EyeOff,
-  GripVertical, CalendarDays, List, LayoutGrid, X, Tag, User, AlertTriangle,
+  GripVertical, CalendarDays, List, LayoutGrid, X, Tag, AlertTriangle,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square, PartyPopper,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar, Zap,
   ArrowRight, Clock, Target, Flame, Filter, Repeat, FileText, Wallet, Edit2
@@ -59,7 +59,6 @@ interface Task {
   updatedAt?: string;
   tags: string[];
   checklist: TaskChecklistItem[];
-  assignee?: string;
   sortOrder: number;
   recurring?: boolean;
   recurringFrequency?: RecurringFrequency;
@@ -87,7 +86,7 @@ type ViewMode = 'kanban' | 'list' | 'week' | 'calendar';
 // full duplicate of their own pages' interfaces.
 interface CalendarContentItem { id: string; title: string; channel: string; scheduledDate?: string; }
 interface CalendarFinancialEntry { id: string; description?: string; category: string; amount: number; type: string; dueDate?: string; status?: string; }
-type GroupBy = 'status' | 'priority' | 'assignee' | 'project' | 'pillar';
+type GroupBy = 'status' | 'priority' | 'project' | 'pillar';
 type SortBy = 'date' | 'title' | 'priority' | 'status' | 'dueDate';
 
 interface SavedView {
@@ -101,7 +100,6 @@ interface SavedView {
   showDone: boolean;
   dense: boolean;
   filterPriority: string;
-  filterAssignee: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -224,7 +222,6 @@ export default function TasksPage() {
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [showDone, setShowDone] = useState(false);
   const [filterPriority, setFilterPriority] = useState('all');
-  const [filterAssignee, setFilterAssignee] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [filterPillar, setFilterPillar] = useState('all');
   const [groupBy, setGroupBy] = useState<GroupBy>('status');
@@ -257,7 +254,6 @@ export default function TasksPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newChecklist, setNewChecklist] = useState<TaskChecklistItem[]>([]);
   const [newChecklistInput, setNewChecklistInput] = useState('');
-  const [newAssignee, setNewAssignee] = useState('');
   const [newProjectId, setNewProjectId] = useState('');
   const [newPillarId, setNewPillarId] = useState('');
   const [newRecurring, setNewRecurring] = useState(false);
@@ -354,13 +350,12 @@ export default function TasksPage() {
     setShowDone(v.showDone);
     setDense(v.dense);
     setFilterPriority(v.filterPriority);
-    setFilterAssignee(v.filterAssignee);
   }
 
   function saveCurrentView(name: string) {
     const v: SavedView = {
       id: `tv_${Date.now()}`, name, view, groupBy, sortBy, search,
-      filterOverdue, showDone, dense, filterPriority, filterAssignee,
+      filterOverdue, showDone, dense, filterPriority,
     };
     const updated = [...savedViews, v];
     saveViews(updated);
@@ -385,7 +380,6 @@ export default function TasksPage() {
     setNewTags([]);
     setNewDescription('');
     setNewChecklist([]);
-    setNewAssignee('');
     setNewProjectId('');
     setNewPillarId('');
     setNewRecurring(false);
@@ -403,7 +397,6 @@ export default function TasksPage() {
     setNewTags([...(task.tags ?? [])]);
     setNewDescription(task.description || '');
     setNewChecklist(task.checklist?.map(c => ({ ...c })) || []);
-    setNewAssignee(task.assignee || '');
     setNewProjectId(task.projectId || '');
     setNewPillarId(task.pillarId || '');
     setNewRecurring(task.recurring || false);
@@ -421,7 +414,6 @@ export default function TasksPage() {
         dueDate: newDueDate || undefined,
         tags: newTags,
         checklist: newChecklist,
-        assignee: newAssignee || undefined,
         projectId: newProjectId || undefined,
         pillarId: newPillarId || undefined,
         recurring: newRecurring,
@@ -594,7 +586,6 @@ export default function TasksPage() {
       if (!showDone && t.status === 'done') return false;
       if (filterOverdue && !isOverdue(t)) return false;
       if (filterPriority !== 'all' && t.priority !== filterPriority) return false;
-      if (filterAssignee !== 'all' && t.assignee !== filterAssignee) return false;
       if (filterProject !== 'all' && t.projectId !== filterProject) return false;
       if (filterPillar !== 'all' && t.pillarId !== filterPillar) return false;
       if (search) {
@@ -603,7 +594,7 @@ export default function TasksPage() {
       }
       return true;
     });
-  }, [tasks, showDone, filterOverdue, filterPriority, filterAssignee, filterProject, filterPillar, search]);
+  }, [tasks, showDone, filterOverdue, filterPriority, filterProject, filterPillar, search]);
 
   const sortedTasks = useMemo(() => {
     const arr = [...filteredTasks];
@@ -623,25 +614,20 @@ export default function TasksPage() {
     return STATUSES.map(s => ({ id: s, ...statusConfig[s], label: getStatusLabel(s), count: filteredTasks.filter(t => t.status === s).length }));
   }, [filteredTasks, statusLabels]);
 
-  // Unique assignees
-  const uniqueAssignees = useMemo(() => [...new Set(tasks.map(t => t.assignee).filter(Boolean) as string[])], [tasks]);
-
   // Active filters
   const activeFilters = useMemo(() => {
     const chips: { label: string; value: string; key: string }[] = [];
     if (filterOverdue) chips.push({ label: 'Atrasadas', value: `${overdueCount}`, key: 'overdue' });
     if (filterPriority !== 'all') chips.push({ label: 'Prioridade', value: priorityConfig[filterPriority]?.label || filterPriority, key: 'priority' });
-    if (filterAssignee !== 'all') chips.push({ label: 'Responsável', value: filterAssignee, key: 'assignee' });
     if (filterProject !== 'all') { const p = projects.find(x => x.id === filterProject); chips.push({ label: 'Projeto', value: p ? `${p.emoji || ''} ${p.name}` : filterProject, key: 'project' }); }
     if (filterPillar !== 'all') { const p = pillars.find(x => x.id === filterPillar); chips.push({ label: 'Pilar', value: p ? `${p.emoji || ''} ${p.name}` : filterPillar, key: 'pillar' }); }
     if (showDone) chips.push({ label: 'Feitas', value: 'Visíveis', key: 'done' });
     return chips;
-  }, [filterOverdue, filterPriority, filterAssignee, filterProject, filterPillar, showDone, overdueCount, projects, pillars]);
+  }, [filterOverdue, filterPriority, filterProject, filterPillar, showDone, overdueCount, projects, pillars]);
 
   function removeFilter(key: string) {
     if (key === 'overdue') setFilterOverdue(false);
     if (key === 'priority') setFilterPriority('all');
-    if (key === 'assignee') setFilterAssignee('all');
     if (key === 'project') setFilterProject('all');
     if (key === 'pillar') setFilterPillar('all');
     if (key === 'done') setShowDone(false);
@@ -650,7 +636,6 @@ export default function TasksPage() {
   function clearAllFilters() {
     setFilterOverdue(false);
     setFilterPriority('all');
-    setFilterAssignee('all');
     setFilterProject('all');
     setFilterPillar('all');
     setShowDone(false);
@@ -669,9 +654,6 @@ export default function TasksPage() {
     } else if (groupBy === 'priority') {
       groupKeys = ['urgent', 'important', 'normal'];
       groupKeys.forEach(k => groups.set(k, []));
-    } else if (groupBy === 'assignee') {
-      groupKeys = [...uniqueAssignees, '(sem responsável)'];
-      groupKeys.forEach(k => groups.set(k, []));
     } else if (groupBy === 'project') {
       groupKeys = [...new Set(sortedTasks.map(t => t.projectId || '(sem projeto)'))];
       groupKeys.forEach(k => groups.set(k, []));
@@ -684,14 +666,13 @@ export default function TasksPage() {
       let key = '';
       if (groupBy === 'status') key = task.status;
       else if (groupBy === 'priority') key = task.priority;
-      else if (groupBy === 'assignee') key = task.assignee || '(sem responsável)';
       else if (groupBy === 'project') key = task.projectId || '(sem projeto)';
       else if (groupBy === 'pillar') key = task.pillarId || '(sem pilar)';
       if (groups.has(key)) groups.get(key)!.push(task);
     });
 
     return { groups, groupKeys };
-  }, [sortedTasks, groupBy, uniqueAssignees]);
+  }, [sortedTasks, groupBy]);
 
   function getGroupLabel(key: string): string {
     if (groupBy === 'status') return getStatusLabel(key);
@@ -828,11 +809,6 @@ export default function TasksPage() {
                   {task.recurring && (
                     <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
                       <Repeat className="h-2.5 w-2.5" /> {RECURRING_LABELS[task.recurringFrequency || 'daily']}
-                    </Badge>
-                  )}
-                  {!dense && task.assignee && (
-                    <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1">
-                      <User className="h-2.5 w-2.5" /> {task.assignee}
                     </Badge>
                   )}
                 </div>
@@ -1399,7 +1375,6 @@ export default function TasksPage() {
                         <SelectContent>
                           <SelectItem value="status">Estágio</SelectItem>
                           <SelectItem value="priority">Prioridade</SelectItem>
-                          <SelectItem value="assignee">Responsável</SelectItem>
                           <SelectItem value="project">Projeto</SelectItem>
                           <SelectItem value="pillar">Pilar</SelectItem>
                         </SelectContent>
@@ -1431,18 +1406,6 @@ export default function TasksPage() {
                         </SelectContent>
                       </Select>
                     </div>
-                    {uniqueAssignees.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs">Responsável</Label>
-                        <Select value={filterAssignee} onValueChange={setFilterAssignee}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            {uniqueAssignees.map(a => <SelectItem key={a} value={a!}>{a}</SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
                     {projects.length > 0 && (
                       <div className="space-y-2">
                         <Label className="text-xs">Projeto</Label>
@@ -1567,12 +1530,12 @@ export default function TasksPage() {
 
       {/* Editor Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
             <DialogTitle>{editingTask ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
             <DialogDescription>{editingTask ? 'Altere os detalhes da tarefa' : 'Crie uma nova tarefa'}</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="flex-1 space-y-4 overflow-y-auto py-2 pr-1">
             <div className="grid gap-2">
               <Label>Título</Label>
               <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="O que precisa ser feito?" autoFocus />
@@ -1603,19 +1566,13 @@ export default function TasksPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Prazo</Label>
-                <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
-                <div className="flex flex-wrap gap-1">
-                  {[{ label: 'Hoje', offset: 0 }, { label: 'Amanhã', offset: 1 }, { label: '2 dias', offset: 2 }, { label: 'Fim de semana', offset: (6 - new Date().getDay() + 7) % 7 || 7 }].map(s => (
-                    <Button key={s.label} variant="outline" size="sm" className="h-6 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
-                  ))}
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <Label>Responsável</Label>
-                <Input value={newAssignee} onChange={(e) => setNewAssignee(e.target.value)} placeholder="Nome" />
+            <div className="grid gap-2">
+              <Label>Prazo</Label>
+              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="max-w-[200px]" />
+              <div className="flex flex-wrap gap-1">
+                {[{ label: 'Hoje', offset: 0 }, { label: 'Amanhã', offset: 1 }, { label: '2 dias', offset: 2 }, { label: 'Fim de semana', offset: (6 - new Date().getDay() + 7) % 7 || 7 }].map(s => (
+                  <Button key={s.label} variant="outline" size="sm" className="h-6 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
+                ))}
               </div>
             </div>
             <div className="grid gap-2">
@@ -1692,9 +1649,10 @@ export default function TasksPage() {
                 <Button type="button" variant="outline" size="sm" onClick={addChecklistItem}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
-            {editingTask && (
+            {editingTask && getTaskBacklinks(editingTask.id).length > 0 && (
               <div className="grid gap-2">
                 <Label>Vínculos</Label>
+                <p className="text-xs text-muted-foreground">Notas e conteúdos que apontam pra essa tarefa.</p>
                 <LinkedItemsPanel
                   readOnly
                   linkableTypes={[]}
@@ -1705,7 +1663,7 @@ export default function TasksPage() {
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2">
+          <DialogFooter className="shrink-0 gap-2 border-t pt-4">
             {editingTask && <Button variant="destructive" onClick={() => { handleDelete(editingTask.id); setIsDialogOpen(false); }}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!newTitle.trim()}>{editingTask ? 'Salvar' : 'Criar'}</Button>
