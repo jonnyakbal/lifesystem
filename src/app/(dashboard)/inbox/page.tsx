@@ -38,6 +38,31 @@ function getTitle(content: string): string {
   return text.split('\n')[0].slice(0, 80) || 'Sem título';
 }
 
+// Sticky-note look for the queue: each card gets a deterministic color +
+// slight rotation from its own id (hash, not Math.random() — has to be the
+// same on server and client render or React complains about a mismatch).
+const STICKY_COLORS = [
+  { bg: 'bg-yellow-100 dark:bg-yellow-950/40', border: 'border-yellow-300/50 dark:border-yellow-800/50' },
+  { bg: 'bg-pink-100 dark:bg-pink-950/40', border: 'border-pink-300/50 dark:border-pink-800/50' },
+  { bg: 'bg-blue-100 dark:bg-blue-950/40', border: 'border-blue-300/50 dark:border-blue-800/50' },
+  { bg: 'bg-green-100 dark:bg-green-950/40', border: 'border-green-300/50 dark:border-green-800/50' },
+  { bg: 'bg-orange-100 dark:bg-orange-950/40', border: 'border-orange-300/50 dark:border-orange-800/50' },
+  { bg: 'bg-purple-100 dark:bg-purple-950/40', border: 'border-purple-300/50 dark:border-purple-800/50' },
+];
+
+function hashId(id: string): number {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) { hash = ((hash << 5) - hash) + id.charCodeAt(i); hash |= 0; }
+  return Math.abs(hash);
+}
+
+function getStickyStyle(id: string) {
+  const h = hashId(id);
+  const color = STICKY_COLORS[h % STICKY_COLORS.length];
+  const rotation = (h % 5) - 2; // -2deg..2deg, subtle
+  return { color, rotation };
+}
+
 const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
 const stagger = { animate: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } } };
 
@@ -120,7 +145,7 @@ export default function InboxPage() {
   }, [queue, search]);
 
   return (
-    <motion.div className="p-4 lg:p-8 max-w-2xl" variants={stagger} initial="initial" animate="animate">
+    <motion.div className="p-4 lg:p-8 max-w-4xl" variants={stagger} initial="initial" animate="animate">
       <motion.div className="mb-6" variants={fade}>
         <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3">
           <InboxIcon className="h-7 w-7 text-primary" /> INBOX
@@ -128,7 +153,7 @@ export default function InboxPage() {
         <p className="text-muted-foreground">Fila rápida — abra pra processar, vira Nota sozinho</p>
       </motion.div>
 
-      <motion.div className="mb-6 flex gap-2" variants={fade}>
+      <motion.div className="mb-6 flex max-w-xl gap-2" variants={fade}>
         <Input
           value={quickTitle}
           onChange={e => setQuickTitle(e.target.value)}
@@ -142,7 +167,7 @@ export default function InboxPage() {
       </motion.div>
 
       {queue.length > 0 && (
-        <motion.div className="relative mb-4" variants={fade}>
+        <motion.div className="relative mb-6 max-w-xl" variants={fade}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar na fila..." className="pl-9 h-9" />
         </motion.div>
@@ -167,45 +192,61 @@ export default function InboxPage() {
           </CardContent>
         </Card>
       ) : (
-        <motion.div className="space-y-2" variants={stagger}>
+        <motion.div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" variants={stagger}>
           <AnimatePresence initial={false}>
-            {filtered.map(capture => (
-              <motion.div key={capture.id} variants={fade} layout exit={{ opacity: 0, x: -20 }}>
-                <Card
-                  className="group cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-all"
-                  onClick={() => router.push(`/notas?open=${capture.id}`)}
+            {filtered.map(capture => {
+              const { color, rotation } = getStickyStyle(capture.id);
+              return (
+                <motion.div
+                  key={capture.id}
+                  variants={fade}
+                  layout
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  style={{ rotate: `${rotation}deg` }}
+                  whileHover={{ rotate: 0, scale: 1.03 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 >
-                  <CardContent className="flex items-center gap-3 p-3">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{capture.title || getTitle(capture.content)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                  <Card
+                    className={cn(
+                      'group relative min-h-[140px] cursor-pointer border shadow-md transition-shadow hover:shadow-xl',
+                      color.bg, color.border,
+                    )}
+                    onClick={() => router.push(`/notas?open=${capture.id}`)}
+                  >
+                    <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black/10 dark:hover:bg-white/10" onClick={e => e.stopPropagation()}>
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
+                            <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
+                            <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
-                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={e => e.stopPropagation()}>
-                          <MoreHorizontal className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                        <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
-                          <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
-                          <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
+                    <CardContent className="flex h-full flex-col p-4">
+                      <p className="line-clamp-4 flex-1 text-sm font-medium text-foreground/90">
+                        {capture.title || getTitle(capture.content)}
+                      </p>
+                      <p className="mt-2 flex items-center gap-1 text-xs text-foreground/50">
+                        {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        <ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                      </p>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
           </AnimatePresence>
         </motion.div>
       )}

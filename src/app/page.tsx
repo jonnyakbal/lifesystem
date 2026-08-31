@@ -545,7 +545,7 @@ export default function HomePage() {
                     {recentCaptures.map(capture => (
                       <div key={capture.id} className="flex items-center gap-3 rounded-lg p-2 hover:bg-muted/50 transition-colors">
                         <span className="text-xs text-muted-foreground shrink-0 w-12">{timeAgo(capture.createdAt)}</span>
-                        <span className="text-sm truncate flex-1">{capture.title || capture.content.slice(0, 50) + '...'}</span>
+                        <span className="text-sm truncate flex-1">{capture.title || capture.content.replace(/<[^>]*>/g, '').trim().slice(0, 50) + '...'}</span>
                         <Badge variant="secondary" className="text-xs px-1 py-0 shrink-0">{capture.category || 'Geral'}</Badge>
                       </div>
                     ))}
@@ -653,98 +653,6 @@ export default function HomePage() {
               </CardContent>
             </Card>
           </motion.div>
-
-          {/* Pillars Progress - Enhanced */}
-          <motion.div variants={fade}>
-            <Card className="border-critical/20 bg-critical/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Layers className="h-4 w-4 text-critical" />
-                  Pilares
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {isLoading ? (
-                  Array.from({ length: 4 }).map((_, i) => (
-                    <div key={i} className="space-y-1"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /></div>
-                  ))
-                ) : pillarProgress.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2 text-center">Nenhum pilar cadastrado</p>
-                ) : (
-                  pillarProgress.map(p => {
-                    const pct = p.total > 0 ? Math.round((p.current / p.total) * 100) : 0;
-                    return (
-                      <Link key={p.id} href="/pilares" className="flex items-center gap-2 group">
-                        <div className="relative">
-                          <MiniProgressRing value={p.current} max={p.total} color={p.color || 'hsl(var(--critical))'} />
-                          <span className="absolute inset-0 flex items-center justify-center text-xs">{p.icon}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between mb-1">
-                            <span className="text-sm font-medium truncate max-w-[120px]">{p.name}</span>
-                            <span className="text-sm text-muted-foreground font-mono-num">{p.indicatorCount}i</span>
-                          </div>
-                          <Progress value={pct} className="h-1.5" />
-                        </div>
-                      </Link>
-                    );
-                  })
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Journal Streak - Enhanced */}
-          <motion.div variants={fade}>
-            <Card className="border-stellar/20 bg-stellar/5">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <BookOpen className="h-4 w-4 text-stellar" />
-                  Diário — Streak
-                  {weekStreak > 0 && <Badge variant="secondary" className="ml-1 text-xs h-5 gap-0.5"><Flame className="h-3 w-3 text-orange-500" />{weekStreak}d</Badge>}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <div className="flex gap-2 justify-center">
-                    {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-8 w-8 rounded-full" />)}
-                  </div>
-                ) : (
-                  <div className="flex gap-2 justify-center">
-                    {last7Days.map(day => {
-                      const hasEntry = !!day.journal;
-                      const mood = day.journal?.mood;
-                      const isToday = day.date === today;
-                      return (
-                        <Link key={day.date} href="/diario" className="flex flex-col items-center gap-0.5 group">
-                          <div
-                            className={cn(
-                              'h-9 w-9 rounded-full flex items-center justify-center text-xs font-medium transition-all relative',
-                              !hasEntry && 'bg-muted/50 text-muted-foreground'
-                            )}
-                            style={hasEntry && mood ? {
-                              backgroundColor: moodColor[mood],
-                              boxShadow: isToday ? `0 0 0 2px hsl(262 95% 72%)` : undefined,
-                            } : undefined}
-                          >
-                            {hasEntry ? moodEmoji[mood || ''] : day.label.substring(0, 1)}
-                          </div>
-                          <span className="text-sm text-muted-foreground">{day.label.substring(0, 2)}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                )}
-                {todayJournal?.mood && (
-                  <div className="mt-3 flex justify-center">
-                    <Badge variant="secondary" className="gap-1 text-xs">
-                      {moodEmoji[todayJournal.mood]} {todayJournal.mood === 'great' ? 'Ótimo' : todayJournal.mood === 'good' ? 'Bom' : todayJournal.mood === 'neutral' ? 'Neutro' : todayJournal.mood === 'bad' ? 'Ruim' : 'Péssimo'}
-                    </Badge>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
         </div>
       </div>
 
@@ -810,6 +718,99 @@ export default function HomePage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* ─── Pillars Progress + Journal Streak (moved below Projetos) ─── */}
+      <div className="mt-6 grid gap-6 sm:grid-cols-2">
+        <motion.div variants={fade}>
+          <Card className="border-critical/20 bg-critical/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Layers className="h-4 w-4 text-critical" />
+                Pilares
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {isLoading ? (
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="space-y-1"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-2/3" /></div>
+                ))
+              ) : pillarProgress.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2 text-center">Nenhum pilar cadastrado</p>
+              ) : (
+                pillarProgress.map(p => {
+                  const pct = p.total > 0 ? Math.round((p.current / p.total) * 100) : 0;
+                  return (
+                    <Link key={p.id} href="/pilares" className="flex items-center gap-2 group">
+                      <div className="relative">
+                        <MiniProgressRing value={p.current} max={p.total} color={p.color || 'hsl(var(--critical))'} />
+                        <span className="absolute inset-0 flex items-center justify-center text-xs">{p.icon}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-sm font-medium truncate max-w-[120px]">{p.name}</span>
+                          <span className="text-sm text-muted-foreground font-mono-num">{p.indicatorCount}i</span>
+                        </div>
+                        <Progress value={pct} className="h-1.5" />
+                      </div>
+                    </Link>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div variants={fade}>
+          <Card className="border-stellar/20 bg-stellar/5">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <BookOpen className="h-4 w-4 text-stellar" />
+                Diário — Streak
+                {weekStreak > 0 && <Badge variant="secondary" className="ml-1 text-xs h-5 gap-0.5"><Flame className="h-3 w-3 text-orange-500" />{weekStreak}d</Badge>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex gap-2 justify-center">
+                  {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-8 w-8 rounded-full" />)}
+                </div>
+              ) : (
+                <div className="flex gap-2 justify-center">
+                  {last7Days.map(day => {
+                    const hasEntry = !!day.journal;
+                    const mood = day.journal?.mood;
+                    const isToday = day.date === today;
+                    return (
+                      <Link key={day.date} href="/diario" className="flex flex-col items-center gap-0.5 group">
+                        <div
+                          className={cn(
+                            'h-9 w-9 rounded-full flex items-center justify-center text-xs font-medium transition-all relative',
+                            !hasEntry && 'bg-muted/50 text-muted-foreground'
+                          )}
+                          style={hasEntry && mood ? {
+                            backgroundColor: moodColor[mood],
+                            boxShadow: isToday ? `0 0 0 2px hsl(262 95% 72%)` : undefined,
+                          } : undefined}
+                        >
+                          {hasEntry ? moodEmoji[mood || ''] : day.label.substring(0, 1)}
+                        </div>
+                        <span className="text-sm text-muted-foreground">{day.label.substring(0, 2)}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+              {todayJournal?.mood && (
+                <div className="mt-3 flex justify-center">
+                  <Badge variant="secondary" className="gap-1 text-xs">
+                    {moodEmoji[todayJournal.mood]} {todayJournal.mood === 'great' ? 'Ótimo' : todayJournal.mood === 'good' ? 'Bom' : todayJournal.mood === 'neutral' ? 'Neutro' : todayJournal.mood === 'bad' ? 'Ruim' : 'Péssimo'}
+                  </Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </motion.div>
   );
 }

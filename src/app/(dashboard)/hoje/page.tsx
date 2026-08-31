@@ -257,25 +257,27 @@ export default function HojePage() {
             </motion.div>
           )}
 
-          {todayContent.length > 0 && (
-            <motion.div variants={fade}>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4 text-orange-500" /> Conteúdo agendado hoje
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1.5">
-                  {todayContent.map(item => (
+          <motion.div variants={fade}>
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <FileText className="h-4 w-4 text-orange-500" /> Conteúdo agendado hoje
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1.5">
+                {todayContent.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">Nenhum conteúdo agendado hoje.</p>
+                ) : (
+                  todayContent.map(item => (
                     <Link key={item.id} href="/conteudo" className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50">
                       <span className="flex-1 truncate">{item.title}</span>
                       <Badge variant="outline" className="text-xs">{item.channel}</Badge>
                     </Link>
-                  ))}
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {todayFinancial.length > 0 && (
             <motion.div variants={fade}>

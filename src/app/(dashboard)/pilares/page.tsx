@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Layers, Edit2, Target, TrendingUp, Trash2, Flame, Calendar, Plus, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
+import { Layers, Edit2, Target, Trash2, Flame, Calendar, ChevronDown, ArrowRight, Sparkles } from 'lucide-react';
 import { PillarConstellation } from '@/components/pillar-constellation';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -19,16 +20,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-
-interface PillarAction {
-  id: string;
-  pillarId: string;
-  title: string;
-  completed: boolean;
-  sortOrder: number;
-}
 
 interface Pillar {
   id: string;
@@ -39,13 +31,21 @@ interface Pillar {
   sortOrder: number;
   currentStatus: string;
   target: string;
-  actions?: PillarAction[];
 }
 
 interface JournalEntry {
   id: string;
   pillarChecks: Record<string, number>;
   entryDate: string;
+}
+
+interface Indicator {
+  id: string;
+  pillarId: string;
+  name: string;
+  targetValue?: number;
+  currentValue?: number;
+  frequency: string;
 }
 
 const defaultPillars: Omit<Pillar, 'id' | 'createdAt' | 'updatedAt'>[] = [
@@ -109,6 +109,7 @@ function ProgressRing({ value, color, size = 48 }: { value: number; color: strin
 export default function PilaresPage() {
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingPillar, setEditingPillar] = useState<Pillar | null>(null);
@@ -119,19 +120,21 @@ export default function PilaresPage() {
   const [editCurrentStatus, setEditCurrentStatus] = useState('');
   const [editTarget, setEditTarget] = useState('');
   const [expandedPillarId, setExpandedPillarId] = useState<string | null>(null);
-  const [newActionTitle, setNewActionTitle] = useState('');
 
   const emojiOptions = ['✨', '💪', '🧠', '🚀', '💰', '👥', '❤️', '🎯', '📚', '🎨', '🏠', '🌱', '⚡', '🔥', '💎', '🌟'];
   const colorOptions = ['stellar', 'critical', 'qty', 'money', 'primary'];
 
   async function loadPillars() {
-    const [pillarsRes, journalRes] = await Promise.all([
+    const [pillarsRes, journalRes, indicatorsRes] = await Promise.all([
       fetch('/api/pillars'),
       fetch('/api/journal'),
+      fetch('/api/indicators'),
     ]);
     const pillarsData = await pillarsRes.json();
     const journalData = await journalRes.json();
+    const indicatorsData = await indicatorsRes.json();
     setJournalEntries(journalData);
+    setIndicators(indicatorsData);
 
     if (pillarsData.length === 0) {
       for (const pillar of defaultPillars) {
@@ -175,15 +178,19 @@ export default function PilaresPage() {
     return streaks;
   }, [pillars, journalEntries]);
 
+  // Constellation "strength" and the per-card progress ring are driven by
+  // how close this pillar's Metas (Indicators) are to their targets — not
+  // by the old free-text "ações" field, which is gone (item 2 of the queue).
   const pillarProgress = useMemo(() => {
     const map: Record<string, number> = {};
     for (const pillar of pillars) {
-      const actionCount = pillar.actions?.length || 0;
-      const actionDone = pillar.actions?.filter(a => a.completed).length || 0;
-      map[pillar.id] = actionCount > 0 ? Math.round((actionDone / actionCount) * 100) : 0;
+      const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id && i.targetValue);
+      if (pillarIndicators.length === 0) { map[pillar.id] = 0; continue; }
+      const avgPct = pillarIndicators.reduce((sum, i) => sum + Math.min(100, ((i.currentValue || 0) / (i.targetValue || 1)) * 100), 0) / pillarIndicators.length;
+      map[pillar.id] = Math.round(avgPct);
     }
     return map;
-  }, [pillars]);
+  }, [pillars, indicators]);
 
   function openEdit(pillar: Pillar) {
     setEditingPillar(pillar);
@@ -216,44 +223,6 @@ export default function PilaresPage() {
     setIsEditorOpen(false);
     loadPillars();
     toast.success('Pilar excluído!');
-  }
-
-  async function saveActions(pillar: Pillar, actions: PillarAction[]) {
-    await fetch(`/api/pillars/${pillar.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ actions }),
-    });
-    loadPillars();
-  }
-
-  async function addAction(pillar: Pillar) {
-    const title = newActionTitle.trim();
-    if (!title) return;
-    const actions = pillar.actions || [];
-    const newAction: PillarAction = {
-      id: crypto.randomUUID(),
-      pillarId: pillar.id,
-      title,
-      completed: false,
-      sortOrder: actions.length,
-    };
-    await saveActions(pillar, [...actions, newAction]);
-    setNewActionTitle('');
-    toast.success('Ação adicionada!');
-  }
-
-  async function toggleAction(pillar: Pillar, actionId: string) {
-    const actions = (pillar.actions || []).map(a =>
-      a.id === actionId ? { ...a, completed: !a.completed } : a
-    );
-    await saveActions(pillar, actions);
-  }
-
-  async function deleteAction(pillar: Pillar, actionId: string) {
-    const actions = (pillar.actions || []).filter(a => a.id !== actionId);
-    await saveActions(pillar, actions);
-    toast.success('Ação removida!');
   }
 
   return (
@@ -312,9 +281,8 @@ export default function PilaresPage() {
       ) : (
         <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" variants={stagger}>
           {pillars.map((pillar) => {
-            const actionCount = pillar.actions?.length || 0;
-            const actionDone = pillar.actions?.filter(a => a.completed).length || 0;
-            const progress = actionCount > 0 ? Math.round((actionDone / actionCount) * 100) : 0;
+            const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id);
+            const progress = pillarProgress[pillar.id] || 0;
             const streak = pillarStreaks[pillar.id] || 0;
 
             return (
@@ -330,10 +298,7 @@ export default function PilaresPage() {
                 )}>
                   <div
                     className="cursor-pointer select-none"
-                    onClick={() => {
-                      setExpandedPillarId(expandedPillarId === pillar.id ? null : pillar.id);
-                      setNewActionTitle('');
-                    }}
+                    onClick={() => setExpandedPillarId(expandedPillarId === pillar.id ? null : pillar.id)}
                   >
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -348,7 +313,7 @@ export default function PilaresPage() {
                           <CardTitle className="text-lg">{pillar.name}</CardTitle>
                         </div>
                         <div className="flex items-center gap-2">
-                          {actionCount > 0 && (
+                          {pillarIndicators.length > 0 && (
                             <div className="relative">
                               <ProgressRing value={progress} color={pillar.color} size={40} />
                               <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
@@ -388,30 +353,30 @@ export default function PilaresPage() {
                             {streak} dia{streak > 1 ? 's' : ''} seguidos
                           </Badge>
                         )}
-                        {actionCount > 0 && (
+                        {pillarIndicators.length > 0 && (
                           <Badge variant="outline" className="text-xs">
-                            {actionDone}/{actionCount} ações
+                            {pillarIndicators.length} meta{pillarIndicators.length > 1 ? 's' : ''}
                           </Badge>
                         )}
                       </div>
 
+                      {pillar.target && (
+                        <div className="mb-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                          <div className="flex items-center gap-2 text-xs font-medium text-primary">
+                            <Sparkles className="h-3 w-3" />
+                            Meta do Ano
+                          </div>
+                          <p className="mt-1 text-sm font-medium">{pillar.target}</p>
+                        </div>
+                      )}
+
                       {pillar.currentStatus && (
-                        <div className="mb-3">
+                        <div>
                           <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                             <Target className="h-3 w-3" />
                             Situação atual
                           </div>
                           <p className="mt-1 text-sm">{pillar.currentStatus}</p>
-                        </div>
-                      )}
-
-                      {pillar.target && (
-                        <div>
-                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                            <TrendingUp className="h-3 w-3" />
-                            Meta
-                          </div>
-                          <p className="mt-1 text-sm">{pillar.target}</p>
                         </div>
                       )}
                     </CardContent>
@@ -427,62 +392,32 @@ export default function PilaresPage() {
                         className="overflow-hidden"
                       >
                         <div className="px-6 pb-6 pt-0">
-                          <div className="flex items-center gap-2 mb-3 pt-3 border-t">
-                            <Input
-                              value={newActionTitle}
-                              onChange={(e) => setNewActionTitle(e.target.value)}
-                              placeholder="Nova ação..."
-                              className="flex-1 h-9"
-                              onKeyDown={(e) => { if (e.key === 'Enter') addAction(pillar); }}
-                            />
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => addAction(pillar)}
-                              disabled={!newActionTitle.trim()}
-                              className="h-9 shrink-0"
-                            >
-                              <Plus className="h-4 w-4 mr-1" /> Adicionar
-                            </Button>
+                          <div className="flex items-center justify-between border-t pt-3 mb-2">
+                            <span className="text-xs font-medium text-muted-foreground">Metas deste pilar</span>
+                            <Link href="/indicadores" className="flex items-center gap-1 text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                              Ver todas <ArrowRight className="h-3 w-3" />
+                            </Link>
                           </div>
-
-                          <div className="space-y-1">
-                            <AnimatePresence initial={false}>
-                              {(pillar.actions || []).map((action) => (
-                                <motion.div
-                                  key={action.id}
-                                  initial={{ opacity: 0, y: -8, height: 0 }}
-                                  animate={{ opacity: 1, y: 0, height: 'auto' }}
-                                  exit={{ opacity: 0, x: -20, height: 0 }}
-                                  transition={{ duration: 0.2 }}
-                                  className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-muted/50 group/action"
-                                >
-                                  <Switch
-                                    checked={action.completed}
-                                    onCheckedChange={() => toggleAction(pillar, action.id)}
-                                    className="shrink-0"
-                                  />
-                                  <span className={cn(
-                                    "flex-1 text-sm transition-all",
-                                    action.completed && "line-through text-muted-foreground"
-                                  )}>
-                                    {action.title}
-                                  </span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 opacity-0 group-hover/action:opacity-100 transition-opacity shrink-0"
-                                    onClick={() => deleteAction(pillar, action.id)}
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                                  </Button>
-                                </motion.div>
-                              ))}
-                            </AnimatePresence>
-
-                            {(!pillar.actions || pillar.actions.length === 0) && (
+                          <div className="space-y-1.5">
+                            {indicators.filter(i => i.pillarId === pillar.id).map(ind => {
+                              const pct = ind.targetValue ? Math.min(100, Math.round(((ind.currentValue || 0) / ind.targetValue) * 100)) : 0;
+                              return (
+                                <div key={ind.id} className="rounded-md px-2 py-1.5">
+                                  <div className="flex items-center justify-between text-sm">
+                                    <span className="truncate">{ind.name}</span>
+                                    <span className="shrink-0 text-xs text-muted-foreground">{ind.currentValue || 0}{ind.targetValue ? `/${ind.targetValue}` : ''}</span>
+                                  </div>
+                                  {ind.targetValue && (
+                                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-muted">
+                                      <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {indicators.filter(i => i.pillarId === pillar.id).length === 0 && (
                               <p className="text-xs text-muted-foreground text-center py-3">
-                                Nenhuma ação ainda. Adicione uma acima.
+                                Nenhuma meta vinculada a este pilar ainda.
                               </p>
                             )}
                           </div>
@@ -561,8 +496,8 @@ export default function PilaresPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Meta</Label>
-              <Textarea value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Qual é a meta para este pilar?" rows={2} />
+              <Label>Meta do Ano (BHAG)</Label>
+              <Textarea value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Qual é o grande objetivo deste pilar até o fim do ano?" rows={2} />
             </div>
           </div>
 
