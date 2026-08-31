@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Target, Save, Clock, Star, Rocket, Eye, Edit3, CheckCircle2, FolderKanban, TrendingUp, BrainCircuit } from 'lucide-react';
+import { Target, Save, Clock, Star, Rocket, Eye, Edit3, CheckCircle2, FolderKanban, TrendingUp, BrainCircuit, Layers, Compass } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
+import { PilaresContent } from '@/components/pilares-content';
 
 interface VisionDocument {
   id: string;
@@ -63,12 +65,20 @@ function wordCount(text: string): number {
 }
 
 export default function VisaoPage() {
+  const searchParams = useSearchParams();
+  const [tab, setTab] = useState<'plano' | 'pilares'>('plano');
   const [documents, setDocuments] = useState<VisionDocument[]>([]);
   const [activeSection, setActiveSection] = useState('identity');
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+
+  // /pilares redirects here with ?tab=pilares (item 9 of the queue —
+  // unificar Visão + Pilares, keeping the old route as a bookmark-safe link).
+  useEffect(() => {
+    if (searchParams.get('tab') === 'pilares') setTab('pilares');
+  }, [searchParams]);
 
   useEffect(() => { loadDocuments(); loadProjects(); }, []);
 
@@ -118,6 +128,28 @@ export default function VisaoPage() {
       initial="initial"
       animate="animate"
     >
+      {/* Unified with Pilares (item 9) — one menu entry, two tabs */}
+      <motion.div className="mb-6 flex items-center gap-1 rounded-lg border bg-muted/20 p-1 w-fit" variants={fade}>
+        <button
+          onClick={() => setTab('plano')}
+          className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+            tab === 'plano' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+        >
+          <Compass className="h-3.5 w-3.5" /> Plano de Voo
+        </button>
+        <button
+          onClick={() => setTab('pilares')}
+          className={cn('flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+            tab === 'pilares' ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground')}
+        >
+          <Layers className="h-3.5 w-3.5" /> Pilares
+        </button>
+      </motion.div>
+
+      {tab === 'pilares' ? (
+        <PilaresContent />
+      ) : (
+      <>
       <motion.div className="mb-8 flex items-center justify-between" variants={fade}>
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight">Plano de Voo</h1>
@@ -347,6 +379,8 @@ export default function VisaoPage() {
           </motion.div>
         </div>
       </motion.div>
+      </>
+      )}
     </motion.div>
   );
 }

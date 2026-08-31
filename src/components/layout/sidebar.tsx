@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Inbox, Home, Target, Layers, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
+  Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
   Sun, Moon, LogOut, CalendarCheck, NotebookText
 } from 'lucide-react';
@@ -23,7 +23,6 @@ const navigation = [
   { name: 'INBOX', href: '/inbox', icon: Inbox, shortcut: '⌘I' },
   { name: 'Notas', href: '/notas', icon: NotebookText, shortcut: '⌘⇧I' },
   { name: 'Visão', href: '/visao', icon: Target, shortcut: '⌘V' },
-  { name: 'Pilares', href: '/pilares', icon: Layers, shortcut: '⌘P' },
   { name: 'Projetos', href: '/projetos', icon: FolderKanban, shortcut: '⌘J' },
   { name: 'Tarefas', href: '/tarefas', icon: CheckSquare, shortcut: '⌘T' },
   { name: 'Conteúdo', href: '/conteudo', icon: FileText, shortcut: '⌘N' },
