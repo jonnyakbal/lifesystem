@@ -95,11 +95,16 @@ data/*.json                    # "banco de dados" — 14 coleções hoje
 - `/api/mcp` expõe CRUD completo (Model Context Protocol) sobre Tarefas, Conteúdo, INBOX/Notas, Pilares (leitura+update), Metas, Projetos e as entradas deste próprio Diário de Bordo — 26 ferramentas ao todo, geradas por uma factory (`registerCrudTools` em `src/lib/mcp/tools.ts`) pra não repetir o mesmo código 7 vezes.
 - Transporte: `WebStandardStreamableHTTPServerTransport` do SDK oficial, modo stateless (uma instância de servidor MCP por request — sem estado de sessão entre chamadas).
 - Consumidor alvo: **Hermes Agent** (open source, Nous Research), instância pessoal do Jonny rodando na própria VPS, conectando por Telegram — o LIFESYSTEM vira uma "ferramenta" que o Hermes descobre e usa sozinho, sem glue code manual.
-- Testado ponta a ponta manualmente via `curl` antes do commit: handshake, listagem das 22 tools, `create_task` → confirmado gravado em `data/tasks.json` → `list_tasks` com filtro → `delete_task` → confirmado removido.
+- Testado ponta a ponta manualmente via `curl` antes do commit: handshake, listagem das 22 tools (depois 26, ver 2026-08-31 mais abaixo), `create_task` → confirmado gravado em `data/tasks.json` → `list_tasks` com filtro → `delete_task` → confirmado removido.
+- Toda chamada de ferramenta é registrada (`src/lib/mcp/log.ts`, `data/mcp-logs.json`, cap de 200 entradas) e fica visível na tela `/hermes`, junto com status de configuração de `MCP_API_KEY`/`NOUS_API_KEY` e um testador de prompt direto contra a API de inferência da Nous.
 
 ### 4.4 Ideia futura registrada — visão integrada de calendários (Google Agenda)
 
-Jonny quer uma visão que unifique todos os "calendários" internos do LIFESYSTEM (prazos de Tarefa, `scheduledDate` de Conteúdo, vencimentos Financeiros — já existe um calendário unificado interno, ver Fase 5 na linha do tempo) e que **espelhe/conecte com o Google Agenda** de verdade (não só visualmente parecido — sincronizar ou pelo menos importar/exportar eventos reais). Ainda não tem escopo definido — precisa de uma rodada própria de perguntas antes de virar plano (via API do Google Calendar com OAuth? sincronização de mão única ou nas duas direções? o Hermes participa disso também, já que ele processa linguagem natural?). Registrado aqui e no arquivo de plano ativo pra não perder.
+Jonny quer uma visão que unifique todos os "calendários" internos do LIFESYSTEM (prazos de Tarefa, `scheduledDate` de Conteúdo, vencimentos Financeiros — já existe um calendário unificado interno, ver Fase 5 na linha do tempo) e que **espelhe/conecte com o Google Agenda** de verdade (não só visualmente parecido — sincronizar ou pelo menos importar/exportar eventos reais). Referências citadas: Notion Calendar e ClickUp já resolvem esse tipo de espelhamento bem. Ainda não tem escopo definido — precisa de uma rodada própria de perguntas antes de virar plano (via API do Google Calendar com OAuth? sincronização de mão única ou nas duas direções? o Hermes participa disso também, já que ele processa linguagem natural?). Registrado aqui e no arquivo de plano ativo pra não perder — é o último item pendente da rodada de feedback de 2026-08-31.
+
+### 4.5 Ideia futura registrada — abrir o LIFESYSTEM como open source
+
+Decisões já validadas, execução fica pra depois: repositório privado atual continua rodando em produção por ora; a ideia é migrar aos poucos pra um repo público separado, tirando o contexto pessoal (Dona Maria, TCC, finanças) — que fica só no `data/*.json` privado — e deixando a base do sistema disponível pra outras pessoas configurarem do jeito delas. Licença cogitada: fonte-disponível com cláusula comercial (tipo BSL), pra manter viável futuramente vender uma versão autohospedada de um clique por um valor anual baixo. Objetivo declarado: virar base de conteúdo + consolidar autoridade + abrir porta pra consultoria. Ver detalhes completos no arquivo de plano ativo.
 
 ---
 
@@ -155,6 +160,15 @@ Sessão longa de evolução guiada por uma fila de pedidos do Jonny (protocolo: 
 - **Feature nova — Servidor MCP** (`/api/mcp`): integração com o Hermes Agent (ver seções 4.3 e 5). Decisão de MCP em vez de API REST simples validada com o Jonny depois de confirmar que o Hermes suporta MCP nativamente — evita manutenção manual de descrição de ferramentas do lado do agente.
 - Todas as 12 entregas passaram por `tsc`/`build` limpos + verificação manual em navegador antes do commit; nenhuma tocou dados reais do Jonny além das migrações intencionais (stack→tags).
 
+### 2026-08-31 (continuação) — Diário de Bordo vivo, fix no modal de Tarefa, reorganização de menu, tela Hermes
+- **Feature nova — Diário de Bordo vivo** (`/diario-bordo`): esse próprio documento ganhou uma versão dentro do app — timeline editável (categoria, data, texto rico via `NotionEditor`), com as 4 entradas históricas da seção 7 como registro inicial. Exposto também via MCP (`list_log_entries`/`create_log_entry`/`update_log_entry`/`delete_log_entry`), então o Hermes pode registrar entradas por conversa.
+- **Fix**: modal de "Editar Tarefa" estourava o viewport em tarefas com muito conteúdo (checklist, tags, vínculos) e escondia os botões Salvar/Cancelar/Excluir — agora o header e o footer ficam fixos e só o corpo rola.
+- **Remoção real (não cosmética)**: campo `Task.assignee`/"Responsável" removido de ponta a ponta (tipo, API, filtros, agrupamento, badge do kanban) — sistema é de uso pessoal, o campo nunca fez sentido.
+- **UX**: seção "Vínculos" no modal de Tarefa só aparece quando a tarefa tem de fato algo vinculado, com uma linha explicando o que é (antes aparecia sempre, vazia e sem contexto).
+- **Arquitetura de informação**: menu lateral (13 itens numa lista só) reorganizado em 4 seções com cabeçalho — Capturar (Inbox, Notas), Planejar (Hoje, Planejar, Visão), Executar (Projetos, Tarefas, Conteúdo, Metas), Sistema (Financeiro, Diário, Diário de Bordo, Hermes).
+- **Feature nova — tela Hermes** (`/hermes`, seções 4.3 e 8): status de configuração de `MCP_API_KEY`/`NOUS_API_KEY`, log das últimas chamadas MCP (nova infraestrutura de auditoria, `src/lib/mcp/log.ts`), e um testador de prompt direto contra a API de inferência da Nous Research (modelos Hermes-4.3-36B/4-70B/4-405B).
+- Registradas duas iniciativas grandes pra depois (não implementadas ainda): calendário integrado espelhando Google Agenda (seção 4.4, com Notion Calendar/ClickUp como referência) e abrir o LIFESYSTEM como open source com licença fonte-disponível tipo BSL (seção 4.5).
+
 ### 2026-08-30 — INBOX vira captura rápida de verdade
 - Split do INBOX antigo em duas telas: uma fila de triagem rápida (INBOX) e um hub mais profundo de edição (Notas) — a distinção "captura vs. nota processada" que sustenta o fluxo da Revisão Semanal e do Wizard hoje.
 
@@ -182,12 +196,13 @@ Sequência de fases que transformou o app de "telas isoladas por entidade" pra u
 ## 8. Roadmap
 
 ### Confirmado e já registrado (não é lista de desejo, é o que já foi validado com o Jonny e está pendente de implementação ou é ideia explicitamente guardada pra depois)
-- **Visão integrada de calendários + espelhamento com Google Agenda** (seção 4.4) — precisa de rodada de escopo própria antes de virar plano.
+- **Visão integrada de calendários + espelhamento com Google Agenda** (seção 4.4) — precisa de rodada de escopo própria antes de virar plano. Último item pendente da rodada de 2026-08-31.
+- **Abrir o LIFESYSTEM como open source** (seção 4.5) — decisões de licença/repo já tomadas, execução fica pra quando o Jonny pedir.
 
 ### Dívida técnica que deveria virar trabalho em algum momento (levantada nesta sessão, ver seções 4 e 5-6)
 - Suíte de testes automatizados de verdade (mesmo que pequena — cobrir as rotas de API críticas seria o maior ganho por esforço).
 - Rate limiting no login e no `/api/mcp`.
-- Escopo/granularidade no `MCP_API_KEY` (hoje é tudo ou nada) e algum registro de auditoria de o que o agente alterou.
+- ~~Registro de auditoria de o que o agente alterou~~ — feito em 2026-08-31 (`/hermes`, log das últimas chamadas MCP). Ainda falta granularidade de escopo no `MCP_API_KEY` em si (hoje é tudo ou nada).
 - Lock/transação na camada de storage se o volume de escrita concorrente crescer (especialmente relevante assim que o Hermes começar a escrever de verdade).
 
 ### Do README original (roadmap de produto, ainda válido)

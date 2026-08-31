@@ -34,5 +34,14 @@
     "date": "2026-08-22",
     "createdAt": "2026-08-22T12:00:00.000Z",
     "updatedAt": "2026-08-24T12:00:00.000Z"
+  },
+  {
+    "title": "Diário de Bordo vivo, fix no modal de Tarefa, reorganização de menu, tela Hermes",
+    "body": "<ul><li><strong>Feature nova — Diário de Bordo vivo</strong> (/diario-bordo): timeline editável, exposta também via MCP pro Hermes poder registrar entradas por conversa.</li><li><strong>Fix:</strong> modal de Editar Tarefa estourava o viewport e escondia os botões — header/footer agora fixos, só o corpo rola.</li><li><strong>Remoção real:</strong> campo Responsável (assignee) removido de ponta a ponta — sistema é de uso pessoal.</li><li><strong>UX:</strong> Vínculos só aparece quando a tarefa tem algo vinculado, com uma explicação.</li><li><strong>Arquitetura de informação:</strong> menu lateral reorganizado em 4 seções — Capturar, Planejar, Executar, Sistema.</li><li><strong>Feature nova — tela Hermes</strong> (/hermes): status de conexão MCP, log de chamadas, testador de prompt via API da Nous Research.</li><li>Registradas duas iniciativas grandes pra depois: calendário integrado espelhando Google Agenda, e abrir o LIFESYSTEM como open source (licença fonte-disponível tipo BSL).</li></ul>",
+    "category": "produto",
+    "date": "2026-08-31",
+    "id": "88f561be-05da-45b3-829b-481692e60e11",
+    "createdAt": "2026-08-31T19:41:06.608Z",
+    "updatedAt": "2026-08-31T19:41:06.608Z"
   }
 ]
