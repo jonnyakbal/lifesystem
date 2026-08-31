@@ -55,6 +55,7 @@ data/                       # JSON "banco" (gerado em runtime + seed)
 
 - `AUTH_USER` / `AUTH_PASSWORD` — credenciais de login da interface web.
 - `MCP_API_KEY` — token usado por agentes de IA externos (ex: Hermes Agent) pra chamar `/api/mcp` (ver seção abaixo). Gere um valor aleatório longo; sem essa variável configurada, o endpoint MCP fica bloqueado (fail closed).
+- `NOUS_API_KEY` — opcional. Chave da API de inferência da Nous Research (portal.nousresearch.com), usada só pelo testador de prompt em `/hermes`. Sem ela, essa seção fica desabilitada; o resto do app funciona normalmente.
 
 ## Servidor MCP (integração com Hermes Agent)
 

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
-  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText
+  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText, Bot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,21 +17,37 @@ import { Badge } from '@/components/ui/badge';
 import { SettingsDialog } from './settings';
 import { NotificationCenter } from '@/components/notification-center';
 
-const navigation = [
-  { name: 'Home', href: '/', icon: Home, shortcut: '⌘H' },
-  { name: 'Hoje', href: '/hoje', icon: CalendarCheck, shortcut: '⌘G' },
-  { name: 'INBOX', href: '/inbox', icon: Inbox, shortcut: '⌘I' },
-  { name: 'Planejar', href: '/planejar', icon: Wand2, shortcut: '⌘W' },
-  { name: 'Notas', href: '/notas', icon: NotebookText, shortcut: '⌘⇧I' },
-  { name: 'Visão', href: '/visao', icon: Target, shortcut: '⌘V' },
-  { name: 'Projetos', href: '/projetos', icon: FolderKanban, shortcut: '⌘J' },
-  { name: 'Tarefas', href: '/tarefas', icon: CheckSquare, shortcut: '⌘T' },
-  { name: 'Conteúdo', href: '/conteudo', icon: FileText, shortcut: '⌘N' },
-  { name: 'Metas', href: '/indicadores', icon: BarChart3, shortcut: '⌘D' },
-  { name: 'Financeiro', href: '/financeiro', icon: Wallet, shortcut: '⌘F' },
-  { name: 'Diário', href: '/diario', icon: BookOpen, shortcut: '⌘L' },
-  { name: 'Diário de Bordo', href: '/diario-bordo', icon: ScrollText, shortcut: '⌘B' },
+// Grouped by workflow stage instead of one flat list — the menu grew to 13
+// items across several sessions and started reading as an undifferentiated
+// wall. Home stays ungrouped (it's the entry point, not part of a stage).
+const navGroups: { section: string | null; items: { name: string; href: string; icon: typeof Home; shortcut: string }[] }[] = [
+  { section: null, items: [
+    { name: 'Home', href: '/', icon: Home, shortcut: '⌘H' },
+  ] },
+  { section: 'Capturar', items: [
+    { name: 'INBOX', href: '/inbox', icon: Inbox, shortcut: '⌘I' },
+    { name: 'Notas', href: '/notas', icon: NotebookText, shortcut: '⌘⇧I' },
+  ] },
+  { section: 'Planejar', items: [
+    { name: 'Hoje', href: '/hoje', icon: CalendarCheck, shortcut: '⌘G' },
+    { name: 'Planejar', href: '/planejar', icon: Wand2, shortcut: '⌘W' },
+    { name: 'Visão', href: '/visao', icon: Target, shortcut: '⌘V' },
+  ] },
+  { section: 'Executar', items: [
+    { name: 'Projetos', href: '/projetos', icon: FolderKanban, shortcut: '⌘J' },
+    { name: 'Tarefas', href: '/tarefas', icon: CheckSquare, shortcut: '⌘T' },
+    { name: 'Conteúdo', href: '/conteudo', icon: FileText, shortcut: '⌘N' },
+    { name: 'Metas', href: '/indicadores', icon: BarChart3, shortcut: '⌘D' },
+  ] },
+  { section: 'Sistema', items: [
+    { name: 'Financeiro', href: '/financeiro', icon: Wallet, shortcut: '⌘F' },
+    { name: 'Diário', href: '/diario', icon: BookOpen, shortcut: '⌘L' },
+    { name: 'Diário de Bordo', href: '/diario-bordo', icon: ScrollText, shortcut: '⌘B' },
+    { name: 'Hermes', href: '/hermes', icon: Bot, shortcut: '⌘⇧H' },
+  ] },
 ];
+
+const navigation = navGroups.flatMap(g => g.items);
 
 function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
   collapsed: boolean;
@@ -88,8 +104,15 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
       </div>
 
       {/* Navigation */}
-      <nav className={cn("flex-1 space-y-1 p-4", collapsed && "px-2 py-4")}>
-        {navigation.map((item) => {
+      <nav className={cn("flex-1 space-y-4 overflow-y-auto p-4", collapsed && "space-y-2 px-2 py-4")}>
+        {navGroups.map((group) => (
+        <div key={group.section ?? 'root'} className="space-y-1">
+        {group.section && !collapsed && (
+          <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+            {group.section}
+          </p>
+        )}
+        {group.items.map((item) => {
           const isActive = pathname === item.href;
           const count = counts[item.name.toLowerCase()];
           return (
@@ -151,6 +174,8 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
             </Link>
           );
         })}
+        </div>
+        ))}
       </nav>
 
       <Separator />

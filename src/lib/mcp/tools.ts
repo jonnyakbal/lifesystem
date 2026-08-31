@@ -11,6 +11,7 @@
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { storage } from '@/lib/storage';
+import { logMcpCall } from './log';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -18,6 +19,25 @@ function textResult(data: unknown) {
 
 function errorResult(message: string) {
   return { content: [{ type: 'text' as const, text: message }], isError: true as const };
+}
+
+// Wraps every generated tool callback so activity shows up on /hermes
+// without each of the 26 tools needing its own logging call.
+function logged<Args extends unknown[]>(
+  toolName: string,
+  fn: (...args: Args) => Promise<{ isError?: boolean; content: { type: 'text'; text: string }[] }>
+) {
+  return async (...args: Args) => {
+    try {
+      const result = await fn(...args);
+      await logMcpCall(toolName, !result.isError, result.isError ? result.content[0]?.text : undefined);
+      return result;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro desconhecido';
+      await logMcpCall(toolName, false, message);
+      throw err;
+    }
+  };
 }
 
 interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRawShape> {
@@ -52,7 +72,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       inputSchema: filterShape,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (input: any) => {
+    logged(`list_${plural}`, async (input: any) => {
       const filters: Record<string, unknown> = {};
       for (const key of listFilters) {
         const value = input?.[key as string];
@@ -62,7 +82,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         ? await storage.query(collection, filters)
         : await storage.getAll(collection);
       return textResult(items);
-    }
+    })
   );
 
   const createShapeConcrete: z.ZodRawShape = createShape;
@@ -77,7 +97,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         inputSchema: createShapeConcrete,
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (rawInput: any) => {
+      logged(`create_${entity}`, async (rawInput: any) => {
         try {
           const input = rawInput as z.infer<z.ZodObject<TCreate>>;
           const created = await storage.create(collection, buildCreatePayload(input));
@@ -85,7 +105,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         } catch (err) {
           return errorResult(err instanceof Error ? err.message : 'Erro ao criar item.');
         }
-      }
+      })
     );
   }
 
@@ -97,13 +117,13 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       inputSchema: { id: z.string().describe('ID do item'), ...updateShapeConcrete },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    async (rawInput: any) => {
+    logged(`update_${entity}`, async (rawInput: any) => {
       const { id, ...fields } = rawInput as { id: string } & Record<string, unknown>;
       const cleaned = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
       const updated = await storage.update(collection, id, cleaned);
       if (!updated) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
       return textResult(updated);
-    }
+    })
   );
 
   if (allowDelete) {
@@ -115,12 +135,12 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         inputSchema: { id: z.string().describe('ID do item') },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      async (rawInput: any) => {
+      logged(`delete_${entity}`, async (rawInput: any) => {
         const { id } = rawInput as { id: string };
         const ok = await storage.delete(collection, id);
         if (!ok) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
         return textResult({ success: true, id });
-      }
+      })
     );
   }
 }
