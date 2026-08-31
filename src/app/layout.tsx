@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Fraunces, JetBrains_Mono } from "next/font/google";
+import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { ChromeGate } from "@/components/layout/chrome-gate";
 import { PWARegister } from "@/components/pwa-register";
 
-const spaceGrotesk = Space_Grotesk({
+// Inter replaced Space Grotesk as the system-wide default (Jonny asked for
+// better reading comfort) — it's built for small-size UI legibility rather
+// than display use, while Fraunces/JetBrains Mono stay as the other two
+// reading-font choices (Notas' font switcher, src/app/(dashboard)/notas).
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
@@ -61,7 +65,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark">
       <body
-        className={`${spaceGrotesk.variable} ${fraunces.variable} ${jetbrainsMono.variable} min-h-screen bg-background font-sans antialiased`}
+        className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable} min-h-screen bg-background font-sans antialiased`}
       >
         <TooltipProvider>
           <ChromeGate>{children}</ChromeGate>

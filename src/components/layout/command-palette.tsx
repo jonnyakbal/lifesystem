@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, Inbox, Target, Layers, FolderKanban, CheckSquare,
   BarChart3, Wallet, BookOpen, FileText, Plus, ArrowRight, Command,
-  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks
+  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks, NotebookText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -40,6 +40,10 @@ const ENTITY_CONFIG: Record<string, {
   getHref: (item: Record<string, unknown>) => string;
   getTitle: (item: Record<string, unknown>) => string;
   getSubtitle: (item: Record<string, unknown>) => string;
+  // Two entries (captures/notes) share the /api/captures endpoint but are
+  // different sections of the ⌘K results — this filters which rows from
+  // that one fetch belong to which section, before the text-match filter.
+  matchesEntity?: (item: Record<string, unknown>) => boolean;
 }> = {
   tasks: {
     endpoint: '/api/tasks',
@@ -62,12 +66,23 @@ const ENTITY_CONFIG: Record<string, {
   },
   captures: {
     endpoint: '/api/captures',
-    label: 'Capturas',
+    label: 'INBOX',
     color: 'text-yellow-500',
     icon: Inbox,
     getHref: () => '/inbox',
     getTitle: (item) => (item.title as string) || (item.content as string)?.slice(0, 80) || 'Sem conteúdo',
-    getSubtitle: (item) => (item.type as string) || 'texto',
+    getSubtitle: () => 'Não processada',
+    matchesEntity: (item) => item.status === 'inbox',
+  },
+  notes: {
+    endpoint: '/api/captures',
+    label: 'Notas',
+    color: 'text-violet-400',
+    icon: NotebookText,
+    getHref: (item) => `/notas?open=${item.id}`,
+    getTitle: (item) => (item.title as string) || (item.content as string)?.replace(/<[^>]*>/g, '')?.slice(0, 80) || 'Sem conteúdo',
+    getSubtitle: () => 'Nota',
+    matchesEntity: (item) => item.status === 'noted',
   },
   content: {
     endpoint: '/api/content',
@@ -200,6 +215,7 @@ export function CommandPalette() {
 
   const commands: CommandItem[] = [
     { id: 'inbox', label: 'Ir para INBOX', icon: Inbox, shortcut: '⌘I', action: () => router.push('/inbox'), category: 'Navegação' },
+    { id: 'notas', label: 'Ir para Notas', icon: NotebookText, shortcut: '⌘⇧I', action: () => router.push('/notas'), category: 'Navegação' },
     { id: 'visao', label: 'Ir para Visão', icon: Target, shortcut: '⌘V', action: () => router.push('/visao'), category: 'Navegação' },
     { id: 'pilares', label: 'Ir para Pilares', icon: Layers, shortcut: '⌘P', action: () => router.push('/pilares'), category: 'Navegação' },
     { id: 'projetos', label: 'Ir para Projetos', icon: FolderKanban, shortcut: '⌘J', action: () => router.push('/projetos'), category: 'Navegação' },
@@ -265,6 +281,7 @@ export function CommandPalette() {
           const q = searchQuery.toLowerCase();
 
           return data
+            .filter((item) => !config.matchesEntity || config.matchesEntity(item))
             .filter((item) => {
               const searchableText = Object.values(item)
                 .filter((v): v is string => typeof v === 'string')

@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     title: body.title,
     description: body.description,
     url: body.url,
-    status: 'inbox',
+    status: body.status || 'inbox',
     coverUrl: body.coverUrl || '',
     coverColor: body.coverColor || '',
     category: body.category || '',
