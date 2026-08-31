@@ -2,7 +2,9 @@
 
 import { useEditor, EditorContent } from '@tiptap/react';
 import { BubbleMenu } from '@tiptap/react/menus';
+import { DragHandle } from '@tiptap/extension-drag-handle-react';
 import { SlashCommand } from '@/lib/tiptap-extensions/slash-command';
+import { PageEmbed } from '@/lib/tiptap-extensions/page-embed';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
@@ -52,6 +54,11 @@ interface NotionEditorProps {
   editable?: boolean;
   showToolbar?: boolean;
   compact?: boolean;
+  // Sub-pages (Notion-style "+ Página" block): creates a new Capture with
+  // status 'noted' and returns its id/title so the embed block can link to
+  // it. Falls back to a plain POST /api/captures if the host page doesn't
+  // pass its own (e.g. content-editor.tsx doesn't need custom behavior here).
+  onCreateSubpage?: () => Promise<{ id: string; title: string }>;
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
@@ -64,8 +71,20 @@ export function NotionEditor({
   editable = true,
   showToolbar = true,
   compact = false,
+  onCreateSubpage,
 }: NotionEditorProps) {
   const [isDragging, setIsDragging] = useState(false);
+
+  const createSubpage = useCallback(async () => {
+    if (onCreateSubpage) return onCreateSubpage();
+    const res = await fetch('/api/captures', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '<h2>Nova página</h2>', type: 'text', status: 'noted' }),
+    });
+    const data = await res.json();
+    return { id: data.id, title: 'Nova página' };
+  }, [onCreateSubpage]);
 
   const editor = useEditor({
     extensions: [
@@ -100,6 +119,7 @@ export function NotionEditor({
         autolink: true,
       }),
       SlashCommand,
+      PageEmbed.configure({ onCreatePage: createSubpage }),
     ],
     content,
     editable,
@@ -184,6 +204,13 @@ export function NotionEditor({
         >
           <SelectionToolbar editor={editor} />
         </BubbleMenu>
+      )}
+      {editable && (
+        <DragHandle editor={editor}>
+          <div className="flex h-6 w-5 cursor-grab items-center justify-center rounded text-muted-foreground/60 hover:bg-muted hover:text-foreground active:cursor-grabbing">
+            <GripVertical className="h-4 w-4" />
+          </div>
+        </DragHandle>
       )}
       <EditorContent editor={editor} className="mt-2" />
       {editable && <TableControls editor={editor} />}
@@ -509,6 +536,8 @@ function InsertMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
       onClose();
     }},
     { label: 'Divisor ───', action: () => { editor.chain().focus().setHorizontalRule().run(); onClose(); } },
+    { label: '─────────', action: () => {} },
+    { label: 'Página 📄 (sub-página)', action: () => { editor.chain().focus().insertPageEmbed().run(); onClose(); } },
   ];
 
   return (

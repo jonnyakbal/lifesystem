@@ -11,7 +11,7 @@ import { createRoot, Root } from 'react-dom/client';
 import {
   Heading1, Heading2, Heading3, List, ListOrdered, CheckSquare, Quote,
   Minus, CodeSquare, Image as ImageIcon, Table as TableIcon, Type,
-  Lightbulb, AlertTriangle, CircleCheck, Flame,
+  Lightbulb, AlertTriangle, CircleCheck, Flame, FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
@@ -99,6 +99,10 @@ export const SLASH_ITEMS: SlashItem[] = [
   {
     title: 'Callout de urgência', subtitle: 'Destaque vermelho 🔥', keywords: ['callout', 'urgente', 'fogo'], icon: Flame,
     command: insertCallout('red', '🔥'),
+  },
+  {
+    title: 'Página', subtitle: 'Sub-página — cria e vincula uma nova nota', keywords: ['pagina', 'subpagina', 'page', 'nota'], icon: FileText,
+    command: ({ editor, range }) => editor.chain().focus().deleteRange(range).insertPageEmbed().run(),
   },
 ];
 
