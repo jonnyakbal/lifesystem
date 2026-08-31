@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Trash2, Search, Inbox as InboxIcon, MoreHorizontal, CheckSquare,
-  FolderKanban, ArrowRight,
+  FolderKanban, ArrowRight, ListChecks,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +23,8 @@ import { apiFetch, showError } from '@/lib/api';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { WeeklyReviewFlow } from '@/components/weekly-review-flow';
 
 interface Capture {
   id: string;
@@ -72,6 +74,7 @@ export default function InboxPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [quickTitle, setQuickTitle] = useState('');
+  const [reviewOpen, setReviewOpen] = useState(false);
 
   useEffect(() => { loadCaptures(); }, []);
 
@@ -151,6 +154,28 @@ export default function InboxPage() {
           <InboxIcon className="h-7 w-7 text-primary" /> INBOX
         </h1>
         <p className="text-muted-foreground">Fila rápida — abra pra processar, vira Nota sozinho</p>
+      </motion.div>
+
+      <motion.div variants={fade} className="mb-6 max-w-xl">
+        <motion.button
+          onClick={() => setReviewOpen(true)}
+          className="group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent px-5 py-4 text-left shadow-sm transition-shadow hover:shadow-lg hover:shadow-primary/10"
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+        >
+          <motion.div
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary"
+            animate={{ scale: [1, 1.12, 1] }}
+            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <ListChecks className="h-5 w-5" />
+          </motion.div>
+          <div className="flex-1">
+            <p className="font-medium">Fazer Revisão Semanal</p>
+            <p className="text-xs text-muted-foreground">Processar o INBOX, revisar Metas, tarefas atrasadas e a Visão — 5 passos guiados</p>
+          </div>
+          <ArrowRight className="h-4 w-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+        </motion.button>
       </motion.div>
 
       <motion.div className="mb-6 flex max-w-xl gap-2" variants={fade}>
@@ -250,6 +275,12 @@ export default function InboxPage() {
           </AnimatePresence>
         </motion.div>
       )}
+
+      <Dialog open={reviewOpen} onOpenChange={(open) => { setReviewOpen(open); if (!open) loadCaptures(); }}>
+        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+          <WeeklyReviewFlow />
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
