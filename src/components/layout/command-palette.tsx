@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import {
   Search, Inbox, Target, Layers, FolderKanban, CheckSquare,
   BarChart3, Wallet, BookOpen, FileText, Plus, ArrowRight, Command,
-  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks, NotebookText
+  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks, NotebookText, Wand2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -215,6 +215,7 @@ export function CommandPalette() {
 
   const commands: CommandItem[] = [
     { id: 'inbox', label: 'Ir para INBOX', icon: Inbox, shortcut: '⌘I', action: () => router.push('/inbox'), category: 'Navegação' },
+    { id: 'planejar', label: 'Ir para Planejar', icon: Wand2, shortcut: '⌘W', action: () => router.push('/planejar'), category: 'Navegação' },
     { id: 'notas', label: 'Ir para Notas', icon: NotebookText, shortcut: '⌘⇧I', action: () => router.push('/notas'), category: 'Navegação' },
     { id: 'visao', label: 'Ir para Visão', icon: Target, shortcut: '⌘V', action: () => router.push('/visao'), category: 'Navegação' },
     { id: 'pilares', label: 'Ir para Pilares', icon: Layers, shortcut: '⌘P', action: () => router.push('/visao?tab=pilares'), category: 'Navegação' },

@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
-  Sun, Moon, LogOut, CalendarCheck, NotebookText
+  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -21,6 +21,7 @@ const navigation = [
   { name: 'Home', href: '/', icon: Home, shortcut: '⌘H' },
   { name: 'Hoje', href: '/hoje', icon: CalendarCheck, shortcut: '⌘G' },
   { name: 'INBOX', href: '/inbox', icon: Inbox, shortcut: '⌘I' },
+  { name: 'Planejar', href: '/planejar', icon: Wand2, shortcut: '⌘W' },
   { name: 'Notas', href: '/notas', icon: NotebookText, shortcut: '⌘⇧I' },
   { name: 'Visão', href: '/visao', icon: Target, shortcut: '⌘V' },
   { name: 'Projetos', href: '/projetos', icon: FolderKanban, shortcut: '⌘J' },
