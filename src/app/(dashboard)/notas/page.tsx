@@ -358,7 +358,13 @@ export default function NotasPage() {
     } catch (err) { toast.error(showError(err)); }
   }
 
-  const notes = useMemo(() => captures.filter(c => c.status === 'noted'), [captures]);
+  // Inclusive on purpose: any capture that ISN'T sitting fresh in the Inbox
+  // queue or converted into a Task/Project belongs here. Older captures from
+  // before this 'noted' status existed (or with a legacy 'classified' value,
+  // or no status field at all) would otherwise vanish from both pages — this
+  // treats "not inbox, not organized" as "it's a note" rather than requiring
+  // the exact string 'noted'.
+  const notes = useMemo(() => captures.filter(c => c.status !== 'inbox' && c.status !== 'organized'), [captures]);
 
   const filtered = useMemo(() => {
     return notes.filter(c => {
