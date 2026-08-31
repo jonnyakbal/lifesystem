@@ -56,7 +56,7 @@ export interface Project extends BaseEntity {
   name: string;
   description: string;
   status: ProjectStatus;
-  stack: string[];
+  tags: string[];
   needs: string;
   links: ProjectLink[];
   tasksCount: number;

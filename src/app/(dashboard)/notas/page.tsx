@@ -346,7 +346,7 @@ export default function NotasPage() {
         : await apiFetch<{ id: string }>('/api/projects', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: title, description: capture.content.replace(/<[^>]*>/g, '').slice(0, 300), status: 'idea', stack: [], needs: '', links: [], tasksCount: 0, tasksDone: 0 }),
+            body: JSON.stringify({ name: title, description: capture.content.replace(/<[^>]*>/g, '').slice(0, 300), status: 'idea', tags: [], needs: '', links: [], tasksCount: 0, tasksDone: 0 }),
           });
       await apiFetch(`/api/captures/${capture.id}`, {
         method: 'PATCH',

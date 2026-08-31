@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     name: body.name,
     description: body.description,
     status: body.status || 'idea',
-    stack: body.stack || [],
+    tags: body.tags || [],
     needs: body.needs || '',
     links: body.links || [],
     tasksCount: 0,

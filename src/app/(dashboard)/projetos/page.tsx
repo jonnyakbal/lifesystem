@@ -29,7 +29,7 @@ interface Project {
   name: string;
   description: string;
   status: 'active' | 'development' | 'paused' | 'idea';
-  stack: string[];
+  tags: string[];
   links: { label: string; url: string }[];
 }
 
@@ -65,8 +65,8 @@ export default function ProjectsPage() {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editStatus, setEditStatus] = useState<Project['status']>('idea');
-  const [editStack, setEditStack] = useState<string[]>([]);
-  const [editStackInput, setEditStackInput] = useState('');
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [editTagsInput, setEditTagsInput] = useState('');
   const [editLinks, setEditLinks] = useState<{ label: string; url: string }[]>([]);
   const [editLinkLabel, setEditLinkLabel] = useState('');
   const [editLinkUrl, setEditLinkUrl] = useState('');
@@ -139,7 +139,7 @@ export default function ProjectsPage() {
     setEditName(project.name);
     setEditDescription(project.description);
     setEditStatus(project.status);
-    setEditStack([...project.stack]);
+    setEditTags([...project.tags]);
     setEditLinks([...project.links]);
     setEditCoverUrl((project as any).coverUrl || '');
     setEditCoverColor((project as any).coverColor || '');
@@ -156,7 +156,7 @@ export default function ProjectsPage() {
           name: editName, 
           description: editDescription, 
           status: editStatus, 
-          stack: editStack, 
+          tags: editTags, 
           links: editLinks,
           coverUrl: editCoverUrl,
           coverColor: editCoverColor,
@@ -214,16 +214,16 @@ export default function ProjectsPage() {
     }
   }
 
-  function addStackTag() {
-    const tag = editStackInput.trim();
-    if (tag && !editStack.includes(tag)) {
-      setEditStack([...editStack, tag]);
-      setEditStackInput('');
+  function addTag() {
+    const tag = editTagsInput.trim();
+    if (tag && !editTags.includes(tag)) {
+      setEditTags([...editTags, tag]);
+      setEditTagsInput('');
     }
   }
 
-  function removeStackTag(tag: string) {
-    setEditStack(editStack.filter(t => t !== tag));
+  function removeTag(tag: string) {
+    setEditTags(editTags.filter(t => t !== tag));
   }
 
   function addLink() {
@@ -403,13 +403,13 @@ export default function ProjectsPage() {
                               <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0" />
                             </div>
                             <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
-                            {project.stack.length > 0 && (
+                            {project.tags.length > 0 && (
                               <div className="mt-3 flex flex-wrap gap-1">
-                                {project.stack.slice(0, 3).map((tech) => (
+                                {project.tags.slice(0, 3).map((tech) => (
                                   <Badge key={tech} variant="outline" className="text-xs">{tech}</Badge>
                                 ))}
-                                {project.stack.length > 3 && (
-                                  <Badge variant="secondary" className="text-xs">+{project.stack.length - 3}</Badge>
+                                {project.tags.length > 3 && (
+                                  <Badge variant="secondary" className="text-xs">+{project.tags.length - 3}</Badge>
                                 )}
                               </div>
                             )}
@@ -541,19 +541,19 @@ export default function ProjectsPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Stack / Tecnologias</Label>
+              <Label>Tags</Label>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {editStack.map(tag => (
+                {editTags.map(tag => (
                   <Badge key={tag} variant="secondary" className="gap-1">
                     {tag}
-                    <button onClick={() => removeStackTag(tag)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
+                    <button onClick={() => removeTag(tag)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
                   </Badge>
                 ))}
               </div>
               <div className="flex gap-2">
-                <Input value={editStackInput} onChange={(e) => setEditStackInput(e.target.value)} placeholder="Ex: Next.js"
-                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addStackTag())} />
-                <Button type="button" variant="outline" size="sm" onClick={addStackTag}><Plus className="h-4 w-4" /></Button>
+                <Input value={editTagsInput} onChange={(e) => setEditTagsInput(e.target.value)} placeholder="Ex: urgente"
+                  onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} />
+                <Button type="button" variant="outline" size="sm" onClick={addTag}><Plus className="h-4 w-4" /></Button>
               </div>
             </div>
             <div className="grid gap-2">
