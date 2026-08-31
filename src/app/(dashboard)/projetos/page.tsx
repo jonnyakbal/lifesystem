@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, FolderKanban, ExternalLink, MoreHorizontal, Trash2, GripVertical, X, Link as LinkIcon } from 'lucide-react';
+import { Plus, FolderKanban, ExternalLink, MoreHorizontal, Trash2, GripVertical, X, Link as LinkIcon, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
+import { loadStatusLabelOverrides } from '@/lib/status-labels';
+import { StatusLabelEditorDialog } from '@/components/status-label-editor-dialog';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
@@ -59,6 +61,9 @@ export default function ProjectsPage() {
   const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
+  const [statusLabelDialogOpen, setStatusLabelDialogOpen] = useState(false);
+  const getStatusLabel = (id: string) => statusLabels[id] || statusConfig[id as keyof typeof statusConfig]?.label || id;
   const [newProject, setNewProject] = useState({ name: '', description: '', status: 'idea' as Project['status'] });
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -76,6 +81,7 @@ export default function ProjectsPage() {
   const dragClickRef = useRef(false);
 
   useEffect(() => {
+    setStatusLabels(loadStatusLabelOverrides('projects'));
     loadProjects();
     fetch('/api/content').then(r => r.json()).then(setLinkedContent).catch(() => {});
     fetch('/api/captures').then(r => r.json()).then(setLinkedCaptures).catch(() => {});
@@ -278,6 +284,10 @@ export default function ProjectsPage() {
           <h1 className="font-display text-3xl font-bold tracking-tight">Projetos</h1>
           <p className="text-muted-foreground">{projects.length} projetos no sistema</p>
         </div>
+        <div className="flex items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => setStatusLabelDialogOpen(true)} title="Editar rótulos de status">
+          <Edit2 className="h-4 w-4" />
+        </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -305,10 +315,10 @@ export default function ProjectsPage() {
                   <Select value={newProject.status} onValueChange={(value) => setNewProject({ ...newProject, status: value as Project['status'] })}>
                     <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="idea">Ideia</SelectItem>
-                      <SelectItem value="development">Desenvolvimento</SelectItem>
-                      <SelectItem value="active">Ativo</SelectItem>
-                      <SelectItem value="paused">Parado</SelectItem>
+                      <SelectItem value="idea">{getStatusLabel('idea')}</SelectItem>
+                      <SelectItem value="development">{getStatusLabel('development')}</SelectItem>
+                      <SelectItem value="active">{getStatusLabel('active')}</SelectItem>
+                      <SelectItem value="paused">{getStatusLabel('paused')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -319,6 +329,7 @@ export default function ProjectsPage() {
             </form>
           </DialogContent>
         </Dialog>
+        </div>
       </motion.div>
 
       {isLoading ? (
@@ -352,7 +363,7 @@ export default function ProjectsPage() {
               >
                 <div className="mb-4 flex items-center gap-2">
                   <div className={cn('h-2 w-2 rounded-full', config.dotColor)} />
-                  <h3 className="font-medium text-sm">{config.label}</h3>
+                  <h3 className="font-medium text-sm">{getStatusLabel(status)}</h3>
                   <Badge variant="secondary" className="ml-auto">{columnProjects.length}</Badge>
                 </div>
                 <div className="space-y-3 min-h-[100px]">
@@ -533,10 +544,10 @@ export default function ProjectsPage() {
               <Select value={editStatus} onValueChange={(v) => setEditStatus(v as Project['status'])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="idea">Ideia</SelectItem>
-                  <SelectItem value="development">Desenvolvimento</SelectItem>
-                  <SelectItem value="active">Ativo</SelectItem>
-                  <SelectItem value="paused">Parado</SelectItem>
+                  <SelectItem value="idea">{getStatusLabel('idea')}</SelectItem>
+                  <SelectItem value="development">{getStatusLabel('development')}</SelectItem>
+                  <SelectItem value="active">{getStatusLabel('active')}</SelectItem>
+                  <SelectItem value="paused">{getStatusLabel('paused')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -599,6 +610,14 @@ export default function ProjectsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusLabelEditorDialog
+        open={statusLabelDialogOpen}
+        onOpenChange={setStatusLabelDialogOpen}
+        scope="projects"
+        statuses={columns.map(s => ({ id: s, defaultLabel: statusConfig[s].label, dotClassName: statusConfig[s].dotColor }))}
+        onSaved={() => setStatusLabels(loadStatusLabelOverrides('projects'))}
+      />
     </motion.div>
   );
 }

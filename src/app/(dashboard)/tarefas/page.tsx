@@ -8,7 +8,7 @@ import {
   GripVertical, CalendarDays, List, LayoutGrid, X, Tag, User, AlertTriangle,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square, PartyPopper,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar, Zap,
-  ArrowRight, Clock, Target, Flame, Filter, Repeat, FileText, Wallet
+  ArrowRight, Clock, Target, Flame, Filter, Repeat, FileText, Wallet, Edit2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { loadStatusLabelOverrides } from '@/lib/status-labels';
+import { StatusLabelEditorDialog } from '@/components/status-label-editor-dialog';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import { spawnNextOccurrenceIfRecurring, RECURRING_LABELS, type RecurringFrequency } from '@/lib/recurring';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -228,6 +230,9 @@ export default function TasksPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>('status');
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [dense, setDense] = useState(false);
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
+  const [statusLabelDialogOpen, setStatusLabelDialogOpen] = useState(false);
+  const getStatusLabel = (id: string) => statusLabels[id] || statusConfig[id]?.label || id;
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -263,6 +268,7 @@ export default function TasksPage() {
   const [quickAddTitle, setQuickAddTitle] = useState('');
 
   useEffect(() => {
+    setStatusLabels(loadStatusLabelOverrides('tasks'));
     loadTasks(); loadProjects(); loadPillars(); loadSavedViews();
     // Loaded once for the "Referenciado por" backlinks panel — Content and
     // Captures can point at a Task via linkedTaskIds/targetId, but Task
@@ -614,8 +620,8 @@ export default function TasksPage() {
 
   // Pipeline stats
   const pipelineStats = useMemo(() => {
-    return STATUSES.map(s => ({ id: s, ...statusConfig[s], count: filteredTasks.filter(t => t.status === s).length }));
-  }, [filteredTasks]);
+    return STATUSES.map(s => ({ id: s, ...statusConfig[s], label: getStatusLabel(s), count: filteredTasks.filter(t => t.status === s).length }));
+  }, [filteredTasks, statusLabels]);
 
   // Unique assignees
   const uniqueAssignees = useMemo(() => [...new Set(tasks.map(t => t.assignee).filter(Boolean) as string[])], [tasks]);
@@ -688,7 +694,7 @@ export default function TasksPage() {
   }, [sortedTasks, groupBy, uniqueAssignees]);
 
   function getGroupLabel(key: string): string {
-    if (groupBy === 'status') return statusConfig[key]?.label || key;
+    if (groupBy === 'status') return getStatusLabel(key);
     if (groupBy === 'priority') return priorityConfig[key]?.label || key;
     if (groupBy === 'project') {
       const proj = projects.find(p => p.id === key);
@@ -845,7 +851,7 @@ export default function TasksPage() {
                     <DropdownMenuSeparator />
                     {STATUSES.filter(s => s !== task.status).map(s => (
                       <DropdownMenuItem key={s} onClick={() => handleQuickStatus(task.id, s)}>
-                        <ArrowRight className="mr-2 h-4 w-4" /> {statusConfig[s].label}
+                        <ArrowRight className="mr-2 h-4 w-4" /> {getStatusLabel(s)}
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
@@ -868,7 +874,7 @@ export default function TasksPage() {
       <div key={status} className="flex flex-col min-w-[280px] max-sm:min-w-[85vw] max-sm:snap-start" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
         <div className="flex items-center gap-2 mb-3 px-1">
           <div className={cn('h-2.5 w-2.5 rounded-full', cfg.dot)} />
-          <h3 className="text-sm font-medium">{cfg.label}</h3>
+          <h3 className="text-sm font-medium">{getStatusLabel(status)}</h3>
           <Badge variant="secondary" className="ml-auto text-xs">{taskList.length}</Badge>
           {bulkMode && taskList.length > 0 && (
             <Button variant="ghost" size="sm" className="h-5 text-xs px-1.5" onClick={() => selectAll(status)}>Todos</Button>
@@ -1507,6 +1513,10 @@ export default function TasksPage() {
                 <CheckSquare className="mr-1 h-4 w-4" /> Selecionar
               </Button>
 
+              <Button variant="outline" size="sm" onClick={() => setStatusLabelDialogOpen(true)} title="Editar rótulos de status">
+                <Edit2 className="h-4 w-4" />
+              </Button>
+
               <div className="flex rounded-lg border border-border bg-muted/30 p-0.5">
                 {[
                   { id: 'kanban' as const, icon: Layers },
@@ -1577,7 +1587,7 @@ export default function TasksPage() {
                 <Select value={newStatus} onValueChange={(v) => setNewStatus(v as Task['status'])}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map(s => <SelectItem key={s} value={s}><span className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', statusConfig[s].dot)} />{statusConfig[s].label}</span></SelectItem>)}
+                    {STATUSES.map(s => <SelectItem key={s} value={s}><span className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', statusConfig[s].dot)} />{getStatusLabel(s)}</span></SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -1702,6 +1712,14 @@ export default function TasksPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <StatusLabelEditorDialog
+        open={statusLabelDialogOpen}
+        onOpenChange={setStatusLabelDialogOpen}
+        scope="tasks"
+        statuses={STATUSES.map(s => ({ id: s, defaultLabel: statusConfig[s].label, dotClassName: statusConfig[s].dot }))}
+        onSaved={() => setStatusLabels(loadStatusLabelOverrides('tasks'))}
+      />
     </motion.div>
   );
 }

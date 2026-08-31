@@ -8,7 +8,7 @@ import {
   Edit3, Hash, TrendingUp, BarChart3, Send, Archive, CheckCircle2, Circle, Sparkles,
   Image, Video, Type, Layers, Target, Zap, Save, SlidersHorizontal, ArrowUpDown,
   LayoutGrid, Rows3, ChevronDown, Bookmark, Copy, EyeOff, Filter, GripVertical,
-  Play, Pause, CheckSquare, Square, Star, Flame
+  Play, Pause, CheckSquare, Square, Star, Flame, Edit2
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,6 +22,8 @@ import { Separator } from '@/components/ui/separator';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { loadStatusLabelOverrides } from '@/lib/status-labels';
+import { StatusLabelEditorDialog } from '@/components/status-label-editor-dialog';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -227,6 +229,9 @@ export default function ConteudoPage() {
   const router = useRouter();
   const [items, setItems] = useState<ContentItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
+  const [statusLabelDialogOpen, setStatusLabelDialogOpen] = useState(false);
+  const getStageLabel = (id: string) => statusLabels[id] || STAGES.find(s => s.id === id)?.label || id;
 
   // View state
   const [view, setView] = useState<ViewMode>('kanban');
@@ -252,6 +257,7 @@ export default function ConteudoPage() {
 
   // Load
   useEffect(() => {
+    setStatusLabels(loadStatusLabelOverrides('content'));
     loadItems();
     loadSavedViews();
   }, []);
@@ -440,7 +446,7 @@ export default function ConteudoPage() {
   const activeFilters = useMemo(() => {
     const chips: { label: string; value: string; key: string }[] = [];
     if (activeChannel !== 'all') chips.push({ label: 'Canal', value: getChannelData(activeChannel as ContentChannel)?.label || activeChannel, key: 'channel' });
-    if (filterStage !== 'all') chips.push({ label: 'Estágio', value: getStageData(filterStage as ContentStage)?.label || filterStage, key: 'stage' });
+    if (filterStage !== 'all') chips.push({ label: 'Estágio', value: getStageLabel(filterStage), key: 'stage' });
     if (filterCategory !== 'all') chips.push({ label: 'Categoria', value: filterCategory, key: 'category' });
     if (filterFormat !== 'all') chips.push({ label: 'Formato', value: filterFormat, key: 'format' });
     if (filterLine !== 'all') chips.push({ label: 'Linha', value: EDITORIAL_LINES.find(l => l.id === filterLine)?.label || filterLine, key: 'line' });
@@ -467,8 +473,8 @@ export default function ConteudoPage() {
   // Pipeline stats
   const pipelineStats = useMemo(() => {
     const channelItems = activeChannel === 'all' ? items : items.filter(i => i.channel === activeChannel);
-    return STAGES.map(s => ({ ...s, count: channelItems.filter(i => i.stage === s.id).length }));
-  }, [items, activeChannel]);
+    return STAGES.map(s => ({ ...s, label: getStageLabel(s.id), count: channelItems.filter(i => i.stage === s.id).length }));
+  }, [items, activeChannel, statusLabels]);
 
   const totalByChannel = useMemo(() => {
     return CHANNELS.map(ch => ({ ...ch, count: items.filter(i => i.channel === ch.id).length }));
@@ -542,7 +548,7 @@ export default function ConteudoPage() {
   }, [sorted, calendarMode]);
 
   function getGroupLabel(key: string): string {
-    if (groupBy === 'stage') return getStageData(key as ContentStage)?.label || key;
+    if (groupBy === 'stage') return getStageLabel(key);
     if (groupBy === 'channel') return getChannelData(key as ContentChannel)?.label || key;
     if (groupBy === 'category') return key;
     if (groupBy === 'format') return key;
@@ -612,7 +618,7 @@ export default function ConteudoPage() {
                   <DropdownMenuSeparator />
                   {STAGES.filter(s => s.id !== item.stage).map(s => (
                     <DropdownMenuItem key={s.id} onClick={() => handleStageChange(item, s.id)}>
-                      <ArrowRight className="mr-2 h-4 w-4" /> {s.label}
+                      <ArrowRight className="mr-2 h-4 w-4" /> {getStageLabel(s.id)}
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
@@ -697,7 +703,7 @@ export default function ConteudoPage() {
                 <div key={stage.id} className="flex flex-col min-w-[260px] max-sm:min-w-[80vw]">
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <div className={cn('h-2.5 w-2.5 rounded-full', stage.dot)} />
-                    <h3 className="text-sm font-medium">{stage.label}</h3>
+                    <h3 className="text-sm font-medium">{getStageLabel(stage.id)}</h3>
                     <Badge variant="secondary" className="ml-auto text-xs">{stageItems.length}</Badge>
                   </div>
                   <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
@@ -782,7 +788,7 @@ export default function ConteudoPage() {
                           </div>
                         </div>
                         <Badge variant="outline" className="text-xs px-1.5 py-0 gap-0.5 shrink-0">
-                          <StIcon className="h-2 w-2" /> {st2.label}
+                          <StIcon className="h-2 w-2" /> {getStageLabel(st2.id)}
                         </Badge>
                         <Badge variant="secondary" className="text-xs px-1.5 py-0 shrink-0">{item.category}</Badge>
                         {item.scheduledDate && (
@@ -1123,11 +1129,23 @@ export default function ConteudoPage() {
             </Popover>
           </div>
 
+          <Button variant="outline" size="sm" onClick={() => setStatusLabelDialogOpen(true)} title="Editar rótulos de status">
+            <Edit2 className="h-4 w-4" />
+          </Button>
+
           <Button size="sm" onClick={openCreate}>
             <Plus className="mr-1 h-4 w-4" /> Novo
           </Button>
         </div>
       </motion.div>
+
+      <StatusLabelEditorDialog
+        open={statusLabelDialogOpen}
+        onOpenChange={setStatusLabelDialogOpen}
+        scope="content"
+        statuses={STAGES.map(s => ({ id: s.id, defaultLabel: s.label, dotClassName: s.dot }))}
+        onSaved={() => setStatusLabels(loadStatusLabelOverrides('content'))}
+      />
 
       {/* Content */}
       {isLoading ? (
