@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { ScrollText, Plus, Trash2, Pencil, MoreHorizontal } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,8 +32,6 @@ const CATEGORY_CONFIG: Record<LogEntryCategory, { label: string; color: string }
   roadmap: { label: 'Roadmap', color: 'bg-money/10 text-money border-money/20' },
   geral: { label: 'Geral', color: 'bg-muted text-muted-foreground border-transparent' },
 };
-
-function todayStr() { return new Date().toISOString().split('T')[0]; }
 
 function formatDate(dateStr: string) {
   const d = new Date(dateStr + 'T12:00:00');

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Bell, AlertTriangle, Clock, DollarSign, BookOpen, Inbox, Check
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -43,10 +43,6 @@ function markAllRead(ids: string[]) {
   const read = getReadIds();
   ids.forEach(id => read.add(id));
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...read]));
-}
-
-function todayStr() {
-  return new Date().toISOString().split('T')[0];
 }
 
 function daysDiff(dateStr: string) {

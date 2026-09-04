@@ -13,7 +13,7 @@ import {
   CheckCircle2, CheckSquare, FileText, NotebookText, ArrowRight, ArrowLeft,
   SkipForward, Sparkles, Trash2, PartyPopper, Sun, CalendarDays, CalendarRange,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -47,8 +47,6 @@ const TYPE_CONFIG: Record<ItemType, { label: string; icon: typeof CheckSquare; p
   content: { label: 'Conteúdo', icon: FileText, placeholder: 'Ideia de conteúdo...' },
   note: { label: 'Nota', icon: NotebookText, placeholder: 'Anotação, lembrete, ideia solta...' },
 };
-
-function todayStr() { return new Date().toISOString().split('T')[0]; }
 
 export function PlanningWizard() {
   const [loading, setLoading] = useState(true);

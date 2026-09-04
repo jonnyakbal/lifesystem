@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { Layers, Edit2, Target, Trash2, Flame, Calendar, ChevronDown, ArrowRight, Sparkles } from 'lucide-react';
 import { PillarConstellation } from '@/components/pillar-constellation';
 import { cn } from '@/lib/utils';
+import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -126,32 +127,33 @@ export function PilaresContent() {
   const colorOptions = ['stellar', 'critical', 'qty', 'money', 'primary'];
 
   async function loadPillars() {
-    const [pillarsRes, journalRes, indicatorsRes] = await Promise.all([
-      fetch('/api/pillars'),
-      fetch('/api/journal'),
-      fetch('/api/indicators'),
-    ]);
-    const pillarsData = await pillarsRes.json();
-    const journalData = await journalRes.json();
-    const indicatorsData = await indicatorsRes.json();
-    setJournalEntries(journalData);
-    setIndicators(indicatorsData);
+    try {
+      const [pillarsData, journalData, indicatorsData] = await Promise.all([
+        apiFetch<any[]>('/api/pillars'),
+        apiFetch<any[]>('/api/journal'),
+        apiFetch<any[]>('/api/indicators'),
+      ]);
+      setJournalEntries(journalData);
+      setIndicators(indicatorsData);
 
-    if (pillarsData.length === 0) {
-      for (const pillar of defaultPillars) {
-        await fetch('/api/pillars', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(pillar),
-        });
+      if (pillarsData.length === 0) {
+        for (const pillar of defaultPillars) {
+          await apiFetch('/api/pillars', {
+            method: 'POST',
+            body: JSON.stringify(pillar),
+          });
+        }
+        const newData = await apiFetch<any[]>('/api/pillars');
+        setPillars(newData);
+      } else {
+        setPillars(pillarsData);
       }
-      const newRes = await fetch('/api/pillars');
-      const newData = await newRes.json();
-      setPillars(newData);
-    } else {
-      setPillars(pillarsData);
+    } catch (err) {
+      toast.error('Erro ao carregar pilares');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   useEffect(() => { loadPillars(); }, []);
@@ -206,24 +208,33 @@ export function PilaresContent() {
 
   async function handleSave() {
     if (!editingPillar) return;
-    await fetch(`/api/pillars/${editingPillar.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editName, description: editDescription, icon: editIcon, color: editColor,
-        currentStatus: editCurrentStatus, target: editTarget,
-      }),
-    });
-    setIsEditorOpen(false);
-    loadPillars();
-    toast.success('Pilar atualizado!');
+    try {
+      await apiFetch(`/api/pillars/${editingPillar.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          name: editName, description: editDescription, icon: editIcon, color: editColor,
+          currentStatus: editCurrentStatus, target: editTarget,
+        }),
+      });
+      setIsEditorOpen(false);
+      loadPillars();
+      toast.success('Pilar atualizado!');
+    } catch (err) {
+      toast.error('Erro ao salvar pilar');
+      console.error(err);
+    }
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/pillars/${id}`, { method: 'DELETE' });
-    setIsEditorOpen(false);
-    loadPillars();
-    toast.success('Pilar excluído!');
+    try {
+      await apiFetch(`/api/pillars/${id}`, { method: 'DELETE' });
+      setIsEditorOpen(false);
+      loadPillars();
+      toast.success('Pilar excluído!');
+    } catch (err) {
+      toast.error('Erro ao excluir pilar');
+      console.error(err);
+    }
   }
 
   return (

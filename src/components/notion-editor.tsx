@@ -77,13 +77,19 @@ export function NotionEditor({
 
   const createSubpage = useCallback(async () => {
     if (onCreateSubpage) return onCreateSubpage();
-    const res = await fetch('/api/captures', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: '<h2>Nova página</h2>', type: 'text', status: 'noted' }),
-    });
-    const data = await res.json();
-    return { id: data.id, title: 'Nova página' };
+    try {
+      const res = await fetch('/api/captures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: '<h2>Nova página</h2>', type: 'text', status: 'noted' }),
+      });
+      if (!res.ok) throw new Error('Failed to create subpage');
+      const data = await res.json();
+      return { id: data.id, title: 'Nova página' };
+    } catch (err) {
+      console.error('Error creating subpage:', err);
+      throw err;
+    }
   }, [onCreateSubpage]);
 
   const editor = useEditor({
@@ -272,6 +278,11 @@ async function uploadAndInsertImage(file: File, editor: any) {
   try {
     toast.info('Enviando imagem...');
     const res = await fetch('/api/upload', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ error: 'Upload failed' }));
+      toast.error(errorData.error || 'Falha no upload');
+      return;
+    }
     const data = await res.json();
     
     if (data.url) {
@@ -541,7 +552,7 @@ function InsertMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
   ];
 
   return (
-    <div className="absolute top-full left-0 mt-1 z-50 rounded-lg glass-strong shadow-xl min-w-[180py-1 overflow-hidden">
+    <div className="absolute top-full left-0 mt-1 z-50 rounded-lg glass-strong shadow-xl min-w-[180px] py-1 overflow-hidden">
       {items.map((item, i) => (
         item.label.startsWith('─') ? (
           <div key={i} className="h-px bg-border/40 my-1" />

@@ -12,7 +12,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, Calendar, Sparkles, FileText,
   Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper, Repeat,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -63,8 +63,6 @@ function fireConfetti() {
   container.appendChild(style);
   setTimeout(() => container.remove(), 2500);
 }
-
-function todayStr() { return new Date().toISOString().split('T')[0]; }
 
 export default function HojePage() {
   const [tasks, setTasks] = useState<Task[]>([]);

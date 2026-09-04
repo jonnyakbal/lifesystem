@@ -17,7 +17,7 @@ import {
   Inbox, Sparkles, AlertTriangle, Target, CheckCircle2, ArrowRight, ArrowLeft,
   CheckSquare, FolderKanban, Circle, PartyPopper, Calendar,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr, addDays } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,14 +41,6 @@ const VISION_SECTIONS = ['identity', 'vision_5y', 'timeline', 'dream', 'custom']
 function getTitle(content: string): string {
   const text = content.replace(/<[^>]*>/g, '').trim();
   return text.split('\n')[0].slice(0, 80) || 'Sem título';
-}
-
-function todayStr() { return new Date().toISOString().split('T')[0]; }
-
-function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
 }
 
 const STEPS = ['Capturas', 'Metas', 'Tarefas', 'Visão', 'Concluído'];

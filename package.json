@@ -2,11 +2,16 @@
   "name": "lifesystem",
   "version": "0.1.0",
   "private": true,
+  "author": "@oj0nny — ARCOLABS",
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",

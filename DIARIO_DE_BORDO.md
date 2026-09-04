@@ -4,6 +4,8 @@
 
 Registro técnico e de produto do LIFESYSTEM: stack, infraestrutura, segurança, testes, linha do tempo de evolução e roadmap.
 
+**Autor:** Jonny Akbal — ARCOLABS
+
 ---
 
 ## 1. O que é o LIFESYSTEM (visão de produto)
@@ -16,6 +18,62 @@ Um "segundo cérebro" pessoal do Jonny — não um produto pra terceiros, é fer
 - **BHAG em cima, indicadores operacionais embaixo.** Cada pilar tem uma meta grande de ano (`Pillar.target`) e metas menores/recorrentes (`Indicator`) — direção de longo prazo não se mistura com o check-in diário.
 - **Single-user por design.** Não é multi-tenant, não tem plano de virar SaaS — é o sistema pessoal do Jonny. Isso simplifica auth, dados e infraestrutura em todas as decisões técnicas abaixo.
 - **Mobile-first na prática, não só em CSS.** Jonny opera o Dona Maria e o resto da vida do celular a maior parte do tempo — cada fase de desenvolvimento revisou UX mobile explicitamente (PWA instalável, bottom nav, ajuste de fontes).
+
+---
+
+## 1.1 Manifesto — Por que o LIFESYSTEM existe
+
+### O problema que resolvemos
+
+A vida moderna fragmenta a atenção. Calendários, tarefas, finanças, hábitos, anotações, projetos — tudo vive em apps diferentes, com interfaces diferentes, lógicas diferentes. O cérebro humano não foi projetado pra gerenciar 12 abstrações simultâneas. O custo cognitivo de simplesmente *lembrar* de tudo que precisa ser feito já consome energia que deveria estar sendo usada pra *fazer*.
+
+Existem soluções. Notion, Todoist, Habitica, YNAB, Google Calendar, Apple Reminders. Cada um resolve uma fatia. Mas a fragmentação persiste — e piora: quanto mais apps, mais fricção pra capturar uma ideia, mais chance de algo cair no esquecimento, mais tempo gasto alternando contexto entre ferramentas.
+
+### O que o LIFESYSTEM propõe
+
+Um único lugar. Não um "hub" que consulta outros apps, mas o sistema de registro. A fonte única de verdade pra tudo que importa: o que você quer ser (Visão), onde você está indo (Pilares), o que precisa ser feito hoje (Tarefas), o que você está aprendendo (Notas), o que você tem (Financeiro), e o que você está sentindo (Diário).
+
+A premissa é simples: **se não está no LIFESYSTEM, não existe.**
+
+### Os princípios
+
+**1. Captura é sagrada.**
+A distância entre pensar algo e registrá-lo deve ser zero. O INBOX existe pra isso — um botão, uma nota, acabou. Não formulário, não categoria, não.decisão. Classificar vem depois, na Revisão Semanal. Primeiro você captura. Sempre.
+
+**2. Processamento é ritual, não automação.**
+A tentação é deixar a IA classificar, priorizar, organizar. Mas a revisão deliberada — olhar pra cada item, decidir o que importa, descartar o que não importa — é o ato que mantém o sistema vivo. O LIFESYSTEM não decide por você. Ele te dá os dados pra você decidir melhor.
+
+**3. Os Pilares são a bússola.**
+Tarefa sem pilar é ruído. Meta sem pilar é métrica vazia. Conteúdo sem pilar é mais um post no feed. Tudo se conecta a um dos seis eixos da vida — e é essa conexão que transforma "coisas pra fazer" em "vida sendo vivida de propósito".
+
+**4. Simplicidade é Features.**
+JSON files em vez de Postgres. Cookie HMAC em vez de NextAuth. Um usuário em vez de multi-tenant. Cada decisão técnica que reduz complexidade é uma decisão que mantém o sistema funcionando, maintenido, e acessível. O LIFESYSTEM não precisa escalar pra milhão de usuários. Precisa escalar pra uma vida inteira de uso.
+
+**5. Mobile-first não é responsivo.**
+Não é "funciona no celular". É "é melhor no celular". Bottom nav, captura por toque, gestos, fontes legíveis em tela pequena. A maioria das interações acontece entre uma reunião e outra, no transporte, antes de dormir. O celular é o contexto primário.
+
+**6. IA como ferramenta, não como dono.**
+O Hermes pode escrever no Diário de Bordo, criar tarefas, consultar indicadores. Mas ele é um assistente — não um curador. As decisões de produto são do humano. A IA executa, registra, lembra. Não decide o que é importante.
+
+**7. Transparência total.**
+O código é aberto. Os dados são seus. Não há telemetria, não há analytics, não há "nós melhoramos o serviço usando seus dados". O LIFESYSTEM é uma ferramenta, não um serviço. Você o mantém, você o controla, você o conhece.
+
+### A filosofia de desenvolvimento
+
+**Iterativo e incremental.** Não existem sprints de 2 semanas. Existem pedidos do Jonny, implementação, validação, commit. Cada mudança é testada antes de ir pra produção. Cada feature é construída em cima do que já existe, não substituindo.
+
+**Documentação como memória.** Este diário não é burocracia. É a memória do projeto. Cada decisão técnica, cada trade-off, cada bug encontrado e corrigido — registrado pra que o próximo desenvolvedor (seja o Jonny daqui a 6 meses, seja um contribuidor externo) entenda o *porquê*, não só o *o quê*.
+
+**Qualidade como hábito.** `tsc --noEmit` antes de todo commit. Build limpa antes de push. Verificação manual em navegador. Não é CI/CD sofisticado — é disciplina manual que funciona pra um projeto solo. Quando o projeto crescer, a infraestrutura de teste cresce junto.
+
+### O que o LIFESYSTEM não é
+
+- Não é um productividade porn (ferramenta bonita que você mostra mas não usa).
+- Não é um SaaS disfarçado de open source.
+- Não é um framework genérico de life management.
+- Não é um projeto acadêmico (embora o TCC use ele).
+
+É uma ferramenta pessoal que acontece de ser útil pra outras pessoas. Se alguém mais usar, ótimo. Se ninguém usar, continua funcionando pro Jonny.
 
 ---
 
