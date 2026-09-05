@@ -10,7 +10,7 @@ import {
   LayoutGrid, Rows3, ChevronDown, Bookmark, Copy, EyeOff, Filter, GripVertical,
   Play, Pause, CheckSquare, Square, Star, Flame, Edit2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -856,11 +856,11 @@ export default function ConteudoPage() {
               'rounded-lg border p-1.5 transition-colors',
               calendarMode === 'week' ? 'min-h-[120px]' : 'min-h-[80px]',
               day.day === 0 ? 'border-transparent' :
-              day.date === now.toISOString().split('T')[0] ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-muted/10'
+              day.date === todayStr(now) ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-muted/10'
             )}>
               {day.day > 0 && (
                 <>
-                  <span className={cn('text-xs font-medium', day.date === now.toISOString().split('T')[0] ? 'text-primary font-bold' : 'text-muted-foreground')}>
+                  <span className={cn('text-xs font-medium', day.date === todayStr(now) ? 'text-primary font-bold' : 'text-muted-foreground')}>
                     {day.day}
                   </span>
                   <div className="mt-1 space-y-0.5">

@@ -11,7 +11,8 @@
     "lint": "eslint",
     "test": "playwright test",
     "test:ui": "playwright test --ui",
-    "test:report": "playwright show-report"
+    "test:report": "playwright show-report",
+    "backup:data": "node scripts/backup-data.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
@@ -58,6 +59,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.4.0",
+    "isomorphic-dompurify": "^4.1.0",
     "lenis": "^1.3.26",
     "lucide-react": "^1.31.0",
     "motion": "^13.1.0",

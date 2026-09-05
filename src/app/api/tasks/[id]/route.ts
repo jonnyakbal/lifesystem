@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Task } from '@/types';
+import { readJson, taskPayloadSchema } from '@/lib/validation';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = await request.json();
+  let rawBody: unknown;
+  try { rawBody = await readJson(request); } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'JSON inválido' }, { status: 400 });
+  }
+  const parsed = taskPayloadSchema.partial().safeParse(rawBody);
+  if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos' }, { status: 400 });
+  const body = parsed.data;
   
   if (body.status === 'done' && !body.completedAt) {
     body.completedAt = new Date().toISOString();

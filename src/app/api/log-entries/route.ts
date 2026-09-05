@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { LogEntry } from '@/types';
+import { todayStr } from '@/lib/utils';
 
 export async function GET() {
   const entries = await storage.getAll<LogEntry>('log-entries');
@@ -14,7 +15,7 @@ export async function POST(request: NextRequest) {
     title: body.title || 'Sem título',
     body: body.body || '',
     category: body.category || 'geral',
-    date: body.date || new Date().toISOString().split('T')[0],
+    date: body.date || todayStr(),
   });
   return NextResponse.json(entry, { status: 201 });
 }

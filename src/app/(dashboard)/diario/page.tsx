@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { BookOpen, Save, Sparkles, ChevronLeft, ChevronRight, Calendar, Smile, Meh, Frown, Heart, Zap } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,14 +21,13 @@ interface JournalEntry {
   entryDate: string;
 }
 
-const pillars = [
-  { id: '1', name: 'Fé', icon: '✨', color: 'stellar' },
-  { id: '2', name: 'Corpo', icon: '💪', color: 'critical' },
-  { id: '3', name: 'Mente', icon: '🧠', color: 'qty' },
-  { id: '4', name: 'Profissional', icon: '🚀', color: 'money' },
-  { id: '5', name: 'Dinheiro', icon: '💰', color: 'primary' },
-  { id: '6', name: 'Comunidade', icon: '👥', color: 'qty' },
-];
+interface Pillar {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  sortOrder: number;
+}
 
 const moods = [
   { value: 'great', label: 'Ótimo', icon: '😄', color: 'text-money' },
@@ -58,8 +57,9 @@ function getFirstDayOfMonth(year: number, month: number) {
 export default function DiarioPage() {
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(todayStr());
   const [isSaving, setIsSaving] = useState(false);
+  const [pillars, setPillars] = useState<Pillar[]>([]);
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth());
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear());
 
@@ -70,7 +70,7 @@ export default function DiarioPage() {
   const [pillarChecks, setPillarChecks] = useState<Record<string, number>>({});
   const [lastDate, setLastDate] = useState('');
 
-  useEffect(() => { loadEntries(); }, []);
+  useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
     if (selectedDate !== lastDate) {
@@ -82,29 +82,47 @@ export default function DiarioPage() {
     }
   }, [selectedDate, existingEntry, lastDate]);
 
-  async function loadEntries() {
-    const res = await fetch('/api/journal');
-    const data = await res.json();
-    setEntries(data);
-    setIsLoading(false);
+  async function loadData() {
+    try {
+      const [journalRes, pillarsRes] = await Promise.all([
+        fetch('/api/journal'),
+        fetch('/api/pillars'),
+      ]);
+      if (!journalRes.ok || !pillarsRes.ok) throw new Error('Falha ao carregar diário');
+      const [journalData, pillarsData] = await Promise.all([journalRes.json(), pillarsRes.json()]);
+      setEntries(journalData);
+      setPillars(pillarsData.sort((a: Pillar, b: Pillar) => a.sortOrder - b.sortOrder));
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível carregar o diário');
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handleSave() {
     setIsSaving(true);
-    await fetch('/api/journal', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content, gratitude, pillarChecks, mood, entryDate: selectedDate }),
-    });
-    setIsSaving(false);
-    loadEntries();
-    toast.success('Diário salvo!');
+    try {
+      const response = await fetch('/api/journal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, gratitude, pillarChecks, mood, entryDate: selectedDate }),
+      });
+      if (!response.ok) throw new Error('Falha ao salvar diário');
+      await loadData();
+      toast.success('Diário salvo!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Não foi possível salvar o diário');
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function navigateDay(offset: number) {
     const current = new Date(selectedDate);
     current.setDate(current.getDate() + offset);
-    setSelectedDate(current.toISOString().split('T')[0]);
+    setSelectedDate(todayStr(current));
   }
 
   const calendarDays = useMemo(() => {
@@ -128,7 +146,7 @@ export default function DiarioPage() {
 
   return (
     <motion.div
-      className="p-8"
+      className="p-4 lg:p-8"
       variants={stagger}
       initial="initial"
       animate="animate"
@@ -147,7 +165,7 @@ export default function DiarioPage() {
               <CardContent className="p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigateDay(-1)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Dia anterior" onClick={() => navigateDay(-1)}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                     <div className="flex items-center gap-2">
@@ -156,10 +174,10 @@ export default function DiarioPage() {
                         {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => navigateDay(1)}>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Próximo dia" onClick={() => navigateDay(1)}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}>
+                    <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setSelectedDate(todayStr())}>
                       Hoje
                     </Button>
                   </div>
@@ -302,7 +320,7 @@ export default function DiarioPage() {
                     const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
                     const hasEntry = entryDates.has(dateStr);
                     const isSelected = dateStr === selectedDate;
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    const isToday = dateStr === todayStr();
                     return (
                       <button
                         key={day}

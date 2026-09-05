@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Sun, Moon, Download, Upload, Settings, X } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -71,7 +71,7 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `lifesystem-backup-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `lifesystem-backup-${todayStr()}.json`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Dados exportados!');

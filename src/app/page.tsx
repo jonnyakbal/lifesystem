@@ -9,7 +9,7 @@ import {
   Zap, Home, Activity, BarChart4
 } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -223,7 +223,7 @@ export default function HomePage() {
     loadAll();
   }, []);
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayStr();
   const todayTasks = tasks.filter(t => t.dueDate === today && t.status !== 'done');
   const tasksDone = tasks.filter(t => t.status === 'done').length;
   const currentMonth = today.substring(0, 7);
@@ -253,7 +253,7 @@ export default function HomePage() {
     const days: { date: string; label: string; journal?: JournalEntry }[] = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = todayStr(d);
       days.push({
         date: dateStr,
         label: d.toLocaleDateString('pt-BR', { weekday: 'short' }).substring(0, 3),
@@ -267,7 +267,7 @@ export default function HomePage() {
     let streak = 0;
     for (let i = 0; i < 7; i++) {
       const d = new Date(); d.setDate(d.getDate() - i);
-      const dateStr = d.toISOString().split('T')[0];
+      const dateStr = todayStr(d);
       const hasEntry = journalEntries.find(j => j.entryDate === dateStr);
       if (hasEntry) streak++; else break;
     }

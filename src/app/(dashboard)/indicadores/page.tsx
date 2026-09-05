@@ -192,7 +192,7 @@ export default function IndicadoresPage() {
 
   return (
     <motion.div
-      className="p-8"
+      className="p-4 lg:p-8"
       variants={stagger}
       initial="initial"
       animate="animate"

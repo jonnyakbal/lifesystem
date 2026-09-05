@@ -6,34 +6,30 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json();
   const { ids, data } = body;
 
-  if (!Array.isArray(ids) || ids.length === 0) {
+  if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => typeof id !== 'string')) {
     return NextResponse.json({ error: 'IDs array required' }, { status: 400 });
   }
 
-  const results = await Promise.all(
-    ids.map((id: string) => {
-      const updateData = { ...data };
-      if (updateData.status === 'done' && !updateData.completedAt) {
-        updateData.completedAt = new Date().toISOString();
-      } else if (updateData.status !== 'done') {
-        updateData.completedAt = undefined;
-      }
-      return storage.update<Task>('tasks', id, updateData);
-    })
-  );
+  const updateData = { ...data };
+  if (updateData.status === 'done' && !updateData.completedAt) {
+    updateData.completedAt = new Date().toISOString();
+  } else if (updateData.status !== 'done') {
+    updateData.completedAt = undefined;
+  }
+  const results = await storage.updateMany<Task>('tasks', ids, updateData);
 
-  return NextResponse.json({ updated: results.length });
+  return NextResponse.json({ updated: results.length, missing: ids.filter((id: string) => !results.some((task) => task.id === id)) });
 }
 
 export async function DELETE(request: NextRequest) {
   const body = await request.json();
   const { ids } = body;
 
-  if (!Array.isArray(ids) || ids.length === 0) {
+  if (!Array.isArray(ids) || ids.length === 0 || ids.some((id) => typeof id !== 'string')) {
     return NextResponse.json({ error: 'IDs array required' }, { status: 400 });
   }
 
-  await Promise.all(ids.map((id: string) => storage.delete('tasks', id)));
+  const deleted = await storage.deleteMany<Task>('tasks', ids);
 
-  return NextResponse.json({ deleted: ids.length });
+  return NextResponse.json({ deleted: deleted.length, missing: ids.filter((id: string) => !deleted.includes(id)) });
 }

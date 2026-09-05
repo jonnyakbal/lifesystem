@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Bell, AlertTriangle, Clock, DollarSign, BookOpen, Inbox, Check
+  Bell, AlertTriangle, Clock, DollarSign, BookOpen, Inbox, Check, RefreshCw
 } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -123,19 +123,20 @@ export function NotificationCenter() {
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
-      const [tasks, budgets, journal, captures] = await Promise.all([
-        fetch('/api/tasks').then(r => r.json()),
-        fetch('/api/budgets').then(r => r.json()),
-        fetch('/api/journal').then(r => r.json()),
-        fetch('/api/captures').then(r => r.json()),
+      const responses = await Promise.all([
+        fetch('/api/tasks'), fetch('/api/budgets'), fetch('/api/journal'), fetch('/api/captures'),
       ]);
+      if (responses.some(r => !r.ok)) throw new Error('Falha ao carregar notificações');
+      const [tasks, budgets, journal, captures] = await Promise.all(responses.map(r => r.json()));
       setNotifications(buildNotifications(tasks, budgets, journal, captures));
       setReadIds(getReadIds());
+      setError(false);
     } catch {
-      // silently fail
+      setError(true);
     }
     setLoading(false);
   }, []);
@@ -166,7 +167,7 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-7 w-7 shrink-0">
+        <Button variant="ghost" size="icon" className="relative h-7 w-7 shrink-0" aria-label="Abrir notificações">
           <Bell className="h-3.5 w-3.5 text-muted-foreground" />
           <AnimatePresence>
             {unread.length > 0 && (
@@ -195,6 +196,13 @@ export function NotificationCenter() {
           {loading ? (
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
               Carregando...
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-8 text-center text-muted-foreground">
+              <span className="text-sm">Não foi possível carregar notificações.</span>
+              <Button variant="outline" size="sm" onClick={fetchData}>
+                <RefreshCw className="mr-2 h-3.5 w-3.5" /> Tentar novamente
+              </Button>
             </div>
           ) : notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">

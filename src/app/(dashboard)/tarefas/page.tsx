@@ -10,7 +10,7 @@ import {
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar, Zap,
   ArrowRight, Clock, Target, Flame, Filter, Repeat, FileText, Wallet, Edit2
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,7 +130,7 @@ function uid(prefix: string) {
 
 function isOverdue(task: Task) {
   if (!task.dueDate || task.status === 'done') return false;
-  return task.dueDate < new Date().toISOString().split('T')[0];
+  return task.dueDate < todayStr();
 }
 
 function getWeekDays() {
@@ -152,7 +152,7 @@ function formatDateShort(d: Date) {
 }
 
 function formatDateISO(d: Date) {
-  return d.toISOString().split('T')[0];
+  return todayStr(d);
 }
 
 function timeAgo(date: string) {

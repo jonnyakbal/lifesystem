@@ -310,6 +310,7 @@ export interface JournalEntry extends BaseEntity {
   content: string;
   pillarChecks: Record<string, number>;
   gratitude?: string;
+  mood?: 'great' | 'good' | 'neutral' | 'bad' | 'terrible';
   aiSummary?: string;
   entryDate: string;
 }

@@ -12,7 +12,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, Undo, Redo, Strikethrough, CodeSquare,
   Blocks, PanelRightOpen, PanelRightClose
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, escapeHtml, sanitizeHtml } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -149,7 +149,8 @@ function getWordEstimate(text: string, channel: ContentChannel): { value: string
 }
 
 function renderMarkdown(text: string): string {
-  return text
+  const escaped = escapeHtml(text);
+  return sanitizeHtml(escaped
     .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2 text-foreground">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2 text-foreground">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2 text-foreground">$1</h1>')
@@ -164,7 +165,7 @@ function renderMarkdown(text: string): string {
     .replace(/^(\d+) (.+)$/gm, '<li class="ml-4 list-decimal">$2</li>')
     .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-primary underline hover:text-primary/80">$1</a>')
     .replace(/\n{2,}/g, '</p><p class="mb-2">')
-    .replace(/\n/g, '<br/>');
+    .replace(/\n/g, '<br/>'));
 }
 
 // ─── Slash Command Menu ──────────────────────────────────────────────────────

@@ -10,6 +10,7 @@
 // exception — they're a fixed set of 6, so only list/update are registered.
 import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { todayStr } from '@/lib/utils';
 import { storage } from '@/lib/storage';
 import { logMcpCall } from './log';
 
@@ -379,7 +380,7 @@ export function registerAllTools(server: McpServer) {
       title: input.title || 'Sem título',
       body: input.body || '',
       category: input.category || 'geral',
-      date: input.date || new Date().toISOString().split('T')[0],
+      date: input.date || todayStr(),
     }),
   });
 }

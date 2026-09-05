@@ -97,6 +97,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
           variant="ghost"
           size="icon"
           className="absolute -right-3 top-1/2 -translate-y-1/2 h-6 w-6 rounded-full border bg-background shadow-md hidden lg:flex"
+          aria-label={collapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'}
           onClick={onToggleCollapse}
         >
           {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronLeft className="h-3 w-3" />}
@@ -229,6 +230,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 shrink-0"
+                aria-label="Abrir configurações"
                 onClick={() => {
                   window.dispatchEvent(new CustomEvent('open-settings'));
                 }}
@@ -240,6 +242,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
                 size="icon"
                 className="h-7 w-7 shrink-0"
                 title="Sair"
+                aria-label="Sair"
                 onClick={async () => {
                   await fetch('/api/logout', { method: 'POST' });
                   window.location.href = '/login';
@@ -274,18 +277,20 @@ export function Sidebar() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   useEffect(() => {
-    const stored = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    const stored = localStorage.getItem('lifesystem-theme') as 'light' | 'dark' | null;
     if (stored) {
       setTheme(stored);
-      document.documentElement.classList.toggle('dark', stored === 'dark');
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(stored);
     }
   }, []);
 
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark';
     setTheme(next);
-    localStorage.setItem('theme', next);
-    document.documentElement.classList.toggle('dark', next === 'dark');
+    localStorage.setItem('lifesystem-theme', next);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(next);
   }
 
   useEffect(() => {
@@ -306,7 +311,7 @@ export function Sidebar() {
           <Command className="h-4 w-4 text-primary" />
           <span className="font-display text-sm font-bold">LIFESYSTEM</span>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={toggleTheme}>
+         <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" aria-label="Alternar tema" onClick={toggleTheme}>
           {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
         <div className="flex items-center gap-1">

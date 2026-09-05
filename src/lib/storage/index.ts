@@ -1,8 +1,12 @@
 import fs from 'fs/promises';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
+const DATA_DIR = process.env.LIFESYSTEM_DATA_DIR
+  ? path.resolve(process.env.LIFESYSTEM_DATA_DIR)
+  : path.join(process.cwd(), 'data');
+const collectionLocks = new Map<string, Promise<void>>();
 
 async function ensureDataDir() {
   try {
@@ -18,15 +22,37 @@ async function readCollection<T>(name: string): Promise<T[]> {
   try {
     const data = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(data);
-  } catch {
-    return [];
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw new Error(`Não foi possível ler a coleção ${name}: ${String(error)}`);
   }
 }
 
 async function writeCollection<T>(name: string, data: T[]): Promise<void> {
   await ensureDataDir();
   const filePath = path.join(DATA_DIR, `${name}.json`);
-  await fs.writeFile(filePath, JSON.stringify(data, null, 2));
+  const tempPath = path.join(DATA_DIR, `.${name}.${randomUUID()}.tmp`);
+  try {
+    await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
+    await fs.rename(tempPath, filePath);
+  } finally {
+    await fs.rm(tempPath, { force: true }).catch(() => undefined);
+  }
+}
+
+async function withCollectionLock<T>(collection: string, operation: () => Promise<T>): Promise<T> {
+  const previous = collectionLocks.get(collection) || Promise.resolve();
+  let release!: () => void;
+  const current = new Promise<void>((resolve) => { release = resolve; });
+  const queued = previous.then(() => current);
+  collectionLocks.set(collection, queued);
+  await previous;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (collectionLocks.get(collection) === queued) collectionLocks.delete(collection);
+  }
 }
 
 export const storage = {
@@ -40,36 +66,42 @@ export const storage = {
   },
 
   async create<T extends { id: string }>(collection: string, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
-    const items = await readCollection<T>(collection);
-    const now = new Date().toISOString();
-    const newItem = {
-      ...data,
-      id: uuidv4(),
-      createdAt: now,
-      updatedAt: now,
-    } as unknown as T;
-    items.push(newItem);
-    await writeCollection(collection, items);
-    return newItem;
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const now = new Date().toISOString();
+      const newItem = {
+        ...data,
+        id: uuidv4(),
+        createdAt: now,
+        updatedAt: now,
+      } as unknown as T;
+      items.push(newItem);
+      await writeCollection(collection, items);
+      return newItem;
+    });
   },
 
   async update<T extends { id: string }>(collection: string, id: string, data: Partial<T>): Promise<T | null> {
-    const items = await readCollection<T>(collection);
-    const index = items.findIndex(item => item.id === id);
-    if (index === -1) return null;
-    
-    const now = new Date().toISOString();
-    items[index] = { ...items[index], ...data, id, updatedAt: now } as T;
-    await writeCollection(collection, items);
-    return items[index];
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const index = items.findIndex(item => item.id === id);
+      if (index === -1) return null;
+
+      const now = new Date().toISOString();
+      items[index] = { ...items[index], ...data, id, updatedAt: now } as T;
+      await writeCollection(collection, items);
+      return items[index];
+    });
   },
 
   async delete<T extends { id: string }>(collection: string, id: string): Promise<boolean> {
-    const items = await readCollection<T>(collection);
-    const filtered = items.filter(item => item.id !== id);
-    if (filtered.length === items.length) return false;
-    await writeCollection(collection, filtered);
-    return true;
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const filtered = items.filter(item => item.id !== id);
+      if (filtered.length === items.length) return false;
+      await writeCollection(collection, filtered);
+      return true;
+    });
   },
 
   async query<T>(collection: string, filters: Record<string, unknown>): Promise<T[]> {
@@ -78,6 +110,34 @@ export const storage = {
       return Object.entries(filters).every(([key, value]) =>
         (item as Record<string, unknown>)[key] === value
       );
+    });
+  },
+
+  async updateMany<T extends { id: string }>(collection: string, ids: string[], data: Partial<T>): Promise<T[]> {
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const wanted = new Set(ids);
+      const now = new Date().toISOString();
+      const updated: T[] = [];
+      for (let index = 0; index < items.length; index += 1) {
+        if (!wanted.has(items[index].id)) continue;
+        items[index] = { ...items[index], ...data, id: items[index].id, updatedAt: now } as T;
+        updated.push(items[index]);
+      }
+      if (updated.length > 0) await writeCollection(collection, items);
+      return updated;
+    });
+  },
+
+  async deleteMany<T extends { id: string }>(collection: string, ids: string[]): Promise<string[]> {
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const wanted = new Set(ids);
+      const deleted = items.filter((item) => wanted.has(item.id)).map((item) => item.id);
+      if (deleted.length > 0) {
+        await writeCollection(collection, items.filter((item) => !wanted.has(item.id)));
+      }
+      return deleted;
     });
   },
 };

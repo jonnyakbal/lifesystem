@@ -16,6 +16,12 @@ export async function middleware(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && pathname !== '/api/mcp') {
+    const origin = request.headers.get('origin');
+    if (origin && origin !== request.nextUrl.origin) {
+      return NextResponse.json({ error: 'Origem não permitida.' }, { status: 403 });
+    }
+  }
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next();
   }

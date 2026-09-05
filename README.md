@@ -123,6 +123,7 @@ data/                        # JSON "banco" (15 coleções)
 | `AUTH_PASSWORD` | ✅ (produção) | Senha de login |
 | `MCP_API_KEY` | ✅ (MCP) | Token pra agentes de IA |
 | `NOUS_API_KEY` | ❌ | Chave API Nous Research |
+| `LIFESYSTEM_DATA_DIR` | ✅ (produção) | Diretório persistente fora da pasta do deploy |
 
 ## Servidor MCP (integração com AI agents)
 
@@ -148,7 +149,19 @@ data/                        # JSON "banco" (15 coleções)
 
 ## Storage Layer
 
-O `data/*.json` é a camada de dados. A interface `src/lib/storage/index.ts` abstrai CRUD com operações atômicas.
+O `data/*.json` é a camada de dados. A interface `src/lib/storage/index.ts` abstrai CRUD, serializa escritas por coleção e grava via arquivo temporário com rename atômico.
+
+Em produção, configure `LIFESYSTEM_DATA_DIR` para um diretório persistente fora do checkout/release do Git. Nunca use a pasta versionada do projeto como banco de produção: um novo deploy pode substituir os JSON runtime pelos dados do repositório.
+
+Antes da primeira troca, copie os dados atuais para o diretório persistente e valide permissões de leitura e escrita. Faça também um backup antes de cada deploy.
+
+Backup manual:
+
+```bash
+npm run backup:data
+```
+
+Use `LIFESYSTEM_BACKUP_DIR` para colocar os backups fora do checkout. O backup deve ser executado antes de cada deploy e incluído na rotina de snapshots da hospedagem.
 
 **Coleções:** tasks, captures, projects, pillars, indicators, content, financial, accounts, budgets, bills, cards, payees, journal, vision, wiki-collections, log-entries
 

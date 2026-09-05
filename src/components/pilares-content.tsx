@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { Layers, Edit2, Target, Trash2, Flame, Calendar, ChevronDown, ArrowRight, Sparkles } from 'lucide-react';
 import { PillarConstellation } from '@/components/pillar-constellation';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -129,9 +129,9 @@ export function PilaresContent() {
   async function loadPillars() {
     try {
       const [pillarsData, journalData, indicatorsData] = await Promise.all([
-        apiFetch<any[]>('/api/pillars'),
-        apiFetch<any[]>('/api/journal'),
-        apiFetch<any[]>('/api/indicators'),
+        apiFetch<Pillar[]>('/api/pillars'),
+        apiFetch<JournalEntry[]>('/api/journal'),
+        apiFetch<Indicator[]>('/api/indicators'),
       ]);
       setJournalEntries(journalData);
       setIndicators(indicatorsData);
@@ -143,7 +143,7 @@ export function PilaresContent() {
             body: JSON.stringify(pillar),
           });
         }
-        const newData = await apiFetch<any[]>('/api/pillars');
+        const newData = await apiFetch<Pillar[]>('/api/pillars');
         setPillars(newData);
       } else {
         setPillars(pillarsData);
@@ -168,7 +168,7 @@ export function PilaresContent() {
       for (let i = 0; i < 30; i++) {
         const date = new Date(today);
         date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
+        const dateStr = todayStr(date);
         const entry = sorted.find(e => e.entryDate === dateStr);
         if (entry && entry.pillarChecks?.[pillar.id] && entry.pillarChecks[pillar.id] >= 3) {
           streak++;

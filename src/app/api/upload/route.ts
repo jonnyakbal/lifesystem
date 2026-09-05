@@ -1,100 +1,68 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
+import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuid } from 'uuid';
 
-const MAX_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+const MAX_SIZE_BYTES = 2 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 3 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads');
+const UPLOAD_DIR = process.env.LIFESYSTEM_UPLOAD_DIR || join(process.cwd(), 'public', 'uploads');
 
 export async function POST(request: NextRequest) {
   try {
+    const contentLength = Number(request.headers.get('content-length') || 0);
+    if (contentLength > MAX_REQUEST_BYTES) {
+      return NextResponse.json({ error: 'Upload muito grande. Máximo: 2MB.' }, { status: 413 });
+    }
+
     const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file provided' }, { status: 400 });
+    const file = formData.get('file');
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: 'Nenhum arquivo enviado' }, { status: 400 });
     }
-
     if (!ALLOWED_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'Invalid file type. Allowed: jpg, png, gif, webp' }, { status: 400 });
+      return NextResponse.json({ error: 'Tipo inválido. Use jpg, png, gif ou webp.' }, { status: 400 });
+    }
+    if (file.size > MAX_SIZE_BYTES) {
+      return NextResponse.json({ error: 'Imagem muito grande. Máximo: 2MB.' }, { status: 413 });
     }
 
-    const bytes = await file.arrayBuffer();
-    let buffer = Buffer.from(bytes);
-
-    // Optimize with sharp if available and if over 2MB
-    if (buffer.length > MAX_SIZE_BYTES) {
-      try {
-        const sharp = (await import('sharp')).default;
-        
-        // Determine format for output
-        const isPng = file.type === 'image/png';
-        const outputFormat = isPng ? 'png' : 'jpeg';
-        const outputQuality = isPng ? undefined : 80;
-
-        // Resize to max 1920px wide, maintain aspect ratio
-        let pipeline = sharp(buffer)
-          .resize(1920, 1080, { 
-            fit: 'inside', 
-            withoutEnlargement: true 
-          });
-
-        if (outputFormat === 'jpeg') {
-          pipeline = pipeline.jpeg({ quality: outputQuality!, mozjpeg: true });
-        } else {
-          pipeline = pipeline.png({ quality: 80, compressionLevel: 9 });
-        }
-
-        buffer = await pipeline.toBuffer();
-      } catch (sharpError) {
-        console.warn('Sharp optimization failed, using original:', sharpError);
-        // Continue with original buffer
-      }
+    const inputBuffer = Buffer.from(await file.arrayBuffer());
+    const sharp = (await import('sharp')).default;
+    const image = sharp(inputBuffer, { limitInputPixels: 25_000_000 });
+    const metadata = await image.metadata();
+    if (!metadata.format || !['jpeg', 'png', 'gif', 'webp'].includes(metadata.format)) {
+      return NextResponse.json({ error: 'Conteúdo de imagem inválido' }, { status: 400 });
     }
 
-    // Final size check
-    if (buffer.length > MAX_SIZE_BYTES) {
-      // Try more aggressive compression
-      try {
-        const sharp = (await import('sharp')).default;
-        buffer = await sharp(buffer)
-          .resize(1280, 720, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 60, mozjpeg: true })
-          .toBuffer();
-      } catch {
-        return NextResponse.json({ 
-          error: 'Image too large even after optimization. Max 2MB.' 
-        }, { status: 400 });
-      }
-    }
+    let buffer = await image
+      .rotate()
+      .resize(1920, 1080, { fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 82 })
+      .toBuffer();
 
     if (buffer.length > MAX_SIZE_BYTES) {
-      return NextResponse.json({ 
-        error: 'Image too large. Max 2MB.' 
-      }, { status: 400 });
+      buffer = await sharp(buffer)
+        .resize(1280, 720, { fit: 'inside', withoutEnlargement: true })
+        .webp({ quality: 60 })
+        .toBuffer();
+    }
+    if (buffer.length > MAX_SIZE_BYTES) {
+      return NextResponse.json({ error: 'Imagem muito grande após otimização' }, { status: 413 });
     }
 
-    // Ensure upload directory exists
     await mkdir(UPLOAD_DIR, { recursive: true });
+    const filename = `${uuid()}.webp`;
+    await writeFile(join(UPLOAD_DIR, filename), buffer);
 
-    // Generate filename
-    const ext = file.type === 'image/png' ? 'png' : file.type === 'image/gif' ? 'gif' : 'jpg';
-    const filename = `${uuid()}.${ext}`;
-    const filepath = join(UPLOAD_DIR, filename);
-
-    await writeFile(filepath, buffer);
-
-    const url = `/uploads/${filename}`;
-
-    return NextResponse.json({ 
-      url, 
+    return NextResponse.json({
+      url: `/uploads/${filename}`,
       filename,
       originalSize: file.size,
       optimizedSize: buffer.length,
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Falha no upload' }, { status: 500 });
   }
 }

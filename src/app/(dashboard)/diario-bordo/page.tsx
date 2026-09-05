@@ -8,7 +8,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import { ScrollText, Plus, Trash2, Pencil, MoreHorizontal } from 'lucide-react';
-import { cn, todayStr } from '@/lib/utils';
+import { cn, sanitizeHtml, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -189,7 +189,7 @@ export default function DiarioBordoPage() {
                         </div>
                         <div
                           className="prose prose-sm dark:prose-invert max-w-none text-sm text-muted-foreground [&_code]:rounded [&_code]:bg-muted [&_code]:px-1"
-                          dangerouslySetInnerHTML={{ __html: entry.body }}
+                           dangerouslySetInnerHTML={{ __html: sanitizeHtml(entry.body) }}
                         />
                       </CardContent>
                     </Card>

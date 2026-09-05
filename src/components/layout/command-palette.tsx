@@ -211,8 +211,6 @@ export function CommandPalette() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cacheRef = useRef<Map<string, SearchResult[]>>(new Map());
 
-  const today = new Date().toISOString().split('T')[0];
-
   const commands: CommandItem[] = [
     { id: 'inbox', label: 'Ir para INBOX', icon: Inbox, shortcut: '⌘I', action: () => router.push('/inbox'), category: 'Navegação' },
     { id: 'planejar', label: 'Ir para Planejar', icon: Wand2, shortcut: '⌘W', action: () => router.push('/planejar'), category: 'Navegação' },
@@ -439,6 +437,9 @@ export function CommandPalette() {
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ type: 'spring', stiffness: 500, damping: 35 }}
             className="fixed left-1/2 top-[15%] z-[101] w-full max-w-lg -translate-x-1/2"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Paleta de comandos"
           >
             <div className="glass-strong rounded-2xl border border-border/50 shadow-2xl shadow-primary/5 overflow-hidden">
               <div className="flex items-center gap-3 border-b border-border/50 px-4 py-3">
@@ -471,6 +472,7 @@ export function CommandPalette() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && quickCapture.trim()) {
                         e.preventDefault();
+                        e.stopPropagation();
                         handleQuickCapture();
                       }
                     }}

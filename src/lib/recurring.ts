@@ -20,12 +20,19 @@ interface RecurringTaskLike {
   recurringFrequency?: RecurringFrequency;
 }
 
-function nextDueDate(current: string | undefined, freq: RecurringFrequency): string {
+export function nextDueDate(current: string | undefined, freq: RecurringFrequency): string {
   const base = current ? new Date(current + 'T12:00:00') : new Date();
   if (freq === 'daily') base.setDate(base.getDate() + 1);
   else if (freq === 'weekly') base.setDate(base.getDate() + 7);
-  else base.setMonth(base.getMonth() + 1);
-  return base.toISOString().split('T')[0];
+  else {
+    const originalDay = base.getDate();
+    const targetMonth = base.getMonth() + 1;
+    base.setDate(1);
+    base.setMonth(targetMonth);
+    const lastDay = new Date(base.getFullYear(), base.getMonth() + 1, 0).getDate();
+    base.setDate(Math.min(originalDay, lastDay));
+  }
+  return [base.getFullYear(), String(base.getMonth() + 1).padStart(2, '0'), String(base.getDate()).padStart(2, '0')].join('-');
 }
 
 // Habits (treino, água, sono...) were only trackable as Metas that reset

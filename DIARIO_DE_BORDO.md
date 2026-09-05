@@ -251,6 +251,29 @@ Sequência de fases que transformou o app de "telas isoladas por entidade" pra u
 
 ---
 
+### 2026-09-04 — Revisão geral de qualidade e correções de integridade
+
+- **Segurança:** previews Markdown e conteúdo HTML do Tiptap passaram a ser sanitizados com allowlist antes de `dangerouslySetInnerHTML`; protocolos e atributos executáveis são removidos.
+- **Diário/Pilares:** o Diário passou a carregar os pilares reais e a API normaliza registros históricos que usavam as chaves numéricas `1`–`6`; humor passou a ser persistido.
+- **Datas:** datas sem horário passaram a ser formatadas pelo calendário local, evitando deslocamentos causados por UTC em tarefas, diário, finanças e dashboard.
+- **Recorrência:** tarefas mensais agora limitam o dia ao último dia do mês destino, evitando que 31 de janeiro salte para março.
+- **Preferências:** sidebar e configurações passaram a compartilhar a chave `lifesystem-theme`.
+- **Testes:** adicionados testes de regressão para datas locais, recorrência mensal e sanitização HTML.
+- **Persistência:** camada JSON passou a aceitar `LIFESYSTEM_DATA_DIR`, serializar escritas por coleção, gravar via arquivo temporário/rename atômico e executar batches em uma única leitura/gravação.
+- **Financeiro:** `spent` de orçamento passou a ser derivado das transações do mês e recorrência legada é normalizada na leitura.
+- **Segurança operacional:** upload agora reprocessa imagens com Sharp, limita dimensões/tamanho e login recebeu bloqueio temporário por excesso de tentativas; middleware valida Origin em requisições mutáveis.
+- **Pendências encontradas na revisão:** configurar `LIFESYSTEM_DATA_DIR` persistente na Hostinger, adicionar escopos MCP, concluir schemas nas demais APIs, corrigir lint acumulado e validar a recuperação dos dados organizados.
+
+### 2026-09-05 — Incidente de dados e proteção do ciclo de deploy
+
+- **Incidente:** a organização de tarefas e projetos feita na instância online foi perdida depois de um deploy. O repositório versionava `data/*.json`; o checkout local continha dados-base antigos e podia sobrescrever os dados runtime da produção.
+- **Causa provável:** dados de produção e código compartilhavam o mesmo diretório de deploy. A camada JSON também fazia operações concorrentes de leitura-modificação-gravação, permitindo que a última requisição sobrescrevesse mudanças anteriores.
+- **Decisão estrutural:** `data/*.json` deixa de ser considerado banco de produção. A produção deve usar `LIFESYSTEM_DATA_DIR` fora do checkout e `LIFESYSTEM_UPLOAD_DIR` fora da release. O diretório versionado fica apenas como seed/desenvolvimento até a migração operacional ser concluída.
+- **Proteções implementadas:** lock por coleção, escrita temporária com rename atômico, operações batch em uma única gravação, tratamento explícito de JSON corrompido, normalização do Diário/Pilares, validação Zod de APIs críticas e backup via `npm run backup:data`.
+- **Segurança implementada:** sanitização HTML/Markdown, reprocessamento de uploads com Sharp, limite de tamanho/dimensões, bloqueio temporário de tentativas de login e verificação de Origin em requisições mutáveis.
+- **Regra operacional:** nenhum novo deploy deve ser feito antes de copiar os dados atuais da Hostinger para o diretório persistente, configurar as variáveis de ambiente e validar contagem de tarefas/projetos após o deploy.
+- **Recuperação pendente:** procurar o backup/snapshot da Hostinger anterior ao incidente. O workspace local contém apenas os dados-base versionados, não a organização perdida.
+
 ## 8. Roadmap
 
 ### Confirmado e já registrado (não é lista de desejo, é o que já foi validado com o Jonny e está pendente de implementação ou é ideia explicitamente guardada pra depois)

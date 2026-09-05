@@ -10,7 +10,7 @@ import {
   Clock, CheckCircle2, AlertCircle, MoreHorizontal, Filter, Copy, Receipt,
   ArrowRight, CircleDot, DollarSign, BadgeCheck, LandmarkIcon, Lock
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,7 +38,8 @@ interface FinancialEntry {
   description?: string;
   amount: number;
   date: string;
-  recurring?: RecurringType;
+  recurring?: boolean | RecurringType;
+  recurringFrequency?: RecurringType;
   accountId?: string;
   cardId?: string;
   payee?: string;
@@ -270,7 +271,12 @@ export default function FinanceiroPage() {
         apiFetch<Payee[]>('/api/payees'),
         apiFetch<Bill[]>('/api/bills'),
       ]);
-      setEntries(entriesData);
+      setEntries(entriesData.map((entry) => {
+        if (typeof entry.recurring === 'string') {
+          return { ...entry, recurring: entry.recurring !== 'none', recurringFrequency: entry.recurring };
+        }
+        return entry;
+      }));
       setAccounts(accountsData);
       setCards(cardsData);
       setBudgets(budgetsData);
@@ -288,18 +294,18 @@ export default function FinanceiroPage() {
 
   const range = useMemo(() => {
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = todayStr(now);
     if (dateRange === 'month') {
-      const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const start = todayStr(new Date(now.getFullYear(), now.getMonth(), 1));
       return { start, end: today, label: now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) };
     }
     if (dateRange === 'quarter') {
       const q = Math.floor(now.getMonth() / 3);
-      const start = new Date(now.getFullYear(), q * 3, 1).toISOString().split('T')[0];
+      const start = todayStr(new Date(now.getFullYear(), q * 3, 1));
       return { start, end: today, label: `T${q + 1} ${now.getFullYear()}` };
     }
     if (dateRange === 'year') {
-      const start = new Date(now.getFullYear(), 0, 1).toISOString().split('T')[0];
+      const start = todayStr(new Date(now.getFullYear(), 0, 1));
       return { start, end: today, label: `${now.getFullYear()}` };
     }
     return { start: '2000-01-01', end: '2099-12-31', label: 'Todo o período' };
@@ -332,10 +338,18 @@ export default function FinanceiroPage() {
   const totalCardLimit = cards.filter(c => c.type === 'credit' && c.isActive).reduce((a, c) => a + (c.limit || 0), 0);
 
   const pendingEntries = entries.filter(e => e.status === 'pending' && e.dueDate);
-  const overdueEntries = pendingEntries.filter(e => e.dueDate && e.dueDate < new Date().toISOString().split('T')[0]);
+  const overdueEntries = pendingEntries.filter(e => e.dueDate && e.dueDate < todayStr());
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const currentBudgets = budgets.filter(b => b.month === currentMonth);
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const currentBudgets = useMemo(() => budgets
+    .filter(b => b.month === currentMonth)
+    .map(budget => ({
+      ...budget,
+      spent: entries
+        .filter(entry => entry.type === budget.type && entry.category === budget.category && entry.date.startsWith(budget.month))
+        .reduce((total, entry) => total + entry.amount, 0),
+    })), [budgets, entries, currentMonth]);
 
   const incomePercent = totalIncome + totalExpenses > 0 ? Math.round((totalIncome / (totalIncome + totalExpenses)) * 100) : 50;
 
@@ -388,7 +402,7 @@ export default function FinanceiroPage() {
     e.preventDefault();
     if (!quickAmount || !quickCategory) return;
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayStr();
       const isFuture = quickDueDate && quickDueDate > today;
       await apiFetch('/api/financial', {
         method: 'POST',
@@ -490,7 +504,7 @@ export default function FinanceiroPage() {
     try {
       await apiFetch(`/api/financial/${entry.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, paidDate: newStatus === 'paid' ? new Date().toISOString().split('T')[0] : undefined }),
+        body: JSON.stringify({ status: newStatus, paidDate: newStatus === 'paid' ? todayStr() : undefined }),
       });
       loadAll();
       toast.success(newStatus === 'paid' ? 'Marcado como pago!' : 'Marcado como pendente');
@@ -1332,7 +1346,7 @@ export default function FinanceiroPage() {
                             {entry.description && <p className="text-sm text-muted-foreground truncate mt-0.5">{entry.description}</p>}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-xs text-muted-foreground">{new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                              {entry.recurring && entry.recurring !== 'none' && <Badge variant="secondary" className="text-xs px-1 py-0"><Repeat className="h-2 w-2 mr-0.5" />{recurringLabels[entry.recurring]}</Badge>}
+                              {entry.recurring && <Badge variant="secondary" className="text-xs px-1 py-0"><Repeat className="h-2 w-2 mr-0.5" />{recurringLabels[entry.recurringFrequency || (typeof entry.recurring === 'string' ? entry.recurring : 'none')]}</Badge>}
                               {entry.dueDate && <span className="text-xs text-muted-foreground">Vence {new Date(entry.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
                             </div>
                           </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
 import { Target, Save, Clock, Star, Rocket, Eye, Edit3, CheckCircle2, FolderKanban, TrendingUp, BrainCircuit, Layers, Compass } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, escapeHtml, sanitizeHtml } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -46,7 +46,8 @@ const stagger = {
 };
 
 function renderMarkdown(text: string): string {
-  return text
+  const escaped = escapeHtml(text);
+  return sanitizeHtml(escaped
     .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2">$1</h3>')
     .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2">$1</h2>')
     .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
@@ -57,7 +58,7 @@ function renderMarkdown(text: string): string {
     .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
     .replace(/^(\d+)\. (.+)$/gm, '<li class="ml-4 list-decimal">$2</li>')
     .replace(/\n{2,}/g, '</p><p class="mb-2">')
-    .replace(/\n/g, '<br/>');
+    .replace(/\n/g, '<br/>'));
 }
 
 function wordCount(text: string): number {
@@ -123,7 +124,7 @@ export default function VisaoPage() {
 
   return (
     <motion.div
-      className="p-8"
+      className="p-4 lg:p-8"
       variants={stagger}
       initial="initial"
       animate="animate"
