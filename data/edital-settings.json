@@ -12,6 +12,10 @@
     "notaMinima": 6,
     "id": "27b58d86-904c-4fd9-8ad5-a249ecb329bb",
     "createdAt": "2026-09-06T02:20:50.573Z",
-    "updatedAt": "2026-09-06T02:22:10.285Z"
+    "updatedAt": "2026-09-06T02:22:10.285Z",
+    "fontes": [
+      "https://www.santamaria.rs.gov.br/editais",
+      "https://www.gov.br/cultura/pt-br/assuntos/editais"
+    ]
   }
 ]

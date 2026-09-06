@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal } from 'lucide-react';
+import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal, Radar, CheckSquare, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,17 @@ const stagger = { animate: { transition: { staggerChildren: 0.05, delayChildren:
 function formatMoney(v?: number) {
   if (v === undefined || v === null) return null;
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+interface Candidato {
+  titulo: string;
+  orgao: string | null;
+  prazoInscricao: string | null;
+  valor: number | null;
+  resumo: string;
+  nota: number;
+  justificativa: string;
+  fonte: string;
 }
 
 interface EditalAnalysis {
@@ -62,6 +73,12 @@ export default function EditaisPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<EditalAnalysis | null>(null);
   const [cockpitOpen, setCockpitOpen] = useState(false);
+  const [buscaOpen, setBuscaOpen] = useState(false);
+  const [buscando, setBuscando] = useState(false);
+  const [candidatos, setCandidatos] = useState<Candidato[] | null>(null);
+  const [errosBusca, setErrosBusca] = useState<{ fonte: string; erro: string }[]>([]);
+  const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
+  const [progresso, setProgresso] = useState<{ atual: number; total: number } | null>(null);
   const [settings, setSettings] = useState<EditalSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -210,6 +227,84 @@ export default function EditaisPage() {
     }
   }
 
+  async function buscarEditais() {
+    setBuscaOpen(true);
+    setBuscando(true);
+    setCandidatos(null);
+    setErrosBusca([]);
+    setSelecionados(new Set());
+    const fontes = (settings?.fontes || []).slice(0, 6);
+    if (fontes.length === 0) {
+      toast.error('Cadastre pelo menos uma fonte no cockpit.');
+      setBuscando(false);
+      setBuscaOpen(false);
+      return;
+    }
+    const achados: Candidato[] = [];
+    const falhas: { fonte: string; erro: string }[] = [];
+    try {
+      // One request per source: a single free-tier model call already runs
+      // close to a minute, so sweeping them all in one request would hit
+      // proxy timeouts in production.
+      for (let i = 0; i < fontes.length; i++) {
+        setProgresso({ atual: i + 1, total: fontes.length });
+        try {
+          const r = await apiFetch<{ candidatos: Candidato[]; erros: { fonte: string; erro: string }[] }>(
+            '/api/editais/descobrir',
+            { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fonte: fontes[i] }) }
+          );
+          achados.push(...r.candidatos);
+          falhas.push(...r.erros);
+        } catch (err) {
+          falhas.push({ fonte: fontes[i], erro: showError(err) });
+        }
+        setCandidatos([...achados]);
+        setErrosBusca([...falhas]);
+      }
+      setSelecionados(new Set(achados.map(c => c.titulo)));
+    } finally {
+      setBuscando(false);
+      setProgresso(null);
+    }
+  }
+
+  async function adicionarSelecionados() {
+    if (!candidatos) return;
+    const escolhidos = candidatos.filter(c => selecionados.has(c.titulo));
+    if (escolhidos.length === 0) return;
+    try {
+      for (const c of escolhidos) {
+        await apiFetch('/api/editais', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: c.titulo,
+            orgao: c.orgao || undefined,
+            description: c.resumo || undefined,
+            valor: c.valor ?? undefined,
+            prazoInscricao: c.prazoInscricao || undefined,
+            link: c.fonte,
+            stage: stages[0]?.id || 'radar',
+            notes: `Aderência ${c.nota}/10 — ${c.justificativa}`,
+          }),
+        });
+      }
+      setBuscaOpen(false);
+      loadAll();
+      toast.success(`${escolhidos.length} edital(is) no Radar!`);
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  }
+
+  function toggleCandidato(titulo: string) {
+    setSelecionados(prev => {
+      const next = new Set(prev);
+      if (next.has(titulo)) next.delete(titulo); else next.add(titulo);
+      return next;
+    });
+  }
+
   async function analisar() {
     const input = aiInput.trim();
     if (!input) return;
@@ -285,6 +380,9 @@ export default function EditaisPage() {
           </Button>
           <Button variant="outline" size="icon" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
             <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={buscarEditais} className="gap-1.5">
+            <Radar className="h-4 w-4" /> Buscar editais
           </Button>
           <Button variant="outline" onClick={() => { setAiResult(null); setAiInput(''); setAiOpen(true); }} className="gap-1.5">
             <Sparkles className="h-4 w-4" /> Analisar com IA
@@ -432,6 +530,72 @@ export default function EditaisPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={buscaOpen} onOpenChange={setBuscaOpen}>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><Radar className="h-4 w-4 text-primary" /> Buscar editais</DialogTitle>
+            <DialogDescription>Varre as fontes do cockpit, descarta o que já está no quadro e o que fica abaixo da sua nota mínima.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 space-y-3 overflow-y-auto py-2">
+            {buscando && (
+              <div className="flex items-center justify-center gap-2 py-10 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {progresso ? `Analisando fonte ${progresso.atual} de ${progresso.total}...` : 'Lendo as fontes...'}
+              </div>
+            )}
+
+            {!buscando && candidatos?.length === 0 && (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Nenhum edital novo encontrado. Se isso se repetir, troque as fontes no cockpit por páginas que listem editais abertos.
+              </p>
+            )}
+
+            {!buscando && candidatos?.map((c) => {
+              const on = selecionados.has(c.titulo);
+              return (
+                <button
+                  key={c.titulo}
+                  onClick={() => toggleCandidato(c.titulo)}
+                  className={cn('flex w-full gap-3 rounded-lg border p-3 text-left transition-colors', on ? 'border-primary bg-primary/5' : 'hover:border-primary/40')}
+                >
+                  {on ? <CheckSquare className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> : <Square className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">{c.titulo}</p>
+                    {c.orgao && <p className="text-sm text-muted-foreground">{c.orgao}</p>}
+                    <p className="mt-1 text-sm">{c.resumo}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <Badge variant="outline" className={cn(c.nota >= 7 ? 'text-money' : c.nota >= 4 ? 'text-yellow-500' : 'text-destructive')}>
+                        {c.nota}/10
+                      </Badge>
+                      {c.valor !== null && <Badge variant="secondary">{formatMoney(c.valor)}</Badge>}
+                      {c.prazoInscricao && <Badge variant="secondary" className="gap-1"><Calendar className="h-3 w-3" /> {c.prazoInscricao}</Badge>}
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">{c.justificativa}</p>
+                  </div>
+                </button>
+              );
+            })}
+
+            {errosBusca.length > 0 && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-sm font-medium text-destructive">Fontes que falharam</p>
+                {errosBusca.map(e => (
+                  <p key={e.fonte} className="mt-1 text-xs text-muted-foreground break-all">{e.fonte} — {e.erro}</p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0 gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setBuscaOpen(false)}>Fechar</Button>
+            <Button onClick={adicionarSelecionados} disabled={buscando || selecionados.size === 0} className="gap-1.5">
+              <Plus className="h-4 w-4" /> Adicionar {selecionados.size > 0 ? selecionados.size : ''}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={cockpitOpen} onOpenChange={setCockpitOpen}>
         <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
           <DialogHeader className="shrink-0">
@@ -453,6 +617,17 @@ export default function EditaisPage() {
                 <Label>Pré-requisitos e restrições</Label>
                 <Textarea rows={3} value={settings.preRequisitos} onChange={(e) => setSettings({ ...settings, preRequisitos: e.target.value })} />
                 <p className="text-xs text-muted-foreground">O que te desqualifica ou limita (CNPJ, região, tempo de atuação). A IA derruba a nota quando o edital exige algo que você não tem.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Fontes monitoradas</Label>
+                <Textarea
+                  rows={4}
+                  value={settings.fontes.join('\n')}
+                  onChange={(e) => setSettings({ ...settings, fontes: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
+                  placeholder="https://..."
+                />
+                <p className="text-xs text-muted-foreground">Uma URL por linha (máx. 6 por varredura). Páginas que listam editais abertos funcionam melhor — home de site e página de menu costumam vir vazias.</p>
               </div>
 
               <div className="space-y-1.5">

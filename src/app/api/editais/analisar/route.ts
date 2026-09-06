@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { askAIForJson, isAIConfigured } from '@/lib/ai';
+import { assertFetchableUrl, fetchPageText } from '@/lib/fetch-page';
 import { EditalSettings, Pillar, Project } from '@/types';
 
 const MAX_CONTENT_CHARS = 15000;
@@ -17,52 +18,6 @@ export interface EditalAnalysis {
   prazoInscricao: string | null;
   aderencia: { nota: number; justificativa: string };
   documentos: string[];
-}
-
-function assertFetchableUrl(raw: string): URL {
-  let url: URL;
-  try {
-    url = new URL(raw);
-  } catch {
-    throw new Error('Link inválido.');
-  }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new Error('Só aceito links http/https.');
-  }
-  const host = url.hostname.toLowerCase();
-  const isPrivate =
-    host === 'localhost' ||
-    host.endsWith('.localhost') ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
-    host === '::1' ||
-    host === '[::1]';
-  if (isPrivate) {
-    throw new Error('Esse link aponta pra rede interna.');
-  }
-  return url;
-}
-
-async function fetchPageText(url: URL): Promise<string> {
-  const res = await fetch(url, {
-    redirect: 'follow',
-    signal: AbortSignal.timeout(30_000),
-    headers: { 'User-Agent': 'LIFESYSTEM/1.0 (+editais)' },
-  });
-  if (!res.ok) {
-    throw new Error(`A página respondeu ${res.status}.`);
-  }
-  const html = await res.text();
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/gi, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 async function buildProfileContext(): Promise<{ text: string; modelo?: string }> {

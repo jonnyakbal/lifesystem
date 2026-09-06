@@ -199,6 +199,7 @@ export interface EditalSettings extends BaseEntity {
   perfil: string;
   preRequisitos: string;
   palavrasChave: string[];
+  fontes: string[];
   notaMinima: number;
   modelo?: string;
 }

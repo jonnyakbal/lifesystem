@@ -7,14 +7,21 @@ const OPENCODE_API_URL = 'https://opencode.ai/zen/v1/chat/completions';
 
 // Free-tier models only, tried in order. The free tier rate-limits hard
 // (429 FreeUsageLimitError), so a chain is the difference between a working
-// feature and a broken one. Ordered by how reliably each returned valid JSON
-// for Portuguese edital text. Override with OPENCODE_MODEL.
+// feature and a broken one. Override with OPENCODE_MODEL.
+//
+// Measured 2026-09-06 against real edital pages:
+//   big-pickle          cleanest, fastest JSON — but frequently 429
+//   lightning           always answers; reasoning model, thinks out loud
+//                       before the JSON, so it needs a bigger token budget
+//   mimo / ling         429 and 503 respectively at time of writing
+//   ultra               returns 200 with EMPTY content after ~57s, so it
+//                       goes last: it burns a minute before falling through
 const FREE_MODELS = [
-  'nemotron-3-ultra-free',
   'big-pickle',
   'nemotron-3.5-lightning-free',
   'mimo-v2.5-free',
   'ling-3.0-flash-fin-free',
+  'nemotron-3-ultra-free',
 ];
 
 export function isAIConfigured(): boolean {

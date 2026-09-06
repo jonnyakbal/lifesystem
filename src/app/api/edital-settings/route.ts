@@ -10,6 +10,17 @@ const DEFAULTS = {
   preRequisitos:
     'Sem CNPJ próprio para alguns editais. Residente no RS. Priorizar editais que aceitem pessoa física ou MEI.',
   palavrasChave: ['edital cultural', 'fomento à cultura', 'música', 'Rio Grande do Sul', 'cultura de rua'],
+  // Verified reachable from a server with a browser User-Agent. Kept short
+  // on purpose: a page that doesn't actually list open editais just wastes a
+  // model call, so this is a starting point to curate, not a catalog.
+  // Verified server-rendered and readable without JS. Most culture sites are
+  // SPAs whose listings never reach the HTML, so this list is a starting
+  // point to curate — a page that renders its editais client-side will
+  // silently come back empty no matter how good the prompt is.
+  fontes: [
+    'https://www.santamaria.rs.gov.br/editais',
+    'https://www.gov.br/cultura/pt-br/assuntos/editais',
+  ],
   notaMinima: 6,
 };
 
@@ -32,6 +43,7 @@ export async function PUT(request: NextRequest) {
     perfil: typeof body.perfil === 'string' ? body.perfil : DEFAULTS.perfil,
     preRequisitos: typeof body.preRequisitos === 'string' ? body.preRequisitos : '',
     palavrasChave: Array.isArray(body.palavrasChave) ? body.palavrasChave : [],
+    fontes: Array.isArray(body.fontes) ? body.fontes : [],
     notaMinima: Number.isFinite(body.notaMinima) ? Number(body.notaMinima) : DEFAULTS.notaMinima,
     modelo: typeof body.modelo === 'string' && body.modelo ? body.modelo : undefined,
   };
