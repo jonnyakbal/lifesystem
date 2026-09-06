@@ -192,6 +192,17 @@ export interface Edital extends BaseEntity {
   notes?: string;
 }
 
+// Cockpit da automação de Editais — o contexto e as regras que alimentam a
+// IA. Fica em dado editável em vez de fixo no prompt, para o Jonny ajustar
+// o próprio perfil e os pré-requisitos sem depender de deploy.
+export interface EditalSettings extends BaseEntity {
+  perfil: string;
+  preRequisitos: string;
+  palavrasChave: string[];
+  notaMinima: number;
+  modelo?: string;
+}
+
 // Indicators
 export type IndicatorType = 'count' | 'boolean' | 'scale' | 'currency' | 'percentage';
 export type IndicatorFrequency = 'daily' | 'weekly' | 'monthly';

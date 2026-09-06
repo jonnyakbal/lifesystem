@@ -1,13 +1,24 @@
-// Server-side wrapper around the Nous Research inference API
-// (OpenAI-compatible) — the same provider /api/hermes/test-completion uses.
-// Never import from a client component: it reads NOUS_API_KEY.
+// Server-side wrapper around OpenCode Zen's OpenAI-compatible chat API.
+// Never import from a client component: it reads OPENCODE_API_KEY.
+// The /hermes page keeps its own NOUS_API_KEY provider test — separate
+// integration, deliberately left alone.
 
-const NOUS_API_URL = 'https://inference-api.nousresearch.com/v1/chat/completions';
+const OPENCODE_API_URL = 'https://opencode.ai/zen/v1/chat/completions';
 
-export const AI_MODEL = 'Hermes-4-70B';
+// Free-tier models only, tried in order. The free tier rate-limits hard
+// (429 FreeUsageLimitError), so a chain is the difference between a working
+// feature and a broken one. Ordered by how reliably each returned valid JSON
+// for Portuguese edital text. Override with OPENCODE_MODEL.
+const FREE_MODELS = [
+  'nemotron-3-ultra-free',
+  'big-pickle',
+  'nemotron-3.5-lightning-free',
+  'mimo-v2.5-free',
+  'ling-3.0-flash-fin-free',
+];
 
 export function isAIConfigured(): boolean {
-  return Boolean(process.env.NOUS_API_KEY);
+  return Boolean(process.env.OPENCODE_API_KEY);
 }
 
 interface AskOptions {
@@ -16,44 +27,72 @@ interface AskOptions {
   model?: string;
 }
 
-export async function askAI(prompt: string, opts: AskOptions = {}): Promise<string> {
-  const apiKey = process.env.NOUS_API_KEY;
-  if (!apiKey) throw new Error('NOUS_API_KEY não configurada no servidor.');
+function candidateModels(explicit?: string): string[] {
+  const requested = explicit || process.env.OPENCODE_MODEL;
+  return requested ? [requested] : FREE_MODELS;
+}
+
+async function callModel(
+  model: string,
+  prompt: string,
+  opts: AskOptions
+): Promise<string> {
+  const apiKey = process.env.OPENCODE_API_KEY;
+  if (!apiKey) throw new Error('OPENCODE_API_KEY não configurada no servidor.');
 
   const messages: { role: string; content: string }[] = [];
   if (opts.system) messages.push({ role: 'system', content: opts.system });
   messages.push({ role: 'user', content: prompt });
 
-  const res = await fetch(NOUS_API_URL, {
+  const res = await fetch(OPENCODE_API_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
     },
-    body: JSON.stringify({
-      model: opts.model || AI_MODEL,
-      messages,
-      max_tokens: opts.maxTokens ?? 2000,
-    }),
+    body: JSON.stringify({ model, messages, max_tokens: opts.maxTokens ?? 2000 }),
     signal: AbortSignal.timeout(90_000),
   });
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || `Erro ${res.status} da API da Nous.`);
+    throw new Error(data.error?.message || `Erro ${res.status} da API do OpenCode Zen.`);
   }
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new Error('A IA devolveu uma resposta vazia.');
   return text;
 }
 
-export async function askAIForJson<T>(prompt: string, opts: AskOptions = {}): Promise<T> {
-  const raw = await askAI(prompt, opts);
-  const parsed = extractJson(raw);
-  if (parsed === null) {
-    throw new Error('A IA não devolveu um JSON válido.');
+export async function askAI(prompt: string, opts: AskOptions = {}): Promise<string> {
+  let lastError = 'Nenhum modelo gratuito respondeu.';
+  for (const model of candidateModels(opts.model)) {
+    try {
+      return await callModel(model, prompt, opts);
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : lastError;
+    }
   }
-  return parsed as T;
+  throw new Error(lastError);
+}
+
+// Falls through to the next model when one answers but not with usable JSON —
+// the smaller free models do that often enough that treating it as a hard
+// failure would make the feature unreliable.
+export async function askAIForJson<T>(prompt: string, opts: AskOptions = {}): Promise<T> {
+  let lastError = 'Nenhum modelo gratuito respondeu.';
+  for (const model of candidateModels(opts.model)) {
+    let raw: string;
+    try {
+      raw = await callModel(model, prompt, opts);
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : lastError;
+      continue;
+    }
+    const parsed = extractJson(raw);
+    if (parsed !== null) return parsed as T;
+    lastError = 'A IA não devolveu um JSON válido.';
+  }
+  throw new Error(lastError);
 }
 
 // Models routinely wrap JSON in prose or ``` fences, so parse defensively

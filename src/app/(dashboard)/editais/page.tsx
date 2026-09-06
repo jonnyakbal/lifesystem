@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { StageConfigDialog } from '@/components/stage-config-dialog';
 import { runStageTrigger } from '@/lib/edital-triggers';
-import type { Edital, StageDef } from '@/types';
+import type { Edital, EditalSettings, StageDef } from '@/types';
 
 interface Pillar { id: string; name: string; icon: string; }
 
@@ -61,6 +61,9 @@ export default function EditaisPage() {
   const [aiInput, setAiInput] = useState('');
   const [aiLoading, setAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<EditalAnalysis | null>(null);
+  const [cockpitOpen, setCockpitOpen] = useState(false);
+  const [settings, setSettings] = useState<EditalSettings | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -178,6 +181,35 @@ export default function EditaisPage() {
     return pillars.find(p => p.id === id);
   }
 
+  async function openCockpit() {
+    setCockpitOpen(true);
+    if (settings) return;
+    try {
+      setSettings(await apiFetch<EditalSettings>('/api/edital-settings'));
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  }
+
+  async function saveSettings() {
+    if (!settings) return;
+    setSavingSettings(true);
+    try {
+      const saved = await apiFetch<EditalSettings>('/api/edital-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+      setSettings(saved);
+      setCockpitOpen(false);
+      toast.success('Cockpit atualizado!');
+    } catch (err) {
+      toast.error(showError(err));
+    } finally {
+      setSavingSettings(false);
+    }
+  }
+
   async function analisar() {
     const input = aiInput.trim();
     if (!input) return;
@@ -248,6 +280,9 @@ export default function EditaisPage() {
           <p className="text-muted-foreground">Radar de oportunidades — descubra, analise, inscreva-se.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="icon" onClick={openCockpit} title="Cockpit da automação">
+            <SlidersHorizontal className="h-4 w-4" />
+          </Button>
           <Button variant="outline" size="icon" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
             <Edit2 className="h-4 w-4" />
           </Button>
@@ -392,6 +427,75 @@ export default function EditaisPage() {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!title.trim()}>
               {editing ? 'Salvar' : 'Adicionar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cockpitOpen} onOpenChange={setCockpitOpen}>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-primary" /> Cockpit da automação</DialogTitle>
+            <DialogDescription>O contexto que a IA usa pra avaliar cada edital. Tudo aqui entra no prompt — quanto mais específico, melhor a nota de aderência.</DialogDescription>
+          </DialogHeader>
+
+          {!settings ? (
+            <div className="space-y-3 py-4"><Skeleton className="h-24 w-full" /><Skeleton className="h-24 w-full" /></div>
+          ) : (
+            <div className="flex-1 space-y-4 overflow-y-auto py-2">
+              <div className="space-y-1.5">
+                <Label>Seu perfil</Label>
+                <Textarea rows={3} value={settings.perfil} onChange={(e) => setSettings({ ...settings, perfil: e.target.value })} />
+                <p className="text-xs text-muted-foreground">Quem você é e no que atua. Seus Pilares e Projetos já entram automaticamente.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Pré-requisitos e restrições</Label>
+                <Textarea rows={3} value={settings.preRequisitos} onChange={(e) => setSettings({ ...settings, preRequisitos: e.target.value })} />
+                <p className="text-xs text-muted-foreground">O que te desqualifica ou limita (CNPJ, região, tempo de atuação). A IA derruba a nota quando o edital exige algo que você não tem.</p>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Palavras-chave</Label>
+                <Input
+                  value={settings.palavrasChave.join(', ')}
+                  onChange={(e) => setSettings({ ...settings, palavrasChave: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                />
+                <p className="text-xs text-muted-foreground">Separadas por vírgula. Vão alimentar a busca automática quando ela existir.</p>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label>Nota mínima de aderência</Label>
+                  <Input
+                    type="number" min={0} max={10}
+                    value={settings.notaMinima}
+                    onChange={(e) => setSettings({ ...settings, notaMinima: Number(e.target.value) })}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Modelo de IA</Label>
+                  <Select value={settings.modelo || 'auto'} onValueChange={(v) => setSettings({ ...settings, modelo: v === 'auto' ? undefined : v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">Automático (tenta todos)</SelectItem>
+                      <SelectItem value="nemotron-3-ultra-free">nemotron-3-ultra-free</SelectItem>
+                      <SelectItem value="big-pickle">big-pickle</SelectItem>
+                      <SelectItem value="nemotron-3.5-lightning-free">nemotron-3.5-lightning-free</SelectItem>
+                      <SelectItem value="mimo-v2.5-free">mimo-v2.5-free</SelectItem>
+                      <SelectItem value="ling-3.0-flash-fin-free">ling-3.0-flash-fin-free</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Só modelos gratuitos. No automático, se um bater no limite ele cai pro próximo.</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="shrink-0 gap-2 border-t pt-4">
+            <Button variant="outline" onClick={() => setCockpitOpen(false)}>Cancelar</Button>
+            <Button onClick={saveSettings} disabled={!settings || savingSettings}>
+              {savingSettings ? 'Salvando...' : 'Salvar'}
             </Button>
           </DialogFooter>
         </DialogContent>
