@@ -79,6 +79,7 @@ export default function EditaisPage() {
   const [errosBusca, setErrosBusca] = useState<{ fonte: string; erro: string }[]>([]);
   const [selecionados, setSelecionados] = useState<Set<string>>(new Set());
   const [progresso, setProgresso] = useState<{ atual: number; total: number } | null>(null);
+  const [adicionando, setAdicionando] = useState(false);
   const [settings, setSettings] = useState<EditalSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -253,7 +254,14 @@ export default function EditaisPage() {
             '/api/editais/descobrir',
             { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fonte: fontes[i] }) }
           );
-          achados.push(...r.candidatos);
+          // Each source is its own request, so the server can only dedupe
+          // against the board — two sources listing the same edital would
+          // otherwise collide on the title used as React key and as the
+          // selection id.
+          for (const c of r.candidatos) {
+            if (achados.some(a => a.titulo === c.titulo)) continue;
+            achados.push(c);
+          }
           falhas.push(...r.erros);
         } catch (err) {
           falhas.push({ fonte: fontes[i], erro: showError(err) });
@@ -272,6 +280,7 @@ export default function EditaisPage() {
     if (!candidatos) return;
     const escolhidos = candidatos.filter(c => selecionados.has(c.titulo));
     if (escolhidos.length === 0) return;
+    setAdicionando(true);
     try {
       for (const c of escolhidos) {
         await apiFetch('/api/editais', {
@@ -294,6 +303,8 @@ export default function EditaisPage() {
       toast.success(`${escolhidos.length} edital(is) no Radar!`);
     } catch (err) {
       toast.error(showError(err));
+    } finally {
+      setAdicionando(false);
     }
   }
 
@@ -589,8 +600,10 @@ export default function EditaisPage() {
 
           <DialogFooter className="shrink-0 gap-2 border-t pt-4">
             <Button variant="outline" onClick={() => setBuscaOpen(false)}>Fechar</Button>
-            <Button onClick={adicionarSelecionados} disabled={buscando || selecionados.size === 0} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Adicionar {selecionados.size > 0 ? selecionados.size : ''}
+            <Button onClick={adicionarSelecionados} disabled={buscando || adicionando || selecionados.size === 0} className="gap-1.5">
+              {adicionando
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Adicionando...</>
+                : <><Plus className="h-4 w-4" /> Adicionar {selecionados.size > 0 ? selecionados.size : ''}</>}
             </Button>
           </DialogFooter>
         </DialogContent>

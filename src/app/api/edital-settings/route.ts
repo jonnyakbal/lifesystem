@@ -10,9 +10,6 @@ const DEFAULTS = {
   preRequisitos:
     'Sem CNPJ próprio para alguns editais. Residente no RS. Priorizar editais que aceitem pessoa física ou MEI.',
   palavrasChave: ['edital cultural', 'fomento à cultura', 'música', 'Rio Grande do Sul', 'cultura de rua'],
-  // Verified reachable from a server with a browser User-Agent. Kept short
-  // on purpose: a page that doesn't actually list open editais just wastes a
-  // model call, so this is a starting point to curate, not a catalog.
   // Verified server-rendered and readable without JS. Most culture sites are
   // SPAs whose listings never reach the HTML, so this list is a starting
   // point to curate — a page that renders its editais client-side will

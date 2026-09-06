@@ -34,9 +34,14 @@ interface AskOptions {
   model?: string;
 }
 
+// A requested model is a preference, not a restriction: it goes first, but
+// the rest of the chain still backs it up. Pinning to one model would mean a
+// single 429 fails the whole request, which is exactly what the chain exists
+// to prevent.
 function candidateModels(explicit?: string): string[] {
   const requested = explicit || process.env.OPENCODE_MODEL;
-  return requested ? [requested] : FREE_MODELS;
+  if (!requested) return FREE_MODELS;
+  return [requested, ...FREE_MODELS.filter(m => m !== requested)];
 }
 
 async function callModel(

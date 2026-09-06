@@ -2,6 +2,8 @@
 // and discovery routes. A browser User-Agent is required: several of the
 // Brazilian culture sites return 403 to a default fetch agent.
 
+const MAX_BYTES = 5_000_000;
+
 export function assertFetchableUrl(raw: string): URL {
   let url: URL;
   try {
@@ -41,7 +43,26 @@ export async function fetchPageText(url: URL): Promise<string> {
   if (!res.ok) {
     throw new Error(`A página respondeu ${res.status}.`);
   }
-  const html = await res.text();
+
+  // Editais are often linked as PDFs. Those pass res.ok, survive tag
+  // stripping as binary noise, and then cost a full model call to produce
+  // nothing — so reject by content type before reading the body.
+  const tipo = res.headers.get('content-type') || '';
+  if (tipo && !/text\/html|text\/plain|application\/xhtml/i.test(tipo)) {
+    throw new Error(`Essa URL não é uma página de texto (${tipo.split(';')[0]}).`);
+  }
+
+  // Cap the read: the body is fully buffered before any truncation happens,
+  // so without this a large file would sit in memory on a shared host.
+  const declarado = Number(res.headers.get('content-length') || 0);
+  if (declarado > MAX_BYTES) {
+    throw new Error('Essa página é grande demais pra ler.');
+  }
+  const buffer = await res.arrayBuffer();
+  if (buffer.byteLength > MAX_BYTES) {
+    throw new Error('Essa página é grande demais pra ler.');
+  }
+  const html = new TextDecoder('utf-8').decode(buffer);
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
