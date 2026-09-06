@@ -23,8 +23,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
-import { loadStatusLabelOverrides } from '@/lib/status-labels';
-import { StatusLabelEditorDialog } from '@/components/status-label-editor-dialog';
+import { StageConfigDialog } from '@/components/stage-config-dialog';
+import type { StageDef } from '@/types';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import { spawnNextOccurrenceIfRecurring, RECURRING_LABELS, type RecurringFrequency } from '@/lib/recurring';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -50,7 +50,7 @@ interface Task {
   title: string;
   description?: string;
   priority: 'urgent' | 'important' | 'normal';
-  status: 'todo' | 'doing' | 'review' | 'done';
+  status: string;
   projectId?: string;
   pillarId?: string;
   dueDate?: string;
@@ -103,15 +103,6 @@ interface SavedView {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const STATUSES = ['todo', 'doing', 'review', 'done'] as const;
-
-const statusConfig: Record<string, { label: string; color: string; dot: string }> = {
-  todo: { label: 'A fazer', color: 'text-muted-foreground', dot: 'bg-muted-foreground' },
-  doing: { label: 'Fazendo', color: 'text-primary', dot: 'bg-primary' },
-  review: { label: 'Revisão', color: 'text-qty', dot: 'bg-qty' },
-  done: { label: 'Concluída', color: 'text-money', dot: 'bg-money' },
-};
 
 const priorityConfig: Record<string, { label: string; color: string; textColor: string; borderColor: string; dot: string }> = {
   urgent: { label: 'Urgente', color: 'bg-destructive', textColor: 'text-destructive', borderColor: 'border-l-destructive', dot: 'bg-destructive' },
@@ -227,9 +218,10 @@ export default function TasksPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>('status');
   const [sortBy, setSortBy] = useState<SortBy>('date');
   const [dense, setDense] = useState(false);
-  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
-  const [statusLabelDialogOpen, setStatusLabelDialogOpen] = useState(false);
-  const getStatusLabel = (id: string) => statusLabels[id] || statusConfig[id]?.label || id;
+  const [stages, setStages] = useState<StageDef[]>([]);
+  const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const getStage = (id: string) => stages.find(s => s.id === id);
+  const getStatusLabel = (id: string) => getStage(id)?.label || id;
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -264,8 +256,7 @@ export default function TasksPage() {
   const [quickAddTitle, setQuickAddTitle] = useState('');
 
   useEffect(() => {
-    setStatusLabels(loadStatusLabelOverrides('tasks'));
-    loadTasks(); loadProjects(); loadPillars(); loadSavedViews();
+    loadTasks(); loadProjects(); loadPillars(); loadSavedViews(); loadStages();
     // Loaded once for the "Referenciado por" backlinks panel — Content and
     // Captures can point at a Task via linkedTaskIds/targetId, but Task
     // itself doesn't store the reverse link, so it's computed here.
@@ -323,6 +314,15 @@ export default function TasksPage() {
     try {
       const data = await apiFetch<Pillar[]>('/api/pillars');
       setPillars(data);
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  }
+
+  async function loadStages() {
+    try {
+      const data = await apiFetch<{ stages: StageDef[] }>('/api/stage-configs/tasks');
+      setStages(data.stages);
     } catch (err) {
       toast.error(showError(err));
     }
@@ -600,19 +600,19 @@ export default function TasksPage() {
     const arr = [...filteredTasks];
     if (sortBy === 'title') arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortBy === 'priority') arr.sort((a, b) => { const order = { urgent: 0, important: 1, normal: 2 }; return order[a.priority] - order[b.priority]; });
-    else if (sortBy === 'status') arr.sort((a, b) => STATUSES.indexOf(a.status) - STATUSES.indexOf(b.status));
+    else if (sortBy === 'status') { const order = stages.map(s => s.id); arr.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status)); }
     else if (sortBy === 'dueDate') arr.sort((a, b) => { if (!a.dueDate && !b.dueDate) return 0; if (!a.dueDate) return 1; if (!b.dueDate) return -1; return a.dueDate.localeCompare(b.dueDate); });
     else arr.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     return arr;
-  }, [filteredTasks, sortBy]);
+  }, [filteredTasks, sortBy, stages]);
 
   const overdueCount = tasks.filter(isOverdue).length;
   const urgentCount = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
 
   // Pipeline stats
   const pipelineStats = useMemo(() => {
-    return STATUSES.map(s => ({ id: s, ...statusConfig[s], label: getStatusLabel(s), count: filteredTasks.filter(t => t.status === s).length }));
-  }, [filteredTasks, statusLabels]);
+    return stages.map(s => ({ ...s, label: getStatusLabel(s.id), count: filteredTasks.filter(t => t.status === s.id).length }));
+  }, [filteredTasks, stages]);
 
   // Active filters
   const activeFilters = useMemo(() => {
@@ -649,8 +649,8 @@ export default function TasksPage() {
     let groupKeys: string[] = [];
 
     if (groupBy === 'status') {
-      groupKeys = [...STATUSES];
-      STATUSES.forEach(s => groups.set(s, []));
+      groupKeys = stages.map(s => s.id);
+      stages.forEach(s => groups.set(s.id, []));
     } else if (groupBy === 'priority') {
       groupKeys = ['urgent', 'important', 'normal'];
       groupKeys.forEach(k => groups.set(k, []));
@@ -672,7 +672,7 @@ export default function TasksPage() {
     });
 
     return { groups, groupKeys };
-  }, [sortedTasks, groupBy]);
+  }, [sortedTasks, groupBy, stages]);
 
   function getGroupLabel(key: string): string {
     if (groupBy === 'status') return getStatusLabel(key);
@@ -689,7 +689,7 @@ export default function TasksPage() {
   }
 
   function getGroupDot(key: string): string {
-    if (groupBy === 'status') return statusConfig[key]?.dot || 'bg-muted-foreground';
+    if (groupBy === 'status') return getStage(key)?.dot || 'bg-muted-foreground';
     if (groupBy === 'priority') return priorityConfig[key]?.dot || 'bg-muted-foreground';
     return 'bg-muted-foreground';
   }
@@ -825,9 +825,9 @@ export default function TasksPage() {
                     <DropdownMenuItem onClick={() => handleToggleDone(task)}><CheckCircle2 className="mr-2 h-4 w-4" /> {task.status === 'done' ? 'Reabrir' : 'Concluir'}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleDuplicate(task)}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>
                     <DropdownMenuSeparator />
-                    {STATUSES.filter(s => s !== task.status).map(s => (
-                      <DropdownMenuItem key={s} onClick={() => handleQuickStatus(task.id, s)}>
-                        <ArrowRight className="mr-2 h-4 w-4" /> {getStatusLabel(s)}
+                    {stages.filter(s => s.id !== task.status).map(s => (
+                      <DropdownMenuItem key={s.id} onClick={() => handleQuickStatus(task.id, s.id)}>
+                        <ArrowRight className="mr-2 h-4 w-4" /> {getStatusLabel(s.id)}
                       </DropdownMenuItem>
                     ))}
                     <DropdownMenuSeparator />
@@ -844,12 +844,12 @@ export default function TasksPage() {
 
   // ─── Kanban Column ───────────────────────────────────────────────────────
 
-  function renderColumn(status: typeof STATUSES[number], taskList: Task[]) {
-    const cfg = statusConfig[status];
+  function renderColumn(status: string, taskList: Task[]) {
+    const cfg = getStage(status);
     return (
       <div key={status} className="flex flex-col min-w-[280px] max-sm:min-w-[85vw] max-sm:snap-start" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
         <div className="flex items-center gap-2 mb-3 px-1">
-          <div className={cn('h-2.5 w-2.5 rounded-full', cfg.dot)} />
+          <div className={cn('h-2.5 w-2.5 rounded-full', cfg?.dot || 'bg-muted-foreground')} />
           <h3 className="text-sm font-medium">{getStatusLabel(status)}</h3>
           <Badge variant="secondary" className="ml-auto text-xs">{taskList.length}</Badge>
           {bulkMode && taskList.length > 0 && (
@@ -890,7 +890,7 @@ export default function TasksPage() {
       return (
         <div className="flex gap-4 overflow-x-auto pb-4 max-sm:snap-x max-sm:snap-mandatory">
           <LayoutGroup id="task-kanban">
-            {STATUSES.map(s => renderColumn(s, sortedTasks.filter(t => t.status === s)))}
+            {stages.map(s => renderColumn(s.id, sortedTasks.filter(t => t.status === s.id)))}
           </LayoutGroup>
         </div>
       );
@@ -1476,7 +1476,7 @@ export default function TasksPage() {
                 <CheckSquare className="mr-1 h-4 w-4" /> Selecionar
               </Button>
 
-              <Button variant="outline" size="sm" onClick={() => setStatusLabelDialogOpen(true)} title="Editar rótulos de status">
+              <Button variant="outline" size="sm" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
                 <Edit2 className="h-4 w-4" />
               </Button>
 
@@ -1550,7 +1550,7 @@ export default function TasksPage() {
                 <Select value={newStatus} onValueChange={(v) => setNewStatus(v as Task['status'])}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map(s => <SelectItem key={s} value={s}><span className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', statusConfig[s].dot)} />{getStatusLabel(s)}</span></SelectItem>)}
+                    {stages.map(s => <SelectItem key={s.id} value={s.id}><span className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', s.dot)} />{getStatusLabel(s.id)}</span></SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -1671,12 +1671,12 @@ export default function TasksPage() {
         </DialogContent>
       </Dialog>
 
-      <StatusLabelEditorDialog
-        open={statusLabelDialogOpen}
-        onOpenChange={setStatusLabelDialogOpen}
+      <StageConfigDialog
+        open={stageDialogOpen}
+        onOpenChange={setStageDialogOpen}
         scope="tasks"
-        statuses={STATUSES.map(s => ({ id: s, defaultLabel: statusConfig[s].label, dotClassName: statusConfig[s].dot }))}
-        onSaved={() => setStatusLabels(loadStatusLabelOverrides('tasks'))}
+        countUsage={(stageId) => tasks.filter(t => t.status === stageId).length}
+        onSaved={setStages}
       />
     </motion.div>
   );

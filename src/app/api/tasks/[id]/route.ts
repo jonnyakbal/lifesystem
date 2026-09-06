@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
-import { Task } from '@/types';
+import { StageConfig, Task } from '@/types';
 import { readJson, taskPayloadSchema } from '@/lib/validation';
+
+async function isTerminalStatus(status: string): Promise<boolean> {
+  const matches = await storage.query<StageConfig>('stage-configs', { scope: 'tasks' });
+  const config = matches[0];
+  if (!config) return status === 'done';
+  const stage = config.stages.find(s => s.id === status);
+  return stage ? !!stage.isTerminal : status === 'done';
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -16,10 +24,13 @@ export async function PATCH(
   if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos' }, { status: 400 });
   const body = parsed.data;
   
-  if (body.status === 'done' && !body.completedAt) {
-    body.completedAt = new Date().toISOString();
-  } else if (body.status !== 'done') {
-    body.completedAt = undefined;
+  if (body.status !== undefined) {
+    const terminal = await isTerminalStatus(body.status);
+    if (terminal && !body.completedAt) {
+      body.completedAt = new Date().toISOString();
+    } else if (!terminal) {
+      body.completedAt = undefined;
+    }
   }
   
   const updated = await storage.update<Task>('tasks', id, body);

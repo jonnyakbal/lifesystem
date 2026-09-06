@@ -34,5 +34,70 @@
     "id": "7dd5adad-26d6-42b7-9207-3e0c286e8685",
     "createdAt": "2026-09-05T21:45:56.802Z",
     "updatedAt": "2026-09-06T01:30:27.633Z"
+  },
+  {
+    "scope": "tasks",
+    "stages": [
+      {
+        "id": "todo",
+        "label": "A fazer",
+        "color": "text-muted-foreground",
+        "dot": "bg-muted-foreground"
+      },
+      {
+        "id": "doing",
+        "label": "Fazendo",
+        "color": "text-primary",
+        "dot": "bg-primary"
+      },
+      {
+        "id": "review",
+        "label": "Revisão",
+        "color": "text-blue-500",
+        "dot": "bg-blue-500"
+      },
+      {
+        "id": "done",
+        "label": "Concluída",
+        "color": "text-money",
+        "dot": "bg-money",
+        "isTerminal": true
+      }
+    ],
+    "id": "ea3f364e-2202-4ddb-80c1-53fa7430975b",
+    "createdAt": "2026-09-06T01:37:30.735Z",
+    "updatedAt": "2026-09-06T01:37:30.735Z"
+  },
+  {
+    "scope": "projects",
+    "stages": [
+      {
+        "id": "idea",
+        "label": "Ideia",
+        "color": "text-muted-foreground",
+        "dot": "bg-muted-foreground"
+      },
+      {
+        "id": "development",
+        "label": "Desenvolvimento",
+        "color": "text-purple-500",
+        "dot": "bg-purple-500"
+      },
+      {
+        "id": "active",
+        "label": "Ativo",
+        "color": "text-money",
+        "dot": "bg-money"
+      },
+      {
+        "id": "paused",
+        "label": "Parado",
+        "color": "text-destructive",
+        "dot": "bg-destructive"
+      }
+    ],
+    "id": "9b08c2ff-9611-4c88-adc3-3c31c0109f5a",
+    "createdAt": "2026-09-06T01:37:54.867Z",
+    "updatedAt": "2026-09-06T01:37:54.867Z"
   }
 ]

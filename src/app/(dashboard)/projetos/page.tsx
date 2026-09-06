@@ -14,8 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
-import { loadStatusLabelOverrides } from '@/lib/status-labels';
-import { StatusLabelEditorDialog } from '@/components/status-label-editor-dialog';
+import { StageConfigDialog } from '@/components/stage-config-dialog';
+import type { StageDef } from '@/types';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
@@ -30,19 +30,10 @@ interface Project {
   id: string;
   name: string;
   description: string;
-  status: 'active' | 'development' | 'paused' | 'idea';
+  status: string;
   tags: string[];
   links: { label: string; url: string }[];
 }
-
-const statusConfig = {
-  active: { label: 'Ativo', color: 'text-money', dotColor: 'bg-money' },
-  development: { label: 'Desenvolvimento', color: 'text-primary', dotColor: 'bg-primary' },
-  paused: { label: 'Parado', color: 'text-critical', dotColor: 'bg-critical' },
-  idea: { label: 'Ideia', color: 'text-muted-foreground', dotColor: 'bg-muted-foreground' },
-};
-
-const columns = ['idea', 'development', 'active', 'paused'] as const;
 
 const fade = {
   initial: { opacity: 0, y: 14 },
@@ -61,10 +52,11 @@ export default function ProjectsPage() {
   const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
-  const [statusLabelDialogOpen, setStatusLabelDialogOpen] = useState(false);
-  const getStatusLabel = (id: string) => statusLabels[id] || statusConfig[id as keyof typeof statusConfig]?.label || id;
-  const [newProject, setNewProject] = useState({ name: '', description: '', status: 'idea' as Project['status'] });
+  const [stages, setStages] = useState<StageDef[]>([]);
+  const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const getStage = (id: string) => stages.find(s => s.id === id);
+  const getStatusLabel = (id: string) => getStage(id)?.label || id;
+  const [newProject, setNewProject] = useState<{ name: string; description: string; status: Project['status'] }>({ name: '', description: '', status: 'idea' });
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [editName, setEditName] = useState('');
@@ -81,11 +73,20 @@ export default function ProjectsPage() {
   const dragClickRef = useRef(false);
 
   useEffect(() => {
-    setStatusLabels(loadStatusLabelOverrides('projects'));
     loadProjects();
+    loadStages();
     fetch('/api/content').then(r => r.json()).then(setLinkedContent).catch(() => {});
     fetch('/api/captures').then(r => r.json()).then(setLinkedCaptures).catch(() => {});
   }, []);
+
+  async function loadStages() {
+    try {
+      const data = await apiFetch<{ stages: StageDef[] }>('/api/stage-configs/projects');
+      setStages(data.stages);
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  }
 
   // Deep-link support: ⌘K search + the Inbox "Virou projeto" badge land here
   // with ?open=<id> so they jump straight to the project instead of the
@@ -285,7 +286,7 @@ export default function ProjectsPage() {
           <p className="text-muted-foreground">{projects.length} projetos no sistema</p>
         </div>
         <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setStatusLabelDialogOpen(true)} title="Editar rótulos de status">
+        <Button variant="outline" size="sm" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
           <Edit2 className="h-4 w-4" />
         </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -315,10 +316,7 @@ export default function ProjectsPage() {
                   <Select value={newProject.status} onValueChange={(value) => setNewProject({ ...newProject, status: value as Project['status'] })}>
                     <SelectTrigger><SelectValue placeholder="Selecione o status" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="idea">{getStatusLabel('idea')}</SelectItem>
-                      <SelectItem value="development">{getStatusLabel('development')}</SelectItem>
-                      <SelectItem value="active">{getStatusLabel('active')}</SelectItem>
-                      <SelectItem value="paused">{getStatusLabel('paused')}</SelectItem>
+                      {stages.map(s => <SelectItem key={s.id} value={s.id}>{getStatusLabel(s.id)}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -350,9 +348,9 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <motion.div className="grid gap-4 lg:grid-cols-4" variants={stagger}>
-          {columns.map((status) => {
+          {stages.map((stage) => {
+            const status = stage.id;
             const columnProjects = projects.filter(p => p.status === status);
-            const config = statusConfig[status];
             return (
               <motion.div
                 key={status}
@@ -362,7 +360,7 @@ export default function ProjectsPage() {
                 onDrop={(e) => handleDrop(e, status)}
               >
                 <div className="mb-4 flex items-center gap-2">
-                  <div className={cn('h-2 w-2 rounded-full', config.dotColor)} />
+                  <div className={cn('h-2 w-2 rounded-full', stage.dot)} />
                   <h3 className="font-medium text-sm">{getStatusLabel(status)}</h3>
                   <Badge variant="secondary" className="ml-auto">{columnProjects.length}</Badge>
                 </div>
@@ -544,10 +542,7 @@ export default function ProjectsPage() {
               <Select value={editStatus} onValueChange={(v) => setEditStatus(v as Project['status'])}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="idea">{getStatusLabel('idea')}</SelectItem>
-                  <SelectItem value="development">{getStatusLabel('development')}</SelectItem>
-                  <SelectItem value="active">{getStatusLabel('active')}</SelectItem>
-                  <SelectItem value="paused">{getStatusLabel('paused')}</SelectItem>
+                  {stages.map(s => <SelectItem key={s.id} value={s.id}>{getStatusLabel(s.id)}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -611,12 +606,12 @@ export default function ProjectsPage() {
         </DialogContent>
       </Dialog>
 
-      <StatusLabelEditorDialog
-        open={statusLabelDialogOpen}
-        onOpenChange={setStatusLabelDialogOpen}
+      <StageConfigDialog
+        open={stageDialogOpen}
+        onOpenChange={setStageDialogOpen}
         scope="projects"
-        statuses={columns.map(s => ({ id: s, defaultLabel: statusConfig[s].label, dotClassName: statusConfig[s].dotColor }))}
-        onSaved={() => setStatusLabels(loadStatusLabelOverrides('projects'))}
+        countUsage={(stageId) => projects.filter(p => p.status === stageId).length}
+        onSaved={setStages}
       />
     </motion.div>
   );
