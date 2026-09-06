@@ -1,0 +1,38 @@
+[
+  {
+    "scope": "editais",
+    "stages": [
+      {
+        "id": "radar",
+        "label": "Radar",
+        "color": "text-muted-foreground",
+        "dot": "bg-muted-foreground"
+      },
+      {
+        "id": "em_analise",
+        "label": "Em análise",
+        "color": "text-yellow-500",
+        "dot": "bg-yellow-500"
+      },
+      {
+        "id": "inscrito",
+        "label": "Inscrito",
+        "color": "text-blue-500",
+        "dot": "bg-blue-500",
+        "trigger": {
+          "action": "create_reminder_task"
+        }
+      },
+      {
+        "id": "resultado",
+        "label": "Resultado",
+        "color": "text-money",
+        "dot": "bg-money",
+        "isTerminal": true
+      }
+    ],
+    "id": "7dd5adad-26d6-42b7-9207-3e0c286e8685",
+    "createdAt": "2026-09-05T21:45:56.802Z",
+    "updatedAt": "2026-09-06T01:30:27.633Z"
+  }
+]

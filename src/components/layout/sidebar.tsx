@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
-  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText, Bot
+  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText, Bot, Award
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ const navGroups: { section: string | null; items: { name: string; href: string; 
     { name: 'Tarefas', href: '/tarefas', icon: CheckSquare, shortcut: '⌘T' },
     { name: 'Conteúdo', href: '/conteudo', icon: FileText, shortcut: '⌘N' },
     { name: 'Metas', href: '/indicadores', icon: BarChart3, shortcut: '⌘D' },
+    { name: 'Editais', href: '/editais', icon: Award, shortcut: '⌘E' },
   ] },
   { section: 'Sistema', items: [
     { name: 'Financeiro', href: '/financeiro', icon: Wallet, shortcut: '⌘F' },

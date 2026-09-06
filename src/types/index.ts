@@ -50,7 +50,9 @@ export interface PillarAction extends BaseEntity {
 }
 
 // Projects
-export type ProjectStatus = 'active' | 'development' | 'paused' | 'idea';
+// Was a fixed union; now a loose alias since project stages are configurable
+// (see StageConfig below) — kept as a named type so existing imports don't churn.
+export type ProjectStatus = string;
 
 export interface Project extends BaseEntity {
   name: string;
@@ -72,7 +74,9 @@ export interface ProjectLink {
 
 // Tasks
 export type TaskPriority = 'urgent' | 'important' | 'normal';
-export type TaskStatus = 'todo' | 'doing' | 'review' | 'done';
+// Was a fixed union; now a loose alias since task stages are configurable
+// (see StageConfig below) — kept as a named type so existing imports don't churn.
+export type TaskStatus = string;
 
 export interface TaskChecklistItem {
   id: string;
@@ -150,6 +154,42 @@ export interface ContentCategory extends BaseEntity {
   icon: string;
   color: string;
   sortOrder: number;
+}
+
+// Configurable stages — replaces the old fixed-union status/stage columns
+// for tasks and projects, and is what Editais uses from day one. One
+// StageConfig document per scope, ordered array = column order.
+export type StageScope = 'tasks' | 'projects' | 'editais';
+
+export interface StageTrigger {
+  action: 'create_reminder_task' | 'create_project';
+}
+
+export interface StageDef {
+  id: string;
+  label: string;
+  color: string;
+  dot: string;
+  isTerminal?: boolean;
+  trigger?: StageTrigger;
+}
+
+export interface StageConfig extends BaseEntity {
+  scope: StageScope;
+  stages: StageDef[];
+}
+
+// Editais Culturais — grants/opportunities Jonny pursues recurringly.
+export interface Edital extends BaseEntity {
+  title: string;
+  orgao?: string;
+  description?: string;
+  valor?: number;
+  prazoInscricao?: string;
+  link?: string;
+  pillarId?: string;
+  stage: string;
+  notes?: string;
 }
 
 // Indicators
