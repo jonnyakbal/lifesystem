@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark } from 'lucide-react';
+import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,16 @@ function formatMoney(v?: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
+interface EditalAnalysis {
+  titulo: string;
+  orgao: string | null;
+  descricao: string;
+  valor: number | null;
+  prazoInscricao: string | null;
+  aderencia: { nota: number; justificativa: string };
+  documentos: string[];
+}
+
 export default function EditaisPage() {
   const [editais, setEditais] = useState<Edital[]>([]);
   const [stages, setStages] = useState<StageDef[]>([]);
@@ -47,6 +57,10 @@ export default function EditaisPage() {
   const [notes, setNotes] = useState('');
   const [editStage, setEditStage] = useState('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<EditalAnalysis | null>(null);
 
   useEffect(() => {
     loadAll();
@@ -164,6 +178,66 @@ export default function EditaisPage() {
     return pillars.find(p => p.id === id);
   }
 
+  async function analisar() {
+    const input = aiInput.trim();
+    if (!input) return;
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const isUrl = /^https?:\/\//i.test(input);
+      const result = await apiFetch<EditalAnalysis>('/api/editais/analisar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isUrl ? { url: input } : { text: input }),
+      });
+      setAiResult(result);
+    } catch (err) {
+      toast.error(showError(err));
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  async function criarDaAnalise(comTarefas: boolean) {
+    if (!aiResult) return;
+    const input = aiInput.trim();
+    try {
+      await apiFetch('/api/editais', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: aiResult.titulo,
+          orgao: aiResult.orgao || undefined,
+          description: aiResult.descricao || undefined,
+          valor: aiResult.valor ?? undefined,
+          prazoInscricao: aiResult.prazoInscricao || undefined,
+          link: /^https?:\/\//i.test(input) ? input : undefined,
+          stage: stages[0]?.id || 'radar',
+        }),
+      });
+      if (comTarefas) {
+        for (const doc of aiResult.documentos) {
+          await apiFetch('/api/tasks', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: `${doc} — ${aiResult.titulo}`,
+              dueDate: aiResult.prazoInscricao || undefined,
+              tags: ['Edital'],
+            }),
+          });
+        }
+      }
+      setAiOpen(false);
+      setAiInput('');
+      setAiResult(null);
+      loadAll();
+      toast.success(comTarefas ? 'Edital e tarefas criados!' : 'Edital criado no Radar!');
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  }
+
   return (
     <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       <motion.div variants={fade} className="mb-6 flex items-center justify-between">
@@ -176,6 +250,9 @@ export default function EditaisPage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
             <Edit2 className="h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={() => { setAiResult(null); setAiInput(''); setAiOpen(true); }} className="gap-1.5">
+            <Sparkles className="h-4 w-4" /> Analisar com IA
           </Button>
           <Button onClick={openCreate} className="gap-1.5">
             <Plus className="h-4 w-4" /> Novo edital
@@ -316,6 +393,70 @@ export default function EditaisPage() {
             <Button onClick={handleSave} disabled={!title.trim()}>
               {editing ? 'Salvar' : 'Adicionar'}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={aiOpen} onOpenChange={setAiOpen}>
+        <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" /> Analisar edital com IA</DialogTitle>
+            <DialogDescription>Cole o link do edital ou o texto inteiro. A IA extrai os dados, avalia se combina com seu perfil e sugere os documentos.</DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 space-y-4 overflow-y-auto py-2">
+            <Textarea
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              placeholder="https://... ou cole aqui o texto do edital"
+              rows={4}
+            />
+
+            {aiResult && (
+              <div className="space-y-3 rounded-lg border p-4">
+                <div>
+                  <p className="font-medium">{aiResult.titulo}</p>
+                  {aiResult.orgao && <p className="text-sm text-muted-foreground">{aiResult.orgao}</p>}
+                </div>
+                <p className="text-sm">{aiResult.descricao}</p>
+
+                <div className="flex flex-wrap gap-2">
+                  {aiResult.valor !== null && <Badge variant="secondary">{formatMoney(aiResult.valor)}</Badge>}
+                  {aiResult.prazoInscricao && <Badge variant="secondary" className="gap-1"><Calendar className="h-3 w-3" /> {aiResult.prazoInscricao}</Badge>}
+                </div>
+
+                <div className="rounded-md bg-muted/40 p-3">
+                  <p className={cn('text-sm font-medium', aiResult.aderencia.nota >= 7 ? 'text-money' : aiResult.aderencia.nota >= 4 ? 'text-yellow-500' : 'text-destructive')}>
+                    Aderência ao seu perfil: {aiResult.aderencia.nota}/10
+                  </p>
+                  <p className="mt-1 text-sm text-muted-foreground">{aiResult.aderencia.justificativa}</p>
+                </div>
+
+                {aiResult.documentos.length > 0 && (
+                  <div>
+                    <p className="mb-1.5 text-sm font-medium">Documentos sugeridos</p>
+                    <ul className="space-y-1 text-sm text-muted-foreground">
+                      {aiResult.documentos.map((d, i) => <li key={i}>• {d}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="shrink-0 gap-2 border-t pt-4">
+            {!aiResult ? (
+              <Button onClick={analisar} disabled={!aiInput.trim() || aiLoading} className="gap-1.5">
+                {aiLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Analisando...</> : <><Sparkles className="h-4 w-4" /> Analisar</>}
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => criarDaAnalise(false)}>Só o edital</Button>
+                <Button onClick={() => criarDaAnalise(true)} className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Criar + {aiResult.documentos.length} tarefas
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
