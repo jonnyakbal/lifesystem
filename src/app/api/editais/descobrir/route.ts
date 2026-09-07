@@ -9,8 +9,9 @@ import { assertFetchableUrl, fetchPageText } from '@/lib/fetch-page';
 import { Edital, EditalSettings, Pillar, Project } from '@/types';
 
 const MAX_SOURCES = 6;
-// Free-tier models take ~90s on 12k chars, which overruns proxy timeouts in
-// production. Smaller slices keep a single-source sweep well under a minute.
+// Slow free models took ~90s on 12k chars, enough to overrun proxy timeouts.
+// Kept conservative so the sweep stays well inside a request even when the
+// configured provider is on the slower end.
 const MAX_CHARS_PER_SOURCE = 7000;
 
 interface Candidato {
@@ -39,7 +40,7 @@ function normalize(title: string): string {
 // which is what a scheduled job wants.
 export async function POST(request: Request) {
   if (!isAIConfigured()) {
-    return NextResponse.json({ error: 'OPENCODE_API_KEY não configurada no servidor.' }, { status: 400 });
+    return NextResponse.json({ error: 'AI_API_KEY não configurada no servidor.' }, { status: 400 });
   }
 
   let fonteUnica: string | undefined;

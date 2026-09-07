@@ -45,7 +45,7 @@ async function buildProfileContext(): Promise<{ text: string; modelo?: string }>
 export async function POST(request: NextRequest) {
   if (!isAIConfigured()) {
     return NextResponse.json(
-      { error: 'OPENCODE_API_KEY não configurada no servidor.' },
+      { error: 'AI_API_KEY não configurada no servidor.' },
       { status: 400 }
     );
   }

@@ -1,31 +1,36 @@
-// Server-side wrapper around OpenCode Zen's OpenAI-compatible chat API.
-// Never import from a client component: it reads OPENCODE_API_KEY.
+// Server-side wrapper around any OpenAI-compatible chat API. Never import
+// from a client component: it reads the API key.
 // The /hermes page keeps its own NOUS_API_KEY provider test — separate
 // integration, deliberately left alone.
-
-const OPENCODE_API_URL = 'https://opencode.ai/zen/v1/chat/completions';
-
-// Free-tier models only, tried in order. The free tier rate-limits hard
-// (429 FreeUsageLimitError), so a chain is the difference between a working
-// feature and a broken one. Override with OPENCODE_MODEL.
 //
-// Measured 2026-09-06 against real edital pages:
-//   big-pickle          cleanest, fastest JSON — but frequently 429
-//   lightning           always answers; reasoning model, thinks out loud
-//                       before the JSON, so it needs a bigger token budget
-//   mimo / ling         429 and 503 respectively at time of writing
-//   ultra               returns 200 with EMPTY content after ~57s, so it
-//                       goes last: it burns a minute before falling through
-const FREE_MODELS = [
-  'big-pickle',
-  'nemotron-3.5-lightning-free',
-  'mimo-v2.5-free',
-  'ling-3.0-flash-fin-free',
-  'nemotron-3-ultra-free',
-];
+// Provider is env-configurable on purpose. Free tiers move without notice:
+// OpenCode Zen's free models answered fine on 2026-09-06 and by 2026-09-07
+// returned "OpenCode's free tier can only be used in OpenCode". Swapping
+// providers has to be an env change, not a redeploy.
+//
+//   AI_API_KEY    the key (OPENCODE_API_KEY still read, for continuity)
+//   AI_BASE_URL   full chat-completions URL
+//   AI_MODELS     comma-separated fallback chain, tried in order
+//
+// Defaults target Groq: OpenAI-compatible, free tier without a card, and
+// fast enough that a sweep finishes in seconds instead of the ~60s the
+// previous provider took.
+const DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const DEFAULT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+
+function apiKey(): string | undefined {
+  return process.env.AI_API_KEY || process.env.OPENCODE_API_KEY;
+}
+
+function configuredModels(): string[] {
+  const fromEnv = process.env.AI_MODELS;
+  if (!fromEnv) return DEFAULT_MODELS;
+  const list = fromEnv.split(',').map(s => s.trim()).filter(Boolean);
+  return list.length > 0 ? list : DEFAULT_MODELS;
+}
 
 export function isAIConfigured(): boolean {
-  return Boolean(process.env.OPENCODE_API_KEY);
+  return Boolean(apiKey());
 }
 
 interface AskOptions {
@@ -39,9 +44,10 @@ interface AskOptions {
 // single 429 fails the whole request, which is exactly what the chain exists
 // to prevent.
 function candidateModels(explicit?: string): string[] {
+  const chain = configuredModels();
   const requested = explicit || process.env.OPENCODE_MODEL;
-  if (!requested) return FREE_MODELS;
-  return [requested, ...FREE_MODELS.filter(m => m !== requested)];
+  if (!requested) return chain;
+  return [requested, ...chain.filter(m => m !== requested)];
 }
 
 async function callModel(
@@ -49,18 +55,18 @@ async function callModel(
   prompt: string,
   opts: AskOptions
 ): Promise<string> {
-  const apiKey = process.env.OPENCODE_API_KEY;
-  if (!apiKey) throw new Error('OPENCODE_API_KEY não configurada no servidor.');
+  const key = apiKey();
+  if (!key) throw new Error('AI_API_KEY não configurada no servidor.');
 
   const messages: { role: string; content: string }[] = [];
   if (opts.system) messages.push({ role: 'system', content: opts.system });
   messages.push({ role: 'user', content: prompt });
 
-  const res = await fetch(OPENCODE_API_URL, {
+  const res = await fetch(process.env.AI_BASE_URL || DEFAULT_BASE_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+      Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({ model, messages, max_tokens: opts.maxTokens ?? 2000 }),
     signal: AbortSignal.timeout(90_000),
@@ -68,7 +74,7 @@ async function callModel(
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || `Erro ${res.status} da API do OpenCode Zen.`);
+    throw new Error(data.error?.message || `Erro ${res.status} da API de IA.`);
   }
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new Error('A IA devolveu uma resposta vazia.');
