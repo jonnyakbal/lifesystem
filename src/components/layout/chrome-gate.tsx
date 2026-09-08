@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
 import { AppShell } from './app-shell';
 import { CommandPalette } from './command-palette';
+import { CopilotoPanel } from './copiloto-panel';
 
 // The login page renders full-bleed with no nav — it's the one route that
 // must work before the user is authenticated, so it can't depend on
@@ -21,6 +22,7 @@ export function ChromeGate({ children }: { children: React.ReactNode }) {
         <AppShell>{children}</AppShell>
       </main>
       <CommandPalette />
+      <CopilotoPanel />
     </>
   );
 }

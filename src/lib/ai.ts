@@ -115,6 +115,23 @@ interface AskOptions {
   model?: string;
 }
 
+// Raw chat message shape, close to the OpenAI wire format — used by
+// chatCompletion() for multi-turn tool-calling (the Copiloto). Kept separate
+// from askAI/askAIForJson's single-prompt-in-string-out shape, which several
+// routes already depend on.
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | null;
+  tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[];
+  tool_call_id?: string;
+  name?: string;
+}
+
+export interface ChatTool {
+  type: 'function';
+  function: { name: string; description: string; parameters: Record<string, unknown> };
+}
+
 async function callModel(
   provider: ProviderDef,
   model: string,
@@ -187,6 +204,70 @@ export async function askAIForJson<T>(prompt: string, opts: AskOptions = {}): Pr
       const parsed = extractJson(raw);
       if (parsed !== null) return parsed as T;
       lastError = `${provider.name} (${model}) não devolveu um JSON válido.`;
+    }
+  }
+  throw new Error(lastError);
+}
+
+// Full multi-turn chat with tool-calling, for the Copiloto agent loop. Unlike
+// callModel/askAI (single prompt, string out), this sends the whole message
+// history and returns the raw assistant message — content may legitimately
+// be empty when the model responds with tool_calls instead of text, so that
+// case is not an error here the way it is in callModel.
+async function callChatModel(
+  provider: ProviderDef,
+  model: string,
+  messages: ChatMessage[],
+  tools: ChatTool[] | undefined,
+  maxTokens: number
+): Promise<ChatMessage> {
+  const key = providerKey(provider);
+  if (!key) throw new Error(`${provider.keyEnv} não configurada no servidor.`);
+
+  const body: Record<string, unknown> = { model, messages, max_tokens: maxTokens };
+  if (tools && tools.length > 0) {
+    body.tools = tools;
+    body.tool_choice = 'auto';
+  }
+
+  const res = await fetch(provider.baseUrl, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(90_000),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error?.message || `Erro ${res.status} de ${provider.name} (${model}).`);
+  }
+  const message = data.choices?.[0]?.message;
+  if (!message) throw new Error(`${provider.name} (${model}) devolveu uma resposta vazia.`);
+  return message;
+}
+
+export interface ChatCompletionResult {
+  message: ChatMessage;
+  provider: string;
+  model: string;
+}
+
+export async function chatCompletion(
+  messages: ChatMessage[],
+  opts: { tools?: ChatTool[]; model?: string; maxTokens?: number } = {}
+): Promise<ChatCompletionResult> {
+  let lastError = 'Nenhum provedor de IA configurado.';
+  for (const provider of orderedConfiguredProviders()) {
+    for (const model of candidateModels(provider, opts.model)) {
+      try {
+        const message = await callChatModel(provider, model, messages, opts.tools, opts.maxTokens ?? 2000);
+        return { message, provider: provider.name, model };
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : lastError;
+      }
     }
   }
   throw new Error(lastError);
