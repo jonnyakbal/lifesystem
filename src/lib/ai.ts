@@ -1,36 +1,112 @@
-// Server-side wrapper around any OpenAI-compatible chat API. Never import
-// from a client component: it reads the API key.
-// The /hermes page keeps its own NOUS_API_KEY provider test — separate
-// integration, deliberately left alone.
+// Server-side wrapper around OpenAI-compatible chat APIs, with fallback
+// across multiple named providers. Never import from a client component: it
+// reads API keys. The /hermes page keeps its own NOUS_API_KEY provider
+// test — separate integration, deliberately left alone.
 //
-// Provider is env-configurable on purpose. Free tiers move without notice:
-// OpenCode Zen's free models answered fine on 2026-09-06 and by 2026-09-07
-// returned "OpenCode's free tier can only be used in OpenCode". Swapping
-// providers has to be an env change, not a redeploy.
+// Providers are env-configurable and tried in order, and each provider's own
+// model list is also tried in order, so one 429 or a provider-wide outage
+// doesn't fail the whole request. This exists because free tiers move
+// without notice: OpenCode Zen's free models answered fine on 2026-09-06 and
+// by 2026-09-07 returned "OpenCode's free tier can only be used in OpenCode".
+// Swapping or reordering providers has to be an env change, not a redeploy.
 //
-//   AI_API_KEY    the key (OPENCODE_API_KEY still read, for continuity)
-//   AI_BASE_URL   full chat-completions URL
-//   AI_MODELS     comma-separated fallback chain, tried in order
-//
-// Defaults target Groq: OpenAI-compatible, free tier without a card, and
-// fast enough that a sweep finishes in seconds instead of the ~60s the
-// previous provider took.
-const DEFAULT_BASE_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODELS = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+// Per provider, set (replace <NAME> with the provider's key below):
+//   AI_<NAME>_API_KEY    the key — provider is skipped if unset
+//   AI_<NAME>_MODELS     comma-separated model chain override
+// AI_PROVIDER_ORDER can reorder or narrow which providers are tried
+// (comma-separated provider names, e.g. "groq,openrouter").
 
-function apiKey(): string | undefined {
-  return process.env.AI_API_KEY || process.env.OPENCODE_API_KEY;
+interface ProviderDef {
+  name: string;
+  baseUrl: string;
+  keyEnv: string;
+  modelsEnv: string;
+  defaultModels: string[];
+  // OpenRouter (and some other aggregators) require the ":free" suffix on
+  // free model ids — routed without it, a request with any credit on the
+  // account is billed instead of served for free.
 }
 
-function configuredModels(): string[] {
-  const fromEnv = process.env.AI_MODELS;
-  if (!fromEnv) return DEFAULT_MODELS;
-  const list = fromEnv.split(',').map(s => s.trim()).filter(Boolean);
-  return list.length > 0 ? list : DEFAULT_MODELS;
+const PROVIDERS: ProviderDef[] = [
+  {
+    name: 'groq',
+    baseUrl: 'https://api.groq.com/openai/v1/chat/completions',
+    keyEnv: 'AI_GROQ_API_KEY',
+    modelsEnv: 'AI_GROQ_MODELS',
+    // Verified live 2026-09-08 via GET /v1/models — Groq's catalog turns
+    // over completely and often (llama-3.3-70b-versatile, hardcoded here a
+    // day earlier, no longer exists). Both are reasoning models: they spend
+    // tokens on a "reasoning" field before "content", so a tight max_tokens
+    // budget yields empty content even on a 200.
+    defaultModels: ['openai/gpt-oss-120b', 'openai/gpt-oss-20b'],
+  },
+  {
+    name: 'openrouter',
+    baseUrl: 'https://openrouter.ai/api/v1/chat/completions',
+    keyEnv: 'AI_OPENROUTER_API_KEY',
+    modelsEnv: 'AI_OPENROUTER_MODELS',
+    // Verified live 2026-09-08 via GET /v1/models (filtered to ":free" ids).
+    // OpenRouter's free catalog is small (~16 models) and rotates weekly, and
+    // the shared free pool 429s hard at peak times — expect this list to
+    // need refreshing more often than the other providers'.
+    defaultModels: [
+      'google/gemma-4-31b-it:free',
+      'nvidia/nemotron-3-ultra-550b-a55b:free',
+    ],
+  },
+  {
+    name: 'mistral',
+    baseUrl: 'https://api.mistral.ai/v1/chat/completions',
+    keyEnv: 'AI_MISTRAL_API_KEY',
+    modelsEnv: 'AI_MISTRAL_MODELS',
+    defaultModels: ['mistral-small-latest'],
+  },
+];
+
+// Back-compat: the original single-provider env vars still work as a
+// provider of their own, tried first unless AI_PROVIDER_ORDER says otherwise.
+const LEGACY_PROVIDER: ProviderDef = {
+  name: 'legacy',
+  baseUrl: process.env.AI_BASE_URL || 'https://opencode.ai/zen/v1/chat/completions',
+  keyEnv: 'AI_API_KEY',
+  modelsEnv: 'AI_MODELS',
+  defaultModels: [],
+};
+
+function allProviders(): ProviderDef[] {
+  return [LEGACY_PROVIDER, ...PROVIDERS];
+}
+
+function providerKey(p: ProviderDef): string | undefined {
+  if (p.name === 'legacy') return process.env.AI_API_KEY || process.env.OPENCODE_API_KEY;
+  return process.env[p.keyEnv];
+}
+
+function providerModels(p: ProviderDef): string[] {
+  const fromEnv = process.env[p.modelsEnv];
+  if (fromEnv) {
+    const list = fromEnv.split(',').map(s => s.trim()).filter(Boolean);
+    if (list.length > 0) return list;
+  }
+  return p.defaultModels;
+}
+
+function orderedConfiguredProviders(): ProviderDef[] {
+  const configured = allProviders().filter(p => providerKey(p) && providerModels(p).length > 0);
+  const order = process.env.AI_PROVIDER_ORDER;
+  if (!order) return configured;
+  const names = order.split(',').map(s => s.trim()).filter(Boolean);
+  const byName = new Map(configured.map(p => [p.name, p]));
+  const ordered = names.map(n => byName.get(n)).filter((p): p is ProviderDef => Boolean(p));
+  // Providers named in AI_PROVIDER_ORDER go first; anything configured but
+  // left out of the list still runs, just last, so an omission is a
+  // reordering rather than a silent disable.
+  const rest = configured.filter(p => !names.includes(p.name));
+  return [...ordered, ...rest];
 }
 
 export function isAIConfigured(): boolean {
-  return Boolean(apiKey());
+  return orderedConfiguredProviders().length > 0;
 }
 
 interface AskOptions {
@@ -39,30 +115,20 @@ interface AskOptions {
   model?: string;
 }
 
-// A requested model is a preference, not a restriction: it goes first, but
-// the rest of the chain still backs it up. Pinning to one model would mean a
-// single 429 fails the whole request, which is exactly what the chain exists
-// to prevent.
-function candidateModels(explicit?: string): string[] {
-  const chain = configuredModels();
-  const requested = explicit || process.env.OPENCODE_MODEL;
-  if (!requested) return chain;
-  return [requested, ...chain.filter(m => m !== requested)];
-}
-
 async function callModel(
+  provider: ProviderDef,
   model: string,
   prompt: string,
   opts: AskOptions
 ): Promise<string> {
-  const key = apiKey();
-  if (!key) throw new Error('AI_API_KEY não configurada no servidor.');
+  const key = providerKey(provider);
+  if (!key) throw new Error(`${provider.keyEnv} não configurada no servidor.`);
 
   const messages: { role: string; content: string }[] = [];
   if (opts.system) messages.push({ role: 'system', content: opts.system });
   messages.push({ role: 'user', content: prompt });
 
-  const res = await fetch(process.env.AI_BASE_URL || DEFAULT_BASE_URL, {
+  const res = await fetch(provider.baseUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -74,41 +140,54 @@ async function callModel(
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || `Erro ${res.status} da API de IA.`);
+    throw new Error(data.error?.message || `Erro ${res.status} de ${provider.name} (${model}).`);
   }
   const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error('A IA devolveu uma resposta vazia.');
+  if (!text) throw new Error(`${provider.name} (${model}) devolveu uma resposta vazia.`);
   return text;
 }
 
+// A requested model is a preference tried first on each provider, not a
+// restriction — the provider's own chain still backs it up so one bad
+// model doesn't take the whole provider down with it.
+function candidateModels(provider: ProviderDef, explicit?: string): string[] {
+  const chain = providerModels(provider);
+  if (!explicit) return chain;
+  return [explicit, ...chain.filter(m => m !== explicit)];
+}
+
 export async function askAI(prompt: string, opts: AskOptions = {}): Promise<string> {
-  let lastError = 'Nenhum modelo gratuito respondeu.';
-  for (const model of candidateModels(opts.model)) {
-    try {
-      return await callModel(model, prompt, opts);
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : lastError;
+  let lastError = 'Nenhum provedor de IA configurado.';
+  for (const provider of orderedConfiguredProviders()) {
+    for (const model of candidateModels(provider, opts.model)) {
+      try {
+        return await callModel(provider, model, prompt, opts);
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : lastError;
+      }
     }
   }
   throw new Error(lastError);
 }
 
-// Falls through to the next model when one answers but not with usable JSON —
-// the smaller free models do that often enough that treating it as a hard
-// failure would make the feature unreliable.
+// Falls through to the next model/provider when one answers but not with
+// usable JSON — smaller free models do that often enough that treating it as
+// a hard failure would make the feature unreliable.
 export async function askAIForJson<T>(prompt: string, opts: AskOptions = {}): Promise<T> {
-  let lastError = 'Nenhum modelo gratuito respondeu.';
-  for (const model of candidateModels(opts.model)) {
-    let raw: string;
-    try {
-      raw = await callModel(model, prompt, opts);
-    } catch (err) {
-      lastError = err instanceof Error ? err.message : lastError;
-      continue;
+  let lastError = 'Nenhum provedor de IA configurado.';
+  for (const provider of orderedConfiguredProviders()) {
+    for (const model of candidateModels(provider, opts.model)) {
+      let raw: string;
+      try {
+        raw = await callModel(provider, model, prompt, opts);
+      } catch (err) {
+        lastError = err instanceof Error ? err.message : lastError;
+        continue;
+      }
+      const parsed = extractJson(raw);
+      if (parsed !== null) return parsed as T;
+      lastError = `${provider.name} (${model}) não devolveu um JSON válido.`;
     }
-    const parsed = extractJson(raw);
-    if (parsed !== null) return parsed as T;
-    lastError = 'A IA não devolveu um JSON válido.';
   }
   throw new Error(lastError);
 }

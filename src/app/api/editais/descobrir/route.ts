@@ -40,7 +40,7 @@ function normalize(title: string): string {
 // which is what a scheduled job wants.
 export async function POST(request: Request) {
   if (!isAIConfigured()) {
-    return NextResponse.json({ error: 'AI_API_KEY não configurada no servidor.' }, { status: 400 });
+    return NextResponse.json({ error: 'Nenhum provedor de IA configurado no servidor (AI_GROQ_API_KEY, AI_OPENROUTER_API_KEY, etc).' }, { status: 400 });
   }
 
   let fonteUnica: string | undefined;

@@ -45,7 +45,7 @@ async function buildProfileContext(): Promise<{ text: string; modelo?: string }>
 export async function POST(request: NextRequest) {
   if (!isAIConfigured()) {
     return NextResponse.json(
-      { error: 'AI_API_KEY não configurada no servidor.' },
+      { error: 'Nenhum provedor de IA configurado no servidor (AI_GROQ_API_KEY, AI_OPENROUTER_API_KEY, etc).' },
       { status: 400 }
     );
   }
