@@ -18,8 +18,28 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && pathname !== '/api/mcp') {
     const origin = request.headers.get('origin');
-    if (origin && origin !== request.nextUrl.origin) {
-      return NextResponse.json({ error: 'Origem não permitida.' }, { status: 403 });
+    if (origin) {
+      // request.nextUrl.origin is built from the Host header Next.js sees
+      // directly — behind Hostinger's reverse proxy that's not necessarily
+      // the public hostname the browser sent as Origin (confirmed in prod:
+      // a same-page fetch() with a matching window.location.origin still
+      // got rejected), so comparing against it directly 403's every real
+      // same-origin write. Accept it if it matches either the standard
+      // forwarded headers a reverse proxy sets, OR just the hostname of
+      // what Next.js saw — covers a proxy that forwards a different scheme
+      // or port without needing to know its exact header conventions,
+      // while still rejecting a genuinely different site.
+      const forwardedHost = request.headers.get('x-forwarded-host');
+      const forwardedProto = request.headers.get('x-forwarded-proto');
+      const expectedOrigin = forwardedHost
+        ? `${forwardedProto || request.nextUrl.protocol.replace(':', '')}://${forwardedHost}`
+        : request.nextUrl.origin;
+      let originHostname: string | null = null;
+      try { originHostname = new URL(origin).hostname; } catch { /* malformed Origin — falls through to reject below */ }
+      const hostnameMatches = originHostname !== null && originHostname === request.nextUrl.hostname;
+      if (origin !== expectedOrigin && !hostnameMatches) {
+        return NextResponse.json({ error: 'Origem não permitida.' }, { status: 403 });
+      }
     }
   }
   if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
