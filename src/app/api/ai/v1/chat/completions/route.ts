@@ -9,10 +9,13 @@
 // and /api/mcp are both "things external agents call", and the fallback
 // chain's own AI_* keys never leave the server either way.
 //
-// Streaming is NOT implemented — this always returns a complete JSON
-// response, even if the caller sends `stream: true`. A client that requires
-// SSE chunks will not parse this correctly; if the Hermes Agent needs actual
-// streaming, this route will need a rewrite to page-piece the response.
+// `stream: true` gets a real SSE response, but faked: the fallback chain
+// (src/lib/ai.ts) has no streaming support of its own, so we wait for the
+// complete answer and then emit it as a single SSE "delta" chunk followed by
+// [DONE]. The Hermes Agent's OpenAI client requires *some* SSE framing for
+// streamed requests — a plain JSON body reads as a zero-chunk empty stream
+// and errors — but doesn't care whether the content arrives in one chunk or
+// many, so this satisfies it without a real token-by-token pipe.
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeStringEqual } from '@/lib/auth';
 import { chatCompletion, type ChatMessage, type ChatTool } from '@/lib/ai';
@@ -34,6 +37,7 @@ export async function POST(request: NextRequest) {
     messages?: ChatMessage[];
     max_tokens?: number;
     tools?: ChatTool[];
+    stream?: boolean;
   };
   try {
     body = await request.json();
@@ -56,18 +60,31 @@ export async function POST(request: NextRequest) {
       model: body.model,
     });
 
+    const id = `chatcmpl-${Date.now().toString(36)}`;
+    const created = Math.floor(Date.now() / 1000);
+    const responseModel = `${provider}/${model}`;
+    const finishReason = message.tool_calls?.length ? 'tool_calls' : 'stop';
+
+    if (body.stream) {
+      const chunk = {
+        id,
+        object: 'chat.completion.chunk',
+        created,
+        model: responseModel,
+        choices: [{ index: 0, delta: message, finish_reason: finishReason }],
+      };
+      const sse = `data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`;
+      return new NextResponse(sse, {
+        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' },
+      });
+    }
+
     return NextResponse.json({
-      id: `chatcmpl-${Date.now().toString(36)}`,
+      id,
       object: 'chat.completion',
-      created: Math.floor(Date.now() / 1000),
-      model: `${provider}/${model}`,
-      choices: [
-        {
-          index: 0,
-          message,
-          finish_reason: message.tool_calls?.length ? 'tool_calls' : 'stop',
-        },
-      ],
+      created,
+      model: responseModel,
+      choices: [{ index: 0, message, finish_reason: finishReason }],
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
     });
   } catch (err) {
