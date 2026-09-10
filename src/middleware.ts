@@ -8,7 +8,7 @@ import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 // /api/mcp does its own Bearer-token auth (see src/app/api/mcp/route.ts) —
 // it's called by external agents with no browser session, so the cookie
 // gate below doesn't apply to it.
-const PUBLIC_PATHS = ['/login', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions'];
+const PUBLIC_PATHS = ['/login', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions', '/api/ai/v1/models'];
 
 export async function middleware(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
