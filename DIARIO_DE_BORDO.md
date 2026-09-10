@@ -136,10 +136,12 @@ data/*.json                    # "banco de dados" — 14 coleções hoje
 
 ### 4.1 Deploy
 
-- **Onde:** Hostinger, hospedagem Node.js compartilhada — `https://lifesystem.oj0nny.com`.
-- **Como:** integração nativa Hostinger↔GitHub. Push no branch `main` → build (`npm run build`, `output: standalone`) → `npm start` serve a app.
+- **Onde:** Hostinger, hospedagem Node.js compartilhada (a mesma conta hospeda vários domínios do Jonny) — `https://lifesystem.oj0nny.com`.
+- **Como:** integração nativa Hostinger↔GitHub. Push no branch `main` → build (`npm run build`, `output: standalone`) → `npm start` serve a app. Cada deploy faz um checkout novo em `~/domains/lifesystem.oj0nny.com/hbuilds/versions/<hash>/` e reaponta o symlink `current` pra lá — a versão anterior fica órfã, não é atualizada in-place.
 - **Sem infra própria** (sem Docker, sem VPS pro LIFESYSTEM em si — a VPS é onde o Hermes Agent roda, separado).
 - **Sem staging.** Todo push em `main` vai direto pra produção — por isso o padrão desta sessão de sempre rodar `tsc`/`build`/teste manual *antes* de cada commit, e só dar `git push` quando o Jonny pede explicitamente.
+- **Acesso SSH** existe e está ativo (`Avançado → Acesso SSH` no hPanel), mas não é usado por padrão — só foi habilitado numa sessão pontual pra diagnosticar o incidente de 2026-09-09 (ver seção 7). A chave adicionada pra isso deve ser removida quando não estiver mais em uso ativo.
+- **Cuidado com o Gerenciador de Arquivos web da Hostinger:** ao abrir pela tela do site, a opção "acessar todos os arquivos da hospedagem" pode escopar pra um domínio diferente do esperado dentro da mesma conta — confirme sempre o caminho real (via SSH, se precisar de certeza) antes de assumir que uma pasta criada ali está no lugar certo.
 
 ### 4.2 Storage
 
@@ -147,14 +149,25 @@ data/*.json                    # "banco de dados" — 14 coleções hoje
 - Camada única de acesso: `src/lib/storage/index.ts` (`getAll`, `getById`, `create`, `update`, `delete`, `query`) — toda rota REST e toda ferramenta MCP passa por ela. Isso é o que tornou o servidor MCP barato de construir: zero lógica de dados duplicada.
 - **Risco conhecido:** escrita não é atômica nem lockada — duas escritas concorrentes na mesma coleção podem se pisar (aceitável hoje: 1 usuário, tráfego baixo; vira problema se o Hermes e a UI escreverem ao mesmo tempo com frequência alta — ver Roadmap/Dívida técnica).
 - Pasta `data/` precisa de permissão de escrita no ambiente de deploy (documentado no README).
+- **`LIFESYSTEM_DATA_DIR` está configurada e validada em produção desde 2026-09-09** (`/home/u115768626/domains/lifesystem.oj0nny.com/lifesystem-data`, fora da pasta que cada deploy recria do zero). Antes disso, apesar de documentada, nunca tinha valor real na Hostinger — dois incidentes de perda de dados (2026-09-05 e 2026-09-09) tiveram exatamente essa causa. Ver seção 7 pra como foi validado (deploy real de teste, não só configuração).
+- Backup automatizado (`npm run backup:data`, `LIFESYSTEM_BACKUP_DIR`) existe como script mas **ainda não roda sozinho antes de cada deploy** — pendência aberta, ver Roadmap.
 
-### 4.3 Integração de IA — servidor MCP
+### 4.3 Integração de IA — servidor MCP, Copiloto embutido e provedores
 
-- `/api/mcp` expõe CRUD completo (Model Context Protocol) sobre Tarefas, Conteúdo, INBOX/Notas, Pilares (leitura+update), Metas, Projetos e as entradas deste próprio Diário de Bordo — 26 ferramentas ao todo, geradas por uma factory (`registerCrudTools` em `src/lib/mcp/tools.ts`) pra não repetir o mesmo código 7 vezes.
+**MCP (agentes externos, ex: Hermes):**
+- `/api/mcp` expõe CRUD completo (Model Context Protocol) sobre Tarefas, Conteúdo, INBOX/Notas, Pilares (leitura+update), Metas, Projetos, Editais e as entradas deste próprio Diário de Bordo — geradas por uma factory (`registerCrudTools` em `src/lib/mcp/tools.ts`) pra não repetir o mesmo código por entidade.
 - Transporte: `WebStandardStreamableHTTPServerTransport` do SDK oficial, modo stateless (uma instância de servidor MCP por request — sem estado de sessão entre chamadas).
-- Consumidor alvo: **Hermes Agent** (open source, Nous Research), instância pessoal do Jonny rodando na própria VPS, conectando por Telegram — o LIFESYSTEM vira uma "ferramenta" que o Hermes descobre e usa sozinho, sem glue code manual.
-- Testado ponta a ponta manualmente via `curl` antes do commit: handshake, listagem das 22 tools (depois 26, ver 2026-08-31 mais abaixo), `create_task` → confirmado gravado em `data/tasks.json` → `list_tasks` com filtro → `delete_task` → confirmado removido.
-- Toda chamada de ferramenta é registrada (`src/lib/mcp/log.ts`, `data/mcp-logs.json`, cap de 200 entradas) e fica visível na tela `/hermes`, junto com status de configuração de `MCP_API_KEY`/`NOUS_API_KEY` e um testador de prompt direto contra a API de inferência da Nous.
+- Consumidor alvo: **Hermes Agent** (open source, Nous Research), instância pessoal do Jonny rodando na própria VPS, conectando por Telegram — configuração ainda pendente do lado do Hermes (ver Roadmap).
+- Toda chamada de ferramenta é registrada (`src/lib/mcp/log.ts`, `data/mcp-logs.json`, cap de 200 entradas) e fica visível na tela `/hermes`, junto com status de configuração de `MCP_API_KEY` e um testador de prompt direto contra a API de inferência configurada.
+
+**Copiloto embutido (chat dentro do próprio app, ⌘M):**
+- `src/lib/copiloto/tools.ts` gera ferramentas de tool-calling (formato OpenAI) sobre os mesmos dados que o MCP expõe — chama `storage` direto, sem passar pelo transporte MCP. É uma segunda porta pra mesma casa, não um sistema paralelo.
+- `POST /api/copiloto` — loop de agente stateless: cliente ecoa o histórico bruto a cada turno. Ferramentas de leitura executam e o loop continua (encadeia lookups, ex: resolver "aquela tarefa do TCC" via `list_tasks` antes de agir); ferramentas de escrita sempre pausam pra um card de confirmação explícito antes de tocar em dado.
+- Painel flutuante (`src/components/layout/copiloto-panel.tsx`), montado globalmente junto do Command Palette.
+
+**Provedores de IA (`src/lib/ai.ts`) — usado pelos Editais e pelo Copiloto:**
+- Lista de provedores nomeados e configuráveis por env var (`AI_GROQ_API_KEY`/`AI_OPENROUTER_API_KEY`/`AI_MISTRAL_API_KEY`, mais um modo legado via `AI_API_KEY`/`AI_BASE_URL`), cada um com sua própria cadeia de modelos de fallback — necessário porque **provedores e modelos gratuitos mudam de regra e de catálogo sem aviso** (ver linha do tempo, 2026-09-09, pra dois exemplos reais aconteceram na mesma sessão).
+- `askAI`/`askAIForJson` — prompt único, resposta em texto/JSON. `chatCompletion` — multi-turno com tool-calling, base do Copiloto.
 
 ### 4.4 Ideia futura registrada — visão integrada de calendários (Google Agenda)
 
@@ -273,6 +286,36 @@ Sequência de fases que transformou o app de "telas isoladas por entidade" pra u
 - **Segurança implementada:** sanitização HTML/Markdown, reprocessamento de uploads com Sharp, limite de tamanho/dimensões, bloqueio temporário de tentativas de login e verificação de Origin em requisições mutáveis.
 - **Regra operacional:** nenhum novo deploy deve ser feito antes de copiar os dados atuais da Hostinger para o diretório persistente, configurar as variáveis de ambiente e validar contagem de tarefas/projetos após o deploy.
 - **Recuperação pendente:** procurar o backup/snapshot da Hostinger anterior ao incidente. O workspace local contém apenas os dados-base versionados, não a organização perdida.
+- **⚠️ Resolvido só em 2026-09-09, não neste dia.** A "decisão estrutural" acima foi registrada mas `LIFESYSTEM_DATA_DIR` nunca chegou a ser configurada de fato na Hostinger — ficou só como variável documentada no README, sem valor definido em produção. Resultado: o mesmíssimo incidente se repetiu quatro dias depois, dessa vez apagando um planejamento real feito pelo Jonny direto em produção. Ver a entrada de 2026-09-09 para a correção validada de ponta a ponta (com deploy real de teste).
+
+### 2026-09-09 — Editais com IA, Copiloto embutido, e o incidente de dados resolvido de vez
+
+Sessão longa com três frentes: automação de IA nos Editais Culturais, um agente de chat embutido no próprio app, e a resolução definitiva (com prova real) do incidente de persistência aberto desde 2026-09-05.
+
+**Busca e análise de editais com IA:**
+- `POST /api/editais/analisar` — recebe um link ou texto colado, busca a página (com guarda contra SSRF — recusa URLs de rede interna — e contra arquivos não-texto/PDF grandes), e pede pra IA extrair título/órgão/valor/prazo, dar uma nota de aderência ao perfil do Jonny (cruzando com Pilares e Projetos reais) e sugerir os documentos a reunir.
+- `POST /api/editais/descobrir` — varre as fontes cadastradas no cockpit de configurações (`edital-settings`), uma por requisição (um provedor gratuito de IA pode levar ~1min por chamada, então paralelizar ou empacotar tudo numa request estourava timeout de proxy), deduplica contra o que já está no Radar e descarta abaixo da nota mínima configurada.
+- Fontes de editais **não têm API estruturada e gratuita viável**: o Mapas Culturais do MinC está atrás de Cloudflare; a maioria dos sites de cultura renderiza a listagem no cliente (SPA), então o HTML puro chega vazio não importa a qualidade do prompt. A lista de fontes ficou como configuração curável no cockpit, não hardcoded — cada fonte precisa ser validada manualmente como "realmente lista editais abertos em HTML puro" antes de entrar na lista.
+
+**`src/lib/ai.ts` — camada de IA multi-provedor:**
+- Motivo de existir: **provedores de IA gratuitos mudam de regra sem aviso.** O primeiro provedor usado (OpenCode Zen) respondia bem em 2026-09-06 e em 2026-09-07 passou a recusar toda chamada externa com "OpenCode's free tier can only be used in OpenCode" — o free tier virou exclusivo do próprio cliente deles.
+- Arquitetura atual: lista de provedores nomeados (`groq`, `openrouter`, `mistral`), cada um com sua própria chave (`AI_GROQ_API_KEY` etc.) e sua própria cadeia de modelos de fallback: se um 429, tenta o próximo modelo do mesmo provedor antes de passar pro próximo provedor. `AI_PROVIDER_ORDER` permite reordenar sem mexer em código.
+- IDs de modelo de free tier **também mudam de uma hora pra outra** — `llama-3.3-70b-versatile` (Groq) e `llama-3.3-70b-instruct:free` (OpenRouter), hardcoded numa manhã, já não existiam mais horas depois. A lista de modelos de cada provedor é override­ável por env var (`AI_GROQ_MODELS` etc.) exatamente por causa disso.
+- Achado técnico: modelos de raciocínio (`openai/gpt-oss-120b` no Groq, por exemplo) gastam parte do `max_tokens` "pensando" num campo `reasoning` antes do `content` — com orçamento de token apertado, a resposta chega vazia mesmo com HTTP 200. A extração de JSON (`askAIForJson`) cai pro próximo modelo/provedor quando isso acontece, em vez de tratar como erro definitivo.
+- `chatCompletion()` foi adicionado depois, em paralelo ao `askAI`/`askAIForJson` existentes (que continuam servindo os Editais), pra suportar tool-calling de verdade — é a base do Copiloto abaixo.
+
+**Copiloto embutido (`/api/copiloto` + painel flutuante, ⌘M):**
+- Um agente de chat dentro do próprio LIFESYSTEM, complementar ao MCP (que serve o Hermes remotamente) — mesma camada de dados (`storage`), duas portas diferentes. Ferramentas de leitura (list_*) executam na hora e o loop continua, encadeando lookups; ferramentas de escrita (create_/update_/delete_) sempre param o loop e voltam pro usuário como um card de confirmação — só executam de verdade numa segunda chamada explícita.
+- Servidor é stateless: o cliente guarda e ecoa o histórico bruto (formato OpenAI) a cada turno.
+- Revisão com múltiplos agentes encontrou e corrigiu, antes de ir pro ar: (1) um turno com mais de uma `tool_call` simultânea podia deixar uma delas sem resposta depois que a escrita pausava pra confirmação — quebra a conversa na chamada seguinte pra qualquer provedor compatível com OpenAI, corrigido resolvendo/adiando toda `tool_call` do turno antes de retornar; (2) uma confirmação reenviada por falha de rede podia **executar a escrita duas vezes** — corrigido com uma trava de `tool_call_id` já executado, independente do histórico que o cliente manda de volta; (3) campos obrigatórios de criação/atualização passaram a ser validados antes do card de confirmação aparecer, em vez de deixar o usuário confirmar uma ação que só podia falhar.
+
+**O incidente de dados de 2026-09-05, resolvido de vez:**
+- Pediu pra testar se as mudanças de tarefas feitas direto em produção sobreviviam a um deploy. Testei — e não sobreviveram: um `git push` trivial resetou tarefas/projetos/editais pro snapshot committado no repo, apagando um planejamento real que o Jonny tinha acabado de fazer no site. Backup automático da Hostinger é diário (00h) e não cobria o período entre o planejamento e o teste — essa parte específica não teve como recuperar.
+- Causa raiz confirmada: `LIFESYSTEM_DATA_DIR` nunca tinha sido configurada com valor real na Hostinger (apesar de documentada desde a entrada de 2026-09-05) — a app usava `cwd()/data`, dentro da própria pasta de deploy (`hbuilds/versions/<hash>/`, um checkout novo do zero a cada deploy via symlink `current`).
+- Corrigido com acesso SSH real ao servidor (chave adicionada pelo Jonny, removível depois de uso): `LIFESYSTEM_DATA_DIR=/home/u115768626/domains/lifesystem.oj0nny.com/lifesystem-data` (fora de `hbuilds/`, dentro da pasta do domínio — não confundir com o gerenciador de arquivos web da Hostinger, que por padrão abre escopado num domínio diferente da conta e quase levou a copiar os dados pro lugar errado).
+- **Validado com deploy real, não só em teoria:** criada uma tarefa de teste, disparado `git push` de verdade, nova versão publicada (`hbuilds/current` reapontado), tarefa de teste conferida presente via API depois do deploy, depois removida.
+- Também corrigido no caminho: o middleware (`src/middleware.ts`) rejeitava **toda escrita** em produção com "Origem não permitida" — `request.nextUrl.origin` é montado a partir do Host que o Next.js enxerga direto, que atrás do proxy reverso da Hostinger não bate com o `Origin` real enviado pelo navegador. Passou a aceitar via `X-Forwarded-Host`/`-Proto` (padrão pra esse cenário), com um segundo fallback por hostname puro.
+- **Pendência real que fica:** a rotina de `npm run backup:data` (script já existe, nunca foi automatizada) ainda não roda sozinha antes de cada deploy — ver Roadmap.
 
 ## 8. Roadmap
 
@@ -285,6 +328,9 @@ Sequência de fases que transformou o app de "telas isoladas por entidade" pra u
 - Rate limiting no login e no `/api/mcp`.
 - ~~Registro de auditoria de o que o agente alterou~~ — feito em 2026-08-31 (`/hermes`, log das últimas chamadas MCP). Ainda falta granularidade de escopo no `MCP_API_KEY` em si (hoje é tudo ou nada).
 - Lock/transação na camada de storage se o volume de escrita concorrente crescer (especialmente relevante assim que o Hermes começar a escrever de verdade).
+- **`npm run backup:data` automatizado antes de cada deploy** (script já existe desde 2026-09-05, nunca foi plugado no pipeline) — teria evitado que o incidente de 2026-09-09 perdesse dados reais.
+- Rotacionar as chaves de IA (`AI_GROQ_API_KEY`/`AI_OPENROUTER_API_KEY`/`AI_MISTRAL_API_KEY`) que passaram por texto em conversa durante a configuração de 2026-09-09 — baixo risco mas por precaução.
+- Remover a chave SSH adicionada pra diagnosticar o incidente de 2026-09-09, se não estiver mais em uso ativo.
 
 ### Do README original (roadmap de produto, ainda válido)
 - Página de detalhe de projeto.
