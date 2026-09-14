@@ -101,7 +101,7 @@ const stagger = { animate: { transition: { staggerChildren: 0.07, delayChildren:
 function AnimatedNumber({ value }: { value: number }) {
   const [display, setDisplay] = useState(0);
   useEffect(() => {
-    if (value === 0) { setDisplay(0); return; }
+    if (value === 0) { queueMicrotask(() => setDisplay(0)); return; }
     const duration = 600;
     const startTime = performance.now();
     function tick(now: number) {
@@ -742,7 +742,7 @@ export default function HomePage() {
                   return (
                     <Link key={p.id} href="/pilares" className="flex items-center gap-2 group">
                       <div className="relative">
-                        <MiniProgressRing value={p.current} max={p.total} color={p.color || 'hsl(var(--critical))'} />
+                        <MiniProgressRing value={p.current} max={p.total} color={p.color || 'var(--color-critical)'} />
                         <span className="absolute inset-0 flex items-center justify-center text-xs">{p.icon}</span>
                       </div>
                       <div className="flex-1 min-w-0">

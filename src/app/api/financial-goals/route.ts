@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { FinancialGoal } from '@/types';
+import { financialGoalSchema } from '@/lib/financial-validation';
 
 export async function GET() {
   const goals = await storage.getAll<FinancialGoal>('financial-goals');
@@ -8,7 +9,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const parsed = financialGoalSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Meta financeira inválida.' }, { status: 400 });
+  const body = parsed.data;
   const goal = await storage.create<FinancialGoal>('financial-goals', {
     name: body.name,
     description: body.description,

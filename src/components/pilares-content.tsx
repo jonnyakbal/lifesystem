@@ -89,7 +89,7 @@ function ProgressRing({ value, color, size = 48 }: { value: number; color: strin
         cy={size / 2}
         r={radius}
         fill="none"
-        stroke="hsl(var(--muted))"
+        stroke="var(--color-muted)"
         strokeWidth="4"
       />
       <circle
@@ -156,7 +156,7 @@ export function PilaresContent() {
     }
   }
 
-  useEffect(() => { loadPillars(); }, []);
+  useEffect(() => { queueMicrotask(() => { void loadPillars(); }); }, []);
 
   const pillarStreaks = useMemo(() => {
     const streaks: Record<string, number> = {};

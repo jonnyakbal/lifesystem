@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  CheckCircle2, Circle, AlertTriangle, Calendar, Sparkles, FileText,
+  CheckCircle2, Circle, AlertTriangle, Sparkles, FileText,
   Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper, Repeat,
 } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
@@ -118,7 +118,9 @@ export default function HojePage() {
   const today = todayStr();
   const todayTasks = tasks.filter(t => t.status !== 'done' && t.dueDate === today);
   const overdueTasks = tasks.filter(t => t.status !== 'done' && t.dueDate && t.dueDate < today);
-  const dailyIndicators = indicators.filter(i => i.frequency === 'Diário');
+  // The persisted domain value is `daily`; accept the historical Portuguese
+  // label too so older records keep appearing in the daily cockpit.
+  const dailyIndicators = indicators.filter(i => i.frequency === 'daily' || i.frequency === 'Diário');
   const todayContent = content.filter(c => c.scheduledDate === today);
   const todayFinancial = financial.filter(f => f.dueDate === today && f.status !== 'paid');
   const hasJournalToday = journal.some(j => j.entryDate === today);
@@ -133,10 +135,10 @@ export default function HojePage() {
   };
 
   return (
-    <motion.div className="p-8 max-w-4xl" variants={stagger} initial="initial" animate="animate">
+    <motion.div className="max-w-4xl p-4 sm:p-8" variants={stagger} initial="initial" animate="animate">
       <motion.div className="mb-8" variants={fade}>
         <h1 className="font-display text-3xl font-bold tracking-tight">Hoje</h1>
-        <p className="text-muted-foreground capitalize">
+        <p className="text-muted-foreground">
           {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
         </p>
       </motion.div>
@@ -244,8 +246,8 @@ export default function HojePage() {
                           <p className="text-xs text-muted-foreground">{ind.currentValue || 0}{ind.targetValue ? ` / ${ind.targetValue}` : ''}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => incrementIndicator(ind, -1)}><Minus className="h-3 w-3" /></Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => incrementIndicator(ind, 1)}><Plus className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Diminuir ${ind.name}`} onClick={() => incrementIndicator(ind, -1)}><Minus className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Aumentar ${ind.name}`} onClick={() => incrementIndicator(ind, 1)}><Plus className="h-3 w-3" /></Button>
                         </div>
                       </div>
                     );

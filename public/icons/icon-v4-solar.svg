@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <defs>
+    <radialGradient id="space" cx="0" cy="0" r="1" gradientTransform="translate(256 220) rotate(90) scale(360)">
+      <stop stop-color="#11183A"/><stop offset="1" stop-color="#040611"/>
+    </radialGradient>
+    <radialGradient id="sun" cx="34%" cy="28%" r="72%">
+      <stop stop-color="#FFF7D6"/><stop offset=".3" stop-color="#FDE68A"/><stop offset=".7" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D28D9"/>
+    </radialGradient>
+    <linearGradient id="mark" x1="120" y1="120" x2="350" y2="420" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EDE9FE"/><stop offset=".42" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D28D9"/>
+    </linearGradient>
+    <filter id="glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="18" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="soft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#space)"/>
+  <g fill="#EDE9FE" opacity=".6">
+    <circle cx="95" cy="112" r="2"/><circle cx="401" cy="98" r="2.5"/><circle cx="430" cy="390" r="2"/><circle cx="82" cy="398" r="1.5"/><circle cx="365" cy="58" r="1.5"/>
+  </g>
+  <g transform="rotate(-19 280 232)" stroke="#C4B5FD" stroke-opacity=".24" stroke-width="4">
+    <ellipse cx="280" cy="232" rx="190" ry="75"/><ellipse cx="280" cy="232" rx="134" ry="174"/>
+  </g>
+  <ellipse cx="280" cy="232" rx="172" ry="104" transform="rotate(28 280 232)" stroke="#8B5CF6" stroke-opacity=".36" stroke-width="5"/>
+  <circle cx="280" cy="232" r="88" fill="#A78BFA" opacity=".15" filter="url(#soft)"/>
+  <circle cx="280" cy="232" r="52" fill="url(#sun)" filter="url(#glow)"/>
+  <circle cx="280" cy="232" r="52" fill="url(#sun)"/>
+  <g transform="rotate(-19 280 232)">
+    <circle cx="448" cy="232" r="18" fill="#67E8F9"/><circle cx="110" cy="232" r="10" fill="#C4B5FD"/>
+  </g>
+  <g transform="rotate(28 280 232)"><circle cx="280" cy="128" r="12" fill="#FDE68A"/><circle cx="280" cy="336" r="7" fill="#A78BFA"/></g>
+  <path d="M126 126v214c0 38 23 61 62 61h128" stroke="#070A1C" stroke-opacity=".68" stroke-width="67" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M126 126v214c0 38 23 61 62 61h128" stroke="url(#mark)" stroke-width="45" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M70 320c42-62 90-99 145-112" stroke="#DDD6FE" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>
+</svg>

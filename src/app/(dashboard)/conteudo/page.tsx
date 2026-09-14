@@ -257,7 +257,7 @@ export default function ConteudoPage() {
 
   // Load
   useEffect(() => {
-    setStatusLabels(loadStatusLabelOverrides('content'));
+    queueMicrotask(() => setStatusLabels(loadStatusLabelOverrides('content')));
     loadItems();
     loadSavedViews();
   }, []);
@@ -990,7 +990,7 @@ export default function ConteudoPage() {
               { id: 'calendar' as const, icon: Calendar, label: 'Calendário' },
               { id: 'grid' as const, icon: LayoutGrid, label: 'Grade' },
             ].map(v => (
-              <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs gap-1" onClick={() => setView(v.id)}>
+              <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" aria-label={`Visualização: ${v.label}`} title={v.label} className="h-7 px-2 text-xs gap-1" onClick={() => setView(v.id)}>
                 <v.icon className="h-3 w-3" />
               </Button>
             ))}

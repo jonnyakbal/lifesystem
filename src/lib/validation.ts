@@ -6,7 +6,9 @@ export const taskPayloadSchema = z.object({
   title: z.string().trim().max(300).optional(),
   description: z.string().max(10000).optional(),
   priority: z.enum(['urgent', 'important', 'normal']).optional(),
-  status: z.enum(['todo', 'doing', 'review', 'done']).optional(),
+  // Task stages are configurable by the user (for example "prioritized"),
+  // so this cannot be a fixed enum like the original default pipeline.
+  status: z.string().trim().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/, 'Etapa inválida').optional(),
   projectId: z.string().max(100).optional(),
   pillarId: z.string().max(100).optional(),
   dueDate: dateOnly.optional(),

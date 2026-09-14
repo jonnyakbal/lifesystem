@@ -4,11 +4,11 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
-  Plus, CheckCircle2, Circle, Trash2, Search, Copy, Eye, EyeOff,
-  GripVertical, CalendarDays, List, LayoutGrid, X, Tag, AlertTriangle,
-  MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square, PartyPopper,
-  Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar, Zap,
-  ArrowRight, Clock, Target, Flame, Filter, Repeat, FileText, Wallet, Edit2
+  Plus, CheckCircle2, Circle, Trash2, Search, Copy,
+  GripVertical, CalendarDays, X, Tag,
+  MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
+  Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
+  ArrowRight, Flame, Repeat, FileText, Wallet, Edit2, ChevronLeft, ChevronRight, CalendarPlus, Inbox
 } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -84,8 +84,9 @@ type ViewMode = 'kanban' | 'list' | 'week' | 'calendar';
 // Lightweight shapes for the two other entity types the unified calendar
 // overlays alongside Task — just enough fields to plot + link out, not a
 // full duplicate of their own pages' interfaces.
-interface CalendarContentItem { id: string; title: string; channel: string; scheduledDate?: string; }
+interface CalendarContentItem { id: string; title: string; channel: string; scheduledDate?: string; linkedTaskIds?: string[]; }
 interface CalendarFinancialEntry { id: string; description?: string; category: string; amount: number; type: string; dueDate?: string; status?: string; }
+interface LinkedCapture { id: string; title?: string; content?: string; targetType?: string; targetId?: string; }
 type GroupBy = 'status' | 'priority' | 'project' | 'pillar';
 type SortBy = 'date' | 'title' | 'priority' | 'status' | 'dueDate';
 
@@ -124,11 +125,11 @@ function isOverdue(task: Task) {
   return task.dueDate < todayStr();
 }
 
-function getWeekDays() {
+function getWeekDays(weekOffset = 0) {
   const now = new Date();
   const day = now.getDay();
   const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
+  monday.setDate(now.getDate() - ((day + 6) % 7) + weekOffset * 7);
   const days: Date[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday);
@@ -138,26 +139,8 @@ function getWeekDays() {
   return days;
 }
 
-function formatDateShort(d: Date) {
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
-
 function formatDateISO(d: Date) {
   return todayStr(d);
-}
-
-function timeAgo(date: string) {
-  const now = new Date();
-  const d = new Date(date);
-  const diff = now.getTime() - d.getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'agora';
-  if (mins < 60) return `${mins}min`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d`;
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
 function fireConfetti() {
@@ -202,13 +185,14 @@ export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
-  const [linkedContent, setLinkedContent] = useState<any[]>([]);
-  const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
+  const [linkedContent, setLinkedContent] = useState<CalendarContentItem[]>([]);
+  const [linkedCaptures, setLinkedCaptures] = useState<LinkedCapture[]>([]);
   const [calendarFinancial, setCalendarFinancial] = useState<CalendarFinancialEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // View state
   const [view, setView] = useState<ViewMode>('kanban');
+  const [weekOffset, setWeekOffset] = useState(0);
   const [search, setSearch] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [showDone, setShowDone] = useState(false);
@@ -260,11 +244,11 @@ export default function TasksPage() {
     // Loaded once for the "Referenciado por" backlinks panel — Content and
     // Captures can point at a Task via linkedTaskIds/targetId, but Task
     // itself doesn't store the reverse link, so it's computed here.
-    fetch('/api/content').then(r => r.json()).then(setLinkedContent).catch(() => {});
-    fetch('/api/captures').then(r => r.json()).then(setLinkedCaptures).catch(() => {});
+    void apiFetch<CalendarContentItem[]>('/api/content').then(setLinkedContent).catch(() => {});
+    void apiFetch<LinkedCapture[]>('/api/captures').then(setLinkedCaptures).catch(() => {});
     // For the unified Calendar view (Fase 5) — Conteúdo agendado e contas a
     // vencer plotados junto das tarefas em vez de precisar abrir 3 telas.
-    fetch('/api/financial').then(r => r.json()).then(setCalendarFinancial).catch(() => {});
+    void apiFetch<CalendarFinancialEntry[]>('/api/financial').then(setCalendarFinancial).catch(() => {});
   }, []);
 
   // Deep-link support: ⌘K search results for tasks land here with ?open=<id>
@@ -282,11 +266,11 @@ export default function TasksPage() {
 
   function getTaskBacklinks(taskId: string) {
     const fromContent = linkedContent
-      .filter((c: any) => (c.linkedTaskIds || []).includes(taskId))
-      .map((c: any) => ({ id: c.id, type: 'content' as const, title: c.title || 'Sem título' }));
+      .filter(c => (c.linkedTaskIds || []).includes(taskId))
+      .map(c => ({ id: c.id, type: 'content' as const, title: c.title || 'Sem título' }));
     const fromCaptures = linkedCaptures
-      .filter((c: any) => c.targetType === 'task' && c.targetId === taskId)
-      .map((c: any) => ({ id: c.id, type: 'capture' as const, title: (c.title || (c.content as string)?.replace(/<[^>]*>/g, '').slice(0, 60)) || 'Sem título' }));
+      .filter(c => c.targetType === 'task' && c.targetId === taskId)
+      .map(c => ({ id: c.id, type: 'capture' as const, title: (c.title || c.content?.replace(/<[^>]*>/g, '').slice(0, 60)) || 'Sem título' }));
     return [...fromContent, ...fromCaptures];
   }
 
@@ -555,6 +539,20 @@ export default function TasksPage() {
     }
   }
 
+  async function handleScheduleTask(taskId: string, dueDate: string | null) {
+    try {
+      await apiFetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueDate }),
+      });
+      loadTasks();
+      toast.success(dueDate ? 'Tarefa planejada na semana!' : 'Tarefa devolvida ao planejamento.');
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  }
+
   async function handleQuickAdd(status: Task['status']) {
     if (!quickAddTitle.trim()) return;
     try {
@@ -577,6 +575,7 @@ export default function TasksPage() {
   function handleDragEnd() { setTimeout(() => setDraggedId(null), 100); }
   function handleDragOver(e: React.DragEvent) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
   async function handleDrop(e: React.DragEvent, targetStatus: Task['status']) { e.preventDefault(); const taskId = e.dataTransfer.getData('text/plain'); if (taskId) await handleQuickStatus(taskId, targetStatus); setDraggedId(null); }
+  async function handleWeekDrop(e: React.DragEvent, dueDate: string) { e.preventDefault(); const taskId = e.dataTransfer.getData('text/plain'); if (taskId) await handleScheduleTask(taskId, dueDate); setDraggedId(null); }
   const dragClickRef = useRef(false);
 
   // ─── Filtered + Sorted ───────────────────────────────────────────────────
@@ -611,7 +610,7 @@ export default function TasksPage() {
 
   // Pipeline stats
   const pipelineStats = useMemo(() => {
-    return stages.map(s => ({ ...s, label: getStatusLabel(s.id), count: filteredTasks.filter(t => t.status === s.id).length }));
+    return stages.map(s => ({ ...s, count: filteredTasks.filter(t => t.status === s.id).length }));
   }, [filteredTasks, stages]);
 
   // Active filters
@@ -709,7 +708,7 @@ export default function TasksPage() {
       days.push({
         day: d,
         tasks: sortedTasks.filter(t => t.dueDate === dateStr),
-        content: linkedContent.filter((c: any) => c.scheduledDate === dateStr),
+        content: linkedContent.filter(c => c.scheduledDate === dateStr),
         financial: calendarFinancial.filter(f => f.dueDate === dateStr && f.status !== 'paid'),
       });
     }
@@ -728,7 +727,11 @@ export default function TasksPage() {
           draggable={!bulkMode}
           onDragStart={(e) => { dragClickRef.current = true; handleDragStart(e, task.id); }}
           onDragEnd={handleDragEnd}
-          onClick={() => { if (dragClickRef.current) { dragClickRef.current = false; return; } bulkMode ? toggleSelect(task.id) : openEdit(task); }}
+          onClick={() => {
+            if (dragClickRef.current) { dragClickRef.current = false; return; }
+            if (bulkMode) toggleSelect(task.id);
+            else openEdit(task);
+          }}
           className={cn(
             'group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing border-l-3',
             draggedId === task.id && 'opacity-50 scale-95',
@@ -741,14 +744,14 @@ export default function TasksPage() {
           <CardContent className={cn('p-3', dense && 'p-2')}>
             <div className="flex items-start gap-2">
               {bulkMode ? (
-                <button className="mt-0.5 shrink-0">
+                <button className="mt-0.5 shrink-0" aria-label={isSelected ? `Desmarcar ${task.title}` : `Selecionar ${task.title}`}>
                   {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                 </button>
               ) : (
                 <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 opacity-0 group-hover:opacity-100" />
               )}
               {!bulkMode && (
-                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="mt-0.5 shrink-0">
+                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="mt-0.5 shrink-0" aria-label={task.status === 'done' ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
                   {task.status === 'done' ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className={cn("h-4 w-4", isOverdue(task) ? 'text-destructive' : 'text-muted-foreground hover:text-foreground')} />}
                 </button>
               )}
@@ -788,7 +791,7 @@ export default function TasksPage() {
                   {!dense && task.projectId && (() => {
                     const proj = projects.find(p => p.id === task.projectId);
                     return proj ? (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-white/10 bg-white/5">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-border bg-muted/30">
                         {proj.emoji || '📁'} {proj.name}
                       </Badge>
                     ) : null;
@@ -796,7 +799,7 @@ export default function TasksPage() {
                   {!dense && task.pillarId && (() => {
                     const pil = pillars.find(p => p.id === task.pillarId);
                     return pil ? (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-white/10 bg-white/5">
+                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-border bg-muted/30">
                         {pil.emoji || '🏛️'} {pil.name}
                       </Badge>
                     ) : null;
@@ -816,7 +819,7 @@ export default function TasksPage() {
               {!bulkMode && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0">
+                    <Button variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0">
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -888,7 +891,7 @@ export default function TasksPage() {
   function renderKanban() {
     if (groupBy === 'status') {
       return (
-        <div className="flex gap-4 overflow-x-auto pb-4 max-sm:snap-x max-sm:snap-mandatory">
+        <div className="flex gap-4 overflow-x-auto overscroll-x-contain pb-4 max-sm:snap-x max-sm:snap-mandatory" aria-label="Quadro de tarefas por etapa">
           <LayoutGroup id="task-kanban">
             {stages.map(s => renderColumn(s.id, sortedTasks.filter(t => t.status === s.id)))}
           </LayoutGroup>
@@ -942,310 +945,113 @@ export default function TasksPage() {
   }
 
   function renderWeek() {
-    const weekDays = getWeekDays();
-    const today = formatDateISO(new Date());
-    const now = new Date();
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const timeBlocks = [
-      { hour: 6, label: '6h' }, { hour: 8, label: '8h' }, { hour: 10, label: '10h' },
-      { hour: 12, label: '12h' }, { hour: 14, label: '14h' }, { hour: 16, label: '16h' },
-      { hour: 18, label: '18h' }, { hour: 20, label: '20h' }, { hour: 22, label: '22h' },
-    ];
+    const weekDays = getWeekDays(weekOffset);
+    const today = todayStr();
+    const weekStart = formatDateISO(weekDays[0]);
+    const weekEnd = formatDateISO(weekDays[6]);
+    const isCurrentWeek = weekOffset === 0;
+    const plannedTasks = sortedTasks.filter(t => t.status !== 'done' && t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEnd);
+    const backlog = sortedTasks.filter(t => t.status !== 'done' && !t.dueDate);
+    const urgentPlanned = plannedTasks.filter(t => t.priority === 'urgent' || isOverdue(t)).length;
+    const doneThisWeek = tasks.filter(t => t.status === 'done' && t.completedAt && t.completedAt.slice(0, 10) >= weekStart && t.completedAt.slice(0, 10) <= weekEnd).length;
+    const formatWeek = `${weekDays[0].toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} — ${weekDays[6].toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`;
+
+    const plannerCard = (task: Task, inBacklog = false) => {
+      const project = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
+      const priority = priorityConfig[task.priority];
+      return (
+        <div
+          key={task.id}
+          draggable
+          onDragStart={(event) => handleDragStart(event, task.id)}
+          onDragEnd={handleDragEnd}
+          onClick={() => openEdit(task)}
+          className={cn('group cursor-grab rounded-lg border border-border/70 bg-card p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md active:cursor-grabbing', draggedId === task.id && 'opacity-40')}
+        >
+          <div className="flex items-start gap-2">
+            <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/45" />
+            <div className="min-w-0 flex-1">
+              <p className="line-clamp-2 text-xs font-medium leading-snug">{task.title}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-1">
+                <span className={cn('h-1.5 w-1.5 rounded-full', priority.dot)} />
+                <span className={cn('text-[10px] font-medium', priority.textColor)}>{priority.label}</span>
+                {project && <span className="max-w-[110px] truncate text-[10px] text-muted-foreground">{project.emoji || '📁'} {project.name}</span>}
+              </div>
+            </div>
+            {!inBacklog && (
+              <button onClick={(event) => { event.stopPropagation(); void handleScheduleTask(task.id, null); }} className="rounded p-1 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100" aria-label={`Remover data de ${task.title}`} title="Devolver ao planejamento">
+                <Inbox className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    };
 
     return (
-      <div className="space-y-6">
-        {/* Week header with day cards */}
-        <div className="grid grid-cols-7 gap-2 mb-4">
-          {weekDays.map((day, idx) => {
-            const dateStr = formatDateISO(day);
-            const dayTasks = sortedTasks.filter(t => t.dueDate === dateStr);
-            const completedToday = dayTasks.filter(t => t.status === 'done');
-            const pendingToday = dayTasks.filter(t => t.status !== 'done');
-            const isToday = dateStr === today;
-            const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-            const dayName = day.toLocaleDateString('pt-BR', { weekday: 'short' }).substring(0, 3);
-            const dayNum = day.getDate();
+      <div className="space-y-5">
+        <section className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-primary"><Calendar className="h-3.5 w-3.5" /> Planejamento semanal</div>
+              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Planeje a semana, sem perder o que está esperando.</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Arraste tarefas sem data para reservar foco em cada dia. Tudo fica editável depois.</p>
+            </div>
+            <div className="flex items-center gap-2 self-start lg:self-auto">
+              <Button variant="outline" size="icon" onClick={() => setWeekOffset(offset => offset - 1)} aria-label="Semana anterior"><ChevronLeft className="h-4 w-4" /></Button>
+              <Button variant={isCurrentWeek ? 'secondary' : 'outline'} size="sm" onClick={() => setWeekOffset(0)}>Esta semana</Button>
+              <Button variant="outline" size="icon" onClick={() => setWeekOffset(offset => offset + 1)} aria-label="Próxima semana"><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+          </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
+            <Badge variant="secondary" className="bg-background/50 px-2.5 py-1">{formatWeek}</Badge>
+            <Badge variant="outline" className="px-2.5 py-1"><CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-primary" />{plannedTasks.length} planejadas</Badge>
+            <Badge variant="outline" className="px-2.5 py-1"><Inbox className="mr-1.5 h-3.5 w-3.5 text-qty" />{backlog.length} sem data</Badge>
+            {urgentPlanned > 0 && <Badge variant="outline" className="border-destructive/35 bg-destructive/5 px-2.5 py-1 text-destructive"><Flame className="mr-1.5 h-3.5 w-3.5" />{urgentPlanned} urgentes</Badge>}
+            {doneThisWeek > 0 && <Badge variant="outline" className="border-money/35 bg-money/5 px-2.5 py-1 text-money"><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />{doneThisWeek} concluídas</Badge>}
+          </div>
+        </section>
 
-            const dayColor = isToday
-              ? 'border-primary ring-2 ring-primary/30 bg-primary/5'
-              : isWeekend
-              ? 'border-border/50 bg-muted/15'
-              : 'border-border/50 hover:border-border/80';
-
-            return (
-              <motion.div
-                key={dateStr}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05 }}
-                className={cn(
-                  'rounded-xl border p-2.5 text-center transition-all duration-200',
-                  dayColor,
-                  isToday && 'shadow-md shadow-primary/10'
-                )}
-              >
-                <div className="flex flex-col gap-1">
-                  <span className={cn('text-xs font-medium', isToday ? 'text-primary' : isWeekend ? 'text-muted-foreground/60' : 'text-muted-foreground')}>
-                    {dayName}
-                  </span>
-                  <span className={cn('text-2xl font-bold font-mono-num', isToday ? 'text-primary' : 'text-foreground')}>
-                    {dayNum}
-                  </span>
-
-                  {dayTasks.length > 0 && (
-                    <div className="flex flex-col gap-0.5 mt-1.5">
-                      {pendingToday.slice(0, 2).map(task => {
-                        const prio = priorityConfig[task.priority];
-                        return (
-                          <div
-                            key={task.id}
-                            className={cn(
-                              'text-xs truncate px-1.5 py-0.5 rounded',
-                              task.status === 'done'
-                                ? 'line-through text-muted-foreground bg-muted/20'
-                                : `${prio.color.replace('bg-', 'bg-')}/15 text-foreground border-l-2 ${prio.dot}`
-                            )}
-                            title={task.title}
-                          >
-                            {task.title.length > 18 ? task.title.slice(0, 18) + '…' : task.title}
-                          </div>
-                        );
-                      })}
-                      {dayTasks.length > 2 && (
-                        <span className="text-xs text-muted-foreground/60">
-                          +{dayTasks.length - 2}
-                        </span>
-                      )}
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+          <section className="overflow-x-auto pb-2">
+            <div className="grid min-w-[980px] grid-cols-7 gap-3 xl:min-w-0">
+              {weekDays.map((day, index) => {
+                const dateStr = formatDateISO(day);
+                const dayTasks = plannedTasks.filter(task => task.dueDate === dateStr);
+                const isToday = dateStr === today;
+                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                const capacity = 3;
+                return (
+                  <motion.div key={dateStr} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.035 }} className={cn('flex min-h-[390px] flex-col rounded-xl border p-2', isToday ? 'border-primary/60 bg-primary/[0.07] shadow-[0_12px_32px_-24px_var(--color-primary)]' : isWeekend ? 'border-border/60 bg-muted/20' : 'border-border/70 bg-card/60')} onDragOver={handleDragOver} onDrop={(event) => void handleWeekDrop(event, dateStr)}>
+                    <div className="mb-3 rounded-lg px-1.5 py-1">
+                      <div className="flex items-center justify-between"><span className={cn('text-[11px] font-semibold uppercase tracking-wider', isToday ? 'text-primary' : 'text-muted-foreground')}>{day.toLocaleDateString('pt-BR', { weekday: 'short' })}</span>{isToday && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">HOJE</span>}</div>
+                      <div className="mt-1 flex items-baseline justify-between"><span className="font-mono-num text-2xl font-bold">{day.getDate()}</span><span className={cn('text-[10px]', dayTasks.length > capacity ? 'text-destructive' : 'text-muted-foreground')}>{dayTasks.length}/{capacity} foco</span></div>
+                      <div className="mt-2 flex gap-1">{Array.from({ length: capacity }).map((_, slot) => <span key={slot} className={cn('h-1 flex-1 rounded-full', slot < dayTasks.length ? (dayTasks.length > capacity ? 'bg-destructive' : 'bg-primary') : 'bg-border')} />)}</div>
                     </div>
-                  )}
-
-                  {completedToday.length > 0 && (
-                    <div className="flex gap-0.5 mt-1">
-                      <div className="flex -space-x-1">
-                        {completedToday.slice(0, 3).map(task => (
-                          <div key={task.id} className="w-1.5 h-1.5 rounded-full bg-money" />
-                        ))}
-                      </div>
-                      <span className="text-xs text-muted-foreground/60">
-                        {completedToday.length} feitas
-                      </span>
+                    <div className="flex flex-1 flex-col gap-2">
+                      {dayTasks.map(task => plannerCard(task))}
+                      {dayTasks.length === 0 && <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-2 text-center text-xs text-muted-foreground/70"><CalendarPlus className="mb-2 h-4 w-4 text-primary/60" />Solte uma tarefa aqui</div>}
                     </div>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </section>
 
-        {/* Timeline view for today + key days */}
-        <div className="grid lg:grid-cols-3 gap-4">
-          {/* Today's detailed timeline */}
-          <div className="lg:col-span-2">
-            <Card className="border-primary/20">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  Hoje — {now.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-                </CardTitle>
+          <aside className="xl:sticky xl:top-5 xl:self-start">
+            <Card className="overflow-hidden border-qty/25">
+              <CardHeader className="border-b border-border/60 bg-qty/5 pb-4">
+                <div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-base"><Inbox className="h-4 w-4 text-qty" /> Para planejar</CardTitle><p className="mt-1 text-xs text-muted-foreground">Tarefas sem data aguardando uma decisão.</p></div><Badge variant="secondary">{backlog.length}</Badge></div>
               </CardHeader>
-              <CardContent>
-                {sortedTasks.filter(t => t.dueDate === today).length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8">
-                    <Clock className="h-8 w-8 text-muted-foreground/20 mb-2" />
-                    <p className="text-sm text-muted-foreground">Nenhuma tarefa para hoje</p>
-                    <p className="text-xs text-muted-foreground/50 mt-1">Aproveite o dia!</p>
-                  </div>
-                ) : (
-                  <div className="space-y-1.5">
-                    {sortedTasks.filter(t => t.dueDate === today).map(task => {
-                      const prio = priorityConfig[task.priority];
-                      const isUrgent = task.priority === 'urgent' || isOverdue(task);
-                      return (
-                        <motion.div
-                          key={task.id}
-                          layoutId={`task-${task.id}`}
-                          layout
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: -10 }}
-                          className={cn(
-                            'group flex items-center gap-2.5 rounded-lg border p-2.5 transition-all hover:shadow-md',
-                            task.status === 'done'
-                              ? 'border-money/30 bg-money/5 opacity-60'
-                              : isUrgent
-                              ? 'border-destructive/30 bg-destructive/5'
-                              : 'border-border/50 hover:border-primary/30'
-                          )}
-                        >
-                          {!bulkMode && (
-                            <button
-                              onClick={() => handleToggleDone(task)}
-                              className="mt-0.5 shrink-0"
-                            >
-                              {task.status === 'done' ? (
-                                <CheckCircle2 className="h-4 w-4 text-money" />
-                              ) : (
-                                <Circle className={cn(
-                                  'h-4 w-4',
-                                  isUrgent ? 'text-destructive' : 'text-muted-foreground hover:text-foreground'
-                                )} />
-                              )}
-                            </button>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className={cn(
-                              'text-sm font-medium',
-                              task.status === 'done' && 'line-through text-muted-foreground'
-                            )}>
-                              {task.title}
-                            </p>
-                            <div className="flex flex-wrap items-center gap-1 mt-1">
-                              <Badge
-                                variant="outline"
-                                className={cn('text-xs px-1.5 py-0', prio.textColor)}
-                              >
-                                {prio.label}
-                              </Badge>
-                              {task.projectId && (() => {
-                                const proj = projects.find(p => p.id === task.projectId);
-                                return proj ? (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-xs px-1.5 py-0 border-white/10 bg-white/5 gap-1"
-                                  >
-                                    {proj.emoji || '📁'} {proj.name}
-                                  </Badge>
-                                ) : null;
-                              })()}
-                              {task.dueDate && (
-                                <Badge
-                                  variant="outline"
-                                  className={cn(
-                                    'text-xs px-1.5 py-0 gap-1',
-                                    isOverdue(task) ? 'border-destructive text-destructive' : 'text-muted-foreground'
-                                  )}
-                                >
-                                  <CalendarDays className="h-2.5 w-2.5" />
-                                  {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                                </Badge>
-                              )}
-                              {task.recurring && (
-                                <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
-                                  <Repeat className="h-2.5 w-2.5" /> {RECURRING_LABELS[task.recurringFrequency || 'daily']}
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-                          {!bulkMode && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0"
-                                >
-                                  <MoreHorizontal className="h-3.5 w-3.5" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => openEdit(task)}>
-                                  <Subtitles className="mr-2 h-4 w-4" /> Abrir
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleToggleDone(task)}>
-                                  <CheckCircle2 className="mr-2 h-4 w-4" />
-                                  {task.status === 'done' ? 'Reabrir' : 'Concluir'}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleDuplicate(task)}>
-                                  <Copy className="mr-2 h-4 w-4" /> Duplicar
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => handleDelete(task.id)}
-                                  className="text-destructive"
-                                >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                )}
+              <CardContent className="p-3">
+                <div className="max-h-[34rem] space-y-2 overflow-y-auto pr-1">
+                  {backlog.map(task => plannerCard(task, true))}
+                  {backlog.length === 0 && <div className="flex flex-col items-center py-10 text-center"><CheckCircle2 className="mb-2 h-7 w-7 text-money/70" /><p className="text-sm font-medium">Tudo tem um lugar.</p><p className="mt-1 text-xs text-muted-foreground">A caixa de planejamento está vazia.</p></div>}
+                </div>
+                <Button variant="outline" className="mt-3 w-full gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Capturar tarefa</Button>
               </CardContent>
             </Card>
-          </div>
-
-          {/* Upcoming this week */}
-          <div>
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Flame className="h-4 w-4 text-orange-500" />
-                  Esta Semana
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-1.5">
-                  {weekDays.slice(1, 7).map((day) => {
-                    const dateStr = formatDateISO(day);
-                    if (dateStr === today) return null;
-                    const dayTasks = sortedTasks.filter(t => t.dueDate === dateStr && t.status !== 'done');
-                    if (dayTasks.length === 0) return null;
-                    return (
-                      <div key={dateStr} className="space-y-1">
-                        <div className="flex items-center gap-2 px-1">
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {day.toLocaleDateString('pt-BR', { weekday: 'short' })}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {day.getDate()}
-                          </span>
-                          <Badge variant="secondary" className="ml-auto text-xs h-4">
-                            {dayTasks.length}
-                          </Badge>
-                        </div>
-                        {dayTasks.slice(0, 3).map(task => {
-                          const prio = priorityConfig[task.priority];
-                          const isUrgent = task.priority === 'urgent' || isOverdue(task);
-                          return (
-                            <div
-                              key={task.id}
-                              className="flex items-center gap-1.5 rounded px-1.5 py-1 text-xs cursor-pointer hover:bg-muted/50 transition-colors"
-                              onClick={() => openEdit(task)}
-                            >
-                              <div className={cn(
-                                'h-1.5 w-1.5 rounded-full shrink-0',
-                                isUrgent ? 'bg-destructive' : isOverdue(task) ? 'bg-destructive' : prio.dot
-                              )} />
-                              <span
-                                className={cn(
-                                  'truncate',
-                                  task.status === 'done' && 'line-through text-muted-foreground/60'
-                                )}
-                              >
-                                {task.title}
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                  {weekDays.slice(1, 7).every(day => {
-                    const dateStr = formatDateISO(day);
-                    return dateStr === today || sortedTasks.filter(t => t.dueDate === dateStr && t.status !== 'done').length === 0;
-                  }) && (
-                    <div className="flex flex-col items-center justify-center py-6 text-muted-foreground">
-                      <CheckCircle2 className="h-6 w-6 mb-1 opacity-30" />
-                      <p className="text-xs">Sem tarefas até o fim da semana</p>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          </aside>
         </div>
       </div>
     );
@@ -1345,7 +1151,7 @@ export default function TasksPage() {
         </AnimatePresence>
 
         {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
           {bulkMode ? (
             <>
               <Badge variant="secondary">{selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}</Badge>
@@ -1356,10 +1162,12 @@ export default function TasksPage() {
             </>
           ) : (
             <>
-              <div className="relative flex-1 lg:w-64">
+              <div className="relative w-full shrink-0 sm:flex-1 lg:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar tarefas..." className="pl-9 h-9" />
               </div>
+
+              <div className="flex flex-wrap items-center gap-2">
 
               {/* Filters Panel */}
               <Popover>
@@ -1462,7 +1270,7 @@ export default function TasksPage() {
                           {savedViews.map(v => (
                             <div key={v.id} className="flex items-center justify-between group">
                               <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => applyView(v)}>{v.name}</button>
-                              <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100" onClick={() => deleteView(v.id)}><Trash2 className="h-3 w-3" /></Button>
+                              <Button variant="ghost" size="icon" aria-label={`Excluir visão ${v.name}`} className="h-5 w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={() => deleteView(v.id)}><Trash2 className="h-3 w-3" /></Button>
                             </div>
                           ))}
                         </div>
@@ -1476,24 +1284,25 @@ export default function TasksPage() {
                 <CheckSquare className="mr-1 h-4 w-4" /> Selecionar
               </Button>
 
-              <Button variant="outline" size="sm" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
+              <Button variant="outline" size="sm" aria-label="Editar etapas" title="Editar etapas">
                 <Edit2 className="h-4 w-4" />
               </Button>
 
               <div className="flex rounded-lg border border-border bg-muted/30 p-0.5">
                 {[
-                  { id: 'kanban' as const, icon: Layers },
-                  { id: 'list' as const, icon: Rows3 },
-                  { id: 'week' as const, icon: CalendarDays },
-                  { id: 'calendar' as const, icon: Calendar },
+                  { id: 'kanban' as const, icon: Layers, label: 'Quadro Kanban' },
+                  { id: 'list' as const, icon: Rows3, label: 'Lista' },
+                  { id: 'week' as const, icon: CalendarDays, label: 'Semana' },
+                  { id: 'calendar' as const, icon: Calendar, label: 'Calendário' },
                 ].map(v => (
-                  <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" className="h-8 px-3" onClick={() => setView(v.id)}>
+                  <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" aria-label={`Visualização: ${v.label}`} title={v.label} className="h-8 px-3" onClick={() => setView(v.id)}>
                     <v.icon className="h-4 w-4" />
                   </Button>
                 ))}
               </div>
 
               <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" /> Nova</Button>
+              </div>
             </>
           )}
         </div>

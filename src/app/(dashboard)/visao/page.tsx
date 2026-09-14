@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { PilaresContent } from '@/components/pilares-content';
 
@@ -78,15 +77,17 @@ export default function VisaoPage() {
   // /pilares redirects here with ?tab=pilares (item 9 of the queue —
   // unificar Visão + Pilares, keeping the old route as a bookmark-safe link).
   useEffect(() => {
-    if (searchParams.get('tab') === 'pilares') setTab('pilares');
+    if (searchParams.get('tab') === 'pilares') queueMicrotask(() => setTab('pilares'));
   }, [searchParams]);
 
   useEffect(() => { loadDocuments(); loadProjects(); }, []);
 
   useEffect(() => {
     const doc = documents.find(d => d.section === activeSection);
-    setContent(doc?.content || '');
-    setPreviewMode(false);
+    queueMicrotask(() => {
+      setContent(doc?.content || '');
+      setPreviewMode(false);
+    });
   }, [activeSection, documents]);
 
   async function loadDocuments() {

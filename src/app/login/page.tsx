@@ -3,10 +3,11 @@
 import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'motion/react';
-import { Lock, Sparkles, ArrowRight } from 'lucide-react';
+import { Lock, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { BrandMark } from '@/components/brand-mark';
 
 // Hardcoded so the star layout is identical on server and client render.
 const STARS = [
@@ -75,7 +76,7 @@ function LoginForm() {
       >
         <div className="mb-8 flex flex-col items-center text-center">
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/30 to-accent/20 shadow-[0_0_40px_rgba(139,92,246,0.35)]">
-            <Sparkles className="h-6 w-6 text-primary" />
+            <BrandMark className="h-10 w-10" />
           </div>
           <h1 className="font-display text-2xl font-bold tracking-tight text-white">LIFESYSTEM</h1>
           <p className="mt-1 text-sm text-white/50">Guiado pelos povos das estrelas</p>

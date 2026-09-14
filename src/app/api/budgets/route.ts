@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Budget } from '@/types';
+import { budgetSchema } from '@/lib/financial-validation';
 
 export async function GET() {
   const budgets = await storage.getAll<Budget>('budgets');
@@ -8,7 +9,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const parsed = budgetSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Orçamento inválido.', details: parsed.error.flatten() }, { status: 400 });
+  const body = parsed.data;
   const budget = await storage.create<Budget>('budgets', {
     category: body.category,
     type: body.type,

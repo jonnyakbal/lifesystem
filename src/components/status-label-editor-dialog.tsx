@@ -32,7 +32,7 @@ export function StatusLabelEditorDialog({ open, onOpenChange, scope, statuses, o
     const overrides = loadStatusLabelOverrides(scope);
     const initial: Record<string, string> = {};
     for (const s of statuses) initial[s.id] = overrides[s.id] || s.defaultLabel;
-    setValues(initial);
+    queueMicrotask(() => setValues(initial));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, scope]);
 

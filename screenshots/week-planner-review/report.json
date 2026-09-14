@@ -1,0 +1,14 @@
+[
+  {
+    "mode": "desktop",
+    "errors": [],
+    "overflow": false,
+    "hasPlanningInbox": 1
+  },
+  {
+    "mode": "mobile",
+    "errors": [],
+    "overflow": false,
+    "hasPlanningInbox": 1
+  }
+]

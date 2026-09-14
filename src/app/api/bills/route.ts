@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
+import { billSchema } from '@/lib/financial-validation';
 
 export interface Bill {
   id: string;
@@ -31,7 +32,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const parsed = billSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Fatura inválida.', details: parsed.error.flatten() }, { status: 400 });
+  const body = parsed.data;
   const bill = await storage.create<Bill>('bills', {
     cardId: body.cardId,
     month: body.month,

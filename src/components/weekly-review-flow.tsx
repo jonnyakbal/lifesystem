@@ -57,7 +57,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
 
   useEffect(() => {
     loadAll();
-    setLastReview(localStorage.getItem(LAST_REVIEW_KEY));
+    queueMicrotask(() => setLastReview(localStorage.getItem(LAST_REVIEW_KEY)));
   }, []);
 
   async function loadAll() {

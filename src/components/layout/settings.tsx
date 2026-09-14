@@ -1,41 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Sun, Moon, Download, Upload, Settings, X } from 'lucide-react';
-import { cn, todayStr } from '@/lib/utils';
+import { Sun, Moon, Download, Upload, Settings } from 'lucide-react';
+import { todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 type Theme = 'dark' | 'light' | 'system';
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  root.classList.remove('light', 'dark');
+  if (theme === 'system') {
+    root.classList.add(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    return;
+  }
+  root.classList.add(theme);
+}
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>('dark');
 
   useEffect(() => {
     const stored = localStorage.getItem('lifesystem-theme') as Theme || 'dark';
-    setThemeState(stored);
     applyTheme(stored);
+    queueMicrotask(() => setThemeState(stored));
   }, []);
 
   function setTheme(t: Theme) {
     setThemeState(t);
     localStorage.setItem('lifesystem-theme', t);
     applyTheme(t);
-  }
-
-  function applyTheme(t: Theme) {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    if (t === 'system') {
-      const sys = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-      root.classList.add(sys);
-    } else {
-      root.classList.add(t);
-    }
   }
 
   return { theme, setTheme };

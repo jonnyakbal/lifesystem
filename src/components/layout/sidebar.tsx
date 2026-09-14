@@ -2,20 +2,20 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'motion/react';
+import { usePathname, useRouter } from 'next/navigation';
+import { motion } from 'motion/react';
 import {
   Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
-  FileText, Command, Sparkles, Menu, ChevronLeft, ChevronRight, Bell, Settings,
+  FileText, Sparkles, Menu, ChevronLeft, ChevronRight, Settings,
   Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText, Bot, Award
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { Badge } from '@/components/ui/badge';
 import { SettingsDialog } from './settings';
 import { NotificationCenter } from '@/components/notification-center';
+import { BrandMark } from '@/components/brand-mark';
 
 // Grouped by workflow stage instead of one flat list — the menu grew to 13
 // items across several sessions and started reading as an undifferentiated
@@ -48,14 +48,13 @@ const navGroups: { section: string | null; items: { name: string; href: string; 
   ] },
 ];
 
-const navigation = navGroups.flatMap(g => g.items);
-
 function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
   collapsed: boolean;
   onToggleCollapse: () => void;
   onNavigate?: () => void;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -80,7 +79,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
           whileHover={{ scale: 1.08, rotate: -4 }}
           transition={{ type: 'spring', stiffness: 400, damping: 17 }}
         >
-          <Command className="h-4 w-4 text-primary" />
+          <BrandMark className="h-8 w-8" />
         </motion.div>
         {!collapsed && (
           <motion.div
@@ -121,6 +120,8 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
             <Link
               key={item.name}
               href={item.href}
+              aria-current={isActive ? 'page' : undefined}
+              aria-label={collapsed ? item.name : undefined}
               onClick={onNavigate}
               className={cn(
                 'group relative flex items-center rounded-lg text-sm font-medium transition-colors',
@@ -246,7 +247,7 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
                 aria-label="Sair"
                 onClick={async () => {
                   await fetch('/api/logout', { method: 'POST' });
-                  window.location.href = '/login';
+                  router.push('/login');
                 }}
               >
                 <LogOut className="h-3.5 w-3.5 text-muted-foreground" />
@@ -278,12 +279,15 @@ export function Sidebar() {
   const [theme, setTheme] = useState<'light' | 'dark'>('dark');
 
   useEffect(() => {
-    const stored = localStorage.getItem('lifesystem-theme') as 'light' | 'dark' | null;
-    if (stored) {
-      setTheme(stored);
-      document.documentElement.classList.remove('light', 'dark');
-      document.documentElement.classList.add(stored);
-    }
+    const syncTheme = () => setTheme(document.documentElement.classList.contains('light') ? 'light' : 'dark');
+    const stored = localStorage.getItem('lifesystem-theme');
+    const resolved = stored === 'light' || (stored === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(resolved);
+    queueMicrotask(syncTheme);
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
   }, []);
 
   function toggleTheme() {
@@ -309,7 +313,7 @@ export function Sidebar() {
           the actions that don't fit in the bottom nav's 5 thumb-reach slots. */}
       <div className="fixed left-0 right-0 top-0 z-50 flex h-14 items-center gap-3 border-b border-border bg-background/80 backdrop-blur-xl px-4 lg:hidden">
         <div className="flex items-center gap-2">
-          <Command className="h-4 w-4 text-primary" />
+          <BrandMark className="h-6 w-6" />
           <span className="font-display text-sm font-bold">LIFESYSTEM</span>
         </div>
          <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" aria-label="Alternar tema" onClick={toggleTheme}>
@@ -328,7 +332,7 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className="relative flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5"
+              className="relative flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5"
             >
               {isActive && (
                 <motion.span
@@ -344,7 +348,7 @@ export function Sidebar() {
         })}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetTrigger asChild>
-            <button className="flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
+            <button aria-label="Abrir mais opções de navegação" className="flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 py-1.5">
               <Menu className="h-5 w-5 text-muted-foreground" />
               <span className="text-[10px] font-medium text-muted-foreground">Mais</span>
             </button>

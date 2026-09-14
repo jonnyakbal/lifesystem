@@ -1,0 +1,23 @@
+/* Solar identity: decoration belongs behind content, never behind form text. */
+.astral-workspace {
+  min-height: 100dvh;
+  background-image: radial-gradient(ellipse at 90% 0%, #8b5cf610, transparent 48%), radial-gradient(ellipse at 20% 100%, #67e8f906, transparent 42%);
+}
+.astral-card {
+  box-shadow: 0 1px 0 #ffffff05 inset, 0 8px 28px -24px #0009;
+}
+.light .astral-card { box-shadow: 0 5px 20px -16px #312e8133; }
+.light .glass, .light .glass-strong {
+  background: #ffffffed;
+  border-color: var(--color-border);
+}
+.light .zebra tbody tr:nth-child(even) { background: #f1f2fa; }
+.light .zebra tbody tr { border-color: var(--color-border); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

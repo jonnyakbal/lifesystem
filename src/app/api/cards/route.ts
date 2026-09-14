@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
+import { cardSchema } from '@/lib/financial-validation';
 
 export interface Card {
   id: string;
@@ -24,7 +25,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const parsed = cardSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Cartão inválido.' }, { status: 400 });
+  const body = parsed.data;
   const card = await storage.create<Card>('cards', {
     name: body.name,
     type: body.type,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
+import { accountSchema } from '@/lib/financial-validation';
 
 export interface Account {
   id: string;
@@ -23,7 +24,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
+  const parsed = accountSchema.safeParse(await request.json());
+  if (!parsed.success) return NextResponse.json({ error: 'Conta inválida.', details: parsed.error.flatten() }, { status: 400 });
+  const body = parsed.data;
   const account = await storage.create<Account>('accounts', {
     name: body.name,
     type: body.type,

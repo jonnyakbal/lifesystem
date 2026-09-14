@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import {
-  Search, Inbox, Target, Layers, FolderKanban, CheckSquare,
+  Inbox, Target, Layers, FolderKanban, CheckSquare,
   BarChart3, Wallet, BookOpen, FileText, Plus, ArrowRight, Command,
-  Zap, Hash, Calendar, TrendingUp, Loader2, ListChecks, NotebookText, Wand2, ScrollText, Bot, Award
+  Zap, Calendar, TrendingUp, Loader2, ListChecks, NotebookText, Wand2, ScrollText, Bot, Award
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -189,21 +189,11 @@ const ENTITY_CONFIG: Record<string, {
   },
 };
 
-const ENTITY_SLUG_MAP: Record<string, string> = {
-  tarefas: 'tasks',
-  inbox: 'captures',
-  conteudo: 'content',
-  diario: 'journal',
-  projetos: 'projects',
-  financeiro: 'financial',
-};
-
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [quickCapture, setQuickCapture] = useState('');
-  const [isCapturing, setIsCapturing] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -270,7 +260,7 @@ export function CommandPalette() {
       return;
     }
 
-    setIsSearching(true);
+    queueMicrotask(() => setIsSearching(true));
     setHasSearched(true);
 
     try {
@@ -325,13 +315,15 @@ export function CommandPalette() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (!query.trim()) {
-      setSearchResults([]);
-      setHasSearched(false);
-      setIsSearching(false);
+      queueMicrotask(() => {
+        setSearchResults([]);
+        setHasSearched(false);
+        setIsSearching(false);
+      });
       return;
     }
 
-    setIsSearching(true);
+    queueMicrotask(() => setIsSearching(true));
     debounceRef.current = setTimeout(() => {
       performSearch(query);
     }, 300);
@@ -341,22 +333,18 @@ export function CommandPalette() {
     };
   }, [query]);
 
-  const allItems = hasSearched
-    ? searchResults
-    : [];
+  const allItems = useMemo(() => hasSearched ? searchResults : [], [hasSearched, searchResults]);
 
   const totalItems = allItems.length + filteredCommands.length;
 
   async function handleQuickCapture() {
     if (!quickCapture.trim()) return;
-    setIsCapturing(true);
     const type = quickCapture.match(/^https?:\/\//) ? 'link' : 'text';
     await fetch('/api/captures', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content: quickCapture, type }),
     });
-    setIsCapturing(false);
     setQuickCapture('');
     toast.success('Captura salva!');
   }
@@ -377,7 +365,7 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open]);
 
-  useEffect(() => { setSelectedIndex(0); }, [query]);
+  useEffect(() => { queueMicrotask(() => setSelectedIndex(0)); }, [query]);
 
   useEffect(() => {
     if (!open) return;

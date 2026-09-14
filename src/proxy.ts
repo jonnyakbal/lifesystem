@@ -10,7 +10,7 @@ import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 // gate below doesn't apply to it.
 const PUBLIC_PATHS = ['/login', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions', '/api/ai/v1/models'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
     return NextResponse.next();
   }
@@ -68,5 +68,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/((?!_next/static|_next/image|favicon.ico|covers/).*)',
+  matcher: '/((?!_next/static|_next/image|favicon.ico|icons/|brand/|manifest.json|covers/).*)',
 };

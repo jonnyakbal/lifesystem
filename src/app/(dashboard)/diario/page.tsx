@@ -2,13 +2,11 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { BookOpen, Save, Sparkles, ChevronLeft, ChevronRight, Calendar, Smile, Meh, Frown, Heart, Zap } from 'lucide-react';
+import { Save, Sparkles, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { NotionEditor } from '@/components/notion-editor';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 
@@ -73,13 +71,13 @@ export default function DiarioPage() {
   useEffect(() => { loadData(); }, []);
 
   useEffect(() => {
-    if (selectedDate !== lastDate) {
+    if (selectedDate !== lastDate) queueMicrotask(() => {
       setContent(existingEntry?.content || '');
       setGratitude(existingEntry?.gratitude || '');
       setMood(existingEntry?.mood || '');
       setPillarChecks(existingEntry?.pillarChecks || {});
       setLastDate(selectedDate);
-    }
+    });
   }, [selectedDate, existingEntry, lastDate]);
 
   async function loadData() {

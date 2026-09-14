@@ -134,7 +134,7 @@ export default function DiarioBordoPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="max-w-3xl p-4 lg:p-8">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-tight">

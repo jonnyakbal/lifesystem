@@ -22,6 +22,13 @@ export interface LinkableItem {
   subtitle?: string;
 }
 
+interface LinkableRecord {
+  id: string;
+  title?: string;
+  name?: string;
+  content?: string;
+}
+
 const TYPE_CONFIG: Record<LinkableType, { label: string; icon: typeof CheckSquare; endpoint: string; color: string }> = {
   task: { label: 'Tarefa', icon: CheckSquare, endpoint: '/api/tasks', color: 'text-blue-500' },
   project: { label: 'Projeto', icon: FolderKanban, endpoint: '/api/projects', color: 'text-green-500' },
@@ -29,9 +36,9 @@ const TYPE_CONFIG: Record<LinkableType, { label: string; icon: typeof CheckSquar
   capture: { label: 'Captura', icon: Inbox, endpoint: '/api/captures', color: 'text-yellow-500' },
 };
 
-function titleOf(type: LinkableType, item: any): string {
+function titleOf(type: LinkableType, item: LinkableRecord): string {
   if (type === 'task' || type === 'project' || type === 'content') return item.title || item.name || 'Sem título';
-  if (type === 'capture') return item.title || (item.content as string)?.replace(/<[^>]*>/g, '').slice(0, 60) || 'Sem título';
+  if (type === 'capture') return item.title || item.content?.replace(/<[^>]*>/g, '').slice(0, 60) || 'Sem título';
   return 'Sem título';
 }
 
@@ -53,7 +60,7 @@ interface LinkedItemsPanelProps {
 }
 
 export function LinkedItemsPanel({ linkedIds, onChange, linkableTypes, backlinks = [], excludeId, className, readOnly }: LinkedItemsPanelProps) {
-  const [cache, setCache] = useState<Record<LinkableType, any[]>>({} as any);
+  const [cache, setCache] = useState<Partial<Record<LinkableType, LinkableRecord[]>>>({});
   const [loaded, setLoaded] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -64,8 +71,8 @@ export function LinkedItemsPanel({ linkedIds, onChange, linkableTypes, backlinks
       linkableTypes.map((t) => fetch(TYPE_CONFIG[t].endpoint).then((r) => r.json()).then((data) => [t, data] as const))
     ).then((entries) => {
       if (cancelled) return;
-      const next = {} as Record<LinkableType, any[]>;
-      for (const [t, data] of entries) next[t] = data;
+      const next: Partial<Record<LinkableType, LinkableRecord[]>> = {};
+      for (const [t, data] of entries) next[t] = Array.isArray(data) ? data as LinkableRecord[] : [];
       setCache(next);
       setLoaded(true);
     });
@@ -181,7 +188,7 @@ export function LinkedItemsPanel({ linkedIds, onChange, linkableTypes, backlinks
                 >
                   <Icon className={cn('h-3 w-3', TYPE_CONFIG[item.type].color)} />
                   <span className="max-w-[160px] truncate">{item.title}</span>
-                  <button type="button" onClick={() => removeLink(item)} className="opacity-40 hover:opacity-100">
+                  <button type="button" onClick={() => removeLink(item)} aria-label={`Remover vínculo com ${item.title}`} className="opacity-40 hover:opacity-100">
                     <X className="h-3 w-3" />
                   </button>
                 </span>

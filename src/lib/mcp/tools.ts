@@ -424,4 +424,89 @@ export function registerAllTools(server: McpServer) {
       notes: input.notes,
     }),
   });
+
+  // Financial control — the web UI exposes these as separate collections;
+  // keeping them separate in MCP lets Hermes manage the same records without
+  // inventing a second financial model.
+  registerCrudTools(server, {
+    entity: 'financial_entry', collection: 'financial', plural: 'financial_entries',
+    listFilters: ['type', 'category', 'status', 'accountId', 'cardId'],
+    createShape: {
+      type: z.enum(['income', 'expense_fixed', 'expense_variable']).describe('Tipo do lançamento'),
+      category: z.string().describe('Categoria financeira'),
+      description: z.string().optional(), amount: z.number().positive(), date: z.string().describe('Formato YYYY-MM-DD'),
+      recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(),
+      accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
+      status: z.enum(['pending', 'paid', 'overdue']).optional(), dueDate: z.string().optional(), paidDate: z.string().optional(),
+    },
+    updateShape: {
+      type: z.enum(['income', 'expense_fixed', 'expense_variable']).optional(), category: z.string().optional(), description: z.string().optional(), amount: z.number().positive().optional(), date: z.string().optional(),
+      recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(), status: z.enum(['pending', 'paid', 'overdue']).optional(), dueDate: z.string().optional(), paidDate: z.string().optional(),
+    },
+    buildCreatePayload: (input) => ({ ...input, tags: input.tags || [], status: input.status || 'pending' }),
+  });
+
+  registerCrudTools(server, {
+    entity: 'account', collection: 'accounts', plural: 'accounts', listFilters: ['type', 'isActive'],
+    createShape: { name: z.string(), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() },
+    updateShape: { name: z.string().optional(), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']).optional(), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() },
+    buildCreatePayload: (input) => ({ ...input, balance: input.balance || 0, color: input.color || '#64748b', icon: input.icon || '🏦', isActive: input.isActive !== false, isDefault: input.isDefault || false }),
+  });
+
+  registerCrudTools(server, {
+    entity: 'budget', collection: 'budgets', plural: 'budgets', listFilters: ['category', 'type', 'month'],
+    createShape: { category: z.string(), type: z.enum(['expense_fixed', 'expense_variable']), monthlyLimit: z.number().nonnegative(), spent: z.number().nonnegative().optional(), month: z.string().describe('Formato YYYY-MM') },
+    updateShape: { category: z.string().optional(), type: z.enum(['expense_fixed', 'expense_variable']).optional(), monthlyLimit: z.number().nonnegative().optional(), spent: z.number().nonnegative().optional(), month: z.string().optional() },
+    buildCreatePayload: (input) => ({ ...input, spent: input.spent || 0 }),
+  });
+
+  registerCrudTools(server, {
+    entity: 'card', collection: 'cards', plural: 'cards', listFilters: ['type', 'isActive', 'accountId'],
+    createShape: { name: z.string(), type: z.enum(['credit', 'debit', 'multiple']), lastDigits: z.string(), brand: z.string(), limit: z.number().nonnegative().optional(), used: z.number().nonnegative().optional(), closingDay: z.number().int().min(1).max(31).optional(), dueDay: z.number().int().min(1).max(31).optional(), color: z.string().optional(), accountId: z.string().optional(), isActive: z.boolean().optional() },
+    updateShape: { name: z.string().optional(), type: z.enum(['credit', 'debit', 'multiple']).optional(), lastDigits: z.string().optional(), brand: z.string().optional(), limit: z.number().nonnegative().optional(), used: z.number().nonnegative().optional(), closingDay: z.number().int().min(1).max(31).optional(), dueDay: z.number().int().min(1).max(31).optional(), color: z.string().optional(), accountId: z.string().optional(), isActive: z.boolean().optional() },
+    buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', isActive: input.isActive !== false }),
+  });
+
+  registerCrudTools(server, {
+    entity: 'payee', collection: 'payees', plural: 'payees', listFilters: ['type', 'category'],
+    createShape: { name: z.string(), type: z.enum(['person', 'company', 'government', 'other']), document: z.string().optional(), email: z.string().optional(), phone: z.string().optional(), category: z.string().optional(), notes: z.string().optional(), color: z.string().optional(), icon: z.string().optional() },
+    updateShape: { name: z.string().optional(), type: z.enum(['person', 'company', 'government', 'other']).optional(), document: z.string().optional(), email: z.string().optional(), phone: z.string().optional(), category: z.string().optional(), notes: z.string().optional(), color: z.string().optional(), icon: z.string().optional() },
+    buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', icon: input.icon || '👤' }),
+  });
+
+  registerCrudTools(server, {
+    entity: 'bill', collection: 'bills', plural: 'bills', listFilters: ['cardId', 'month', 'status'],
+    createShape: {
+      cardId: z.string(), month: z.string().describe('Formato YYYY-MM'), amount: z.number().nonnegative(), paidAmount: z.number().nonnegative().optional(),
+      status: z.enum(['open', 'paid', 'overdue', 'partial', 'closed']).optional(), dueDate: z.string(), closeDate: z.string(), description: z.string().optional(),
+      items: z.array(z.object({ id: z.string(), description: z.string(), amount: z.number().nonnegative(), date: z.string(), category: z.string().optional(), installments: z.object({ current: z.number().int().positive(), total: z.number().int().positive() }).optional() })).optional(),
+    },
+    updateShape: { cardId: z.string().optional(), month: z.string().optional(), amount: z.number().nonnegative().optional(), paidAmount: z.number().nonnegative().optional(), status: z.enum(['open', 'paid', 'overdue', 'partial', 'closed']).optional(), dueDate: z.string().optional(), closeDate: z.string().optional(), description: z.string().optional(), items: z.array(z.object({ id: z.string(), description: z.string(), amount: z.number().nonnegative(), date: z.string(), category: z.string().optional() })).optional() },
+    buildCreatePayload: (input) => ({ ...input, paidAmount: input.paidAmount || 0, status: input.status || 'open', items: input.items || [] }),
+  });
+
+  registerCrudTools(server, {
+    entity: 'financial_goal', collection: 'financial-goals', plural: 'financial_goals', listFilters: ['status'],
+    createShape: { name: z.string(), description: z.string().optional(), targetAmount: z.number().positive(), currentAmount: z.number().nonnegative().optional(), deadline: z.string().optional(), icon: z.string().optional(), color: z.string().optional(), status: z.enum(['active', 'completed', 'paused']).optional() },
+    updateShape: { name: z.string().optional(), description: z.string().optional(), targetAmount: z.number().positive().optional(), currentAmount: z.number().nonnegative().optional(), deadline: z.string().optional(), icon: z.string().optional(), color: z.string().optional(), status: z.enum(['active', 'completed', 'paused']).optional() },
+    buildCreatePayload: (input) => ({ ...input, currentAmount: input.currentAmount || 0, icon: input.icon || '🎯', color: input.color || '#eab308', status: input.status || 'active' }),
+  });
+
+  server.registerTool('get_financial_summary', {
+    title: 'Resumo financeiro',
+    description: 'Calcula receitas, despesas e saldo dos lançamentos financeiros de um mês (YYYY-MM).',
+    inputSchema: { month: z.string().describe('Mês no formato YYYY-MM') },
+  }, logged('get_financial_summary', async ({ month }: { month: string }) => {
+    const entries = await storage.getAll<{ type: string; amount: number; date: string; status?: string }>('financial');
+    const filtered = entries.filter((entry) => entry.date.startsWith(month));
+    const realized = filtered.filter((entry) => entry.status === 'paid');
+    const projected = filtered.filter((entry) => entry.status !== 'paid');
+    const totals = (items: typeof filtered) => ({
+      income: items.filter((entry) => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0),
+      expenses: items.filter((entry) => entry.type !== 'income').reduce((sum, entry) => sum + entry.amount, 0),
+    });
+    const realizedTotals = totals(realized);
+    const projectedTotals = totals(projected);
+    return textResult({ month, realized: { ...realizedTotals, balance: realizedTotals.income - realizedTotals.expenses }, projected: { ...projectedTotals, balance: projectedTotals.income - projectedTotals.expenses }, entries: filtered.length });
+  }));
 }

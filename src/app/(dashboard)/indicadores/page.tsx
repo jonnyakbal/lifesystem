@@ -46,7 +46,7 @@ function Sparkline({ data, className, color }: { data: number[]; className?: str
   const width = 100;
   const height = 32;
   const padding = 2;
-  const strokeColor = color || "hsl(var(--primary))";
+  const strokeColor = color || "var(--color-primary)";
 
   const points = data.map((val, i) => {
     const x = padding + (i / (data.length - 1)) * (width - padding * 2);

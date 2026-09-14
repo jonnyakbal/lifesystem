@@ -378,18 +378,18 @@ export default function EditaisPage() {
 
   return (
     <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
-      <motion.div variants={fade} className="mb-6 flex items-center justify-between">
+      <motion.div variants={fade} className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-tight">
             <Award className="h-7 w-7 text-primary" /> Editais Culturais
           </h1>
           <p className="text-muted-foreground">Radar de oportunidades — descubra, analise, inscreva-se.</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={openCockpit} title="Cockpit da automação">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" size="icon" onClick={openCockpit} title="Cockpit da automação" aria-label="Cockpit da automação">
             <SlidersHorizontal className="h-4 w-4" />
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
+          <Button variant="outline" size="icon" onClick={() => setStageDialogOpen(true)} title="Editar etapas" aria-label="Editar etapas">
             <Edit2 className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={buscarEditais} className="gap-1.5">

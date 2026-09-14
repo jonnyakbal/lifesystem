@@ -347,7 +347,7 @@ export default function FinanceiroPage() {
     .map(budget => ({
       ...budget,
       spent: entries
-        .filter(entry => entry.type === budget.type && entry.category === budget.category && entry.date.startsWith(budget.month))
+        .filter(entry => entry.type === budget.type && entry.category === budget.category && entry.date.startsWith(budget.month) && entry.status === 'paid')
         .reduce((total, entry) => total + entry.amount, 0),
     })), [budgets, entries, currentMonth]);
 

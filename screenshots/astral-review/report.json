@@ -1,0 +1,258 @@
+[
+  {
+    "route": "/",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Command Center",
+    "text": 780,
+    "errors": []
+  },
+  {
+    "route": "/inbox",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": " INBOX",
+    "text": 218,
+    "errors": []
+  },
+  {
+    "route": "/hoje",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Hoje",
+    "text": 277,
+    "errors": []
+  },
+  {
+    "route": "/planejar",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Planejar",
+    "text": 208,
+    "errors": []
+  },
+  {
+    "route": "/visao",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Plano de Voo",
+    "text": 1362,
+    "errors": []
+  },
+  {
+    "route": "/projetos",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Projetos",
+    "text": 1576,
+    "errors": []
+  },
+  {
+    "route": "/tarefas",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Tarefas",
+    "text": 2730,
+    "errors": []
+  },
+  {
+    "route": "/conteudo",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Conteúdo ARCO LABS",
+    "text": 1433,
+    "errors": []
+  },
+  {
+    "route": "/indicadores",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Metas",
+    "text": 570,
+    "errors": []
+  },
+  {
+    "route": "/editais",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": " Editais Culturais",
+    "text": 193,
+    "errors": []
+  },
+  {
+    "route": "/financeiro",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Central Financeira",
+    "text": 1418,
+    "errors": []
+  },
+  {
+    "route": "/diario",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Diário",
+    "text": 562,
+    "errors": []
+  },
+  {
+    "route": "/diario-bordo",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": " Diário de Bordo",
+    "text": 3747,
+    "errors": []
+  },
+  {
+    "route": "/hermes",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": " Hermes",
+    "text": 538,
+    "errors": []
+  },
+  {
+    "route": "/notas",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": " Notas",
+    "text": 210,
+    "errors": []
+  },
+  {
+    "route": "/revisao",
+    "mode": "desktop-dark",
+    "overflow": false,
+    "heading": "Revisão Semanal",
+    "text": 202,
+    "errors": []
+  },
+  {
+    "route": "/",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Command Center",
+    "text": 780,
+    "errors": []
+  },
+  {
+    "route": "/inbox",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": " INBOX",
+    "text": 218,
+    "errors": []
+  },
+  {
+    "route": "/hoje",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Hoje",
+    "text": 277,
+    "errors": []
+  },
+  {
+    "route": "/planejar",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Planejar",
+    "text": 208,
+    "errors": []
+  },
+  {
+    "route": "/visao",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Plano de Voo",
+    "text": 1362,
+    "errors": []
+  },
+  {
+    "route": "/projetos",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Projetos",
+    "text": 1576,
+    "errors": []
+  },
+  {
+    "route": "/tarefas",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Tarefas",
+    "text": 2730,
+    "errors": []
+  },
+  {
+    "route": "/conteudo",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Conteúdo ARCO LABS",
+    "text": 1433,
+    "errors": []
+  },
+  {
+    "route": "/indicadores",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Metas",
+    "text": 570,
+    "errors": []
+  },
+  {
+    "route": "/editais",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": " Editais Culturais",
+    "text": 193,
+    "errors": []
+  },
+  {
+    "route": "/financeiro",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Central Financeira",
+    "text": 1418,
+    "errors": []
+  },
+  {
+    "route": "/diario",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Diário",
+    "text": 562,
+    "errors": []
+  },
+  {
+    "route": "/diario-bordo",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": " Diário de Bordo",
+    "text": 3747,
+    "errors": []
+  },
+  {
+    "route": "/hermes",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": " Hermes",
+    "text": 538,
+    "errors": []
+  },
+  {
+    "route": "/notas",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": " Notas",
+    "text": 210,
+    "errors": []
+  },
+  {
+    "route": "/revisao",
+    "mode": "mobile-light",
+    "overflow": false,
+    "heading": "Revisão Semanal",
+    "text": 202,
+    "errors": []
+  }
+]

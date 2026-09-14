@@ -41,6 +41,7 @@ test.describe('Tasks API', () => {
     const tasks = await response.json();
     expect(Array.isArray(tasks)).toBeTruthy();
     expect(tasks.length).toBe(2);
+    await Promise.all(tasks.map((task: { id: string }) => request.delete(`/api/tasks/${task.id}`)));
   });
 
   test('GET /api/tasks/[id] returns task', async ({ request }) => {
@@ -59,6 +60,29 @@ test.describe('Tasks API', () => {
     const task = await response.json();
     expect(task.title).toBe('Updated Task');
     expect(task.status).toBe('doing');
+  });
+
+  test('PATCH /api/tasks/[id] accepts a configured custom stage', async ({ request }) => {
+    const response = await request.patch(`/api/tasks/${createdTaskId}`, {
+      data: { status: 'prioritized' },
+    });
+    expect(response.ok()).toBeTruthy();
+    const task = await response.json();
+    expect(task.status).toBe('prioritized');
+  });
+
+  test('PATCH /api/tasks/[id] can return a scheduled task to planning', async ({ request }) => {
+    const scheduled = await request.patch(`/api/tasks/${createdTaskId}`, {
+      data: { dueDate: '2026-09-15' },
+    });
+    expect(scheduled.ok()).toBeTruthy();
+    expect((await scheduled.json()).dueDate).toBe('2026-09-15');
+
+    const unscheduled = await request.patch(`/api/tasks/${createdTaskId}`, {
+      data: { dueDate: null },
+    });
+    expect(unscheduled.ok()).toBeTruthy();
+    expect((await unscheduled.json()).dueDate).toBeUndefined();
   });
 
   test('DELETE /api/tasks/[id] deletes task', async ({ request }) => {

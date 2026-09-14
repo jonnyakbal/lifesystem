@@ -39,17 +39,12 @@ export default function HermesPage() {
   const [logs, setLogs] = useState<McpCallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
-  const [mcpUrl, setMcpUrl] = useState('');
+  const mcpUrl = typeof window === 'undefined' ? '' : `${window.location.origin}/api/mcp`;
 
   const [model, setModel] = useState(MODELS[0]);
   const [prompt, setPrompt] = useState('');
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ text: string; usage?: { total_tokens?: number } } | null>(null);
-
-  useEffect(() => {
-    setMcpUrl(`${window.location.origin}/api/mcp`);
-    loadAll();
-  }, []);
 
   async function loadAll() {
     try {
@@ -65,6 +60,12 @@ export default function HermesPage() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    // Defer the initial request one microtask so the effect stays a
+    // subscription boundary rather than synchronously cascading state.
+    queueMicrotask(() => { void loadAll(); });
+  }, []); // loadAll is intentionally stable: it has no render-time dependencies.
 
   function copyUrl() {
     navigator.clipboard.writeText(mcpUrl);
@@ -92,7 +93,7 @@ export default function HermesPage() {
   }
 
   return (
-    <motion.div className="p-8 max-w-3xl" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+    <motion.div className="max-w-3xl p-4 lg:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
       <div className="mb-8">
         <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-tight">
           <Bot className="h-7 w-7 text-primary" /> Hermes
@@ -122,7 +123,7 @@ export default function HermesPage() {
                 <span className="text-xs text-muted-foreground">Endpoint pra configurar no Hermes</span>
                 <div className="flex gap-2">
                   <code className="flex-1 truncate rounded-md border bg-muted/40 px-3 py-2 text-xs">{mcpUrl}</code>
-                  <Button variant="outline" size="icon" onClick={copyUrl}>
+                  <Button variant="outline" size="icon" aria-label="Copiar endpoint MCP" onClick={copyUrl}>
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>

@@ -2,9 +2,9 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(256 38% 5%);
+  --color-background: #070a1c;
   --color-foreground: hsl(250 30% 96%);
-  --color-card: hsl(255 32% 9%);
+  --color-card: #10162c;
   --color-card-foreground: hsl(250 30% 96%);
   --color-popover: hsl(256 38% 7%);
   --color-popover-foreground: hsl(250 30% 96%);
@@ -27,7 +27,9 @@
   --color-critical: hsl(350 88% 64%);
 
   --font-display: 'Fraunces', Georgia, serif;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  /* Space Grotesk is loaded above; keeping the token aligned avoids a silent
+     fallback to the system font and preserves the intended visual rhythm. */
+  --font-sans: 'Space Grotesk', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
   --radius: 0.85rem;
@@ -94,6 +96,10 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 3px;
+  }
 }
 
 /* Custom scrollbar */
@@ -107,12 +113,12 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
+  background: var(--color-border);
   border-radius: 8px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground));
+  background: var(--color-muted-foreground);
 }
 
 /* Utility classes for fonts */
@@ -198,8 +204,8 @@
 
 /* Pulse glow for status dots */
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
-  50% { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-primary) 40%, transparent); }
+  50% { box-shadow: 0 0 0 6px transparent; }
 }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
