@@ -129,7 +129,7 @@ data/                        # JSON "banco" (15 coleções)
 
 `/api/mcp` expõe CRUD completo via [Model Context Protocol](https://modelcontextprotocol.io) pra qualquer agente de IA que suporte MCP.
 
-**26 ferramentas disponíveis:**
+**Ferramentas disponíveis:**
 - Tasks: list, create, update, delete
 - Captures: list, create, update, delete
 - Projects: list, create, update, delete
@@ -137,10 +137,12 @@ data/                        # JSON "banco" (15 coleções)
 - Indicators: list, create, update, delete
 - Content: list, create, update, delete
 - Log entries: list, create, update, delete
-- Vision: get, update
-- Wiki collections: list, create, update, delete
+- Editais: list, create, update, delete
+- Financeiro: lançamentos, contas, orçamentos, cartões, favorecidos, faturas, metas e resumo mensal
 
 **Autenticação:** `Authorization: Bearer <MCP_API_KEY>` (separado do login web)
+
+Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-leitura","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","financial:read"]}]`. Escopos seguem `domínio:read` ou `domínio:write`; `domínio:*` permite ambos. A chave existente em `MCP_API_KEY` permanece compatível e mantém acesso amplo até a migração do cliente.
 
 **Para conectar o Hermes Agent:**
 1. Configure um MCP server apontando pra `https://lifesystem.oj0nny.com/api/mcp`
@@ -155,13 +157,15 @@ Em produção, configure `LIFESYSTEM_DATA_DIR` para um diretório persistente fo
 
 Antes da primeira troca, copie os dados atuais para o diretório persistente e valide permissões de leitura e escrita. Faça também um backup antes de cada deploy.
 
+O deploy da Hostinger faz uma cópia antes do build (`prebuild`), quando `LIFESYSTEM_DATA_DIR` está disponível no ambiente de compilação. Há também um backup diário às 03:00 configurado na conta de hospedagem, como ponto de recuperação independente. As cópias ficam em `lifesystem-backups`, fora das versões de deploy. Em desenvolvimento/CI sem diretório persistente, o hook informa que foi ignorado.
+
 Backup manual:
 
 ```bash
 npm run backup:data
 ```
 
-Use `LIFESYSTEM_BACKUP_DIR` para colocar os backups fora do checkout. O backup deve ser executado antes de cada deploy e incluído na rotina de snapshots da hospedagem.
+Use `LIFESYSTEM_BACKUP_DIR` para escolher outro destino fora do checkout. Confira o log do build para validar o backup pré-deploy; o backup diário não substitui essa verificação.
 
 **Coleções:** tasks, captures, projects, pillars, indicators, content, financial, accounts, budgets, bills, cards, payees, journal, vision, wiki-collections, log-entries
 
@@ -190,7 +194,7 @@ npm run test:report
 - [ ] Subtarefas
 - [ ] Gráficos de indicadores
 - [ ] Calendário integrado (Google Calendar)
-- [ ] Rate limiting no login e MCP
+- [x] Rate limiting no login e MCP
 
 ## Licença
 

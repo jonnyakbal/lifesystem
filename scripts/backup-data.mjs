@@ -2,7 +2,10 @@ import { cp, mkdir, readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const source = path.resolve(process.env.LIFESYSTEM_DATA_DIR || 'data');
-const destinationRoot = path.resolve(process.env.LIFESYSTEM_BACKUP_DIR || 'data/backups');
+const defaultBackupRoot = process.env.LIFESYSTEM_DATA_DIR
+  ? path.join(path.dirname(source), 'lifesystem-backups')
+  : 'data/backups';
+const destinationRoot = path.resolve(process.env.LIFESYSTEM_BACKUP_DIR || defaultBackupRoot);
 const stamp = new Date().toISOString().replaceAll(':', '-').replaceAll('.', '-');
 const destination = path.join(destinationRoot, stamp);
 

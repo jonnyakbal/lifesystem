@@ -1,8 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { registerAllTools } from './tools';
 
-export function createLifesystemMcpServer(): McpServer {
+export function createLifesystemMcpServer(scopes: string[] = ['*']): McpServer {
   const server = new McpServer({ name: 'lifesystem', version: '1.0.0' });
-  registerAllTools(server);
+  registerAllTools(server, scopes);
   return server;
 }

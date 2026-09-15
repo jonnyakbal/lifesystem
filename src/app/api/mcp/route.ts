@@ -9,24 +9,35 @@
 import { NextRequest } from 'next/server';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { createLifesystemMcpServer } from '@/lib/mcp/server';
-import { timingSafeStringEqual } from '@/lib/auth';
+import { authorizeMcpToken } from '@/lib/mcp/auth';
+import { consumeRateLimit, getRateLimitKey } from '@/lib/rate-limit';
 
-function isAuthorized(request: NextRequest): boolean {
-  const expected = process.env.MCP_API_KEY;
-  if (!expected) return false; // fail closed if not configured
+const MCP_REQUEST_LIMIT = 120;
+const MCP_WINDOW_MS = 60 * 1000;
+
+function getAuthorization(request: NextRequest) {
   const header = request.headers.get('authorization') || '';
-  const [scheme, token] = header.split(' ');
-  if (scheme !== 'Bearer' || !token) return false;
-  return timingSafeStringEqual(token, expected);
+  const [scheme, token, extra] = header.split(' ');
+  if (scheme !== 'Bearer' || !token || extra) return null;
+  return authorizeMcpToken(token);
 }
 
 async function handle(request: NextRequest): Promise<Response> {
-  if (!isAuthorized(request)) {
+  const rateLimit = consumeRateLimit(getRateLimitKey(request, 'mcp'), MCP_REQUEST_LIMIT, MCP_WINDOW_MS);
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { error: 'Muitas solicitações ao MCP. Tente novamente em instantes.' },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+    );
+  }
+
+  const authorization = getAuthorization(request);
+  if (!authorization) {
     return Response.json({ error: 'Não autorizado.' }, { status: 401 });
   }
 
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
-  const server = createLifesystemMcpServer();
+  const server = createLifesystemMcpServer(authorization.scopes);
   await server.connect(transport);
   return transport.handleRequest(request);
 }

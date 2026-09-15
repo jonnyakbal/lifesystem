@@ -147,10 +147,10 @@ data/*.json                    # "banco de dados" — 14 coleções hoje
 
 - **JSON local em arquivo**, um arquivo por coleção em `data/*.json` (`tasks.json`, `projects.json`, `captures.json`, `pillars.json`, `indicators.json`, `content.json`, `financial.json`, `accounts.json`, `budgets.json`, `bills.json`, `cards.json`, `payees.json`, `journal.json`, `vision.json`, `wiki-collections.json`).
 - Camada única de acesso: `src/lib/storage/index.ts` (`getAll`, `getById`, `create`, `update`, `delete`, `query`) — toda rota REST e toda ferramenta MCP passa por ela. Isso é o que tornou o servidor MCP barato de construir: zero lógica de dados duplicada.
-- **Risco conhecido:** escrita não é atômica nem lockada — duas escritas concorrentes na mesma coleção podem se pisar (aceitável hoje: 1 usuário, tráfego baixo; vira problema se o Hermes e a UI escreverem ao mesmo tempo com frequência alta — ver Roadmap/Dívida técnica).
+- Escritas são serializadas por coleção dentro do processo e persistidas com arquivo temporário + rename atômico. Se o app passar a rodar em mais de um processo/instância, será necessário lock compartilhado entre processos.
 - Pasta `data/` precisa de permissão de escrita no ambiente de deploy (documentado no README).
 - **`LIFESYSTEM_DATA_DIR` está configurada e validada em produção desde 2026-09-09** (`/home/u115768626/domains/lifesystem.oj0nny.com/lifesystem-data`, fora da pasta que cada deploy recria do zero). Antes disso, apesar de documentada, nunca tinha valor real na Hostinger — dois incidentes de perda de dados (2026-09-05 e 2026-09-09) tiveram exatamente essa causa. Ver seção 7 pra como foi validado (deploy real de teste, não só configuração).
-- Backup automatizado (`npm run backup:data`, `LIFESYSTEM_BACKUP_DIR`) existe como script mas **ainda não roda sozinho antes de cada deploy** — pendência aberta, ver Roadmap.
+- Backup `npm run backup:data`: rotina diária às 03:00 cadastrada na conta Hostinger em 2026-09-15. O build também executa `prebuild` quando `LIFESYSTEM_DATA_DIR` está disponível e copia os dados persistentes para `lifesystem-backups`, fora das versões de deploy. A primeira execução do cron e do hook ainda precisa ser conferida nos logs.
 
 ### 4.3 Integração de IA — servidor MCP, Copiloto embutido e provedores
 
@@ -194,10 +194,8 @@ Decisões já validadas, execução fica pra depois: repositório privado atual 
 - `/api/mcp` está na lista `PUBLIC_PATHS` do middleware (o cookie-gate não se aplica a ela), mas isso não significa "sem auth" — significa "auth diferente, verificada dentro da própria rota".
 
 **Dívidas/riscos de segurança conhecidos (honestos, não resolvidos ainda):**
-- Sem rate limiting em nenhuma rota (nem login, nem MCP) — um ataque de força bruta lento não é bloqueado, só mitigado pela comparação em tempo constante.
-- `MCP_API_KEY` dá acesso de **CRUD completo** a tudo — não tem granularidade de escopo (ex: "só pode ler Tarefas") nem expira sozinha. Rotacionar exige trocar a env var manualmente.
-- Sem logs de auditoria — não dá pra saber depois se uma alteração veio da UI ou do Hermes.
-- Escrita em arquivo sem lock, como citado na seção 4.2 — tecnicamente uma janela de corrupção de dado sob concorrência.
+- O rate limiting de login e MCP é local à instância e reinicia com o processo; usar várias instâncias pede armazenamento compartilhado.
+- `MCP_API_KEY` continua com acesso amplo para manter o Hermes funcionando. `MCP_API_KEYS` agora aceita chaves separadas com escopos de leitura/escrita por domínio; migrar o Hermes para uma chave nova e restrita exige atualizar o segredo no próprio Hermes.
 
 ---
 
@@ -315,7 +313,7 @@ Sessão longa com três frentes: automação de IA nos Editais Culturais, um age
 - Corrigido com acesso SSH real ao servidor (chave adicionada pelo Jonny, removível depois de uso): `LIFESYSTEM_DATA_DIR=/home/u115768626/domains/lifesystem.oj0nny.com/lifesystem-data` (fora de `hbuilds/`, dentro da pasta do domínio — não confundir com o gerenciador de arquivos web da Hostinger, que por padrão abre escopado num domínio diferente da conta e quase levou a copiar os dados pro lugar errado).
 - **Validado com deploy real, não só em teoria:** criada uma tarefa de teste, disparado `git push` de verdade, nova versão publicada (`hbuilds/current` reapontado), tarefa de teste conferida presente via API depois do deploy, depois removida.
 - Também corrigido no caminho: o middleware (`src/middleware.ts`) rejeitava **toda escrita** em produção com "Origem não permitida" — `request.nextUrl.origin` é montado a partir do Host que o Next.js enxerga direto, que atrás do proxy reverso da Hostinger não bate com o `Origin` real enviado pelo navegador. Passou a aceitar via `X-Forwarded-Host`/`-Proto` (padrão pra esse cenário), com um segundo fallback por hostname puro.
-- **Pendência real que fica:** a rotina de `npm run backup:data` (script já existe, nunca foi automatizada) ainda não roda sozinha antes de cada deploy — ver Roadmap.
+- O backup diário às 03:00 está cadastrado e o hook `prebuild` tenta criar uma cópia antes do build quando `LIFESYSTEM_DATA_DIR` está disponível. Conferir logs após a primeira execução de cada rotina.
 
 ## 8. Roadmap
 
@@ -324,11 +322,10 @@ Sessão longa com três frentes: automação de IA nos Editais Culturais, um age
 - **Abrir o LIFESYSTEM como open source** (seção 4.5) — decisões de licença/repo já tomadas, execução fica pra quando o Jonny pedir.
 
 ### Dívida técnica que deveria virar trabalho em algum momento (levantada nesta sessão, ver seções 4 e 5-6)
-- Suíte de testes automatizados de verdade (mesmo que pequena — cobrir as rotas de API críticas seria o maior ganho por esforço).
-- Rate limiting no login e no `/api/mcp`.
-- ~~Registro de auditoria de o que o agente alterou~~ — feito em 2026-08-31 (`/hermes`, log das últimas chamadas MCP). Ainda falta granularidade de escopo no `MCP_API_KEY` em si (hoje é tudo ou nada).
-- Lock/transação na camada de storage se o volume de escrita concorrente crescer (especialmente relevante assim que o Hermes começar a escrever de verdade).
-- **`npm run backup:data` automatizado antes de cada deploy** (script já existe desde 2026-09-05, nunca foi plugado no pipeline) — teria evitado que o incidente de 2026-09-09 perdesse dados reais.
+- ~~Rate limiting de login e MCP~~ — feito nesta rodada; armazenamento em memória por instância é suficiente enquanto a aplicação permanecer single-process.
+- ~~Escopos por chave MCP~~ — suporte a `MCP_API_KEYS` implementado; Hermes legado ainda usa `MCP_API_KEY` amplo até a rotação coordenada no cliente.
+- Lock entre processos na camada de storage se o app passar a rodar com múltiplas instâncias; hoje há fila por coleção e rename atômico dentro de um processo.
+- Conferir nos logs a primeira execução do backup diário e do hook pré-build.
 - Rotacionar as chaves de IA (`AI_GROQ_API_KEY`/`AI_OPENROUTER_API_KEY`/`AI_MISTRAL_API_KEY`) que passaram por texto em conversa durante a configuração de 2026-09-09 — baixo risco mas por precaução.
 - Remover a chave SSH adicionada pra diagnosticar o incidente de 2026-09-09, se não estiver mais em uso ativo.
 
