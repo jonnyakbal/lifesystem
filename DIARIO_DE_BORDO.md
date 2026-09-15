@@ -138,6 +138,7 @@ data/*.json                    # "banco de dados" — 14 coleções hoje
 
 - **Onde:** Hostinger, hospedagem Node.js compartilhada (a mesma conta hospeda vários domínios do Jonny) — `https://lifesystem.oj0nny.com`.
 - **Como:** integração nativa Hostinger↔GitHub. Push no branch `main` → build (`npm run build`, `output: standalone`) → `npm start` serve a app. Cada deploy faz um checkout novo em `~/domains/lifesystem.oj0nny.com/hbuilds/versions/<hash>/` e reaponta o symlink `current` pra lá — a versão anterior fica órfã, não é atualizada in-place.
+- **Runtime:** Node.js 24 configurado em 2026-09-15 para acompanhar o requisito de engine das dependências de sanitização; o build seguinte validará essa mudança.
 - **Sem infra própria** (sem Docker, sem VPS pro LIFESYSTEM em si — a VPS é onde o Hermes Agent roda, separado).
 - **Sem staging.** Todo push em `main` vai direto pra produção — por isso o padrão desta sessão de sempre rodar `tsc`/`build`/teste manual *antes* de cada commit, e só dar `git push` quando o Jonny pede explicitamente.
 - **Acesso SSH** existe e está ativo (`Avançado → Acesso SSH` no hPanel), mas não é usado por padrão — só foi habilitado numa sessão pontual pra diagnosticar o incidente de 2026-09-09 (ver seção 7). A chave adicionada pra isso deve ser removida quando não estiver mais em uso ativo.
