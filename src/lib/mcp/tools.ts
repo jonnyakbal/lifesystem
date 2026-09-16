@@ -14,6 +14,7 @@ import { todayStr } from '@/lib/utils';
 import { storage } from '@/lib/storage';
 import { logMcpCall } from './log';
 import { canUseMcpTool } from './auth';
+import { createGoogleCalendarEvent } from '@/lib/google-calendar';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -510,5 +511,20 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     const realizedTotals = totals(realized);
     const projectedTotals = totals(projected);
     return textResult({ month, realized: { ...realizedTotals, balance: realizedTotals.income - realizedTotals.expenses }, projected: { ...projectedTotals, balance: projectedTotals.income - projectedTotals.expenses }, entries: filtered.length });
+  }));
+
+  if (canUseMcpTool('create_calendar_event', scopes)) server.registerTool('create_calendar_event', {
+    title: 'Criar evento no Google Agenda',
+    description: 'Cria um evento na agenda principal do Google já conectada ao LIFESYSTEM. Nunca peça ou exponha tokens Google.',
+    inputSchema: {
+      title: z.string().min(1).describe('Título do evento'),
+      description: z.string().optional().describe('Descrição do evento'),
+      start: z.string().datetime().describe('Início em ISO 8601, com fuso horário'),
+      end: z.string().datetime().describe('Fim em ISO 8601, com fuso horário'),
+      timeZone: z.string().optional().describe('Ex.: America/Sao_Paulo'),
+    },
+  }, logged('create_calendar_event', async (input: { title: string; description?: string; start: string; end: string; timeZone?: string }) => {
+    try { return textResult(await createGoogleCalendarEvent(input)); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível criar o evento.'); }
   }));
 }

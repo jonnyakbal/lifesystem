@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { CaptureConversionDialog } from '@/components/capture-conversion-dialog';
 import { NotionEditor } from '@/components/notion-editor';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import { CategoryEditorDialog, type WikiCollectionItem } from '@/components/category-editor-dialog';
@@ -128,6 +129,7 @@ export default function NotasPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [captures, setCaptures] = useState<Capture[]>([]);
+  const [converting, setConverting] = useState<Capture | null>(null);
   const [categories, setCategories] = useState<WikiCollectionItem[]>([]);
   const [categoryEditorOpen, setCategoryEditorOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -334,29 +336,7 @@ export default function NotasPage() {
     } catch (err) { toast.error(showError(err)); }
   }
 
-  async function handleConvert(capture: Capture, targetType: 'task' | 'project') {
-    try {
-      const title = getTitle(capture.content);
-      const created = targetType === 'task'
-        ? await apiFetch<{ id: string }>('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, priority: 'normal', status: 'todo', sortOrder: 0, tags: [], checklist: [] }),
-          })
-        : await apiFetch<{ id: string }>('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: title, description: capture.content.replace(/<[^>]*>/g, '').slice(0, 300), status: 'idea', tags: [], needs: '', links: [], tasksCount: 0, tasksDone: 0 }),
-          });
-      await apiFetch(`/api/captures/${capture.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetType, targetId: created.id, status: 'organized' }),
-      });
-      loadCaptures();
-      toast.success(targetType === 'task' ? 'Virou tarefa!' : 'Virou projeto!');
-    } catch (err) { toast.error(showError(err)); }
-  }
+
 
   // Inclusive on purpose: any capture that ISN'T sitting fresh in the Inbox
   // queue or converted into a Task/Project belongs here. Older captures from
@@ -391,6 +371,7 @@ export default function NotasPage() {
 
   return (
     <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
+      <CaptureConversionDialog key={converting?.id || "closed"} capture={converting} onClose={() => setConverting(null)} onConverted={loadCaptures} />
       {/* Header */}
       <motion.div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" variants={fade}>
         <div>
@@ -530,12 +511,9 @@ export default function NotasPage() {
                             {!capture.targetId && (
                               <>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
-                                  <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
-                                  <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
-                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setConverting(capture)}>
+                            <ArrowRight className="mr-2 h-4 w-4" /> Converter captura…
+                          </DropdownMenuItem>
                               </>
                             )}
                             <DropdownMenuSeparator />
@@ -620,12 +598,9 @@ export default function NotasPage() {
                           {!capture.targetId && (
                             <>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
-                                <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
-                                <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
-                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => setConverting(capture)}>
+                            <ArrowRight className="mr-2 h-4 w-4" /> Converter captura…
+                          </DropdownMenuItem>
                             </>
                           )}
                           <DropdownMenuSeparator />

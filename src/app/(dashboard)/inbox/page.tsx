@@ -7,11 +7,10 @@
 // that page's autosave fires, the capture is promoted to a Note and
 // disappears from here. No editor lives in this file on purpose.
 import { useEffect, useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Plus, Trash2, Search, Inbox as InboxIcon, MoreHorizontal, CheckSquare,
-  FolderKanban, ArrowRight, ListChecks,
+  Plus, Trash2, Search, Inbox as InboxIcon, MoreHorizontal,
+  ArrowRight, ListChecks,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -20,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { CaptureConversionDialog } from '@/components/capture-conversion-dialog';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -69,8 +69,8 @@ const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
 const stagger = { animate: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } } };
 
 export default function InboxPage() {
-  const router = useRouter();
   const [captures, setCaptures] = useState<Capture[]>([]);
+  const [converting, setConverting] = useState<Capture | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [quickTitle, setQuickTitle] = useState('');
@@ -101,7 +101,7 @@ export default function InboxPage() {
         body: JSON.stringify({ content: quickTitle, type: 'text' }),
       });
       setQuickTitle('');
-      router.push(`/notas?open=${created.id}`);
+      setCaptures(current => [created, ...current]);
     } catch (err) {
       toast.error(showError(err));
     }
@@ -115,29 +115,7 @@ export default function InboxPage() {
     } catch (err) { toast.error(showError(err)); }
   }
 
-  async function handleConvert(capture: Capture, targetType: 'task' | 'project') {
-    try {
-      const title = getTitle(capture.content);
-      const created = targetType === 'task'
-        ? await apiFetch<{ id: string }>('/api/tasks', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, priority: 'normal', status: 'todo', sortOrder: 0, tags: [], checklist: [] }),
-          })
-        : await apiFetch<{ id: string }>('/api/projects', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: title, description: capture.content.replace(/<[^>]*>/g, '').slice(0, 300), status: 'idea', tags: [], needs: '', links: [], tasksCount: 0, tasksDone: 0 }),
-          });
-      await apiFetch(`/api/captures/${capture.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetType, targetId: created.id, status: 'organized' }),
-      });
-      loadCaptures();
-      toast.success(targetType === 'task' ? 'Virou tarefa!' : 'Virou projeto!');
-    } catch (err) { toast.error(showError(err)); }
-  }
+
 
   const queue = useMemo(() => captures.filter(c => c.status === 'inbox'), [captures]);
 
@@ -149,11 +127,12 @@ export default function InboxPage() {
 
   return (
     <motion.div className="p-4 lg:p-8 max-w-4xl" variants={stagger} initial="initial" animate="animate">
+      <CaptureConversionDialog key={converting?.id || "closed"} capture={converting} onClose={() => setConverting(null)} onConverted={loadCaptures} />
       <motion.div className="mb-6" variants={fade}>
         <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3">
           <InboxIcon className="h-7 w-7 text-primary" /> INBOX
         </h1>
-        <p className="text-muted-foreground">Fila rápida — abra pra processar, vira Nota sozinho</p>
+        <p className="text-muted-foreground">Capture agora. Escolha depois o melhor destino.</p>
       </motion.div>
 
       <motion.div variants={fade} className="mb-6 max-w-xl">
@@ -174,7 +153,7 @@ export default function InboxPage() {
             <p className="font-medium">Fazer Revisão Semanal</p>
             <p className="text-xs text-muted-foreground">Processar o INBOX, revisar Metas, tarefas atrasadas e a Visão — 5 passos guiados</p>
           </div>
-          <ArrowRight className="h-4 w-4 shrink-0 text-primary opacity-0 transition-opacity group-hover:opacity-100" />
+          <ArrowRight className="h-4 w-4 shrink-0 text-primary opacity-100" />
         </motion.button>
       </motion.div>
 
@@ -236,21 +215,18 @@ export default function InboxPage() {
                       'group relative min-h-[140px] cursor-pointer border shadow-md transition-shadow hover:shadow-xl',
                       color.bg, color.border,
                     )}
-                    onClick={() => router.push(`/notas?open=${capture.id}`)}
+                    onClick={() => setConverting(capture)}
                   >
-                    <div className="absolute right-1.5 top-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <div className="absolute right-1.5 top-1.5 opacity-100">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7 hover:bg-black/10 dark:hover:bg-white/10" onClick={e => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" aria-label="Ações da captura" className="h-11 w-11 hover:bg-black/10 dark:hover:bg-white/10" onClick={e => e.stopPropagation()}>
                             <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => handleConvert(capture, 'task')}>
-                            <CheckSquare className="mr-2 h-4 w-4" /> Converter em Tarefa
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleConvert(capture, 'project')}>
-                            <FolderKanban className="mr-2 h-4 w-4" /> Converter em Projeto
+                          <DropdownMenuItem onClick={() => setConverting(capture)}>
+                            <ArrowRight className="mr-2 h-4 w-4" /> Converter captura…
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
@@ -259,13 +235,13 @@ export default function InboxPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <CardContent className="flex h-full flex-col p-4">
+                    <CardContent className="flex h-full flex-col p-4 pr-12">
                       <p className="line-clamp-4 flex-1 text-sm font-medium text-foreground/90">
                         {capture.title || getTitle(capture.content)}
                       </p>
                       <p className="mt-2 flex items-center gap-1 text-xs text-foreground/50">
                         {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        <ArrowRight className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+                        <ArrowRight className="h-3 w-3 opacity-100" />
                       </p>
                     </CardContent>
                   </Card>

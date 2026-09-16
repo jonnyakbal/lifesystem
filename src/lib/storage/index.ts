@@ -56,6 +56,32 @@ async function withCollectionLock<T>(collection: string, operation: () => Promis
 }
 
 export const storage = {
+  // Destination IDs are stable so retrying after a failed source write is safe.
+  async convertCapture(id: string, targetType: string, collection: string, data: Record<string, unknown>, targetIdOverride?: string) {
+    return withCollectionLock('captures', async () => {
+      const captures = await readCollection<{ id: string; status: string; targetType?: string; targetId?: string }>('captures');
+      const capture = captures.find(item => item.id === id);
+      if (!capture) throw new Error('Captura não encontrada');
+      if (capture.targetId && capture.targetType !== 'note') {
+        if (capture.targetType !== targetType) throw new Error('Esta captura já foi convertida para outro destino');
+        return { id: capture.targetId, targetType };
+      }
+      const targetId = targetIdOverride || (targetType === 'note' ? id : `capture-${id}`);
+      if (targetType !== 'note') {
+        await withCollectionLock(collection, async () => {
+          const items = await readCollection<{ id: string }>(collection);
+          if (!items.some(item => item.id === targetId)) {
+            const now = new Date().toISOString();
+            items.push({ ...data, id: targetId, createdAt: now, updatedAt: now } as { id: string });
+            await writeCollection(collection, items);
+          }
+        });
+      }
+      Object.assign(capture, { status: targetType === 'note' ? 'noted' : 'organized', targetType, targetId, updatedAt: new Date().toISOString() });
+      await writeCollection('captures', captures);
+      return { id: targetId, targetType };
+    });
+  },
   async getAll<T>(collection: string): Promise<T[]> {
     return readCollection<T>(collection);
   },

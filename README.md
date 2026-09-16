@@ -124,6 +124,9 @@ data/                        # JSON "banco" (15 coleções)
 | `MCP_API_KEY` | ✅ (MCP) | Token pra agentes de IA |
 | `NOUS_API_KEY` | ❌ | Chave API Nous Research |
 | `LIFESYSTEM_DATA_DIR` | ✅ (produção) | Diretório persistente fora da pasta do deploy |
+| `GOOGLE_CALENDAR_CLIENT_ID` | ❌ | Cliente OAuth Web do Google Agenda |
+| `GOOGLE_CALENDAR_CLIENT_SECRET` | ❌ | Segredo OAuth do Google Agenda |
+| `GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY` | ❌ | Chave hexadecimal de 64 caracteres para cifrar o token de Agenda |
 
 ## Servidor MCP (integração com AI agents)
 
@@ -143,6 +146,10 @@ data/                        # JSON "banco" (15 coleções)
 **Autenticação:** `Authorization: Bearer <MCP_API_KEY>` (separado do login web)
 
 Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-leitura","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","financial:read"]}]`. Escopos seguem `domínio:read` ou `domínio:write`; `domínio:*` permite ambos. A chave existente em `MCP_API_KEY` permanece compatível e mantém acesso amplo até a migração do cliente.
+
+### Google Agenda
+
+O LIFESYSTEM concentra a conexão OAuth e cifra o token no diretório de dados. Configure as três variáveis `GOOGLE_CALENDAR_*`, habilite a Google Calendar API e cadastre `https://SEU_DOMINIO/api/google-calendar/callback` como URI de redirecionamento no Google Cloud. Depois, acesse `/api/google-calendar/connect` uma vez para autorizar a conta. Clientes MCP que precisem criar eventos devem receber somente o escopo `calendar:write`; o token Google nunca é exposto pelo MCP.
 
 **Para conectar o Hermes Agent:**
 1. Configure um MCP server apontando pra `https://lifesystem.oj0nny.com/api/mcp`

@@ -60,6 +60,7 @@ const ENTITY_SCOPES: Record<string, string> = {
   indicator: 'indicators', project: 'projects', log_entry: 'log_entries', edital: 'editais',
   financial_entry: 'financial', account: 'financial', budget: 'financial', card: 'financial',
   payee: 'financial', bill: 'financial', financial_goal: 'financial',
+  calendar_event: 'calendar',
 };
 
 const PLURAL_SCOPES: Record<string, string> = {

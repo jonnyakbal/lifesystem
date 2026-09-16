@@ -15,7 +15,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Inbox, Sparkles, AlertTriangle, Target, CheckCircle2, ArrowRight, ArrowLeft,
-  CheckSquare, FolderKanban, Circle, PartyPopper, Calendar,
+  Circle, PartyPopper, Calendar,
 } from 'lucide-react';
 import { cn, todayStr, addDays } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { CaptureConversionDialog } from '@/components/capture-conversion-dialog';
 import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 
 interface Capture { id: string; content: string; title?: string; status: string; targetId?: string; createdAt: string; }
@@ -49,6 +50,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
   const [captures, setCaptures] = useState<Capture[]>([]);
+  const [converting, setConverting] = useState<Capture | null>(null);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -77,26 +79,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
     }
   }
 
-  async function handleConvert(capture: Capture, targetType: 'task' | 'project') {
-    try {
-      const title = getTitle(capture.content);
-      const created = targetType === 'task'
-        ? await apiFetch<{ id: string }>('/api/tasks', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, priority: 'normal', status: 'todo', sortOrder: 0, tags: [], checklist: [] }),
-          })
-        : await apiFetch<{ id: string }>('/api/projects', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: title, description: capture.content.replace(/<[^>]*>/g, '').slice(0, 300), status: 'idea', tags: [], needs: '', links: [], tasksCount: 0, tasksDone: 0 }),
-          });
-      await apiFetch(`/api/captures/${capture.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetType, targetId: created.id, status: 'organized' }),
-      });
-      loadAll();
-      toast.success(targetType === 'task' ? 'Virou tarefa!' : 'Virou projeto!');
-    } catch (err) { toast.error(showError(err)); }
-  }
+
 
   async function toggleTaskDone(task: Task) {
     try {
@@ -134,6 +117,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
 
   return (
     <motion.div className="w-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <CaptureConversionDialog key={converting?.id || "closed"} capture={converting} onClose={() => setConverting(null)} onConverted={loadAll} />
       <div className="mb-8">
         <h1 className="font-display text-3xl font-bold tracking-tight">Revisão Semanal</h1>
         <p className="text-muted-foreground">
@@ -168,7 +152,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Inbox className="h-4 w-4 text-yellow-500" /> Processar o INBOX ({pendingCaptures.length})
                   </CardTitle>
-                  <p className="text-sm text-muted-foreground">Cada captura vira uma tarefa, um projeto, ou fica como está.</p>
+                  <p className="text-sm text-muted-foreground">Escolha o destino de cada captura ou deixe para depois.</p>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {pendingCaptures.length === 0 ? (
@@ -177,11 +161,8 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
                     pendingCaptures.map(c => (
                       <div key={c.id} className="flex items-center gap-2 rounded-lg border px-3 py-2">
                         <span className="flex-1 truncate text-sm">{c.title || getTitle(c.content)}</span>
-                        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => handleConvert(c, 'task')}>
-                          <CheckSquare className="h-3 w-3" /> Tarefa
-                        </Button>
-                        <Button variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => handleConvert(c, 'project')}>
-                          <FolderKanban className="h-3 w-3" /> Projeto
+                        <Button variant="outline" size="sm" className="h-11 gap-1 text-xs" onClick={() => setConverting(c)}>
+                          <ArrowRight className="h-3 w-3" /> Converter
                         </Button>
                       </div>
                     ))

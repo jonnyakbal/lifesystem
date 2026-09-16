@@ -17,6 +17,8 @@ test.describe('MCP key scopes', () => {
     expect(canUseMcpTool('create_task', ['tasks:read'])).toBe(false);
     expect(canUseMcpTool('get_financial_summary', ['financial:read'])).toBe(true);
     expect(canUseMcpTool('create_financial_entry', ['financial:read'])).toBe(false);
+    expect(canUseMcpTool('create_calendar_event', ['calendar:write'])).toBe(true);
+    expect(canUseMcpTool('create_calendar_event', ['calendar:read'])).toBe(false);
   });
 
   test('fails closed for malformed key configuration', () => {

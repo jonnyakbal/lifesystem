@@ -7,7 +7,7 @@ export interface BaseEntity {
 // Captures (INBOX)
 export type CaptureType = 'text' | 'link' | 'image' | 'audio';
 export type CaptureStatus = 'inbox' | 'classified' | 'noted' | 'organized';
-export type CaptureTargetType = 'task' | 'project' | 'pillar' | 'financial' | 'journal' | 'reference';
+export type CaptureTargetType = 'note' | 'task' | 'content' | 'event' | 'edital' | 'project' | 'pillar' | 'financial' | 'journal' | 'reference';
 
 export interface Capture extends BaseEntity {
   content: string;

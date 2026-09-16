@@ -46,3 +46,4 @@ next-env.d.ts
 # Keep the checked-in seed data available for local development for now.
 /data/runtime/
 /data/backups/
+/data/google-calendar.json
