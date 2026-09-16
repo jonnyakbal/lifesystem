@@ -1,8 +1,7 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
-import { storage } from '@/lib/storage';
+import { storage } from './storage';
 
 const TOKEN_COLLECTION = 'google-calendar';
-const TOKEN_ID = 'primary';
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token';
 const GOOGLE_EVENTS_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
 
@@ -45,12 +44,18 @@ export function buildGoogleAuthorizationUrl(redirectUri: string, state: string) 
   return url.toString();
 }
 
+async function tokenRecord() {
+  const records = await storage.getAll<TokenRecord>(TOKEN_COLLECTION);
+  return records.reduce<TokenRecord | null>((latest, record) =>
+    !latest || record.updatedAt > latest.updatedAt ? record : latest, null);
+}
+
 async function saveToken(token: GoogleToken) {
-  const previous = await storage.getById<TokenRecord>(TOKEN_COLLECTION, TOKEN_ID);
+  const previous = await tokenRecord();
   const payload = encrypt(JSON.stringify({ ...token, refresh_token: token.refresh_token || (previous ? JSON.parse(decrypt(previous.payload)).refresh_token : undefined) }));
   const record = { payload, expiry: Date.now() + Math.max(60, token.expires_in || 3600) * 1000 - 30_000 };
-  if (previous) await storage.update<TokenRecord>(TOKEN_COLLECTION, TOKEN_ID, record);
-  else await storage.create<TokenRecord>(TOKEN_COLLECTION, { id: TOKEN_ID, ...record } as Omit<TokenRecord, 'createdAt' | 'updatedAt'>);
+  if (previous) await storage.update<TokenRecord>(TOKEN_COLLECTION, previous.id, record);
+  else await storage.create<TokenRecord>(TOKEN_COLLECTION, record);
 }
 
 export async function exchangeGoogleCode(code: string, redirectUri: string) {
@@ -61,7 +66,7 @@ export async function exchangeGoogleCode(code: string, redirectUri: string) {
 }
 
 async function accessToken() {
-  const record = await storage.getById<TokenRecord>(TOKEN_COLLECTION, TOKEN_ID);
+  const record = await tokenRecord();
   if (!record) throw new GoogleCalendarError('Conecte o Google Agenda antes de criar eventos.');
   const token = JSON.parse(decrypt(record.payload)) as GoogleToken;
   if (record.expiry > Date.now()) return token.access_token;
