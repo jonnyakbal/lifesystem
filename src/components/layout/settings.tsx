@@ -11,6 +11,11 @@ import { toast } from 'sonner';
 
 type Theme = 'dark' | 'light' | 'system';
 
+function readTheme(): Theme {
+  const value = localStorage.getItem('lifesystem-theme');
+  return value === 'light' || value === 'system' ? value : 'dark';
+}
+
 function applyTheme(theme: Theme) {
   const root = document.documentElement;
   root.classList.remove('light', 'dark');
@@ -25,15 +30,28 @@ export function useTheme() {
   const [theme, setThemeState] = useState<Theme>('dark');
 
   useEffect(() => {
-    const stored = localStorage.getItem('lifesystem-theme') as Theme || 'dark';
-    applyTheme(stored);
-    queueMicrotask(() => setThemeState(stored));
+    const sync = () => {
+      const stored = readTheme();
+      applyTheme(stored);
+      setThemeState(stored);
+    };
+    queueMicrotask(sync);
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    media.addEventListener('change', sync);
+    window.addEventListener('storage', sync);
+    window.addEventListener('lifesystem-theme-change', sync);
+    return () => {
+      media.removeEventListener('change', sync);
+      window.removeEventListener('storage', sync);
+      window.removeEventListener('lifesystem-theme-change', sync);
+    };
   }, []);
 
   function setTheme(t: Theme) {
     setThemeState(t);
     localStorage.setItem('lifesystem-theme', t);
     applyTheme(t);
+    window.dispatchEvent(new Event('lifesystem-theme-change'));
   }
 
   return { theme, setTheme };

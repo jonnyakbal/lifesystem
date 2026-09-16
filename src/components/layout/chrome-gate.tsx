@@ -1,7 +1,8 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import { Sidebar } from './sidebar';
+import { useState, type CSSProperties } from 'react';
+import { WorkspaceSidebar, WorkspaceTopbar } from './workspace-sidebar';
 import { AppShell } from './app-shell';
 import { CommandPalette } from './command-palette';
 import { CopilotoPanel } from './copiloto-panel';
@@ -11,18 +12,21 @@ import { CopilotoPanel } from './copiloto-panel';
 // anything (Sidebar, CommandPalette) that assumes a logged-in session.
 export function ChromeGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [collapsed, setCollapsed] = useState(false);
   if (pathname === '/login') {
     return <>{children}</>;
   }
 
   return (
-    <>
-      <Sidebar />
-      <main className="astral-workspace pt-14 pb-16 lg:pl-64 lg:pt-0 lg:pb-0">
+    <div className="workspace-frame" style={{ '--workspace-sidebar-width': collapsed ? '80px' : '248px' } as CSSProperties}>
+      <a href="#workspace-content" className="workspace-skip-link">Pular para o conteúdo</a>
+      <WorkspaceSidebar collapsed={collapsed} onToggle={() => setCollapsed(value => !value)} />
+      <main id="workspace-content" tabIndex={-1} className="astral-workspace workspace-main">
+        <WorkspaceTopbar />
         <AppShell>{children}</AppShell>
       </main>
       <CommandPalette />
       <CopilotoPanel />
-    </>
+    </div>
   );
 }

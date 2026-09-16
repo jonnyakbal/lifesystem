@@ -13,19 +13,19 @@ import { PWARegister } from "@/components/pwa-register";
 // reading-font choices (Notas' font switcher, src/app/(dashboard)/notas).
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-ui",
   display: "swap",
 });
 
 const fraunces = Fraunces({
   subsets: ["latin"],
-  variable: "--font-display",
+  variable: "--font-heading",
   display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-mono",
+  variable: "--font-code",
   display: "swap",
 });
 

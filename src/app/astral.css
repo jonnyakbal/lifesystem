@@ -1,4 +1,82 @@
 /* Solar identity: decoration belongs behind content, never behind form text. */
+.dark {
+  --color-background: #0b1017;
+  --color-foreground: #edf0f4;
+  --color-card: #121a24;
+  --color-card-foreground: #edf0f4;
+  --color-popover: #17212e;
+  --color-popover-foreground: #edf0f4;
+  --color-primary: #ecc48d;
+  --color-primary-foreground: #20180f;
+  --color-secondary: #1c2734;
+  --color-secondary-foreground: #e3eaf1;
+  --color-muted: #18222e;
+  --color-muted-foreground: #9aaabc;
+  --color-accent: #263344;
+  --color-accent-foreground: #f4e2c8;
+  --color-border: #273343;
+  --color-input: #314051;
+  --color-ring: #ecc48d;
+}
+.light {
+  --color-background: #f5f4ef;
+  --color-foreground: #202d3a;
+  --color-card: #fffefa;
+  --color-card-foreground: #202d3a;
+  --color-primary: #855522;
+  --color-primary-foreground: #fffefa;
+  --color-muted: #eaece7;
+  --color-muted-foreground: #5d6d78;
+  --color-border: #d9ded8;
+  --color-input: #c7cfc8;
+  --color-accent: #ede3d4;
+  --color-accent-foreground: #644019;
+  --color-ring: #855522;
+}
+.workspace-frame { --workspace-sidebar-width: 248px; }
+.workspace-main { min-width: 0; padding-top: 64px; padding-bottom: calc(86px + env(safe-area-inset-bottom)); }
+.workspace-page { min-width: 0; }
+.workspace-page > div { width: 100%; margin-inline: auto; }
+.workspace-page h1 { letter-spacing: -.045em; font-weight: 500; }
+.workspace-page input, .workspace-page textarea { accent-color: var(--color-primary); }
+.workspace-sidebar { position: fixed; inset: 0 auto 0 0; width: var(--workspace-sidebar-width); z-index: 40; background: var(--color-background); border-right: 1px solid var(--color-border); transition: width .2s ease; }
+.workspace-sidebar-inner { display: flex; flex-direction: column; width: 100%; height: 100%; min-height: 0; padding: 20px 12px 10px; }
+.workspace-brand { display: flex; align-items: center; gap: 9px; min-height: 48px; padding: 0 6px; margin-bottom: 22px; }
+.workspace-brand strong { display: block; font-size: 13px; font-weight: 650; letter-spacing: .07em; }
+.workspace-brand small { display: block; color: var(--color-muted-foreground); font-size: 10px; margin-top: 4px; }
+.workspace-search { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 9px; color: var(--color-muted-foreground); font-size: 11px; background: var(--color-card); }
+.workspace-search:hover { border-color: var(--color-primary); color: var(--color-foreground); }
+.workspace-search kbd { font-size: 9px; margin-left: auto; opacity: .6; }
+.workspace-navigation { flex: 1; overflow-y: auto; overflow-x: hidden; padding-top: 22px; scrollbar-width: thin; }
+.workspace-nav-group { margin-bottom: 21px; }
+.workspace-nav-group > p { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--color-muted-foreground); margin: 0 12px 9px; }
+.workspace-nav-link { display: flex; align-items: center; gap: 11px; position: relative; padding: 10px 12px; min-height: 40px; margin: 2px 0; border-radius: 8px; color: var(--color-muted-foreground); font-size: 12px; transition: color .15s, background .15s; }
+.workspace-nav-link svg { flex-shrink: 0; }
+.workspace-nav-link:hover { color: var(--color-foreground); background: var(--color-muted); }
+.workspace-nav-link[aria-current="page"] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 9%, transparent); }
+.workspace-nav-dot { margin-left: auto; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.workspace-nav-link.is-compact { justify-content: center; padding: 11px 0; }
+.workspace-sidebar-footer { border-top: 1px solid var(--color-border); padding-top: 14px; }
+.workspace-capture { width: 100%; gap: 9px; border-radius: 10px; font-size: 12px; }
+.workspace-utilities { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: var(--color-muted-foreground); }
+.workspace-topbar { height: 62px; align-items: center; padding: 0 32px; border-bottom: 1px solid var(--color-border); }
+.workspace-mobile-header { position: fixed; inset: 0 0 auto; z-index: 40; height: 64px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--color-border); background: var(--color-background); }
+.workspace-mobile-dock { position: fixed; bottom: 0; inset-inline: 0; z-index: 45; display: flex; min-height: 72px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-border); background: var(--color-background); }
+.workspace-mobile-dock > a, .workspace-mobile-dock > button { display: flex; flex: 1; flex-direction: column; gap: 5px; align-items: center; justify-content: center; min-width: 0; min-height: 48px; border-radius: 12px; color: var(--color-muted-foreground); font-size: 10px; }
+.workspace-mobile-dock [aria-current="page"] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
+.workspace-mobile-sheet { background: var(--color-background); }
+.workspace-mobile-sheet .workspace-sidebar-inner { padding-top: 30px; }
+.workspace-skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; padding: 12px 20px; background: var(--color-primary); color: var(--color-primary-foreground); border-radius: 8px; transform: translateY(-200%); }
+.workspace-skip-link:focus { transform: translateY(0); }
+@media (min-width: 1024px) {
+  .workspace-main { margin-left: var(--workspace-sidebar-width); padding-top: 0; padding-bottom: 32px; transition: margin-left .2s ease; }
+  .workspace-mobile-header, .workspace-mobile-dock { display: none; }
+  .workspace-page > div { padding: 32px clamp(24px, 3vw, 52px); }
+}
+@media (max-width: 1023px) {
+  .workspace-page > div { padding: 24px 18px; }
+  .workspace-page input, .workspace-page textarea, .workspace-page select { font-size: max(16px, 1em); }
+}
 .astral-workspace {
   min-height: 100dvh;
   background-image: radial-gradient(ellipse at 90% 0%, #8b5cf610, transparent 48%), radial-gradient(ellipse at 20% 100%, #67e8f906, transparent 42%);
