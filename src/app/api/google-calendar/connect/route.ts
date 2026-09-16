@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { buildGoogleAuthorizationUrl, googleCalendarConfigured, signGoogleState } from '@/lib/google-calendar';
 
-function callbackUrl(request: NextRequest) { return new URL('/api/google-calendar/callback', request.url).toString(); }
+function callbackUrl(request: NextRequest) {
+  return process.env.GOOGLE_CALENDAR_REDIRECT_URI || 'https://lifesystem.oj0nny.com/api/google-calendar/callback';
+}
 
 export async function GET(request: NextRequest) {
   if (!googleCalendarConfigured()) return NextResponse.redirect(new URL('/inbox?calendar=not-configured', request.url));
