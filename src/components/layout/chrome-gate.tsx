@@ -13,7 +13,7 @@ import { CopilotoPanel } from './copiloto-panel';
 export function ChromeGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/privacidade' || pathname === '/termos') {
     return <>{children}</>;
   }
 
