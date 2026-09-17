@@ -254,10 +254,10 @@ Isso habilita, pelo Telegram: *"Hermes, o que chegou nas minhas fontes hoje?"* �
 
 ---
 
-## 12 · Decisões abertas (pro Jonny)
+## 12 · Decisões (respondidas em 2026-09-17)
 
-1. **Nome de exibição:** "Central de Fontes" / "Fontes" — ou outra palavra sua (o módulo é seu).
-2. **Seção da navegação:** "Explorar" (onde mora hoje o que descobre) ou "Capturar" (onde mora o que entra)? Minha leitura: **Capturar**, junto de INBOX/Notas — é entrada de matéria-prima.
-3. **Fila de leitura no Hoje:** sim/não, e quantos itens.
-4. **Resumo IA em lote:** permitir "resumir 20 não lidos" de uma vez ou só item a item no começo (proteção de quota)?
-5. **Fontes de editais dentro da Central** já na F2 ou depois do leitor maduro?
+1. **Nome de exibição:** "Central de Fontes" / "Fontes" — trabalho segue com este; pode renomear depois sem custo (constante + label).
+2. **Seção da navegação:** **Explorar** ✔ decidido.
+3. **Fila de leitura no Hoje:** em aberto (proposta: 3 itens não lidos + link "abrir Central").
+4. **Resumo IA em lote:** **item a item** ✔ decidido (revisitar só se quota sobrar).
+5. **Fontes de editais na Central:** **sim, na F2** ✔ decidido.

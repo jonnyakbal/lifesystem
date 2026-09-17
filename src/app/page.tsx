@@ -313,7 +313,7 @@ export default function HomePage() {
       <motion.div className="mb-8" variants={fade}>
         <div className="relative mb-6 overflow-hidden">
           <h1 className="font-display text-3xl md:text-5xl font-bold tracking-tight text-shimmer">
-            Command Center
+            Seu dia em órbita
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -597,9 +597,14 @@ export default function HomePage() {
                     <div className="pt-2">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-muted-foreground">Taxa de Conclusão</span>
-                        <span className="font-mono-num text-money">{completionRate}%</span>
+                        {tasks.length === 0 ? (
+                          // Sem tarefas planejadas, 0% lê como fracasso — estado neutro.
+                          <span className="font-mono-num text-muted-foreground">—</span>
+                        ) : (
+                          <span className="font-mono-num text-money">{completionRate}%</span>
+                        )}
                       </div>
-                      <Progress value={completionRate} className="h-2" />
+                      {tasks.length > 0 && <Progress value={completionRate} className="h-2" />}
                     </div>
                   </>
                 )}

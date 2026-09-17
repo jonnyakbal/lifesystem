@@ -397,7 +397,7 @@ export default function NotasPage() {
             <Settings2 className="h-3.5 w-3.5" /> Categorias
           </Button>
           <Button size="sm" onClick={openCreateNew} className="gap-1.5">
-            <Plus className="h-4 w-4" /> New
+            <Plus className="h-4 w-4" /> Nova nota
           </Button>
         </div>
       </motion.div>

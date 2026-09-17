@@ -187,45 +187,6 @@ export default function HojePage() {
             </motion.div>
           )}
 
-          {(todayTasks.length > 0 || overdueTasks.length === 0) && (
-            <motion.div variants={fade}>
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CheckCircle2 className="h-4 w-4 text-blue-500" /> Tarefas de hoje ({todayTasks.length})
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1.5">
-                  {todayTasks.length === 0 ? (
-                    <p className="py-4 text-center text-sm text-muted-foreground">Nenhuma tarefa com prazo hoje.</p>
-                  ) : (
-                    <AnimatePresence initial={false}>
-                      {todayTasks.map(task => {
-                        const pc = priorityConfig[task.priority];
-                        return (
-                          <motion.button
-                            key={task.id}
-                            exit={{ opacity: 0, x: -10 }}
-                            onClick={() => toggleTaskDone(task)}
-                            className={cn('flex w-full items-center gap-2.5 rounded-md border-l-2 px-2 py-1.5 text-left text-sm hover:bg-muted/50', pc.border)}
-                          >
-                            <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            <span className="flex-1 truncate">{task.title}</span>
-                            {task.recurring && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" />}
-                            {task.priority !== 'normal' && <span className={cn('text-xs', pc.color)}>{pc.label}</span>}
-                          </motion.button>
-                        );
-                      })}
-                    </AnimatePresence>
-                  )}
-                  <Link href="/tarefas" className="mt-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                    Ver todas as tarefas <ArrowRight className="h-3 w-3" />
-                  </Link>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
           {dailyIndicators.length > 0 && (
             <motion.div variants={fade}>
               <Card>
@@ -257,27 +218,62 @@ export default function HojePage() {
             </motion.div>
           )}
 
-          <motion.div variants={fade}>
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FileText className="h-4 w-4 text-orange-500" /> Conteúdo agendado hoje
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5">
-                {todayContent.length === 0 ? (
-                  <p className="py-4 text-center text-sm text-muted-foreground">Nenhum conteúdo agendado hoje.</p>
-                ) : (
-                  todayContent.map(item => (
+          {/* Só renderiza com conteúdo — card "vazio" aqui é ruído, o estado
+              "nada pendente" já é coberto pelo bloco Tudo em dia! acima. */}
+          {todayTasks.length > 0 && (
+            <motion.div variants={fade}>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <CheckCircle2 className="h-4 w-4 text-blue-500" /> Tarefas de hoje ({todayTasks.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  <AnimatePresence initial={false}>
+                    {todayTasks.map(task => {
+                      const pc = priorityConfig[task.priority];
+                      return (
+                        <motion.button
+                          key={task.id}
+                          exit={{ opacity: 0, x: -10 }}
+                          onClick={() => toggleTaskDone(task)}
+                          className={cn('flex w-full items-center gap-2.5 rounded-md border-l-2 px-2 py-1.5 text-left text-sm hover:bg-muted/50', pc.border)}
+                        >
+                          <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
+                          <span className="flex-1 truncate">{task.title}</span>
+                          {task.recurring && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" />}
+                          {task.priority !== 'normal' && <span className={cn('text-xs', pc.color)}>{pc.label}</span>}
+                        </motion.button>
+                      );
+                    })}
+                  </AnimatePresence>
+                  <Link href="/tarefas" className="mt-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    Ver todas as tarefas <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+
+          {todayContent.length > 0 && (
+            <motion.div variants={fade}>
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4 text-orange-500" /> Conteúdo agendado hoje
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-1.5">
+                  {todayContent.map(item => (
                     <Link key={item.id} href="/conteudo" className="flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm hover:bg-muted/50">
                       <span className="flex-1 truncate">{item.title}</span>
                       <Badge variant="outline" className="text-xs">{item.channel}</Badge>
                     </Link>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
+                  ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
           {todayFinancial.length > 0 && (
             <motion.div variants={fade}>

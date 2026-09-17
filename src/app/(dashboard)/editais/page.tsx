@@ -406,6 +406,30 @@ export default function EditaisPage() {
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-64 w-full" />)}</div>
+      ) : editais.length === 0 ? (
+        // Primeira experiência do módulo: orientar pra ação, não expor o
+        // jargão de kanban ("Solte aqui") numa tela totalmente vazia.
+        <motion.div variants={fade}>
+          <Card className="border-dashed">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
+                <Radar className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-lg font-medium">Nenhum edital no radar</p>
+                <p className="text-sm text-muted-foreground">Deixe o robô varrer as fontes do seu cockpit, ou cadastre um manualmente.</p>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={buscarEditais} className="gap-1.5">
+                  <Radar className="h-4 w-4" /> Buscar editais com IA
+                </Button>
+                <Button variant="outline" onClick={openCreate} className="gap-1.5">
+                  <Plus className="h-4 w-4" /> Novo edital
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {stages.map(stage => (

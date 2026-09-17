@@ -1099,7 +1099,7 @@ export default function ConteudoPage() {
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="sm" className="h-9 text-xs gap-1">
-                  <Save className="h-3 w-3" /> Salvar
+                  <Save className="h-3 w-3" /> Salvar visão
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-56" align="end">

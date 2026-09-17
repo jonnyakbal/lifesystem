@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+/* Tailwind v4: o app alterna tema pela classe .dark no <html> (toggle do
+   settings.tsx). Sem esta declaração, a variante dark: escuta o
+   prefers-color-scheme do SISTEMA OPERACIONAL em vez da classe — e o toggle
+   do app para de funcionar silenciosamente para todo componente que usa
+   dark: (os stickies do INBOX eram a vítima visível: fundo claro + texto
+   branco no tema escuro). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-background: #070a1c;
   --color-foreground: hsl(250 30% 96%);

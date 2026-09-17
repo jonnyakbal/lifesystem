@@ -1256,7 +1256,7 @@ export default function TasksPage() {
                 ))}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-9 text-xs gap-1"><Save className="h-3 w-3" /> Salvar</Button>
+                    <Button variant="ghost" size="sm" className="h-9 text-xs gap-1"><Save className="h-3 w-3" /> Salvar visão</Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-56" align="end">
                     <div className="space-y-2">

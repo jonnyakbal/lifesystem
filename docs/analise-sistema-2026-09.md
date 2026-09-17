@@ -103,9 +103,9 @@ A linha de ações tem: busca, Filtros, **Salvar**, Selecionar, lápis (renomear
 ### 3.4 Home ("Command Center")
 
 - **Idioma:** "Command Center" em EN no app mais PT-BR do mundo. Sugestão: "Seu dia em órbita" / "Painel" / "Hoje no seu universo" — mantém a voz astral em PT.
-- **Stats inertes:** os 5 cards (Capturas/Tarefas/Concluídas/Projetos/Pilares) não são clicáveis. Cada um deveria navegar pro respectivo módulo com o filtro aplicado (card Projetos → /projetos; card Capturas → /inbox). Hoje são decoração com número.
+- **Stats:** os 5 cards **já são clicáveis** (correção a esta análise: `<Link href>` em cada um — ok). O problema real é **mobile**: 5 cards grandes ocupam a dobra inteira antes de qualquer conteúdo acionável.
 - **Contradição de estado:** "Nenhuma tarefa para hoje 🎉" (positivo) em cima de "Taxa de Conclusão 0%" (vermelho implícito de fracasso) no mesmo viewport. Quando não há nada planejado, a taxa deve ficar em estado neutro ("—" ou escondida), não zero.
-- **Ordem de prioridade invertida:** stats antes do conteúdo. Em 1440px a primeira dobra é quase toda métrica; a agenda do dia e as capturas recentes — o que gera *ação* — ficam abaixo. **Proposta:** "Tarefas de Hoje" e "Últimas Capturas" primeiro, stats como faixa compacta clicável acima ou abaixo.
+- **Ordem de prioridade no mobile:** stats antes do conteúdo. A faixa de stats deve ser compacta (pills scrolláveis) para Hoje/Capturas subirem.
 - **Pipeline de Conteúdo** como barra única esconde os itens; mostrar os 2-3 conteúdos mais próximos de publicar (agendados/rascunho), linkando pro kanban.
 
 ### 3.5 Hoje — três vazios empilhados
@@ -155,3 +155,28 @@ Com a base vazia, a tela mostra 4 colunas com "Solte aqui" — instrução de *d
 3. **Rodada UX 2 (meio dia):** Tarefas/Conteúdo (toolbar consolidada, autosave honesto) + Home (stats clicáveis, ordem, idioma) + Hoje unificado + Editais empty state.
 4. **Infra (2h):** sessão com rotação semanal, `NavCountsProvider`, atalhos ⌘ reais no command palette.
 5. **Só depois:** Central de Fontes (spec completa em `docs/central-de-fontes-spec.md`) — feature nova merece o chão limpo, e ela *depende* do dark: corrigido (o leitor é uma tela de leitura longa; tema é o coração da experiência).
+
+---
+
+## 6 · Registro de execução — rodada de UX (2026-09-17)
+
+Correções aplicadas nesta rodada (branch `arena/01a0b176-lifesystem`):
+
+| ✅ | Correção | Onde |
+|---|---|---|
+| ✅ | `@custom-variant dark` declarado — toggle de tema volta a controlar todas as variantes `dark:` do app (bug P0 2.2) | `src/app/globals.css` |
+| ✅ | `sidebar.tsx` morto (377 linhas) removido | `src/components/layout/` |
+| ✅ | Atalhos ⌘ reais no command palette (⌘I/⌘G/⌘J/⌘D/⌘B/⌘E/⌘⇧H — só os interceptáveis; labels mentirosos ⌘T/⌘W/⌘N/⌘F/⌘L/⌘H/⌘R/⌘V/⌘P/⌘⇧I removidos) | `command-palette.tsx` |
+| ✅ | Home: título "Command Center" → "Seu dia em órbita" (PT-BR) | `src/app/page.tsx` |
+| ✅ | Home mobile: stats viram faixa de pills compacta clicável; cards grandes só no desktop | `src/app/page.tsx` |
+| ✅ | Home: Taxa de Conclusão neutra ("—", sem barra) quando não há tarefas | `src/app/page.tsx` |
+| ✅ | INBOX: grid fluido (até 6 colunas em telas largas, fim do oceano vazio) | `inbox/page.tsx` |
+| ✅ | INBOX: banner de Revisão Semanal colapsa pra linha discreta quando feita há <7 dias (lê a chave que o `weekly-review-flow` já persiste) | `inbox/page.tsx` |
+| ✅ | Notas: "+ New" → "Nova nota" (idioma + verbo consistente) | `notas/page.tsx` |
+| ✅ | Tarefas e Conteúdo: "Salvar" → "Salvar visão" (semântica real do botão) | `tarefas/`, `conteudo/` |
+| ✅ | Editais: estado vazio do módulo com CTA "Buscar editais com IA" + "Novo edital"; "Solte aqui" só aparece quando já há cards no quadro | `editais/page.tsx` |
+| ✅ | Hoje: Metas do dia primeiro; cards sem conteúdo deixam de renderizar (fim dos vazios empilhados) | `hoje/page.tsx` |
+
+**Pendências desta análise (P0 de dados/privacidade e os itens P2 de infra):** seguem abertas — ver seções 2.1 (repo público — precisa de decisão do dono) e 4 (sessão rotativa, NavCountsProvider, testes de tema).
+
+*Nota de validação: os screenshots de `screenshots/astral-review/` foram tirados com o SO em light, o que mascarava o bug do dark:. Re-auditar dark/light com o toggle do app após o fix do `@custom-variant`.*

@@ -10,7 +10,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Plus, Trash2, Search, Inbox as InboxIcon, MoreHorizontal,
-  ArrowRight, ListChecks,
+  ArrowRight, ListChecks, CheckCircle2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -75,8 +75,17 @@ export default function InboxPage() {
   const [search, setSearch] = useState('');
   const [quickTitle, setQuickTitle] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewDoneAt, setReviewDoneAt] = useState<string | null>(null);
 
-  useEffect(() => { loadCaptures(); }, []);
+  useEffect(() => {
+    loadCaptures();
+    // A Revisão Semanal persiste a conclusão (weekly-review-flow.tsx). Com
+    // revisão feita há menos de 7 dias, o convite vira uma linha discreta —
+    // não precisa de botão gigante repetido todos os dias.
+    try {
+      queueMicrotask(() => setReviewDoneAt(localStorage.getItem('lifesystem-last-weekly-review')));
+    } catch { /* storage bloqueado — segue com banner completo */ }
+  }, []);
 
   async function loadCaptures() {
     try {
@@ -119,6 +128,11 @@ export default function InboxPage() {
 
   const queue = useMemo(() => captures.filter(c => c.status === 'inbox'), [captures]);
 
+  // Revisão feita há < 7 dias → banner discreto (ver useEffect acima).
+  const reviewAgeMs = reviewDoneAt ? Date.now() - new Date(reviewDoneAt).getTime() : Infinity;
+  const reviewDaysSince = Math.floor(reviewAgeMs / 86_400_000);
+  const reviewDoneFresh = reviewAgeMs < 7 * 86_400_000;
+
   const filtered = useMemo(() => {
     if (!search) return queue;
     const q = search.toLowerCase();
@@ -135,6 +149,18 @@ export default function InboxPage() {
         <p className="text-muted-foreground">Capture agora. Escolha depois o melhor destino.</p>
       </motion.div>
 
+      {reviewDoneFresh ? (
+        <motion.div variants={fade} className="mb-6">
+          <button
+            onClick={() => setReviewOpen(true)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 text-money" />
+            <span className="flex-1">Revisão Semanal em dia ({reviewDaysSince === 0 ? 'hoje' : `há ${reviewDaysSince}d`})</span>
+            <span className="opacity-60">Refazer</span>
+          </button>
+        </motion.div>
+      ) : (
       <motion.div variants={fade} className="mb-6 max-w-xl">
         <motion.button
           onClick={() => setReviewOpen(true)}
@@ -156,6 +182,7 @@ export default function InboxPage() {
           <ArrowRight className="h-4 w-4 shrink-0 text-primary opacity-100" />
         </motion.button>
       </motion.div>
+      )}
 
       <motion.div className="mb-6 flex max-w-xl gap-2" variants={fade}>
         <Input
@@ -196,7 +223,7 @@ export default function InboxPage() {
           </CardContent>
         </Card>
       ) : (
-        <motion.div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4" variants={stagger}>
+        <motion.div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6" variants={stagger}>
           <AnimatePresence initial={false}>
             {filtered.map(capture => {
               const { color, rotation } = getStickyStyle(capture.id);

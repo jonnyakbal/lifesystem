@@ -203,22 +203,22 @@ export function CommandPalette() {
 
   const commands: CommandItem[] = [
     { id: 'inbox', label: 'Ir para INBOX', icon: Inbox, shortcut: '⌘I', action: () => router.push('/inbox'), category: 'Navegação' },
-    { id: 'planejar', label: 'Ir para Planejar', icon: Wand2, shortcut: '⌘W', action: () => router.push('/planejar'), category: 'Navegação' },
-    { id: 'notas', label: 'Ir para Notas', icon: NotebookText, shortcut: '⌘⇧I', action: () => router.push('/notas'), category: 'Navegação' },
-    { id: 'visao', label: 'Ir para Visão', icon: Target, shortcut: '⌘V', action: () => router.push('/visao'), category: 'Navegação' },
-    { id: 'pilares', label: 'Ir para Pilares', icon: Layers, shortcut: '⌘P', action: () => router.push('/visao?tab=pilares'), category: 'Navegação' },
+    { id: 'planejar', label: 'Ir para Planejar', icon: Wand2, shortcut: undefined, action: () => router.push('/planejar'), category: 'Navegação' },
+    { id: 'notas', label: 'Ir para Notas', icon: NotebookText, shortcut: undefined, action: () => router.push('/notas'), category: 'Navegação' },
+    { id: 'visao', label: 'Ir para Visão', icon: Target, shortcut: undefined, action: () => router.push('/visao'), category: 'Navegação' },
+    { id: 'pilares', label: 'Ir para Pilares', icon: Layers, shortcut: undefined, action: () => router.push('/visao?tab=pilares'), category: 'Navegação' },
     { id: 'projetos', label: 'Ir para Projetos', icon: FolderKanban, shortcut: '⌘J', action: () => router.push('/projetos'), category: 'Navegação' },
-    { id: 'tarefas', label: 'Ir para Tarefas', icon: CheckSquare, shortcut: '⌘T', action: () => router.push('/tarefas'), category: 'Navegação' },
-    { id: 'conteudo', label: 'Ir para Conteúdo', icon: FileText, shortcut: '⌘N', action: () => router.push('/conteudo'), category: 'Navegação' },
+    { id: 'tarefas', label: 'Ir para Tarefas', icon: CheckSquare, shortcut: undefined, action: () => router.push('/tarefas'), category: 'Navegação' },
+    { id: 'conteudo', label: 'Ir para Conteúdo', icon: FileText, shortcut: undefined, action: () => router.push('/conteudo'), category: 'Navegação' },
     { id: 'indicadores', label: 'Ir para Metas', icon: BarChart3, shortcut: '⌘D', action: () => router.push('/indicadores'), category: 'Navegação' },
-    { id: 'financeiro', label: 'Ir para Financeiro', icon: Wallet, shortcut: '⌘F', action: () => router.push('/financeiro'), category: 'Navegação' },
-    { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: '⌘L', action: () => router.push('/diario'), category: 'Navegação' },
+    { id: 'financeiro', label: 'Ir para Financeiro', icon: Wallet, shortcut: undefined, action: () => router.push('/financeiro'), category: 'Navegação' },
+    { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: undefined, action: () => router.push('/diario'), category: 'Navegação' },
     { id: 'diario-bordo', label: 'Ir para Diário de Bordo', icon: ScrollText, shortcut: '⌘B', action: () => router.push('/diario-bordo'), category: 'Navegação' },
     { id: 'hermes', label: 'Ir para Hermes', icon: Bot, shortcut: '⌘⇧H', action: () => router.push('/hermes'), category: 'Navegação' },
     { id: 'editais', label: 'Ir para Editais', icon: Award, shortcut: '⌘E', action: () => router.push('/editais'), category: 'Navegação' },
-    { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: '⌘H', action: () => router.push('/'), category: 'Navegação' },
+    { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: undefined, action: () => router.push('/'), category: 'Navegação' },
     { id: 'hoje-nav', label: 'Ir para Hoje', icon: Calendar, shortcut: '⌘G', action: () => router.push('/hoje'), category: 'Navegação' },
-    { id: 'revisao-nav', label: 'Ir para Revisão Semanal', icon: ListChecks, shortcut: '⌘R', action: () => router.push('/revisao'), category: 'Navegação' },
+    { id: 'revisao-nav', label: 'Ir para Revisão Semanal', icon: ListChecks, shortcut: undefined, action: () => router.push('/revisao'), category: 'Navegação' },
     { id: 'nova-tarefa', label: 'Criar nova tarefa', icon: Plus, action: () => { router.push('/tarefas'); }, category: 'Ações Rápidas' },
     { id: 'nova-captura', label: 'Criar nova captura', icon: Plus, action: () => { router.push('/inbox'); }, category: 'Ações Rápidas' },
     { id: 'nova-nota', label: 'Criar nova nota', icon: Plus, action: () => { router.push('/conteudo'); }, category: 'Ações Rápidas' },
@@ -350,20 +350,45 @@ export function CommandPalette() {
   }
 
   useEffect(() => {
+    // Atalhos de navegação globais — só os que o navegador deixa interceptar
+    // e que não conflitam com o editor (⌘I/⌘B só disparam fora de inputs e
+    // contenteditable, então itálico/negrito do Tiptap continuam funcionando).
+    // ⌘T, ⌘W, ⌘N, ⌘L etc. são do navegador e não podem ser capturados — por
+    // isso os itens correspondentes do palette não anunciam atalho.
+    const navHotkeys: Record<string, string> = {
+      i: '/inbox', g: '/hoje', j: '/projetos', d: '/indicadores',
+      b: '/diario-bordo', e: '/editais',
+    };
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
         setOpen(prev => !prev);
+        return;
       }
       if (e.key === 'Escape' && open) {
         setOpen(false);
         setQuery('');
         setSelectedIndex(0);
+        return;
+      }
+      if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+        const target = e.target as HTMLElement | null;
+        const typing = !!target?.closest('input, textarea, select, [contenteditable="true"], [contenteditable=""]');
+        const key = e.key.toLowerCase();
+        if (e.shiftKey && key === 'h' && !typing) {
+          e.preventDefault();
+          router.push('/hermes');
+          return;
+        }
+        if (!e.shiftKey && !typing && navHotkeys[key]) {
+          e.preventDefault();
+          router.push(navHotkeys[key]);
+        }
       }
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open]);
+  }, [open, router]);
 
   useEffect(() => { queueMicrotask(() => setSelectedIndex(0)); }, [query]);
 
