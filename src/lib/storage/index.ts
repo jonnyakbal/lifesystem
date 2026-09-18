@@ -1,7 +1,6 @@
 import fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 
 const DATA_DIR = process.env.LIFESYSTEM_DATA_DIR
   ? path.resolve(process.env.LIFESYSTEM_DATA_DIR)
@@ -97,7 +96,7 @@ export const storage = {
       const now = new Date().toISOString();
       const newItem = {
         ...data,
-        id: uuidv4(),
+        id: randomUUID(),
         createdAt: now,
         updatedAt: now,
       } as unknown as T;

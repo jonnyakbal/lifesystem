@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { mkdir, writeFile } from 'fs/promises';
 import { join } from 'path';
-import { v4 as uuid } from 'uuid';
+import { randomUUID } from 'crypto';
 
 const MAX_SIZE_BYTES = 2 * 1024 * 1024;
 const MAX_REQUEST_BYTES = 3 * 1024 * 1024;
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     await mkdir(UPLOAD_DIR, { recursive: true });
-    const filename = `${uuid()}.webp`;
+    const filename = `${randomUUID()}.webp`;
     await writeFile(join(UPLOAD_DIR, filename), buffer);
 
     return NextResponse.json({
