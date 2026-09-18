@@ -43,7 +43,9 @@ jobs:
 
       - name: Dump test output to job summary
         if: failure()
-        run: tail -100 /tmp/test-output.txt > "$GITHUB_STEP_SUMMARY"
+        run: |
+          mkdir -p playwright-report
+          tail -150 /tmp/test-output.txt | tee playwright-report/failure-tail.txt > "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results
         if: always()
