@@ -1,4 +1,4 @@
-import { Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, Layers, History } from 'lucide-react';
+import { Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, Layers, History, Rss } from 'lucide-react';
 
 export const navigation = [
   { label: 'Seu dia', items: [
@@ -11,6 +11,7 @@ export const navigation = [
     { title: 'Projetos', href: '/projetos', icon: FolderKanban, description: 'Dê forma às ideias que merecem acontecer.' },
     { title: 'Planejar', href: '/planejar', icon: Wand2, description: 'Abra espaço para uma semana com intenção.' },
     { title: 'Conteúdo', href: '/conteudo', icon: FileText, description: 'Da primeira ideia ao mundo.' },
+    { title: 'Fontes', href: '/content-hub', icon: Rss, description: 'RSS, sites, newsletters — tudo num só lugar.' },
     { title: 'Editais', href: '/editais', icon: Award, description: 'Encontre oportunidades. Acompanhe cada etapa.' },
   ] },
   { label: 'Cultivar', items: [
