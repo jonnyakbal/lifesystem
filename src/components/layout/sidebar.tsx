@@ -7,7 +7,8 @@ import { motion } from 'motion/react';
 import {
   Inbox, Home, Target, FolderKanban, CheckSquare, BarChart3, Wallet, BookOpen,
   FileText, Sparkles, Menu, ChevronLeft, ChevronRight, Settings,
-  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText, Bot, Award
+  Sun, Moon, LogOut, CalendarCheck, NotebookText, Wand2, ScrollText, Bot, Award,
+  Rss
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -26,6 +27,7 @@ const navGroups: { section: string | null; items: { name: string; href: string; 
   ] },
   { section: 'Capturar', items: [
     { name: 'INBOX', href: '/inbox', icon: Inbox, shortcut: '⌘I' },
+    { name: 'Fontes', href: '/content-hub', icon: Rss, shortcut: '⌘R' },
     { name: 'Notas', href: '/notas', icon: NotebookText, shortcut: '⌘⇧I' },
   ] },
   { section: 'Planejar', items: [
@@ -64,6 +66,9 @@ function SidebarContent({ collapsed, onToggleCollapse, onNavigate }: {
     });
     fetch('/api/captures').then(r => r.json()).then(captures => {
       setCounts(prev => ({ ...prev, inbox: captures.length }));
+    });
+    fetch('/api/content-hub/items?status=unread').then(r => r.json()).then(items => {
+      setCounts(prev => ({ ...prev, fontes: items.length }));
     });
   }, [pathname]);
 

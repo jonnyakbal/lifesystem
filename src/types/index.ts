@@ -401,6 +401,56 @@ export interface LogEntry extends BaseEntity {
   date: string; // YYYY-MM-DD — "as of" date, may differ from createdAt for backfilled entries
 }
 
+// ─── Content Hub (Central de Fontes) ────────────────────────────────────────
+export type ContentSourceType = 'rss' | 'website' | 'youtube_channel' | 'youtube_playlist' | 'newsletter' | 'manual';
+
+export interface ContentSource extends BaseEntity {
+  name: string;
+  type: ContentSourceType;
+  url: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  tags?: string[];
+  isActive: boolean;
+  lastFetchedAt?: string;
+  fetchStatus: 'idle' | 'fetching' | 'success' | 'error';
+  error?: string;
+  itemCount: number;
+  nextFetchAt?: string;
+  crawlInterval?: string;
+}
+
+export type ContentItemStatus = 'unread' | 'reading' | 'read' | 'archived';
+export type ContentItemImportance = 'low' | 'normal' | 'high';
+export type ActionType = 'capture' | 'task' | 'note' | 'content' | 'dismiss';
+
+export interface ContentItem extends BaseEntity {
+  sourceId: string;
+  title: string;
+  url: string;
+  author?: string;
+  content: string;
+  excerpt?: string;
+  imageUrl?: string;
+  publishedAt?: string;
+  fetchedAt: string;
+  summary?: string;
+  tags?: string[];
+  category?: string;
+  status: ContentItemStatus;
+  importance: ContentItemImportance;
+  aiInsights?: {
+    summary?: string;
+    actionSuggestion?: ActionType;
+    actionTitle?: string;
+    relatedPillar?: string;
+    relatedProject?: string;
+  };
+  linkedCaptureId?: string;
+  linkedTaskId?: string;
+}
+
 // User Settings
 export interface UserSettings extends BaseEntity {
   theme: 'dark' | 'light' | 'system';
