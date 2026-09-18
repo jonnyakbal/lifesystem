@@ -214,8 +214,7 @@
 }
 .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
 
-/* Smooth scroll */
-html { scroll-behavior: smooth; }
+/* Smooth scroll — controlled via data-scroll-behavior on <html> */
 
 /* Prose styling for rich text content */
 .prose-mkt {
