@@ -49,17 +49,12 @@ jobs:
           mkdir -p playwright-report
           tail -150 /tmp/test-output.txt | tee playwright-report/failure-tail.txt > "$GITHUB_STEP_SUMMARY"
 
-      - name: Commit failure log to branch
+      - name: Comment failure log on PR
         if: failure()
-        run: |
-          git config user.email "ci-bot@users.noreply.github.com"
-          git config user.name "ci-bot"
-          git fetch origin "$GITHUB_REF_NAME"
-          git checkout "$GITHUB_REF_NAME"
-          tail -200 /tmp/test-output.txt > ci-test-output.txt
-          git add ci-test-output.txt
-          git commit -m "ci: anexa log de teste [skip ci]"
-          git push origin "HEAD:$GITHUB_REF_NAME"
+        run: gh pr comment "$NUMBER" --body "$(tail -150 /tmp/test-output.txt)"
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Upload test results
         if: always()
