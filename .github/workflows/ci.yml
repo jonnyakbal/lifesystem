@@ -33,11 +33,17 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run tests
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee /tmp/test-output.txt
         env:
           AUTH_USER: test
           AUTH_PASSWORD: test-password-for-ci
           MCP_API_KEY: test-mcp-key-for-ci
+
+      - name: Dump test output to job summary
+        if: failure()
+        run: tail -100 /tmp/test-output.txt > "$GITHUB_STEP_SUMMARY"
 
       - name: Upload test results
         if: always()
