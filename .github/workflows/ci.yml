@@ -9,8 +9,6 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     
     steps:
       - name: Checkout code
@@ -35,26 +33,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run tests
-        run: |
-          set -o pipefail
-          npm test 2>&1 | tee /tmp/test-output.txt
+        run: npm test
         env:
           AUTH_USER: test
           AUTH_PASSWORD: test-password-for-ci
           MCP_API_KEY: test-mcp-key-for-ci
-
-      - name: Dump test output to job summary
-        if: failure()
-        run: |
-          mkdir -p playwright-report
-          tail -150 /tmp/test-output.txt | tee playwright-report/failure-tail.txt > "$GITHUB_STEP_SUMMARY"
-
-      - name: Comment failure log on PR
-        if: failure()
-        run: gh pr comment "$NUMBER" --body "$(tail -150 /tmp/test-output.txt)"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NUMBER: ${{ github.event.pull_request.number }}
 
       - name: Upload test results
         if: always()
