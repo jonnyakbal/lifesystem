@@ -56,6 +56,9 @@
 .workspace-nav-link[aria-current="page"] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 9%, transparent); }
 .workspace-nav-dot { margin-left: auto; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .workspace-nav-link.is-compact { justify-content: center; padding: 11px 0; }
+.workspace-nav-badge { margin-left: auto; min-width: 18px; height: 18px; padding: 0 5px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: color-mix(in srgb, var(--color-primary) 16%, transparent); color: var(--color-primary); font-size: 10px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.workspace-nav-link.is-compact .workspace-nav-badge { display: none; }
+.workspace-dock-badge { position: absolute; top: 7px; right: calc(50% - 17px); width: 7px; height: 7px; border-radius: 50%; background: var(--color-primary); }
 .workspace-sidebar-footer { border-top: 1px solid var(--color-border); padding-top: 14px; }
 .workspace-capture { width: 100%; gap: 9px; border-radius: 10px; font-size: 12px; }
 .workspace-utilities { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: var(--color-muted-foreground); }

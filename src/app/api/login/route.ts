@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     secure: true,
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    maxAge: 60 * 60 * 24 * 7, // 7 dias — casa com a rotação semanal do token (src/lib/auth.ts)
   });
   return res;
 }

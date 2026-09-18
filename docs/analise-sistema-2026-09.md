@@ -140,8 +140,8 @@ Com a base vazia, a tela mostra 4 colunas com "Solte aqui" — instrução de *d
 ## 4 · P2 — código, navegação e infraestrutura
 
 1. **`src/components/layout/sidebar.tsx` é código morto** (377 linhas, zero imports — o ChromeGate usa `workspace-sidebar.tsx`). Pior: é nele que vivem os atalhos ⌘H/⌘I/⌘T anunciados como `<kbd>`… que portanto **não funcionam** na UI viva. Deletar o arquivo e implementar os atalhos de verdade no `command-palette.tsx` (que já tem a infra de hotkeys), reexibindo o `<kbd>` nos itens do palette.
-2. **Contadores da sidebar:** `WorkspaceSidebar` faz 2 fetches (`/api/tasks`, `/api/captures`) **a cada mudança de pathname**, sem cache nem dedupe. Extrair pra um `NavCountsProvider` com SWR-style: busca 1×, invalida por evento (após create/convert/delete) via `window.dispatchEvent('ls:counts:dirty')`. Menos tráfego, números sempre certos, e permite contar INBOX *não lido* em vez de `captures.length` (que conta processadas — número errado hoje).
-3. **Sessão eterna:** o token é `HMAC(AUTH_PASSWORD, 'lifesystem-authenticated')` — determinístico, sem expiração. Quem copiar o cookie uma vez, entra pra sempre (e o valor é o mesmo em todos os devices/sessões). **Proposta mínima:** `HMAC(secret, `${dayBucket}`)` com `dayBucket` = semana ISO + `Max-Age` de 7d — mantém simples e dá rotação semanal automática (logout natural ao trocar a semana; aceitável num app single-user). Documentar no Diário de Bordo.
+2. **Contadores da sidebar:** *correção a esta análise: o refetch a cada pathname morava no `sidebar.tsx` morto (removido) — a sidebar viva (workspace) não busca nada, e não tinha contadores.* **Entregue na rodada de otimização:** badge ao vivo de INBOX (capturas `status:'inbox'`, não totais), com provider único (`nav-counts.tsx`) — busca no mount + ao voltar pra aba + invalidação por evento `ls:counts:dirty` disparado centralmente nas mutações de `/api/captures|tasks` (`lib/api.ts`). Sem polling, sem refetch por navegação.
+3. **Sessão eterna:** *entregue na rodada de otimização:* token deriva do bucket da semana ISO (`HMAC(secret, 'lifesystem-authenticated:2026-W38')`), validador aceita semana atual e anterior (rollover suave), cookie com `Max-Age` de 7 dias. Cookie roubado vale no máximo 7 dias e morre sozinho na virada da semana; re-login no máximo 1x/semana. Sem armazenamento de sessão (continua fail-closed).
 4. **`fetch-page.ts` é a fundação certa pra Central de Fontes**, mas hoje só tira tags por regex — sem `<title>`, sem Open Graph, sem article extraction, sem RSS. A spec da feature nova (doc irmã) já nasce estendendo esse arquivo com os mesmos guards (SSRF, bytes, content-type).
 5. **Testes:** os specs de API são bons. Falta: (a) teste de **conversão de captura** (o fluxo mais crítico do produto — hoje coberto só por `qa-flows.js` manual), (b) um teste de tema (toggle → snapshot de contraste do sticky), (c) rodar `qa-*.js` agendado no CI semanal pra pegar regressões visuais.
 6. **CI:** roda em push/PR pra `main` ✅; a branch de trabalho desta sessão não dispara CI — considerar `branches: [main, 'arena/**']` se quiser ver checks aqui.
@@ -180,3 +180,14 @@ Correções aplicadas nesta rodada (branch `arena/01a0b176-lifesystem`):
 **Pendências desta análise (P0 de dados/privacidade e os itens P2 de infra):** seguem abertas — ver seções 2.1 (repo público — precisa de decisão do dono) e 4 (sessão rotativa, NavCountsProvider, testes de tema).
 
 *Nota de validação: os screenshots de `screenshots/astral-review/` foram tirados com o SO em light, o que mascarava o bug do dark:. Re-auditar dark/light com o toggle do app após o fix do `@custom-variant`.*
+
+---
+
+## 7 · Registro de execução — rodada de otimização (2026-09-18)
+
+| ✅ | Entrega | Onde |
+|---|---|---|
+| ✅ | Sessão com rotação semanal: token deriva da semana ISO; validador aceita semana atual+anterior; cookie de 7 dias (antes: eterno e estático) | `src/lib/auth.ts`, `api/login` |
+| ✅ | Badge de INBOX ao vivo na sidebar desktop + dock mobile (conta só `status:'inbox'`; antes, no design antigo, contava capturas já processadas) | `nav-counts.tsx`, `workspace-sidebar.tsx`, `astral.css` |
+| ✅ | Invalidação centralizada de contadores: mutações de capturas/tarefas via `apiFetch` disparam `ls:counts:dirty`; provider busca no mount e ao voltar pra aba — zero polling, zero refetch por navegação | `lib/api.ts`, `nav-counts.tsx` |
+| ✅ | Correção da própria análise: o refetch de contadores criticado em §4.2 morava no `sidebar.tsx` morto (já removido) | esta seção |

@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { SettingsDialog, useTheme } from './settings';
 import { NotificationCenter } from '@/components/notification-center';
+import { useInboxCount } from '@/components/layout/nav-counts';
 import { workspaceConfig } from '@/lib/workspace-config';
 
 function openCommands() {
@@ -24,6 +25,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const page = getPageContext(pathname);
+  const inboxCount = useInboxCount();
 
   useEffect(() => {
     const open = () => setSettingsOpen(true);
@@ -47,6 +49,9 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
             aria-label={compact ? item.title : undefined} aria-current={pathname === item.href ? 'page' : undefined}
             onClick={() => setMobileOpen(false)} className={cn('workspace-nav-link', compact && 'is-compact')}>
             <item.icon size={18} strokeWidth={1.65} />{!compact && <span>{item.title}</span>}
+            {item.href === '/inbox' && inboxCount > 0 && (
+              <span className="workspace-nav-badge">{inboxCount > 99 ? '99+' : inboxCount}</span>
+            )}
             {pathname === item.href && !compact && <span className="workspace-nav-dot" />}
           </Link>)}
         </div>)}
@@ -77,8 +82,9 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
       <Button variant="ghost" size="icon" aria-label="Buscar no seu espaço" onClick={openCommands}><Search size={19} /></Button>
     </header>
     <nav className="workspace-mobile-dock lg:hidden" aria-label="Navegação rápida">
-      {mobileItems.map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined}>
+      {mobileItems.map(item => <Link key={item.href} href={item.href} aria-current={pathname === item.href ? 'page' : undefined} className="relative">
         <item.icon size={21} strokeWidth={1.7} /><span>{item.href === '/' ? 'Início' : item.title}</span>
+        {item.href === '/inbox' && inboxCount > 0 && <span className="workspace-dock-badge" aria-label={`${inboxCount} capturas aguardando triagem`} />}
       </Link>)}
       <button onClick={openCommands} aria-label="Captura rápida"><Plus size={21} /><span>Capturar</span></button>
       <button onClick={() => setMobileOpen(true)} aria-label="Abrir todas as telas"><Menu size={21} /><span>Explorar</span></button>
