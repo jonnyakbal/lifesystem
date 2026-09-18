@@ -285,6 +285,18 @@ Sequência de fases que transformou o app de "telas isoladas por entidade" pra u
 - **Segurança implementada:** sanitização HTML/Markdown, reprocessamento de uploads com Sharp, limite de tamanho/dimensões, bloqueio temporário de tentativas de login e verificação de Origin em requisições mutáveis.
 - **Regra operacional:** nenhum novo deploy deve ser feito antes de copiar os dados atuais da Hostinger para o diretório persistente, configurar as variáveis de ambiente e validar contagem de tarefas/projetos após o deploy.
 - **Recuperação pendente:** procurar o backup/snapshot da Hostinger anterior ao incidente. O workspace local contém apenas os dados-base versionados, não a organização perdida.
+
+### 2026-09-06 — Central de Fontes de Conteúdos (Content Hub)
+
+- **Feature:** sistema completo de centralização de fontes externas (RSS/Atom, sites, YouTube, newsletters) com leitura, parsing, clipping para o INBOX e análise por IA.
+- **Dados:** `ContentSource` (fonte) e `ContentItem` (item lido), armazenados em `content-sources.json` e `content-items.json` com atomic writes e locks.
+- **APIs:** CRUD completo para fontes e itens, refresh de fonte (fetch + parse RSS/Atom/HTML), clip para INBOX (cria Capture), análise IA (summarize + classify).
+- **MCP:** `create_content_source`, `list_content_sources`, `update_content_source`, `create_content_item`, `list_content_items`, `update_content_item` — Hermes pode gerenciar fontes e itens via conversa.
+- **Parsing:** parser RSS/Atom robusto (namespaces dc:creator, content:encoded, atom:published), parsing de HTML para sites genéricos, sanitização de HTML, extração de imagens e tags.
+- **UI:** página `/content-hub` com cards de fontes (status, contagem, último fetch), lista de itens com filtros (fonte, status, busca), reader dialog com conteúdo completo, clipping para INBOX, status visual (unread/reading/read/archived).
+- **Sidebar:** entrada "Fontes" na seção "Capturar" com badge de itens não lidos.
+- **Validação:** schemas Zod para `ContentSource` e `ContentItem`, validação de URL, limites de tamanho.
+- **Próximos passos:** auto-refresh periódico (cron ou on-login), categorização automática por IA, integração com o planejador semanal, exportação OPML.
 - **⚠️ Resolvido só em 2026-09-09, não neste dia.** A "decisão estrutural" acima foi registrada mas `LIFESYSTEM_DATA_DIR` nunca chegou a ser configurada de fato na Hostinger — ficou só como variável documentada no README, sem valor definido em produção. Resultado: o mesmíssimo incidente se repetiu quatro dias depois, dessa vez apagando um planejamento real feito pelo Jonny direto em produção. Ver a entrada de 2026-09-09 para a correção validada de ponta a ponta (com deploy real de teste).
 
 ### 2026-09-09 — Editais com IA, Copiloto embutido, e o incidente de dados resolvido de vez

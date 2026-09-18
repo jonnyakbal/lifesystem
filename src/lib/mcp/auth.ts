@@ -61,6 +61,7 @@ const ENTITY_SCOPES: Record<string, string> = {
   financial_entry: 'financial', account: 'financial', budget: 'financial', card: 'financial',
   payee: 'financial', bill: 'financial', financial_goal: 'financial',
   calendar_event: 'calendar',
+  content_source: 'content_hub', content_item: 'content_hub',
 };
 
 const PLURAL_SCOPES: Record<string, string> = {
@@ -68,6 +69,7 @@ const PLURAL_SCOPES: Record<string, string> = {
   indicators: 'indicators', projects: 'projects', log_entries: 'log_entries', editais: 'editais',
   financial_entries: 'financial', accounts: 'financial', budgets: 'financial', cards: 'financial',
   payees: 'financial', bills: 'financial', financial_goals: 'financial',
+  content_sources: 'content_hub', content_items: 'content_hub',
 };
 
 export function canUseMcpTool(toolName: string, scopes: string[]): boolean {

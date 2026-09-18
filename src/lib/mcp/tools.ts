@@ -527,4 +527,78 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     try { return textResult(await createGoogleCalendarEvent(input)); }
     catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível criar o evento.'); }
   }));
+
+  // ─── Content Hub (Central de Fontes) ──────────────────────────────────────
+  registerCrudTools(server, {
+    entity: 'content_source',
+    collection: 'content-sources',
+    plural: 'content_sources',
+    listFilters: ['type', 'isActive'],
+    createShape: {
+      name: z.string().min(1).max(200).describe('Nome da fonte de conteúdo'),
+      type: z.enum(['rss', 'website', 'youtube_channel', 'youtube_playlist', 'newsletter', 'manual']).describe('Tipo da fonte'),
+      url: z.string().url().describe('URL da fonte (feed RSS, site, etc.)'),
+      description: z.string().max(500).optional(),
+      tags: z.array(z.string().max(50)).max(20).optional(),
+    },
+    updateShape: {
+      name: z.string().optional(),
+      url: z.string().optional(),
+      description: z.string().optional(),
+      isActive: z.boolean().optional(),
+      tags: z.array(z.string().max(50)).max(20).optional(),
+    },
+    buildCreatePayload: (input) => ({
+      name: input.name,
+      type: input.type,
+      url: input.url,
+      description: input.description,
+      tags: input.tags || [],
+      isActive: true,
+      fetchStatus: 'idle',
+      itemCount: 0,
+    }),
+  }, scopes);
+
+  registerCrudTools(server, {
+    entity: 'content_item',
+    collection: 'content-items',
+    plural: 'content_items',
+    listFilters: ['sourceId', 'status', 'importance'],
+    createShape: {
+      sourceId: z.string().describe('ID da fonte de origem'),
+      title: z.string().min(1).max(500).describe('Título do item'),
+      url: z.string().url().describe('Link do conteúdo original'),
+      content: z.string().max(50000).describe('Conteúdo do item'),
+      excerpt: z.string().max(2000).optional(),
+      author: z.string().max(200).optional(),
+      publishedAt: z.string().optional().describe('Data de publicação ISO 8601'),
+      tags: z.array(z.string()).optional(),
+      category: z.string().optional(),
+      status: z.enum(['unread', 'reading', 'read', 'archived']).optional(),
+      importance: z.enum(['low', 'normal', 'high']).optional(),
+    },
+    updateShape: {
+      title: z.string().optional(),
+      status: z.enum(['unread', 'reading', 'read', 'archived']).optional(),
+      importance: z.enum(['low', 'normal', 'high']).optional(),
+      tags: z.array(z.string()).optional(),
+      category: z.string().optional(),
+      summary: z.string().optional(),
+    },
+    buildCreatePayload: (input) => ({
+      sourceId: input.sourceId,
+      title: input.title,
+      url: input.url,
+      content: input.content,
+      excerpt: input.excerpt,
+      author: input.author,
+      publishedAt: input.publishedAt,
+      tags: input.tags || [],
+      category: input.category,
+      status: input.status || 'unread',
+      importance: input.importance || 'normal',
+      fetchedAt: new Date().toISOString(),
+    }),
+  }, scopes);
 }
