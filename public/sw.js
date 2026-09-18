@@ -1,58 +1,35 @@
-const CACHE_NAME = 'lifesystem-v1';
-const STATIC_ASSETS = [
-  '/',
-  '/login',
-  '/favicon.ico',
-  '/manifest.json',
-];
+// Service worker "pass-through" — substitui o antigo shell-cacheado.
+//
+// Por que não cacheamos mais o shell: o LIFESYSTEM é 100% API-driven — o
+// shell offline serve a casca SEM dados (telas vazias, o pior dos dois
+// mundos). Pior: quando o servidor reinicia, o shell em cache referencia
+// chunks hashados que não existem mais e o app morre em branco SEM
+// consertar sozinho (o SW velho continua servindo a casca morta).
+//
+// Este SW: não intercepta nada (passa tudo pra rede), apaga QUALQUER cache
+// legado do shell antigo e desregistra a si mesmo. Browsers com o SW antigo
+// se auto-curam na primeira navegação após baixar este arquivo.
+const LEGACY_CACHE_PREFIX = 'lifesystem';
 
-// Install — cache shell
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
-// Activate — clean old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-// Fetch — network first, fallback to cache for navigation
-self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // Skip non-GET and API calls
-  if (request.method !== 'GET' || request.url.includes('/api/')) {
-    return;
-  }
-
-  // Navigation: network first, cache fallback
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/'))
-    );
-    return;
-  }
-
-  // Static assets: cache first, network fallback
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        // Cache successful responses
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-        }
-        return response;
-      });
-    })
+    caches
+      .keys()
+      .then((keys) =>
+        Promise.all(
+          keys
+            .filter((k) => k.startsWith(LEGACY_CACHE_PREFIX))
+            .map((k) => caches.delete(k)),
+        ),
+      )
+      .then(() => self.clients.claim())
+      .then(() => self.registration.unregister())
+      .catch(() => undefined),
   );
 });
+
+// Sem handler de fetch: tudo vai direto pra rede.
