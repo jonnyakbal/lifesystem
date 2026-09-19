@@ -408,9 +408,9 @@ export default function HomePage() {
       )}
 
       {/* ─── Main Content Grid ─── */}
-      <div className="grid gap-6 xl:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         {/* ─── LEFT COLUMN (7 cols) ─── */}
-        <div className="xl:col-span-8 space-y-6">
+        <div className="min-w-0 xl:col-span-8 space-y-6">
           {/* Today's Tasks - Enhanced */}
           <motion.div variants={fade}>
             <Card>
@@ -557,7 +557,7 @@ export default function HomePage() {
         </div>
 
         {/* ─── RIGHT COLUMN (5 cols) ─── */}
-        <div className="xl:col-span-4 space-y-6">
+        <div className="min-w-0 xl:col-span-4 space-y-6">
           {/* Summary Card */}
           <motion.div variants={fade}>
             <Card>
@@ -677,7 +677,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent>
             {isLoading ? (
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Card key={i}><CardContent className="p-4">
                     <Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-3 w-full mb-1" /><Skeleton className="h-3 w-1/2" />
@@ -687,7 +687,7 @@ export default function HomePage() {
             ) : projects.length === 0 ? (
               <p className="text-sm text-muted-foreground py-4 text-center">Nenhum projeto</p>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {projects.filter(p => p.status === 'active' || p.status === 'development').slice(0, 6).map(project => {
                   const statusColorMap = {
                     active: 'text-money', development: 'text-primary', paused: 'text-critical', idea: 'text-muted-foreground',
@@ -725,7 +725,7 @@ export default function HomePage() {
       </motion.div>
 
       {/* ─── Pillars Progress + Journal Streak (moved below Projetos) ─── */}
-      <div className="mt-6 grid gap-6 sm:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2">
         <motion.div variants={fade}>
           <Card className="border-critical/20 bg-critical/5">
             <CardHeader className="pb-3">

@@ -380,8 +380,8 @@ export default function NotasPage() {
           </h1>
           <p className="text-muted-foreground">Sua base de conhecimento permanente</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1 lg:w-48">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-full flex-1 sm:min-w-0 lg:w-48 lg:flex-none">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar notas..." className="pl-9 h-9" />
           </div>

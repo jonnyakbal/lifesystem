@@ -764,9 +764,9 @@ export default function FinanceiroPage() {
                 </Select>
               </div>
             </div>
-            <div className="flex items-center gap-3 mt-3">
-              <Input type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-10 w-40" placeholder="Vencimento" />
-              <Input value={quickPayee} onChange={(e) => setQuickPayee(e.target.value)} placeholder="Credor/Fornecedor" className="h-10 flex-1 max-w-xs" />
+            <div className="flex flex-wrap items-center gap-3 mt-3">
+              <Input type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-10 w-full sm:w-40" placeholder="Vencimento" />
+              <Input value={quickPayee} onChange={(e) => setQuickPayee(e.target.value)} placeholder="Credor/Fornecedor" className="h-10 min-w-0 flex-1 sm:max-w-xs" />
               <Button type="submit" size="lg" disabled={!quickAmount || !quickCategory} className="h-10 px-6">
                 <Plus className="mr-2 h-4 w-4" /> Adicionar
               </Button>

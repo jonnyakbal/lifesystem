@@ -206,14 +206,14 @@ export default function VisaoPage() {
         {/* Editor */}
         <motion.div className="lg:col-span-3" variants={fade}>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <ActiveIcon className="h-5 w-5 text-primary" />
                 <CardTitle>
                   {defaultSections.find(s => s.id === activeSection)?.title}
                 </CardTitle>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="flex items-center gap-1 rounded-lg border bg-muted/30 p-0.5">
                   <Button
                     variant={!previewMode ? 'secondary' : 'ghost'}

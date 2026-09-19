@@ -201,7 +201,7 @@ export default function DiarioPage() {
                       key={m.value}
                       onClick={() => setMood(mood === m.value ? '' : m.value)}
                       className={cn(
-                        'flex flex-col items-center gap-1 rounded-lg p-3 transition-all',
+                        'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg p-2 transition-all sm:flex-none sm:p-3',
                         mood === m.value
                           ? 'bg-primary/20 border border-primary/50 scale-105'
                           : 'bg-muted hover:bg-muted/80 border border-transparent'

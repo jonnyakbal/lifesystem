@@ -87,6 +87,12 @@
   * {
     @apply border-border;
   }
+  /* Grid sem grid-cols explícito tem coluna implícita auto (min-content), que
+     estoura a largura no mobile. Default de 1 coluna que pode encolher;
+     utilitários grid-cols-* continuam vencendo. */
+  .grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   html, body {
     /* Belt-and-suspenders against mobile horizontal scroll: a `position: fixed`
        element's containing block is the layout viewport, which itself grows to
