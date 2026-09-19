@@ -52,16 +52,26 @@ export async function readJson(request: Request): Promise<unknown> {
 }
 
 // Content Hub schemas
-export const contentSourcePayloadSchema = z.object({
-  name: z.string().min(1).max(200),
+const contentSourceFields = z.object({
+  name: z.string().trim().max(200),
   type: z.enum(['rss', 'website', 'youtube_channel', 'youtube_playlist', 'newsletter', 'manual']),
   url: z.string().url('URL inválida'),
   description: z.string().max(500).optional(),
   icon: z.string().max(100).optional(),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida').optional(),
   tags: z.array(z.string().max(50)).max(20).optional(),
+  isActive: z.boolean(),
+});
+
+// Create: name/type/isActive have defaults. Update: plain .partial() of the
+// fields without defaults, so a PATCH never resets what it didn't send.
+export const contentSourcePayloadSchema = contentSourceFields.extend({
+  name: z.string().trim().max(200).default(''),
+  type: contentSourceFields.shape.type.default('rss'),
   isActive: z.boolean().default(true),
 });
+
+export const contentSourceUpdateSchema = contentSourceFields.partial();
 
 export const contentItemPayloadSchema = z.object({
   sourceId: z.string().min(1),

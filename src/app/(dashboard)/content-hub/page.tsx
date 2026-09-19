@@ -1,48 +1,31 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Plus, Trash2, Search, Rss, RefreshCw, ExternalLink, Eye, EyeOff,
-  CheckCircle2, Circle, ArrowRight, Sparkles, Globe, Mail, Video,
-  Newspaper, FileText, ChevronDown, X, Loader2, AlertTriangle, Clock,
-  Star, Archive, Bookmark, Zap
+  Plus, Search, Rss, RefreshCw, ExternalLink, Star, Archive, ArchiveRestore, Bookmark,
+  ChevronLeft, ChevronRight, Loader2, AlertTriangle, Settings2, Trash2, Inbox, Check,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { apiFetch, showError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { apiFetch, showError } from '@/lib/api';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ContentSource {
   id: string;
   name: string;
-  type: 'rss' | 'website' | 'youtube_channel' | 'youtube_playlist' | 'newsletter' | 'manual';
   url: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-  tags?: string[];
   isActive: boolean;
   lastFetchedAt?: string;
   fetchStatus: 'idle' | 'fetching' | 'success' | 'error';
   error?: string;
   itemCount: number;
-  createdAt: string;
 }
 
 interface ContentItem {
@@ -56,60 +39,48 @@ interface ContentItem {
   imageUrl?: string;
   publishedAt?: string;
   fetchedAt: string;
-  summary?: string;
-  tags?: string[];
-  category?: string;
   status: 'unread' | 'reading' | 'read' | 'archived';
   importance: 'low' | 'normal' | 'high';
-  aiInsights?: {
-    summary?: string;
-    actionSuggestion?: string;
-    actionTitle?: string;
-    relatedPillar?: string;
-    relatedProject?: string;
-  };
   linkedCaptureId?: string;
+  contentExtracted?: boolean;
+  extractFailed?: boolean;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+type Tab = 'unread' | 'starred' | 'all' | 'archived';
 
-const SOURCE_TYPES: { id: ContentSource['type']; label: string; icon: typeof Globe; color: string }[] = [
-  { id: 'rss', label: 'RSS/Atom', icon: Rss, color: 'text-orange-400' },
-  { id: 'website', label: 'Site', icon: Globe, color: 'text-blue-400' },
-  { id: 'youtube_channel', label: 'Canal YouTube', icon: Video, color: 'text-red-400' },
-  { id: 'youtube_playlist', label: 'Playlist YouTube', icon: Video, color: 'text-red-300' },
-  { id: 'newsletter', label: 'Newsletter', icon: Mail, color: 'text-green-400' },
-  { id: 'manual', label: 'Manual', icon: FileText, color: 'text-purple-400' },
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'unread', label: 'Não lidos' },
+  { id: 'starred', label: 'Estrelas' },
+  { id: 'all', label: 'Todos' },
+  { id: 'archived', label: 'Arquivo' },
 ];
 
-const STATUS_COLORS = {
-  unread: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-  reading: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
-  read: 'bg-green-500/20 text-green-400 border-green-500/30',
-  archived: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
-};
-
-const IMPORTANCE_COLORS = {
-  low: 'bg-gray-500/20 text-gray-400',
-  normal: 'bg-blue-500/20 text-blue-400',
-  high: 'bg-orange-500/20 text-orange-400',
-};
+const STALE_AFTER_MS = 60 * 60 * 1000;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function getSourceTypeConfig(type: ContentSource['type']) {
-  return SOURCE_TYPES.find(t => t.id === type) ?? SOURCE_TYPES[0];
-}
-
-function timeAgo(dateString: string): string {
-  const diff = Date.now() - new Date(dateString).getTime();
-  const minutes = Math.floor(diff / 60000);
+function timeAgo(dateString?: string): string {
+  if (!dateString) return '';
+  const minutes = Math.floor((Date.now() - new Date(dateString).getTime()) / 60000);
   if (minutes < 1) return 'agora';
-  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 60) return `${minutes}min`;
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   const days = Math.floor(hours / 24);
-  return `${days}d`;
+  if (days < 30) return `${days}d`;
+  return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
+function itemDate(item: ContentItem): number {
+  return new Date(item.publishedAt ?? item.fetchedAt).getTime();
+}
+
+function readMinutes(text: string): number {
+  return Math.max(1, Math.round(text.split(/\s+/).length / 200));
+}
+
+function isUnread(item: ContentItem) {
+  return item.status === 'unread' || item.status === 'reading';
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
@@ -118,588 +89,741 @@ export default function ContentHubPage() {
   const [sources, setSources] = useState<ContentSource[]>([]);
   const [items, setItems] = useState<ContentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<Tab>('unread');
+  const [filterSource, setFilterSource] = useState('all');
   const [search, setSearch] = useState('');
-  const [filterSource, setFilterSource] = useState<string>('all');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [selectedItem, setSelectedItem] = useState<ContentItem | null>(null);
-  const [showAddSource, setShowAddSource] = useState(false);
-  const [showReader, setShowReader] = useState(false);
-  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [readerId, setReaderId] = useState<string | null>(null);
+  const [navIds, setNavIds] = useState<string[]>([]);
+  const [extracting, setExtracting] = useState<Set<string>>(new Set());
+  const [showAdd, setShowAdd] = useState(false);
+  const [showManage, setShowManage] = useState(false);
+  const [refreshing, setRefreshing] = useState<Set<string>>(new Set());
+  const autoRefreshed = useRef(false);
 
-  const [newSource, setNewSource] = useState({
-    name: '',
-    type: 'rss' as ContentSource['type'],
-    url: '',
-    description: '',
-    tags: '',
-  });
-
-  // Load data
   const loadData = useCallback(async () => {
     try {
       const [sourcesData, itemsData] = await Promise.all([
         apiFetch<ContentSource[]>('/api/content-hub/sources'),
         apiFetch<ContentItem[]>('/api/content-hub/items'),
       ]);
+      const known = new Set(sourcesData.map(src => src.id));
       setSources(sourcesData);
-      setItems(itemsData);
+      setItems(itemsData.filter(item => known.has(item.sourceId)));
+      return sourcesData;
     } catch (err) {
       toast.error(showError(err));
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  // ── Refresh ────────────────────────────────────────────────────────────────
 
-  // Filtered items
-  const filteredItems = useMemo(() => {
-    let result = items;
-    if (filterSource !== 'all') result = result.filter(i => i.sourceId === filterSource);
-    if (filterStatus !== 'all') result = result.filter(i => i.status === filterStatus);
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(i =>
-        i.title.toLowerCase().includes(q) ||
-        i.excerpt?.toLowerCase().includes(q) ||
-        i.author?.toLowerCase().includes(q)
+  const refreshSource = useCallback(async (id: string, quiet = false): Promise<number> => {
+    setRefreshing(prev => new Set(prev).add(id));
+    try {
+      const result = await apiFetch<{ fetched: number; items: ContentItem[] }>(
+        `/api/content-hub/sources/${id}/refresh`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ maxItems: 30 }) },
       );
-    }
-    return result.sort((a, b) => new Date(b.fetchedAt).getTime() - new Date(a.fetchedAt).getTime());
-  }, [items, filterSource, filterStatus, search]);
-
-  const unreadCount = useMemo(() => items.filter(i => i.status === 'unread').length, [items]);
-
-  // Add source
-  const handleAddSource = async () => {
-    if (!newSource.name || !newSource.url) {
-      toast.error('Nome e URL são obrigatórios');
-      return;
-    }
-    try {
-      const source = await apiFetch<ContentSource>('/api/content-hub/sources', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newSource.name,
-          type: newSource.type,
-          url: newSource.url,
-          description: newSource.description || undefined,
-          tags: newSource.tags ? newSource.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
-        }),
-      });
-      setSources(prev => [...prev, source]);
-      setShowAddSource(false);
-      setNewSource({ name: '', type: 'rss', url: '', description: '', tags: '' });
-      toast.success('Fonte adicionada!');
-      // Auto-refresh the new source
-      handleRefreshSource(source.id);
-    } catch (err) {
-      toast.error(showError(err));
-    }
-  };
-
-  // Refresh source
-  const handleRefreshSource = async (id: string) => {
-    setRefreshingId(id);
-    try {
-      const result = await apiFetch<{ fetched: number; items: ContentItem[] }>(`/api/content-hub/sources/${id}/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ maxItems: 20 }),
-      });
-      if (result.fetched > 0) {
-        setItems(prev => [...result.items, ...prev]);
-        toast.success(`${result.fetched} novos itens capturados`);
-      } else {
-        toast.info('Nenhum novo item encontrado');
+      if (result.items.length > 0) setItems(prev => [...result.items, ...prev]);
+      if (!quiet) {
+        if (result.fetched > 0) toast.success(`${result.fetched} ${result.fetched === 1 ? 'item novo' : 'itens novos'}`);
+        else toast.info('Nada novo por enquanto');
       }
-      // Update source status
-      const updated = await apiFetch<ContentSource[]>('/api/content-hub/sources');
-      setSources(updated);
+      return result.fetched;
     } catch (err) {
-      toast.error(showError(err));
+      if (!quiet) toast.error(showError(err));
+      return 0;
     } finally {
-      setRefreshingId(null);
+      setRefreshing(prev => { const next = new Set(prev); next.delete(id); return next; });
+    }
+  }, []);
+
+  const refreshMany = useCallback(async (list: ContentSource[], quiet: boolean) => {
+    let total = 0;
+    for (const source of list) total += await refreshSource(source.id, true);
+    setSources(await apiFetch<ContentSource[]>('/api/content-hub/sources').catch(() => list));
+    if (!quiet) toast[total > 0 ? 'success' : 'info'](total > 0 ? `${total} novos itens` : 'Nada novo por enquanto');
+  }, [refreshSource]);
+
+  useEffect(() => {
+    (async () => {
+      const loaded = await loadData();
+      if (autoRefreshed.current) return;
+      autoRefreshed.current = true;
+      const stale = loaded.filter(s =>
+        s.isActive && (!s.lastFetchedAt || Date.now() - new Date(s.lastFetchedAt).getTime() > STALE_AFTER_MS));
+      if (stale.length > 0) refreshMany(stale, true);
+    })();
+  }, [loadData, refreshMany]);
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+
+  const sourceById = useMemo(() => new Map(sources.map(s => [s.id, s])), [sources]);
+
+  const inSource = useMemo(
+    () => (filterSource === 'all' ? items : items.filter(i => i.sourceId === filterSource)),
+    [items, filterSource],
+  );
+
+  const counts = useMemo(() => ({
+    unread: inSource.filter(i => i.status !== 'archived' && isUnread(i)).length,
+    starred: inSource.filter(i => i.status !== 'archived' && i.importance === 'high').length,
+    all: inSource.filter(i => i.status !== 'archived').length,
+    archived: inSource.filter(i => i.status === 'archived').length,
+  }), [inSource]);
+
+  const unreadBySource = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const i of items) if (i.status !== 'archived' && isUnread(i)) map.set(i.sourceId, (map.get(i.sourceId) ?? 0) + 1);
+    return map;
+  }, [items]);
+
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return inSource
+      .filter(i => {
+        if (tab === 'archived') return i.status === 'archived';
+        if (i.status === 'archived') return false;
+        if (tab === 'unread') return isUnread(i);
+        if (tab === 'starred') return i.importance === 'high';
+        return true;
+      })
+      .filter(i => !q || i.title.toLowerCase().includes(q) || i.excerpt?.toLowerCase().includes(q) || i.author?.toLowerCase().includes(q))
+      .sort((a, b) => itemDate(b) - itemDate(a));
+  }, [inSource, tab, search]);
+
+  const readerIndex = readerId ? navIds.indexOf(readerId) : -1;
+  const readerItem = readerId ? items.find(i => i.id === readerId) ?? null : null;
+
+  // ── Item actions ───────────────────────────────────────────────────────────
+
+  const patchItem = useCallback(async (id: string, patch: Partial<Pick<ContentItem, 'status' | 'importance'>>) => {
+    const previous = items.find(i => i.id === id);
+    setItems(prev => prev.map(i => (i.id === id ? { ...i, ...patch } : i)));
+    try {
+      await apiFetch<ContentItem>(`/api/content-hub/items/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+    } catch (err) {
+      if (previous) setItems(prev => prev.map(i => (i.id === id ? previous : i)));
+      toast.error(showError(err));
+    }
+  }, [items]);
+
+  const toggleStar = (item: ContentItem) =>
+    patchItem(item.id, { importance: item.importance === 'high' ? 'normal' : 'high' });
+
+  const toggleArchive = (item: ContentItem) => {
+    const archiving = item.status !== 'archived';
+    patchItem(item.id, { status: archiving ? 'archived' : 'read' });
+    if (archiving && readerId === item.id) {
+      const nextId = navIds[readerIndex + 1] ?? navIds[readerIndex - 1] ?? null;
+      setNavIds(prev => prev.filter(id => id !== item.id));
+      setReaderId(nextId);
+      const next = items.find(i => i.id === nextId);
+      if (next && isUnread(next)) patchItem(next.id, { status: 'read' });
+      if (next) maybeExtract(next);
     }
   };
 
-  // Delete source
-  const handleDeleteSource = async (id: string) => {
+  const clipToInbox = async (item: ContentItem) => {
     try {
-      await apiFetch(`/api/content-hub/sources/${id}`, { method: 'DELETE' });
-      setSources(prev => prev.filter(s => s.id !== id));
-      setItems(prev => prev.filter(i => i.sourceId !== id));
+      const result = await apiFetch<{ captureId: string }>(`/api/content-hub/items/${item.id}/clip`, { method: 'POST' });
+      setItems(prev => prev.map(i => (i.id === item.id ? { ...i, linkedCaptureId: result.captureId } : i)));
+      window.dispatchEvent(new Event('ls:counts:dirty'));
+      toast.success('Enviado para o INBOX');
+    } catch (err) {
+      toast.error(showError(err));
+    }
+  };
+
+  const maybeExtract = useCallback(async (item: ContentItem) => {
+    const thin = item.content.length < 1500;
+    if (!thin || item.contentExtracted || item.extractFailed) return;
+    setExtracting(prev => new Set(prev).add(item.id));
+    try {
+      const full = await apiFetch<ContentItem>(`/api/content-hub/items/${item.id}/content`);
+      setItems(prev => prev.map(i => (i.id === item.id
+        ? { ...i, content: full.content, contentExtracted: full.contentExtracted, extractFailed: full.extractFailed }
+        : i)));
+    } catch {
+      // sem texto completo: o leitor continua com o resumo do feed
+    } finally {
+      setExtracting(prev => { const next = new Set(prev); next.delete(item.id); return next; });
+    }
+  }, []);
+
+  const openReader = (item: ContentItem) => {
+    setNavIds(visible.map(i => i.id));
+    setReaderId(item.id);
+    if (isUnread(item)) patchItem(item.id, { status: 'read' });
+    maybeExtract(item);
+  };
+
+  const stepReader = (delta: number) => {
+    const nextId = navIds[readerIndex + delta];
+    const next = items.find(i => i.id === nextId);
+    if (!next) return;
+    setReaderId(next.id);
+    if (isUnread(next)) patchItem(next.id, { status: 'read' });
+    maybeExtract(next);
+  };
+
+  // ── Sources ────────────────────────────────────────────────────────────────
+
+  const removeSource = async (source: ContentSource) => {
+    if (!window.confirm(`Remover "${source.name}" e os ${items.filter(i => i.sourceId === source.id).length} itens dela?`)) return;
+    try {
+      await apiFetch(`/api/content-hub/sources/${source.id}`, { method: 'DELETE' });
+      setSources(prev => prev.filter(s => s.id !== source.id));
+      setItems(prev => prev.filter(i => i.sourceId !== source.id));
+      if (filterSource === source.id) setFilterSource('all');
       toast.success('Fonte removida');
     } catch (err) {
       toast.error(showError(err));
     }
   };
 
-  // Mark item as read
-  const handleMarkRead = async (id: string, status: ContentItem['status']) => {
-    try {
-      const updated = await apiFetch<ContentItem>(`/api/content-hub/items/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status }),
-      });
-      setItems(prev => prev.map(i => i.id === id ? { ...i, ...updated } : i));
-    } catch (err) {
-      toast.error(showError(err));
-    }
+  const handleAdded = async (source: ContentSource) => {
+    setSources(prev => [...prev, source]);
+    setFilterSource('all');
+    await refreshMany([source], false);
   };
 
-  // Clip to inbox
-  const handleClipToInbox = async (id: string) => {
-    try {
-      const result = await apiFetch<{ captureId: string }>(`/api/content-hub/items/${id}/clip`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ targetType: 'capture' }),
-      });
-      setItems(prev => prev.map(i => i.id === id ? { ...i, linkedCaptureId: result.captureId, status: 'read' } : i));
-      toast.success('Capturado para o INBOX!');
-    } catch (err) {
-      toast.error(showError(err));
-    }
-  };
+  // ── Render ─────────────────────────────────────────────────────────────────
 
-  // Open reader
-  const openReader = (item: ContentItem) => {
-    setSelectedItem(item);
-    setShowReader(true);
-    if (item.status === 'unread') handleMarkRead(item.id, 'reading');
-  };
-
-  // Loading state
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-lg" />
-          <Skeleton className="h-8 w-48" />
-        </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-32 rounded-xl" />
-          ))}
-        </div>
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
-          ))}
-        </div>
+      <div className="flex flex-col gap-4 p-4 lg:p-8">
+        <Skeleton className="h-10 w-56" />
+        <Skeleton className="h-9 w-full" />
+        {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
       </div>
     );
   }
 
+  const anyRefreshing = refreshing.size > 0;
+  const erroredSources = sources.filter(s => s.fetchStatus === 'error');
+
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 lg:p-8">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/10 border border-orange-500/20">
-            <Rss className="h-5 w-5 text-orange-400" />
-          </div>
-          <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">Fontes de Conteúdo</h1>
-            <p className="text-sm text-muted-foreground">
-              {sources.length} fontes · {items.length} itens · {unreadCount} não lidos
-            </p>
-          </div>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-bold tracking-tight">Fontes &amp; Refs</h1>
+          <p className="truncate text-sm text-muted-foreground">
+            {sources.length === 0
+              ? 'Tudo o que você lê, num lugar só'
+              : `${counts.unread} não ${counts.unread === 1 ? 'lido' : 'lidos'} · ${sources.length} ${sources.length === 1 ? 'fonte' : 'fontes'}`}
+          </p>
         </div>
-        <Button onClick={() => setShowAddSource(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nova Fonte
-        </Button>
-      </div>
-
-      {/* Source Cards */}
-      {sources.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {sources.map(source => {
-            const config = getSourceTypeConfig(source.type);
-            const sourceItems = items.filter(i => i.sourceId === source.id);
-            const unread = sourceItems.filter(i => i.status === 'unread').length;
-            return (
-              <Card key={source.id} className="group relative overflow-hidden border-border/50 bg-card/50 hover:bg-card/80 transition-all">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border/50",
-                        `bg-gradient-to-br from-${config.color.replace('text-', '')}/10 to-transparent`
-                      )}>
-                        <config.icon className={cn("h-4 w-4", config.color)} />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">{source.name}</p>
-                        <p className="text-xs text-muted-foreground">{config.label}</p>
-                      </div>
-                    </div>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <span className="sr-only">Opções</span>
-                          <ChevronDown className="h-3.5 w-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleRefreshSource(source.id)}>
-                          <RefreshCw className="h-3.5 w-3.5 mr-2" />
-                          Atualizar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => window.open(source.url, '_blank')}>
-                          <ExternalLink className="h-3.5 w-3.5 mr-2" />
-                          Abrir original
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDeleteSource(source.id)} className="text-destructive">
-                          <Trash2 className="h-3.5 w-3.5 mr-2" />
-                          Remover
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  <div className="mt-3 flex items-center gap-2">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-primary font-medium">
-                        {sourceItems.length}
-                      </span>
-                      <span>itens</span>
-                    </div>
-                    {unread > 0 && (
-                      <div className="flex items-center gap-1.5 text-xs text-blue-400">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-500/20 font-medium">
-                          {unread}
-                        </span>
-                        <span>novo</span>
-                      </div>
-                    )}
-                    {source.lastFetchedAt && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto">
-                        <Clock className="h-3 w-3" />
-                        {timeAgo(source.lastFetchedAt)}
-                      </div>
-                    )}
-                    {refreshingId === source.id && (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                    )}
-                  </div>
-
-                  {source.error && (
-                    <div className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
-                      <AlertTriangle className="h-3 w-3" />
-                      {source.error}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar nos itens..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select value={filterSource} onValueChange={setFilterSource}>
-          <SelectTrigger className="w-full sm:w-40">
-            <SelectValue placeholder="Todas as fontes" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as fontes</SelectItem>
-            {sources.map(s => (
-              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-full sm:w-36">
-            <SelectValue placeholder="Todos status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="unread">Não lido</SelectItem>
-            <SelectItem value="reading">Lendo</SelectItem>
-            <SelectItem value="read">Lido</SelectItem>
-            <SelectItem value="archived">Arquivado</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Items List */}
-      {filteredItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border/50 py-16">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50">
-            <Rss className="h-8 w-8 text-muted-foreground/50" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-muted-foreground">
-              {sources.length === 0
-                ? 'Adicione sua primeira fonte de conteúdo'
-                : 'Nenhum item encontrado'}
-            </p>
-            <p className="text-xs text-muted-foreground/60 mt-1">
-              {sources.length === 0
-                ? 'RSS, sites, newsletters, YouTube...'
-                : 'Tente ajustar os filtros ou adicionar novos itens'}
-            </p>
-          </div>
-          {sources.length === 0 && (
-            <Button onClick={() => setShowAddSource(true)} variant="outline" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Adicionar fonte
+        <div className="flex shrink-0 items-center gap-2">
+          {sources.length > 0 && (
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label="Atualizar todas as fontes"
+              disabled={anyRefreshing}
+              onClick={() => refreshMany(sources.filter(s => s.isActive), false)}
+            >
+              <RefreshCw className={cn('h-4 w-4', anyRefreshing && 'animate-spin')} />
             </Button>
           )}
+          <Button onClick={() => setShowAdd(true)} className="gap-1.5">
+            <Plus className="h-4 w-4" /> Fonte
+          </Button>
         </div>
+      </div>
+
+      {sources.length === 0 ? (
+        <EmptyState onAdd={() => setShowAdd(true)} />
       ) : (
-        <div className="space-y-2">
-          <AnimatePresence mode="popLayout">
-            {filteredItems.map(item => {
-              const source = sources.find(s => s.id === item.sourceId);
-              const config = source ? getSourceTypeConfig(source.type) : null;
-              return (
-                <motion.div
-                  key={item.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
+        <>
+          {/* Source chips */}
+          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0 [scrollbar-width:none]">
+            <SourceChip active={filterSource === 'all'} onClick={() => setFilterSource('all')} label="Todas" count={items.filter(i => i.status !== 'archived' && isUnread(i)).length} />
+            {sources.map(source => (
+              <SourceChip
+                key={source.id}
+                active={filterSource === source.id}
+                onClick={() => setFilterSource(source.id)}
+                label={source.name}
+                count={unreadBySource.get(source.id) ?? 0}
+                warning={source.fetchStatus === 'error'}
+                busy={refreshing.has(source.id)}
+              />
+            ))}
+            <button
+              onClick={() => setShowManage(true)}
+              aria-label="Gerenciar fontes"
+              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-border px-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Settings2 className="h-3.5 w-3.5" /> Gerenciar
+            </button>
+          </div>
+
+          {erroredSources.length > 0 && (
+            <button
+              onClick={() => setShowManage(true)}
+              className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-300"
+            >
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              {erroredSources.length === 1
+                ? `"${erroredSources[0].name}" não atualizou. Toque para ver.`
+                : `${erroredSources.length} fontes não atualizaram. Toque para ver.`}
+            </button>
+          )}
+
+          {/* Tabs + search */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-0.5 [scrollbar-width:none]">
+              {TABS.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
+                  className={cn(
+                    'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                    tab === t.id ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
+                  )}
                 >
-                  <Card
-                    className={cn(
-                      "group relative overflow-hidden border-border/50 bg-card/50 hover:bg-card/80 transition-all cursor-pointer",
-                      item.status === 'unread' && "border-l-2 border-l-blue-500"
-                    )}
-                    onClick={() => openReader(item)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        {/* Status dot */}
-                        <div className="mt-1.5 shrink-0">
-                          {item.status === 'unread' ? (
-                            <Circle className="h-3 w-3 text-blue-500 fill-blue-500" />
-                          ) : item.status === 'reading' ? (
-                            <Clock className="h-3 w-3 text-yellow-500" />
-                          ) : item.status === 'read' ? (
-                            <CheckCircle2 className="h-3 w-3 text-green-500" />
-                          ) : (
-                            <Archive className="h-3 w-3 text-gray-500" />
-                          )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            {config && (
-                              <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", STATUS_COLORS[item.status])}>
-                                <config.icon className={cn("h-2.5 w-2.5 mr-1", config.color)} />
-                                {source?.name}
-                              </Badge>
-                            )}
-                            {item.importance === 'high' && (
-                              <Star className="h-3 w-3 text-orange-400 fill-orange-400" />
-                            )}
-                          </div>
-                          <h3 className="text-sm font-semibold line-clamp-1">{item.title}</h3>
-                          {item.excerpt && (
-                            <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{item.excerpt}</p>
-                          )}
-                          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground/60">
-                            {item.author && <span>{item.author}</span>}
-                            {item.publishedAt && <span>{timeAgo(item.publishedAt)}</span>}
-                            {item.tags && item.tags.length > 0 && (
-                              <div className="flex gap-1">
-                                {item.tags.slice(0, 3).map(tag => (
-                                  <Badge key={tag} variant="outline" className="text-[9px] px-1 py-0">{tag}</Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" onClick={e => e.stopPropagation()}>
-                          {!item.linkedCaptureId && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0"
-                              title="Capturar para INBOX"
-                              onClick={(e) => { e.stopPropagation(); handleClipToInbox(item.id); }}
-                            >
-                              <Bookmark className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
-                          {item.linkedCaptureId && (
-                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-green-500/20 text-green-400">
-                              ✓ INBOX
-                            </Badge>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0"
-                            title="Abrir link original"
-                            onClick={(e) => { e.stopPropagation(); window.open(item.url, '_blank'); }}
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
-      )}
-
-      {/* Add Source Dialog */}
-      <Dialog open={showAddSource} onOpenChange={setShowAddSource}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Rss className="h-5 w-5 text-orange-400" />
-              Nova Fonte de Conteúdo
-            </DialogTitle>
-            <DialogDescription>
-              Adicione um feed RSS, site, newsletter ou canal do YouTube.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome *</label>
-              <Input
-                placeholder="Ex: Blog do Android, Arco Bola..."
-                value={newSource.name}
-                onChange={e => setNewSource(prev => ({ ...prev, name: e.target.value }))}
-              />
+                  {t.label}
+                  {counts[t.id] > 0 && <span className="font-mono-num text-xs opacity-60">{counts[t.id]}</span>}
+                </button>
+              ))}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tipo *</label>
-              <Select value={newSource.type} onValueChange={v => setNewSource(prev => ({ ...prev, type: v as ContentSource['type'] }))}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SOURCE_TYPES.map(t => (
-                    <SelectItem key={t.id} value={t.id}>
-                      <span className="flex items-center gap-2">
-                        <t.icon className={cn("h-3.5 w-3.5", t.color)} />
-                        {t.label}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">URL *</label>
-              <Input
-                placeholder={newSource.type === 'rss' ? 'https://exemplo.com/feed.xml' : 'https://exemplo.com'}
-                value={newSource.url}
-                onChange={e => setNewSource(prev => ({ ...prev, url: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Descrição</label>
-              <Input
-                placeholder="Opcional: breve descrição"
-                value={newSource.description}
-                onChange={e => setNewSource(prev => ({ ...prev, description: e.target.value }))}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Tags</label>
-              <Input
-                placeholder="Separadas por vírgula"
-                value={newSource.tags}
-                onChange={e => setNewSource(prev => ({ ...prev, tags: e.target.value }))}
-              />
+            <div className="relative sm:w-56">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="h-9 pl-9" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddSource(false)}>Cancelar</Button>
-            <Button onClick={handleAddSource}>Adicionar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* Reader Dialog */}
-      <Dialog open={showReader} onOpenChange={setShowReader}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          {selectedItem && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="pr-8">{selectedItem.title}</DialogTitle>
-                <DialogDescription className="flex items-center gap-2">
-                  {selectedItem.author && <span>{selectedItem.author}</span>}
-                  {selectedItem.publishedAt && <span>· {timeAgo(selectedItem.publishedAt)}</span>}
-                </DialogDescription>
-              </DialogHeader>
-
-              {/* AI Insights */}
-              {selectedItem.aiInsights && (
-                <div className="rounded-lg bg-primary/5 border border-primary/20 p-4 space-y-2">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    Análise IA
-                  </div>
-                  <p className="text-sm text-muted-foreground">{selectedItem.aiInsights.summary}</p>
-                  {selectedItem.aiInsights.actionSuggestion && selectedItem.aiInsights.actionSuggestion !== 'dismiss' && (
-                    <Badge variant="outline" className="text-xs">
-                      <Zap className="h-3 w-3 mr-1" />
-                      Sugerir: {selectedItem.aiInsights.actionSuggestion}
-                    </Badge>
-                  )}
-                </div>
+          {/* List */}
+          {visible.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-border/60 px-4 py-14 text-center">
+              <p className="text-sm font-medium text-muted-foreground">
+                {search ? 'Nada bate com essa busca.' : tab === 'unread' ? 'Tudo lido por aqui.' : tab === 'starred' ? 'Nenhum item com estrela.' : tab === 'archived' ? 'Arquivo vazio.' : 'Nenhum item ainda.'}
+              </p>
+              {tab === 'unread' && !search && counts.all > 0 && (
+                <Button variant="link" size="sm" onClick={() => setTab('all')}>Ver todos os itens</Button>
               )}
-
-              {/* Excerpt */}
-              {selectedItem.excerpt && (
-                <div className="rounded-lg bg-muted/50 p-4">
-                  <p className="text-sm text-muted-foreground italic">{selectedItem.excerpt}</p>
-                </div>
-              )}
-
-              {/* Full Content */}
-              <div className="prose prose-sm dark:prose-invert max-w-none">
-                <div
-                  className="text-sm leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: selectedItem.content }}
+            </div>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {visible.map(item => (
+                <ItemRow
+                  key={item.id}
+                  item={item}
+                  sourceName={sourceById.get(item.sourceId)?.name ?? ''}
+                  onOpen={() => openReader(item)}
+                  onStar={() => toggleStar(item)}
+                  onArchive={() => toggleArchive(item)}
                 />
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      <AddSourceDialog open={showAdd} onOpenChange={setShowAdd} onAdded={handleAdded} />
+
+      <ManageSourcesDialog
+        open={showManage}
+        onOpenChange={setShowManage}
+        sources={sources}
+        items={items}
+        refreshing={refreshing}
+        onRefresh={async id => { await refreshSource(id); setSources(await apiFetch<ContentSource[]>('/api/content-hub/sources')); }}
+        onRemove={removeSource}
+      />
+
+      <Reader
+        item={readerItem}
+        sourceName={readerItem ? sourceById.get(readerItem.sourceId)?.name ?? '' : ''}
+        position={readerIndex >= 0 ? `${readerIndex + 1} de ${navIds.length}` : ''}
+        loadingFull={readerItem ? extracting.has(readerItem.id) : false}
+        hasPrev={readerIndex > 0}
+        hasNext={readerIndex >= 0 && readerIndex < navIds.length - 1}
+        onStep={stepReader}
+        onClose={() => setReaderId(null)}
+        onStar={toggleStar}
+        onArchive={toggleArchive}
+        onClip={clipToInbox}
+      />
+    </div>
+  );
+}
+
+// ─── Pieces ───────────────────────────────────────────────────────────────────
+
+function EmptyState({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border/60 px-6 py-16 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50">
+        <Rss className="h-7 w-7 text-muted-foreground/60" />
+      </div>
+      <div>
+        <p className="text-sm font-medium">Nenhuma fonte ainda</p>
+        <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">
+          Cole o endereço de um site ou blog que você acompanha. O feed é encontrado sozinho.
+        </p>
+      </div>
+      <Button onClick={onAdd} className="gap-1.5"><Plus className="h-4 w-4" /> Adicionar fonte</Button>
+    </div>
+  );
+}
+
+function SourceChip({ label, count, active, warning, busy, onClick }: {
+  label: string; count: number; active: boolean; warning?: boolean; busy?: boolean; onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors',
+        active ? 'border-primary/40 bg-primary/15 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
+      )}
+    >
+      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : warning ? <AlertTriangle className="h-3 w-3 text-amber-400" /> : null}
+      <span className="max-w-[10rem] truncate">{label}</span>
+      {count > 0 && <span className="font-mono-num text-xs text-primary">{count}</span>}
+    </button>
+  );
+}
+
+function ItemRow({ item, sourceName, onOpen, onStar, onArchive }: {
+  item: ContentItem; sourceName: string; onOpen: () => void; onStar: () => void; onArchive: () => void;
+}) {
+  const unread = isUnread(item);
+  const starred = item.importance === 'high';
+  const archived = item.status === 'archived';
+  return (
+    <li className="group relative">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
+        className={cn(
+          'flex cursor-pointer gap-3 rounded-xl border p-3 pr-3 transition-colors hover:bg-card/80 sm:p-4',
+          unread ? 'border-border bg-card/60' : 'border-border/40 bg-transparent',
+        )}
+      >
+        <span className={cn('mt-2 h-2 w-2 shrink-0 rounded-full', unread ? 'bg-primary' : 'bg-transparent')} aria-hidden />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="truncate font-medium">{sourceName}</span>
+            <span aria-hidden>·</span>
+            <span className="shrink-0">{timeAgo(item.publishedAt ?? item.fetchedAt)}</span>
+            {item.linkedCaptureId && <Inbox className="h-3 w-3 shrink-0 text-money" aria-label="No INBOX" />}
+          </div>
+          <h3 className={cn('mt-1 line-clamp-2 text-[15px] leading-snug', unread ? 'font-semibold' : 'font-medium text-muted-foreground')}>
+            {item.title}
+          </h3>
+          {item.excerpt && (
+            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground/80">{item.excerpt}</p>
+          )}
+          <div className="mt-2 flex items-center gap-1 sm:hidden" onClick={e => e.stopPropagation()}>
+            <RowButton label={starred ? 'Tirar estrela' : 'Marcar com estrela'} onClick={onStar}>
+              <Star className={cn('h-4 w-4', starred && 'fill-amber-400 text-amber-400')} />
+            </RowButton>
+            <RowButton label={archived ? 'Desarquivar' : 'Arquivar'} onClick={onArchive}>
+              {archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+            </RowButton>
+          </div>
+        </div>
+        {item.imageUrl && <Thumb src={item.imageUrl} />}
+        <div className="hidden shrink-0 flex-col gap-1 self-start opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 sm:flex" onClick={e => e.stopPropagation()}>
+          <RowButton label={starred ? 'Tirar estrela' : 'Marcar com estrela'} onClick={onStar}>
+            <Star className={cn('h-4 w-4', starred && 'fill-amber-400 text-amber-400')} />
+          </RowButton>
+          <RowButton label={archived ? 'Desarquivar' : 'Arquivar'} onClick={onArchive}>
+            {archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+          </RowButton>
+        </div>
+        {starred && <Star className="absolute right-3 top-3 h-3.5 w-3.5 fill-amber-400 text-amber-400 group-hover:hidden" aria-hidden />}
+      </div>
+    </li>
+  );
+}
+
+function RowButton({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-8 sm:w-8"
+    >
+      {children}
+    </button>
+  );
+}
+
+function Thumb({ src }: { src: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className="hidden h-16 w-16 shrink-0 rounded-lg object-cover sm:block sm:h-20 sm:w-28"
+    />
+  );
+}
+
+// ─── Reader ───────────────────────────────────────────────────────────────────
+
+function Reader({ item, sourceName, position, loadingFull, hasPrev, hasNext, onStep, onClose, onStar, onArchive, onClip }: {
+  item: ContentItem | null;
+  sourceName: string;
+  position: string;
+  loadingFull: boolean;
+  hasPrev: boolean;
+  hasNext: boolean;
+  onStep: (delta: number) => void;
+  onClose: () => void;
+  onStar: (item: ContentItem) => void;
+  onArchive: (item: ContentItem) => void;
+  onClip: (item: ContentItem) => void;
+}) {
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  const itemId = item?.id;
+
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [itemId]);
+
+  useEffect(() => {
+    if (!itemId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'ArrowRight' || e.key === 'j') onStep(1);
+      if (e.key === 'ArrowLeft' || e.key === 'k') onStep(-1);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [itemId, onStep]);
+
+  const paragraphs = useMemo(
+    () => (item?.content ?? '').split(/\n{2,}/).map(p => p.trim()).filter(Boolean),
+    [item?.content],
+  );
+  const showExcerptOnly = item ? !loadingFull && !item.contentExtracted && (item.content?.length ?? 0) < 600 : false;
+
+  return (
+    <Dialog open={Boolean(item)} onOpenChange={open => { if (!open) onClose(); }}>
+      <DialogContent
+        className={cn(
+          'flex max-h-dvh flex-col gap-0 p-0 sm:max-h-[90vh] sm:max-w-2xl',
+          'max-sm:left-0 max-sm:top-0 max-sm:h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none',
+        )}
+      >
+        {item && (
+          <>
+            <DialogHeader className="sr-only">
+              <DialogTitle>{item.title}</DialogTitle>
+              <DialogDescription>Leitura de {sourceName}</DialogDescription>
+            </DialogHeader>
+
+            <div className="flex items-center gap-1 border-b px-3 py-2 pr-12">
+              <Button variant="ghost" size="icon" className="h-9 w-9" disabled={!hasPrev} onClick={() => onStep(-1)} aria-label="Item anterior">
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" className="h-9 w-9" disabled={!hasNext} onClick={() => onStep(1)} aria-label="Próximo item">
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <span className="ml-1 text-xs text-muted-foreground">{position}</span>
+              <div className="ml-auto flex items-center">
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onStar(item)} aria-label={item.importance === 'high' ? 'Tirar estrela' : 'Marcar com estrela'}>
+                  <Star className={cn('h-4 w-4', item.importance === 'high' && 'fill-amber-400 text-amber-400')} />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => onArchive(item)} aria-label={item.status === 'archived' ? 'Desarquivar' : 'Arquivar'}>
+                  {item.status === 'archived' ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                </Button>
+              </div>
+            </div>
+
+            <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+              <p className="text-xs text-muted-foreground">
+                {[sourceName, item.author, timeAgo(item.publishedAt ?? item.fetchedAt), `${readMinutes(item.content || '')} min de leitura`].filter(Boolean).join(' · ')}
+              </p>
+              <h2 className="mt-2 font-display text-2xl font-bold leading-tight sm:text-3xl">{item.title}</h2>
+
+              {item.imageUrl && item.imageUrl !== failedImage && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  referrerPolicy="no-referrer"
+                  onError={() => setFailedImage(item.imageUrl ?? null)}
+                  className="mt-5 max-h-72 w-full rounded-xl object-cover"
+                />
+              )}
+
+              <div className="mt-5 space-y-4 font-display text-[17px] leading-[1.7] text-foreground/90">
+                {paragraphs.map((p, i) => (
+                  <p key={i} className="whitespace-pre-line break-words">{p}</p>
+                ))}
               </div>
 
-              {/* Actions */}
-              <DialogFooter className="flex flex-row gap-2 sm:gap-2">
-                {!selectedItem.linkedCaptureId && (
-                  <Button variant="outline" onClick={() => handleClipToInbox(selectedItem.id)} className="gap-2">
-                    <Bookmark className="h-4 w-4" />
-                    Capturar no INBOX
+              {loadingFull && (
+                <div className="mt-6 space-y-3" aria-live="polite">
+                  <p className="text-xs text-muted-foreground">Buscando o texto completo…</p>
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-11/12" />
+                  <Skeleton className="h-4 w-4/5" />
+                </div>
+              )}
+
+              {showExcerptOnly && (
+                <p className="mt-6 rounded-lg bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+                  Essa fonte só publica o começo do texto no feed. Abra o original para ler completo.
+                </p>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Button
+                variant={item.linkedCaptureId ? 'ghost' : 'outline'}
+                className="flex-1 gap-2 sm:flex-none"
+                disabled={Boolean(item.linkedCaptureId)}
+                onClick={() => onClip(item)}
+              >
+                {item.linkedCaptureId ? <Check className="h-4 w-4 text-money" /> : <Bookmark className="h-4 w-4" />}
+                {item.linkedCaptureId ? 'No INBOX' : 'Guardar no INBOX'}
+              </Button>
+              <Button asChild className="flex-1 gap-2 sm:ml-auto sm:flex-none">
+                <a href={item.url} target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-4 w-4" /> Abrir original
+                </a>
+              </Button>
+            </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Dialogs ──────────────────────────────────────────────────────────────────
+
+function AddSourceDialog({ open, onOpenChange, onAdded }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onAdded: (source: ContentSource) => Promise<void>;
+}) {
+  const [url, setUrl] = useState('');
+  const [name, setName] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let address = url.trim();
+    if (!address) return;
+    if (!/^https?:\/\//i.test(address)) address = `https://${address}`;
+    setSaving(true);
+    try {
+      const source = await apiFetch<ContentSource>('/api/content-hub/sources', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: address, name: name.trim() }),
+      });
+      setUrl('');
+      setName('');
+      onOpenChange(false);
+      await onAdded(source);
+    } catch (err) {
+      toast.error(showError(err));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-sm:top-auto max-sm:bottom-0 max-sm:translate-y-0 max-sm:rounded-b-none">
+        <form onSubmit={submit} className="grid gap-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Rss className="h-5 w-5 text-orange-400" /> Nova fonte</DialogTitle>
+            <DialogDescription>Cole o endereço do site, blog ou feed. Eu procuro o RSS.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-1.5">
+            <label htmlFor="source-url" className="text-sm font-medium">Endereço</label>
+            <Input id="source-url" autoFocus inputMode="url" autoCapitalize="none" autoCorrect="off" placeholder="css-tricks.com" value={url} onChange={e => setUrl(e.target.value)} />
+          </div>
+          <div className="grid gap-1.5">
+            <label htmlFor="source-name" className="text-sm font-medium">Nome <span className="font-normal text-muted-foreground">(opcional)</span></label>
+            <Input id="source-name" placeholder="Usa o nome do próprio feed" value={name} onChange={e => setName(e.target.value)} />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={saving || !url.trim()}>
+              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Adicionar
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function ManageSourcesDialog({ open, onOpenChange, sources, items, refreshing, onRefresh, onRemove }: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  sources: ContentSource[];
+  items: ContentItem[];
+  refreshing: Set<string>;
+  onRefresh: (id: string) => void;
+  onRemove: (source: ContentSource) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85dvh] overflow-y-auto max-sm:top-auto max-sm:bottom-0 max-sm:translate-y-0 max-sm:rounded-b-none">
+        <DialogHeader>
+          <DialogTitle>Gerenciar fontes</DialogTitle>
+          <DialogDescription>Atualize, veja erros ou remova.</DialogDescription>
+        </DialogHeader>
+        <ul className="grid gap-2">
+          {sources.map(source => {
+            const count = items.filter(i => i.sourceId === source.id).length;
+            return (
+              <li key={source.id} className="rounded-lg border p-3">
+                <div className="flex items-center gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{source.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {count} {count === 1 ? 'item' : 'itens'}
+                      {source.lastFetchedAt && ` · atualizada há ${timeAgo(source.lastFetchedAt)}`}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={`Atualizar ${source.name}`} disabled={refreshing.has(source.id)} onClick={() => onRefresh(source.id)}>
+                    <RefreshCw className={cn('h-4 w-4', refreshing.has(source.id) && 'animate-spin')} />
                   </Button>
+                  <Button variant="ghost" size="icon" className="h-9 w-9 text-destructive" aria-label={`Remover ${source.name}`} onClick={() => onRemove(source)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {source.fetchStatus === 'error' && source.error && (
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-300">
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {source.error}
+                  </p>
                 )}
-                <Button variant="outline" onClick={() => window.open(selectedItem.url, '_blank')} className="gap-2">
-                  <ExternalLink className="h-4 w-4" />
-                  Abrir original
-                </Button>
-                <Button onClick={() => setShowReader(false)}>Fechar</Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+              </li>
+            );
+          })}
+        </ul>
+      </DialogContent>
+    </Dialog>
   );
 }

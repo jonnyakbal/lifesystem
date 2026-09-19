@@ -419,6 +419,7 @@ export interface ContentSource extends BaseEntity {
   itemCount: number;
   nextFetchAt?: string;
   crawlInterval?: string;
+  siteUrl?: string;
 }
 
 export type ContentItemStatus = 'unread' | 'reading' | 'read' | 'archived';
@@ -449,6 +450,8 @@ export interface ContentItem extends BaseEntity {
   };
   linkedCaptureId?: string;
   linkedTaskId?: string;
+  contentExtracted?: boolean;
+  extractFailed?: boolean;
 }
 
 // User Settings

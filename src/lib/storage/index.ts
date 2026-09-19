@@ -129,6 +129,16 @@ export const storage = {
     });
   },
 
+  async deleteWhere<T extends { id: string }>(collection: string, predicate: (item: T) => boolean): Promise<number> {
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const kept = items.filter(item => !predicate(item));
+      if (kept.length === items.length) return 0;
+      await writeCollection(collection, kept);
+      return items.length - kept.length;
+    });
+  },
+
   async query<T>(collection: string, filters: Record<string, unknown>): Promise<T[]> {
     const items = await readCollection<T>(collection);
     return items.filter(item => {

@@ -18,10 +18,18 @@ export async function POST(request: NextRequest) {
   const parsed = contentSourcePayloadSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Dados da fonte inválidos', issues: parsed.error.flatten() }, { status: 400 });
 
+  const existing = await storage.getAll<ContentSource>('content-sources');
+  const normalized = parsed.data.url.replace(/\/+$/, '').toLowerCase();
+  const same = (value?: string) => value?.replace(/\/+$/, '').toLowerCase() === normalized;
+  if (existing.some(s => same(s.url) || same(s.siteUrl))) {
+    return NextResponse.json({ error: 'Essa fonte já foi adicionada.' }, { status: 409 });
+  }
+
   const source = await storage.create<ContentSource>('content-sources', {
-    name: parsed.data.name,
+    name: parsed.data.name || new URL(parsed.data.url).hostname.replace(/^www\./, ''),
     type: parsed.data.type,
     url: parsed.data.url,
+    siteUrl: parsed.data.url,
     description: parsed.data.description,
     icon: parsed.data.icon,
     color: parsed.data.color,

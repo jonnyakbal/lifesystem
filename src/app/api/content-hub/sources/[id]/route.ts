@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { storage } from '@/lib/storage';
-import { ContentSource } from '@/types';
-import { readJson, contentSourcePayloadSchema } from '@/lib/validation';
+import { ContentSource, ContentItem } from '@/types';
+import { readJson, contentSourceUpdateSchema } from '@/lib/validation';
 
 export async function GET(
   _request: NextRequest,
@@ -27,7 +27,7 @@ export async function PATCH(
     return NextResponse.json({ error: error instanceof Error ? error.message : 'JSON inválido' }, { status: 400 });
   }
 
-  const parsed = contentSourcePayloadSchema.partial().safeParse(body);
+  const parsed = contentSourceUpdateSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Dados de atualização inválidos', issues: parsed.error.flatten() }, { status: 400 });
 
   const updated = await storage.update<ContentSource>('content-sources', id, {
@@ -51,5 +51,7 @@ export async function DELETE(
   const { id } = await params;
   const ok = await storage.delete<ContentSource>('content-sources', id);
   if (!ok) return NextResponse.json({ error: 'Fonte não encontrada' }, { status: 404 });
+
+  await storage.deleteWhere<ContentItem>('content-items', i => i.sourceId === id);
   return NextResponse.json({ success: true });
 }
