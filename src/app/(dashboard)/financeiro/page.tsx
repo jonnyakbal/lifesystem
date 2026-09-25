@@ -199,6 +199,8 @@ export default function FinanceiroPage() {
   const [quickPayee, setQuickPayee] = useState('');
   const [quickRecurring, setQuickRecurring] = useState<RecurringType>('none');
   const [quickDueDate, setQuickDueDate] = useState('');
+  const [quickSaving, setQuickSaving] = useState(false);
+  const [quickError, setQuickError] = useState('');
   const quickAmountRef = useRef<HTMLInputElement>(null);
 
   // Dialogs
@@ -400,7 +402,13 @@ export default function FinanceiroPage() {
 
   async function handleQuickAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!quickAmount || !quickCategory) return;
+    if (quickSaving) return;
+    if (!quickCategory || !Number.isFinite(Number(quickAmount)) || Number(quickAmount) <= 0) {
+      setQuickError('Escolha uma categoria e informe um valor maior que zero.');
+      return;
+    }
+    setQuickError('');
+    setQuickSaving(true);
     try {
       const today = todayStr();
       const isFuture = quickDueDate && quickDueDate > today;
@@ -409,7 +417,8 @@ export default function FinanceiroPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: quickType, category: quickCategory, description: quickDescription,
-          amount: parseFloat(quickAmount), date: today, recurring: quickRecurring,
+          amount: Number(quickAmount), date: today, recurring: quickRecurring !== 'none',
+          recurringFrequency: quickRecurring === 'none' ? undefined : quickRecurring,
           accountId: quickAccountId || undefined, cardId: quickCardId || undefined,
           payee: quickPayee || undefined, status: isFuture ? 'pending' : 'paid',
           dueDate: quickDueDate || undefined,
@@ -420,7 +429,10 @@ export default function FinanceiroPage() {
       toast.success('Lançamento adicionado!');
       setTimeout(() => quickAmountRef.current?.focus(), 100);
     } catch (err) {
+      setQuickError(showError(err));
       toast.error(showError(err));
+    } finally {
+      setQuickSaving(false);
     }
   }
 
@@ -710,65 +722,72 @@ export default function FinanceiroPage() {
 
       {/* ─── Quick Add (Full-width bar) ────────────────────────────────────── */}
       <motion.div className="mb-6" variants={fade}>
-        <Card className="border-primary/30 bg-primary/5">
-          <form onSubmit={handleQuickAdd} className="p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <Plus className="h-5 w-5 text-primary" />
-              <span className="font-medium text-sm">Novo Lançamento</span>
+        <Card className="rounded-2xl border-border/70 bg-card/70 shadow-sm">
+          <form onSubmit={handleQuickAdd} className="p-4 sm:p-6" aria-label="Novo Lançamento">
+            <div className="mb-5">
+              <h2 className="font-medium">Novo Lançamento</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Registre o que entrou ou saiu. Acrescente detalhes quando precisar.</p>
             </div>
-            <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tipo</Label>
+                <Label htmlFor="quick-type" className="text-xs text-muted-foreground">Movimentação</Label>
                 <Select value={quickType} onValueChange={(v) => { setQuickType(v as FinancialEntry['type']); setQuickCategory(''); }}>
-                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="quick-type" className="h-11 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="income">💰 Entrada</SelectItem>
-                    <SelectItem value="expense_fixed">📌 Fixa</SelectItem>
-                    <SelectItem value="expense_variable">🔄 Variável</SelectItem>
+                    <SelectItem value="income">Entrada</SelectItem>
+                    <SelectItem value="expense_fixed">Despesa fixa</SelectItem>
+                    <SelectItem value="expense_variable">Despesa variável</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Categoria</Label>
+                <Label htmlFor="quick-category" className="text-xs text-muted-foreground">Categoria</Label>
                 <Select value={quickCategory} onValueChange={setQuickCategory}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Selecionar" /></SelectTrigger>
+                  <SelectTrigger id="quick-category" className="h-11 w-full"><SelectValue placeholder="Selecionar" /></SelectTrigger>
                   <SelectContent>
                     {[...new Set([...categories[quickType], ...entries.filter(entry => entry.type === quickType).map(entry => entry.category)])].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Valor (R$)</Label>
-                <Input ref={quickAmountRef} type="number" step="0.01" value={quickAmount} onChange={(e) => setQuickAmount(e.target.value)} placeholder="0,00" className="h-10 font-mono-num text-lg" />
+                <Label htmlFor="quick-amount" className="text-xs text-muted-foreground">Valor (R$)</Label>
+                <Input id="quick-amount" ref={quickAmountRef} type="number" inputMode="decimal" min="0.01" step="0.01" required value={quickAmount} onChange={(e) => setQuickAmount(e.target.value)} placeholder="0,00" className="h-11 font-mono-num text-lg" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Descrição</Label>
-                <Input value={quickDescription} onChange={(e) => setQuickDescription(e.target.value)} placeholder="O que foi?" className="h-10" />
+                <Label htmlFor="quick-description" className="text-xs text-muted-foreground">Descrição · opcional</Label>
+                <Input id="quick-description" value={quickDescription} onChange={(e) => setQuickDescription(e.target.value)} placeholder="O que foi?" className="h-11" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Conta</Label>
+                <Label htmlFor="quick-account" className="text-xs text-muted-foreground">Conta · opcional</Label>
                 <Select value={quickAccountId} onValueChange={setQuickAccountId}>
-                  <SelectTrigger className="h-10"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger id="quick-account" className="h-11 w-full"><SelectValue placeholder="Sem conta" /></SelectTrigger>
                   <SelectContent>
                     {accounts.filter(a => a.isActive).map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <details className="mt-5 rounded-xl border border-border/60 px-4 py-3">
+              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Mais detalhes</summary>
+              <div className="mt-4 grid gap-4 sm:grid-cols-3">
               <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Frequência</Label>
+                <Label htmlFor="quick-frequency" className="text-xs text-muted-foreground">Repetir</Label>
                 <Select value={quickRecurring} onValueChange={(v) => setQuickRecurring(v as RecurringType)}>
-                  <SelectTrigger className="h-10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger id="quick-frequency" className="h-11 w-full"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {(Object.keys(recurringLabels) as RecurringType[]).map(r => <SelectItem key={r} value={r}>{recurringLabels[r]}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-3 mt-3">
-              <Input type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-10 w-full sm:w-40" placeholder="Vencimento" />
-              <Input value={quickPayee} onChange={(e) => setQuickPayee(e.target.value)} placeholder="Credor/Fornecedor" className="h-10 min-w-0 flex-1 sm:max-w-xs" />
-              <Button type="submit" size="lg" disabled={!quickAmount || !quickCategory} className="h-10 px-6">
-                <Plus className="mr-2 h-4 w-4" /> Adicionar
+              <div className="space-y-1"><Label htmlFor="quick-due" className="text-xs text-muted-foreground">Vencimento · opcional</Label><Input id="quick-due" type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-11" /></div>
+              <div className="space-y-1"><Label htmlFor="quick-payee" className="text-xs text-muted-foreground">Pessoa ou empresa · opcional</Label><Input id="quick-payee" value={quickPayee} onChange={(e) => setQuickPayee(e.target.value)} placeholder="Nome do favorecido" className="h-11" /></div>
+              </div>
+            </details>
+            {quickError && <p role="alert" className="mt-3 text-sm text-destructive">{quickError}</p>}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">Registrado hoje. Vencimentos futuros ficam pendentes.</p>
+              <Button type="submit" size="lg" disabled={quickSaving || !quickAmount || !quickCategory} className="h-11 w-full sm:w-auto px-6">
+                <Plus className="mr-2 h-4 w-4" /> {quickSaving ? 'Salvando…' : 'Salvar lançamento'}
               </Button>
             </div>
           </form>

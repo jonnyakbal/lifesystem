@@ -20,7 +20,10 @@ test('tarefa sem data pode entrar na semana e voltar ao planejamento', async ({ 
     await page.goto('/planejar');
     await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
     const card = page.getByTestId(`planning-task-${task.id}`);
-    if (await card.count() === 0) await page.getByRole('button', { name: /Ver mais \d+ tarefas/ }).click();
+    const more = page.getByRole('button', { name: /Ver mais \d+ tarefas/ });
+    // Wait for the asynchronous task load before deciding whether the card is hidden.
+    await expect(card.or(more).first()).toBeVisible();
+    if (await card.count() === 0) await more.click();
     await expect(card).toBeVisible();
     await card.getByRole('button', { name: 'Planejar' }).click();
     await page.getByLabel('Dia escolhido').fill(today);
