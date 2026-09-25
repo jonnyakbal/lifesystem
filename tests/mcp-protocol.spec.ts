@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createLifesystemMcpServer } from '../src/lib/mcp/server';
+import { storage } from '../src/lib/storage';
+import type { McpCallLog } from '../src/lib/mcp/log';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -32,6 +34,22 @@ test('MCP handshake only exposes tools authorized for the client', async () => {
     expect(tools).not.toContain('create_task');
     expect(tools).not.toContain('create_financial_entry');
     expect(tools).not.toContain('create_calendar_event');
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test('MCP audit identifies the scoped client', async () => {
+  const server = createLifesystemMcpServer(['tasks:read'], 'hermes-test');
+  const client = new Client({ name: 'audit-client-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    await client.callTool({ name: 'list_tasks', arguments: {} });
+    const logs = await storage.getAll<McpCallLog>('mcp-logs');
+    expect(logs.some(log => log.tool === 'list_tasks' && log.clientId === 'hermes-test')).toBe(true);
   } finally {
     await client.close();
     await server.close();

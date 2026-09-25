@@ -148,7 +148,7 @@ data/                        # dados locais privados; somente README versionado
 
 **Autenticação:** `Authorization: Bearer <token>` (separado do login web)
 
-Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-leitura","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","financial:read"]}]`. Escopos seguem `domínio:read` ou `domínio:write`; `domínio:*` permite ambos. A chave existente em `MCP_API_KEY` permanece compatível e mantém acesso amplo até a migração do cliente.
+Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-leitura","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","financial:read"]}]`. Escopos seguem `domínio:read` ou `domínio:write`; `domínio:*` permite ambos. Use um `id` exclusivo para o Hermes: ele aparece no histórico de chamadas sem expor a chave e permite distinguir o agente de outros clientes. A chave existente em `MCP_API_KEY` permanece compatível e mantém acesso amplo até a migração do cliente; chamadas com essa chave aparecem como `legacy` e não identificam a origem.
 
 ### Google Agenda
 

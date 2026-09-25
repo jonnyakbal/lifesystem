@@ -10,6 +10,7 @@ import type { McpCallLog } from '@/lib/mcp/log';
 export async function GET() {
   const configuration = getMcpConfigurationStatus();
   let lastCallAt: string | null = null;
+  let lastCallClientId: string | null = null;
   let lastSuccessAt: string | null = null;
   let recentFailures = 0;
   let auditAvailable = true;
@@ -17,6 +18,7 @@ export async function GET() {
     const logs = (await storage.getAll<McpCallLog>('mcp-logs'))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     lastCallAt = logs[0]?.createdAt || null;
+    lastCallClientId = logs[0]?.clientId || null;
     lastSuccessAt = logs.find(log => log.success)?.createdAt || null;
     recentFailures = logs.slice(0, 20).filter(log => !log.success).length;
   } catch {
@@ -27,6 +29,7 @@ export async function GET() {
     mcpMode: configuration.mode,
     mcpKeyCount: configuration.keyCount,
     lastCallAt,
+    lastCallClientId,
     lastSuccessAt,
     recentFailures,
     auditAvailable,

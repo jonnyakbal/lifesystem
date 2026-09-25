@@ -37,7 +37,7 @@ async function handle(request: NextRequest): Promise<Response> {
   }
 
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
-  const server = createLifesystemMcpServer(authorization.scopes);
+  const server = createLifesystemMcpServer(authorization.scopes, authorization.keyId);
   await server.connect(transport);
   return transport.handleRequest(request);
 }

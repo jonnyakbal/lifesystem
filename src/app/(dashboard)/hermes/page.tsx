@@ -23,12 +23,13 @@ interface HermesStatus {
   mcpMode: 'none' | 'legacy' | 'scoped' | 'both';
   mcpKeyCount: number;
   lastCallAt: string | null;
+  lastCallClientId: string | null;
   lastSuccessAt: string | null;
   recentFailures: number;
   auditAvailable: boolean;
   nousConfigured: boolean;
 }
-interface McpCallLog { id: string; tool: string; success: boolean; error?: string; createdAt: string; }
+interface McpCallLog { id: string; tool: string; clientId?: string; success: boolean; error?: string; createdAt: string; }
 
 const MODELS = ['Hermes-4.3-36B', 'Hermes-4-70B', 'Hermes-4-405B'];
 
@@ -137,6 +138,7 @@ export default function HermesPage() {
                 <div className="rounded-xl border bg-muted/20 p-3">
                   <span className="text-xs text-muted-foreground">Última chamada recebida</span>
                   <p className="mt-1 font-medium">{status?.auditAvailable === false ? 'Histórico indisponível' : status?.lastCallAt ? timeAgo(status.lastCallAt) : 'Ainda nenhuma'}</p>
+                  {status?.lastCallClientId && <p className="mt-1 text-xs text-muted-foreground">Chave: {status.lastCallClientId}</p>}
                   <p className="mt-1 text-xs text-muted-foreground">{status?.auditAvailable === false ? 'Não é possível confirmar a atividade agora.' : status?.lastSuccessAt ? `Última ação bem-sucedida ${timeAgo(status.lastSuccessAt)}` : 'Sem sucesso registrado'}</p>
                 </div>
                 <div className="rounded-xl border bg-muted/20 p-3">
@@ -156,6 +158,7 @@ export default function HermesPage() {
               </div>
               {!status?.mcpConfigured && <p className="text-xs text-muted-foreground">Configure uma chave com escopos em <code>MCP_API_KEYS</code> e use a mesma chave no Hermes. Para testes iniciais, <code>MCP_API_KEY</code> também funciona, mas dá acesso amplo.</p>}
               {status?.mcpConfigured && status.auditAvailable && !status.lastCallAt && <p className="text-xs text-muted-foreground">O servidor está configurado, mas ainda não há evidência de que o Hermes chamou uma ferramenta. Faça uma consulta pelo agente e atualize esta tela.</p>}
+              {status?.lastCallClientId === 'legacy' && <p className="text-xs text-muted-foreground">A chave ampla não identifica qual cliente fez a chamada. Uma chave exclusiva com id Hermes permite confirmar o uso do agente.</p>}
             </CardContent>
           </Card>
 
@@ -175,6 +178,7 @@ export default function HermesPage() {
                     <div key={log.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
                       {log.success ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-money" /> : <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
                       <code className="flex-1 truncate text-xs">{log.tool}</code>
+                      {log.clientId && <span className="max-w-28 truncate text-xs text-muted-foreground" title={`Chave ${log.clientId}`}>{log.clientId}</span>}
                       {log.error && <span className="truncate text-xs text-destructive">{log.error}</span>}
                       <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(log.createdAt)}</span>
                     </div>

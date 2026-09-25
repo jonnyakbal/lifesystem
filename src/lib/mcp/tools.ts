@@ -30,9 +30,10 @@ function errorResult(message: string) {
 // without each of the 26 tools needing its own logging call.
 function logged<Args extends unknown[]>(
   toolName: string,
-  fn: (...args: Args) => Promise<{ isError?: boolean; content: { type: 'text'; text: string }[] }>
+  fn: (...args: Args) => Promise<{ isError?: boolean; content: { type: 'text'; text: string }[] }>,
+  clientId?: string,
 ) {
-  return (...args: Args) => runMcpToolWithAudit(toolName, () => fn(...args));
+  return (...args: Args) => runMcpToolWithAudit(toolName, () => fn(...args), undefined, clientId);
 }
 
 interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRawShape> {
@@ -53,6 +54,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
   server: McpServer,
   config: CrudToolsConfig<TCreate, TUpdate>,
   scopes: string[],
+  clientId?: string,
 ) {
   const { entity, collection, plural, listFilters = [], createShape, updateShape, buildCreatePayload } = config;
   const allowCreate = config.allowCreate ?? true;
@@ -80,7 +82,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         ? await storage.query(collection, filters)
         : await storage.getAll(collection);
       return textResult(items);
-    })
+    }, clientId)
   );
 
   const createShapeConcrete: z.ZodRawShape = createShape;
@@ -104,7 +106,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         } catch (err) {
           return errorResult(err instanceof Error ? err.message : 'Erro ao criar item.');
         }
-      })
+      }, clientId)
     );
   }
 
@@ -127,7 +129,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       } catch (err) {
         return errorResult(err instanceof Error ? err.message : 'Erro ao atualizar item.');
       }
-    })
+    }, clientId)
   );
 
   if (allowDelete && canUseMcpTool(`delete_${entity}`, scopes)) {
@@ -144,12 +146,12 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         const ok = await storage.delete(collection, id);
         if (!ok) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
         return textResult({ success: true, id });
-      })
+      }, clientId)
     );
   }
 }
 
-export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
+export function registerAllTools(server: McpServer, scopes: string[] = ['*'], clientId?: string) {
   // Tasks — mirrors src/app/api/tasks/route.ts POST body.
   registerCrudTools(server, {
     entity: 'task',
@@ -189,7 +191,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       sortOrder: 0,
     }),
     validateUpdate: async (fields) => prepareTaskUpdate(taskUpdateSchema.parse(fields)),
-  }, scopes);
+  }, scopes, clientId);
 
   // Content — mirrors src/app/api/content/route.ts POST body.
   registerCrudTools(server, {
@@ -236,7 +238,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       linkedTaskIds: [],
       linkedProjectIds: [],
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   // Captures — INBOX/Notas. Mirrors src/app/api/captures/route.ts POST body.
   registerCrudTools(server, {
@@ -271,7 +273,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       coverColor: '',
       category: input.category || '',
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   // Pillars — fixed set of 6, só leitura + atualização de campos (ex: target/BHAG, currentStatus).
   registerCrudTools(server, {
@@ -290,7 +292,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       target: z.string().optional().describe('BHAG / Meta do Ano do pilar'),
     },
     buildCreatePayload: () => ({}),
-  }, scopes);
+  }, scopes, clientId);
 
   // Indicators — Metas. Mirrors src/app/api/indicators/route.ts POST body.
   registerCrudTools(server, {
@@ -326,7 +328,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       unit: input.unit,
       frequency: input.frequency || 'weekly',
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   // Projects — mirrors src/app/api/projects/route.ts POST body.
   registerCrudTools(server, {
@@ -358,7 +360,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       tasksCount: 0,
       tasksDone: 0,
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   // Log entries — Diário de Bordo (/diario-bordo). Mirrors
   // src/app/api/log-entries/route.ts POST body. Lets an agent record
@@ -386,7 +388,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       category: input.category || 'geral',
       date: input.date || todayStr(),
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   // Editais Culturais — mirrors src/app/api/editais/route.ts POST body.
   registerCrudTools(server, {
@@ -427,7 +429,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       stage: input.stage || 'radar',
       notes: input.notes,
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   // Financial control — the web UI exposes these as separate collections;
   // keeping them separate in MCP lets Hermes manage the same records without
@@ -450,7 +452,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, tags: input.tags || [], status: input.status || 'pending' }),
     validateCreate: payload => financialEntrySchema.parse(payload),
     validateUpdate: fields => financialEntryUpdateSchema.parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'account', collection: 'accounts', plural: 'accounts', listFilters: ['type', 'isActive'],
@@ -459,7 +461,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, balance: input.balance || 0, color: input.color || '#64748b', icon: input.icon || '🏦', isActive: input.isActive !== false, isDefault: input.isDefault || false }),
     validateCreate: payload => accountSchema.parse(payload),
     validateUpdate: fields => accountSchema.partial().parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'budget', collection: 'budgets', plural: 'budgets', listFilters: ['category', 'type', 'month'],
@@ -468,7 +470,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, spent: input.spent || 0 }),
     validateCreate: payload => budgetSchema.parse(payload),
     validateUpdate: fields => budgetSchema.partial().parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'card', collection: 'cards', plural: 'cards', listFilters: ['type', 'isActive', 'accountId'],
@@ -477,7 +479,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', isActive: input.isActive !== false }),
     validateCreate: payload => cardSchema.parse(payload),
     validateUpdate: fields => cardSchema.partial().parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'payee', collection: 'payees', plural: 'payees', listFilters: ['type', 'category'],
@@ -486,7 +488,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', icon: input.icon || '👤' }),
     validateCreate: payload => payeeSchema.parse(payload),
     validateUpdate: fields => payeeSchema.partial().parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'bill', collection: 'bills', plural: 'bills', listFilters: ['cardId', 'month', 'status'],
@@ -499,7 +501,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, paidAmount: input.paidAmount || 0, status: input.status || 'open', items: input.items || [] }),
     validateCreate: payload => billSchema.parse(payload),
     validateUpdate: fields => billSchema.partial().parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'financial_goal', collection: 'financial-goals', plural: 'financial_goals', listFilters: ['status'],
@@ -508,7 +510,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     buildCreatePayload: (input) => ({ ...input, currentAmount: input.currentAmount || 0, icon: input.icon || '🎯', color: input.color || '#eab308', status: input.status || 'active' }),
     validateCreate: payload => financialGoalSchema.parse(payload),
     validateUpdate: fields => financialGoalSchema.partial().parse(fields),
-  }, scopes);
+  }, scopes, clientId);
 
   if (canUseMcpTool('get_financial_summary', scopes)) server.registerTool('get_financial_summary', {
     title: 'Resumo financeiro',
@@ -526,7 +528,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     const realizedTotals = totals(realized);
     const projectedTotals = totals(projected);
     return textResult({ month, realized: { ...realizedTotals, balance: realizedTotals.income - realizedTotals.expenses }, projected: { ...projectedTotals, balance: projectedTotals.income - projectedTotals.expenses }, entries: filtered.length });
-  }));
+  }, clientId));
 
   if (canUseMcpTool('create_calendar_event', scopes)) server.registerTool('create_calendar_event', {
     title: 'Criar evento no Google Agenda',
@@ -541,7 +543,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
   }, logged('create_calendar_event', async (input: { title: string; description?: string; start: string; end: string; timeZone?: string }) => {
     try { return textResult(await createGoogleCalendarEvent(input)); }
     catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível criar o evento.'); }
-  }));
+  }, clientId));
 
   // ─── Content Hub (Central de Fontes) ──────────────────────────────────────
   registerCrudTools(server, {
@@ -573,7 +575,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       fetchStatus: 'idle',
       itemCount: 0,
     }),
-  }, scopes);
+  }, scopes, clientId);
 
   registerCrudTools(server, {
     entity: 'content_item',
@@ -615,5 +617,5 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       importance: input.importance || 'normal',
       fetchedAt: new Date().toISOString(),
     }),
-  }, scopes);
+  }, scopes, clientId);
 }

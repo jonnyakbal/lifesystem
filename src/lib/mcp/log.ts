@@ -7,6 +7,7 @@ import { storage } from '@/lib/storage';
 export interface McpCallLog {
   id: string;
   tool: string;
+  clientId?: string;
   success: boolean;
   error?: string;
   createdAt: string;
@@ -15,8 +16,8 @@ export interface McpCallLog {
 
 const MAX_LOGS = 200;
 
-export async function logMcpCall(tool: string, success: boolean, error?: string): Promise<void> {
-  await storage.create<McpCallLog>('mcp-logs', { tool, success, error } as Omit<McpCallLog, 'id' | 'createdAt' | 'updatedAt'>);
+export async function logMcpCall(tool: string, success: boolean, error?: string, clientId?: string): Promise<void> {
+  await storage.create<McpCallLog>('mcp-logs', { tool, success, error, clientId } as Omit<McpCallLog, 'id' | 'createdAt' | 'updatedAt'>);
   const all = await storage.getAll<McpCallLog>('mcp-logs');
   if (all.length > MAX_LOGS) {
     const sorted = [...all].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
