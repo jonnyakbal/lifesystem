@@ -34,25 +34,25 @@ test.describe('Full UI Audit', () => {
       await p.waitForTimeout(1000);
 
       await p.screenshot({
-        path: `screenshots/audit/${page.name}-desktop.png`,
+        path: `test-results/ui-audit/${page.name}-desktop.png`,
         fullPage: false,
       });
 
-      if (consoleErrors.length > 0) {
-        console.log(`\n🔴 Console errors on ${page.name}:`);
-        consoleErrors.forEach(e => console.log(`   ${e}`));
-      }
+      expect(consoleErrors, `Erros no console de ${page.name}`).toEqual([]);
     });
 
     test(`${page.name} — mobile screenshot`, async ({ page: p }) => {
+      const pageErrors: string[] = [];
+      p.on('pageerror', err => pageErrors.push(err.message));
       await p.setViewportSize({ width: 390, height: 844 });
       await p.goto(page.path, { waitUntil: 'networkidle', timeout: 30000 });
       await p.waitForTimeout(1000);
 
       await p.screenshot({
-        path: `screenshots/audit/${page.name}-mobile.png`,
+        path: `test-results/ui-audit/${page.name}-mobile.png`,
         fullPage: false,
       });
+      expect(pageErrors, `Erros de execução em ${page.name} no celular`).toEqual([]);
     });
   }
 });

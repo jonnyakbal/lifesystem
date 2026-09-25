@@ -905,17 +905,17 @@ export default function ConteudoPage() {
       <motion.div className="mb-6" variants={fade}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
           <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight">Conteúdo ARCO LABS</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight">Conteúdo</h1>
             <p className="text-muted-foreground">{sorted.length} conteúdos · {items.filter(i => i.stage === 'published').length} publicados</p>
           </div>
         </div>
 
         {/* Channel Tabs */}
-        <div className="flex flex-wrap gap-1.5 mb-3">
+        <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
           <button
             onClick={() => setActiveChannel('all')}
             className={cn(
-              'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all border',
+              'flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
               activeChannel === 'all' ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50'
             )}
           >
@@ -929,7 +929,7 @@ export default function ConteudoPage() {
                 key={ch.id}
                 onClick={() => setActiveChannel(ch.id)}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all border',
+                  'flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
                   activeChannel === ch.id
                     ? `bg-gradient-to-r ${ch.gradient} border-current/20 ${ch.color}`
                     : 'border-border/50 text-muted-foreground hover:bg-muted/50'
@@ -944,13 +944,13 @@ export default function ConteudoPage() {
         </div>
 
         {/* Pipeline Stats */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {pipelineStats.map(s => (
             <button
               key={s.id}
               onClick={() => setFilterStage(filterStage === s.id ? 'all' : s.id)}
               className={cn(
-                'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border',
+                'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
                 filterStage === s.id ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50'
               )}
             >
@@ -1089,8 +1089,11 @@ export default function ConteudoPage() {
             </PopoverContent>
           </Popover>
 
+          <details className="order-last w-full rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">Mais opções de organização</summary>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* Saved Views */}
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {savedViews.slice(0, 3).map(v => (
               <Button key={v.id} variant={activeViewId === v.id ? 'secondary' : 'ghost'} size="sm" className="h-9 text-xs gap-1" onClick={() => applyView(v)}>
                 <Bookmark className="h-3 w-3" /> {v.name}
@@ -1132,6 +1135,8 @@ export default function ConteudoPage() {
           <Button variant="outline" size="sm" onClick={() => setStatusLabelDialogOpen(true)} title="Editar rótulos de status">
             <Edit2 className="h-4 w-4" />
           </Button>
+            </div>
+          </details>
 
           <Button size="sm" onClick={openCreate}>
             <Plus className="mr-1 h-4 w-4" /> Novo

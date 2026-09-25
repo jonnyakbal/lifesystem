@@ -1128,10 +1128,10 @@ export default function TasksPage() {
         </div>
 
         {/* Pipeline Stats */}
-        <div className="flex flex-wrap gap-2 mb-3">
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {pipelineStats.map(s => (
             <button key={s.id} onClick={() => { setShowDone(s.id === 'done' ? !showDone : showDone); }}
-              className={cn('flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all border',
+              className={cn('flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
                 s.id === 'done' && showDone ? 'bg-money/10 border-money/30 text-money' : 'border-border/50 text-muted-foreground hover:bg-muted/50')}>
               <div className={cn('h-2 w-2 rounded-full', s.dot)} />
               {s.label}
@@ -1247,8 +1247,11 @@ export default function TasksPage() {
                 </PopoverContent>
               </Popover>
 
+              <details className="order-last w-full rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">Mais opções de organização</summary>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
               {/* Saved Views */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1">
                 {savedViews.slice(0, 2).map(v => (
                   <Button key={v.id} variant={activeViewId === v.id ? 'secondary' : 'ghost'} size="sm" className="h-9 text-xs gap-1" onClick={() => applyView(v)}>
                     <Bookmark className="h-3 w-3" /> {v.name}
@@ -1284,9 +1287,11 @@ export default function TasksPage() {
                 <CheckSquare className="mr-1 h-4 w-4" /> Selecionar
               </Button>
 
-              <Button variant="outline" size="sm" aria-label="Editar etapas" title="Editar etapas">
+              <Button variant="outline" size="sm" aria-label="Editar etapas" title="Editar etapas" onClick={() => setStageDialogOpen(true)}>
                 <Edit2 className="h-4 w-4" />
               </Button>
+                </div>
+              </details>
 
               <div className="flex rounded-lg border border-border bg-muted/30 p-0.5">
                 {[

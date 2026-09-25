@@ -348,8 +348,9 @@ export default function HomePage() {
         </div>
       </motion.div>
 
+      <div className="flex flex-col">
       {/* ─── Stats Row (5 Cards) ─── */}
-      <motion.div className="mb-6" variants={fade}>
+      <motion.div className="order-3 mb-6 lg:order-none" variants={fade}>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {isLoading ? (
             Array.from({ length: 5 }).map((_, i) => (
@@ -386,7 +387,7 @@ export default function HomePage() {
 
       {/* ─── Critical Alert Bar ─── */}
       {overdueTasks.length > 0 && (
-        <motion.div className="mb-6" variants={fade}>
+        <motion.div className="order-1 mb-6 lg:order-none" variants={fade}>
           <Card className="border-destructive/50 bg-destructive/10 relative overflow-hidden">
             <div className="absolute inset-0 bg-destructive/5 opacity-30" />
             <CardHeader className="flex flex-row items-center gap-2 pb-3 relative z-10">
@@ -408,7 +409,7 @@ export default function HomePage() {
       )}
 
       {/* ─── Main Content Grid ─── */}
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+      <div className="order-2 grid grid-cols-1 gap-6 lg:order-none xl:grid-cols-12">
         {/* ─── LEFT COLUMN (7 cols) ─── */}
         <div className="min-w-0 xl:col-span-8 space-y-6">
           {/* Today's Tasks - Enhanced */}
@@ -435,8 +436,11 @@ export default function HomePage() {
                   </div>
                 ) : todayTasks.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-6">
-                    <CheckCircle2 className="h-8 w-8 text-muted-foreground/20 mb-2" />
-                    <p className="text-sm text-muted-foreground">Nenhuma tarefa para hoje 🎉</p>
+                    <Calendar className="mb-2 h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">Nenhuma tarefa planejada para hoje</p>
+                    <Link href="/planejar" className="mt-2 text-sm font-medium text-primary hover:underline">
+                      Escolher tarefas para o dia →
+                    </Link>
                   </div>
                 ) : (
                   <div className="space-y-2">
@@ -659,6 +663,7 @@ export default function HomePage() {
             </Card>
           </motion.div>
         </div>
+      </div>
       </div>
 
       {/* ─── Projects Quick View ─── */}

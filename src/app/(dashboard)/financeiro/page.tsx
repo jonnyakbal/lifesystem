@@ -145,13 +145,13 @@ const cardBrandColors: Record<string, string> = {
 };
 
 const categories = {
-  income: ['Dona Maria', 'ARCO PASS', 'ARCO LABS', 'DJ', 'Editais', 'Consultoria', 'Rendimento', 'Outros'],
+  income: ['Salário', 'Serviços', 'Vendas', 'Projetos', 'Rendimentos', 'Outros'],
   expense_fixed: ['Aluguel', 'Condomínio', 'Água', 'Luz', 'Internet', 'Celular', 'Faculdade', 'Seguro', 'Carro', 'Software', 'Assinaturas'],
   expense_variable: ['Alimentação', 'Combustível', 'Lazer', 'Roupas', 'Saúde', 'Educação', 'Presentes', 'Emergências', 'Marketing', 'Viagem'],
 };
 
 const categoryColors: Record<string, string> = {
-  'Dona Maria': '#22c55e', 'ARCO PASS': '#3b82f6', 'ARCO LABS': '#a78bfa', 'DJ': '#ec4899', 'Editais': '#f59e0b', 'Consultoria': '#06b6d4', 'Rendimento': '#22c55e', 'Outros': '#64748b',
+  'Salário': '#22c55e', 'Serviços': '#3b82f6', 'Vendas': '#a78bfa', 'Projetos': '#f59e0b', 'Rendimentos': '#06b6d4', 'Outros': '#64748b',
   'Aluguel': '#ef4444', 'Condomínio': '#f97316', 'Água': '#06b6d4', 'Luz': '#eab308', 'Internet': '#3b82f6', 'Celular': '#8b5cf6', 'Faculdade': '#a78bfa', 'Seguro': '#64748b', 'Carro': '#ef4444', 'Software': '#22c55e', 'Assinaturas': '#ec4899',
   'Alimentação': '#ef4444', 'Combustível': '#f97316', 'Lazer': '#ec4899', 'Roupas': '#a78bfa', 'Saúde': '#22c55e', 'Educação': '#3b82f6', 'Presentes': '#f59e0b', 'Emergências': '#dc2626', 'Marketing': '#8b5cf6', 'Viagem': '#06b6d4',
 };
@@ -733,7 +733,7 @@ export default function FinanceiroPage() {
                 <Select value={quickCategory} onValueChange={setQuickCategory}>
                   <SelectTrigger className="h-10"><SelectValue placeholder="Selecionar" /></SelectTrigger>
                   <SelectContent>
-                    {categories[quickType].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    {[...new Set([...categories[quickType], ...entries.filter(entry => entry.type === quickType).map(entry => entry.category)])].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
@@ -1393,7 +1393,7 @@ export default function FinanceiroPage() {
                     <CardHeader><CardTitle className="text-base">{typeLabels[type]}</CardTitle></CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {categories[type].map(cat => (
+                        {[...new Set([...categories[type], ...entries.filter(entry => entry.type === type).map(entry => entry.category)])].map(cat => (
                           <div key={cat} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: categoryColors[cat] || '#64748b' }} />
                             <span className="text-sm font-medium flex-1">{cat}</span>

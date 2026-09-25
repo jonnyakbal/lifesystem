@@ -53,8 +53,8 @@ interface Indicator {
 const defaultPillars: Omit<Pillar, 'id' | 'createdAt' | 'updatedAt'>[] = [
   { name: 'Fé & Propósito', description: 'Espiritualidade, direção, por que tudo isso existe', icon: '✨', color: 'stellar', sortOrder: 1, currentStatus: '', target: '' },
   { name: 'Físico / Corpo', description: 'Saúde, alimentação, exercício, sono', icon: '💪', color: 'critical', sortOrder: 2, currentStatus: '', target: '' },
-  { name: 'Mente / Conhecimento', description: 'Aprendizado, reflexão, TCC', icon: '🧠', color: 'qty', sortOrder: 3, currentStatus: '', target: '' },
-  { name: 'Profissional / Talentos', description: 'Dona Maria, ARCO LABS, ARCO PASS, DJ, projetos', icon: '🚀', color: 'money', sortOrder: 4, currentStatus: '', target: '' },
+  { name: 'Mente / Conhecimento', description: 'Aprendizado, reflexão e estudos', icon: '🧠', color: 'qty', sortOrder: 3, currentStatus: '', target: '' },
+  { name: 'Profissional / Talentos', description: 'Trabalho, projetos, habilidades e contribuição', icon: '🚀', color: 'money', sortOrder: 4, currentStatus: '', target: '' },
   { name: 'Dinheiro & Patrimônio', description: 'Finanças, investimentos, fluxo de caixa', icon: '💰', color: 'primary', sortOrder: 5, currentStatus: '', target: '' },
   { name: 'Comunidade', description: 'Relações, rede de contatos, coletivos culturais', icon: '👥', color: 'qty', sortOrder: 6, currentStatus: '', target: '' },
 ];

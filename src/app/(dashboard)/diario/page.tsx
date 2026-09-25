@@ -161,28 +161,30 @@ export default function DiarioPage() {
           <motion.div variants={fade}>
             <Card>
               <CardContent className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1">
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Dia anterior" onClick={() => navigateDay(-1)}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Calendar className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <span className="font-medium">
+                      <span className="text-sm font-medium leading-tight">
                         {new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
                       </span>
                     </div>
                     <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Próximo dia" onClick={() => navigateDay(1)}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 sm:justify-end">
                     <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setSelectedDate(todayStr())}>
                       Hoje
                     </Button>
+                    <Button onClick={handleSave} disabled={isSaving} className="shrink-0">
+                      <Save className="mr-2 h-4 w-4" />
+                      {isSaving ? 'Salvando...' : 'Salvar'}
+                    </Button>
                   </div>
-                  <Button onClick={handleSave} disabled={isSaving} className="shrink-0">
-                    <Save className="mr-2 h-4 w-4" />
-                    {isSaving ? 'Salvando...' : 'Salvar'}
-                  </Button>
                 </div>
               </CardContent>
             </Card>
