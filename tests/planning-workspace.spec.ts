@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
 
+test('resumo móvel leva diretamente aos dias da semana', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/planejar');
+  await page.getByRole('link', { name: /Nesta semana/ }).click();
+  await expect(page).toHaveURL(/#planning-week-days$/);
+  await expect(page.getByRole('region', { name: 'Dias da semana' })).toBeInViewport();
+});
+
 test('tarefa sem data pode entrar na semana e voltar ao planejamento', async ({ page, request }) => {
   const title = `Plano de teste ${Date.now()}`;
   const createdResponse = await request.post('/api/tasks', { data: { title, priority: 'normal', status: 'todo' } });

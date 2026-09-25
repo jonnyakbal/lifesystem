@@ -153,8 +153,8 @@ export function PlanningWorkspace() {
     {loadError && <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm"><CircleAlert className="h-4 w-4" />{loadError}<Button size="sm" variant="outline" onClick={() => void load()}>Tentar novamente</Button></div>}
 
     <div className="mb-5 grid grid-cols-2 gap-2">
-      <div className="rounded-xl border bg-card/50 px-4 py-3"><p className="text-[11px] text-muted-foreground">Nesta semana</p><p className="mt-1 font-mono-num text-xl font-semibold">{weekTasks.length} <span className="text-xs font-normal text-muted-foreground">tarefas</span></p></div>
-      <div className="rounded-xl border bg-card/50 px-4 py-3"><p className="text-[11px] text-muted-foreground">Para decidir</p><p className="mt-1 font-mono-num text-xl font-semibold">{backlog.length} <span className="text-xs font-normal text-muted-foreground">sem data</span></p></div>
+      <a href="#planning-week-days" className="rounded-xl border bg-card/50 px-4 py-3 transition-colors hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-primary"><p className="text-[11px] text-muted-foreground">Nesta semana ↗</p><p className="mt-1 font-mono-num text-xl font-semibold">{weekTasks.length} <span className="text-xs font-normal text-muted-foreground">tarefas</span></p></a>
+      <a href="#planning-backlog" className="rounded-xl border bg-card/50 px-4 py-3 transition-colors hover:border-primary/50 focus-visible:outline-2 focus-visible:outline-primary"><p className="text-[11px] text-muted-foreground">Para decidir ↗</p><p className="mt-1 font-mono-num text-xl font-semibold">{backlog.length} <span className="text-xs font-normal text-muted-foreground">sem data</span></p></a>
     </div>
 
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
@@ -164,7 +164,7 @@ export function PlanningWorkspace() {
     </div>
 
     <div className="grid min-w-0 gap-5 min-[1600px]:grid-cols-[minmax(0,1fr)_280px]">
-      <section aria-label="Dias da semana" className="order-last grid min-w-0 gap-2 sm:grid-cols-2 lg:order-first lg:grid-cols-7">
+      <section id="planning-week-days" aria-label="Dias da semana" className="order-last grid min-w-0 scroll-mt-24 gap-2 sm:grid-cols-2 lg:order-first lg:grid-cols-7">
         {days.map(({ date, key }) => {
           const dayTasks = openTasks.filter(task => task.dueDate === key);
           const dayEvents = events.filter(event => occursOn(event, key));
@@ -187,7 +187,7 @@ export function PlanningWorkspace() {
         })}
       </section>
 
-      <aside aria-label="Tarefas para planejar" className="order-first min-w-0 lg:order-last min-[1600px]:sticky min-[1600px]:top-6 min-[1600px]:self-start"><div className="rounded-2xl border bg-card/70 p-4">
+      <aside id="planning-backlog" aria-label="Tarefas para planejar" className="order-first min-w-0 scroll-mt-24 lg:order-last min-[1600px]:sticky min-[1600px]:top-6 min-[1600px]:self-start"><div className="rounded-2xl border bg-card/70 p-4">
         <div className="mb-1 flex items-center gap-2"><Inbox className="h-4 w-4 text-primary" /><h2 className="text-sm font-semibold">Para planejar</h2><span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs">{backlog.length}</span></div>
         <p className="mb-4 text-xs text-muted-foreground">Escolha o dia. O horário continua livre até você reservar um bloco.</p>
         <div className="mb-4 flex gap-2"><Input aria-label="Nova tarefa" value={newTitle} onChange={event => setNewTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void createTask(); }} placeholder="Nova tarefa..." /><Button size="icon" aria-label="Adicionar tarefa" disabled={!newTitle.trim() || saving} onClick={() => void createTask()}><Plus className="h-4 w-4" /></Button></div>
