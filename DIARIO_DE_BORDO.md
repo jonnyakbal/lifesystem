@@ -205,13 +205,16 @@ Decisões já validadas, execução fica pra depois: repositório privado atual 
 **O que existe hoje:**
 - `npx tsc --noEmit -p .` — gate de tipo, rodado antes de todo commit desta sessão em diante.
 - `npm run build` — garante que a build de produção (a que a Hostinger vai rodar) não quebra.
+- `npm test` — suíte Playwright com testes de API, MCP, planejamento, calendário, segurança e auditoria visual desktop/mobile (89 aprovados na verificação de 2026-09-25).
+- GitHub Actions (`.github/workflows/ci.yml`) roda TypeScript, build e Playwright em push/PR para `main`. Esse workflow é CI, não deploy.
+- **Deploy:** integração nativa Hostinger↔GitHub; push em `main` dispara build e publicação. Um `401` do conector Hostinger no Codex bloqueia apenas a leitura do hPanel, não prova falha de deploy. Verifique o site público e os assets servidos; para consultar logs/variáveis da conta, reautorize o conector. Não trocar o fluxo normal por SSH.
 - Scripts Playwright **ad-hoc** (`qa-mobile.js`, `qa-flows.js`, `qa-financeiro.js`, `qa-mobile-new-features.js`, `capture-screenshots.js`) — rodados via `node qa-*.js` diretamente, não pelo test runner do Playwright. Eles navegam páginas-chave, tiram screenshots (`qa-screenshots/`) e em alguns casos fazem um fluxo de criar+limpar um registro de teste (ex: Financeiro). **Não são asserções automatizadas** — servem pra revisão visual manual, não pra CI.
 - Verificação manual em navegador (via ferramentas de browser automation) a cada feature nova, com dados descartáveis, nunca tocando os dados reais do Jonny — esse foi o padrão seguido em toda a sessão de 2026-08-31 (10 itens da fila + Wizard + MCP), incluindo teste do endpoint MCP via `curl` isolado numa porta separada pra não afetar o servidor de dev do Jonny.
 
-**O que NÃO existe (dívida técnica conhecida):**
-- Nenhuma suíte de testes automatizados com asserções (unit, integration ou E2E de verdade). `@playwright/test` está instalado mas nenhum `.spec.ts` existe.
-- Nenhum CI configurado (sem GitHub Actions) — a Hostinger builda no push, mas isso não é um pipeline de teste, é só um deploy automático.
-- Sem teste de regressão pra API routes (ex: não há garantia automática de que `POST /api/tasks` continua aceitando o shape certo depois de uma mudança).
+**Dívidas de teste conhecidas:**
+- Ainda falta um teste automatizado do fluxo de conversão de captura ponta a ponta; a cobertura atual testa CRUD, não todos os destinos de conversão.
+- Ainda falta um teste automatizado de regressão visual para contraste/legibilidade ao alternar tema.
+- A suíte passou localmente em 2026-09-25, mas o workflow do commit `8a40e02` terminou com falha na etapa Playwright. O log detalhado não estava acessível durante a revisão; identificar o teste específico continua pendente.
 
 ---
 

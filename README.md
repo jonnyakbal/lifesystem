@@ -111,11 +111,12 @@ data/                        # dados locais privados; somente README versionado
 
 ## Deploy (Hostinger Node.js)
 
-1. Build: `npm run build` (gera `output: standalone`)
-2. Push pro GitHub (branch `main`)
-3. Na Hostinger: conectar o repositório com integração nativa do GitHub
-4. Comando de build: `npm run build`
-5. Configure `LIFESYSTEM_DATA_DIR` para uma pasta persistente com permissão de escrita, fora do checkout
+1. Conecte o repositório à integração nativa do GitHub na Hostinger e configure `npm run build` como comando de build.
+2. Faça push para a branch `main`. A Hostinger detecta o push, cria uma nova versão e publica a aplicação.
+3. O workflow `.github/workflows/ci.yml` também roda TypeScript, build e Playwright como validação; ele não é responsável pelo deploy.
+4. Configure `LIFESYSTEM_DATA_DIR` para uma pasta persistente com permissão de escrita, fora do checkout.
+
+Um `401` do conector Hostinger no Codex indica que ele não pode consultar o hPanel naquela sessão; não indica falha no push nem no deploy nativo. Confira o site público e os recursos da versão servida para verificar o release. O conector só é necessário para consultar dados da conta, como logs de build e variáveis de ambiente.
 
 ### Variáveis de ambiente
 
@@ -193,10 +194,7 @@ npm run test:ui
 npm run test:report
 ```
 
-**Testes existentes:**
-- Tasks API (CRUD + batch)
-- Captures API (CRUD)
-- Projects API (CRUD)
+**Cobertura atual:** APIs de tarefas, capturas e projetos; validação financeira e autorização/confiabilidade MCP; planejamento e Google Calendar; segurança de APIs; smoke tests e auditoria visual das rotas desktop/mobile. O GitHub Actions executa `npx tsc --noEmit`, `npm run build` e `npm test` em pushes e pull requests para `main`.
 
 ## Roadmap próximo
 
@@ -204,7 +202,6 @@ npm run test:report
 - [ ] Página de detalhe de projeto
 - [ ] Subtarefas
 - [ ] Gráficos de indicadores
-- [ ] Calendário integrado (Google Calendar)
 - [x] Rate limiting no login e MCP
 
 ## Licença
