@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { authorizeMcpToken, canUseMcpTool, parseMcpKeyConfigurations } from '../src/lib/mcp/auth';
+import { authorizeMcpToken, canUseMcpTool, getMcpConfigurationStatus, parseMcpKeyConfigurations } from '../src/lib/mcp/auth';
 
 const scopedKey = 'test-mcp-key-that-is-long-enough-123456';
 const configured = JSON.stringify([{ id: 'hermes-readonly', key: scopedKey, scopes: ['tasks:read', 'financial:read'] }]);
@@ -32,5 +32,9 @@ test.describe('MCP key scopes', () => {
   test('does not permit unknown tools through scoped credentials', () => {
     expect(canUseMcpTool('delete_everything', ['tasks:write'])).toBe(false);
     expect(canUseMcpTool('get_vision', ['tasks:read'])).toBe(false);
+  });
+
+  test('reports a valid scoped credential as configured without a legacy key', () => {
+    expect(getMcpConfigurationStatus({ MCP_API_KEYS: configured })).toEqual({ configured: true, mode: 'scoped', keyCount: 1 });
   });
 });

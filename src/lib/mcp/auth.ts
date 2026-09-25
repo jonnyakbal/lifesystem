@@ -16,6 +16,19 @@ type McpAuthEnvironment = {
   MCP_API_KEYS?: string;
 };
 
+export function getMcpConfigurationStatus(environment: McpAuthEnvironment = {
+  MCP_API_KEY: process.env.MCP_API_KEY,
+  MCP_API_KEYS: process.env.MCP_API_KEYS,
+}) {
+  const legacy = Boolean(environment.MCP_API_KEY);
+  const scoped = parseMcpKeyConfigurations(environment.MCP_API_KEYS).length;
+  return {
+    configured: legacy || scoped > 0,
+    mode: legacy ? (scoped > 0 ? 'both' : 'legacy') : (scoped > 0 ? 'scoped' : 'none'),
+    keyCount: scoped + (legacy ? 1 : 0),
+  };
+}
+
 export function parseMcpKeyConfigurations(raw: string | undefined): McpKeyConfiguration[] {
   if (!raw) return [];
   try {

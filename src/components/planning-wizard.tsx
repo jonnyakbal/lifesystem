@@ -48,7 +48,7 @@ const TYPE_CONFIG: Record<ItemType, { label: string; icon: typeof CheckSquare; p
   note: { label: 'Nota', icon: NotebookText, placeholder: 'Anotação, lembrete, ideia solta...' },
 };
 
-export function PlanningWizard() {
+export function PlanningWizard({ onItemsChanged }: { onItemsChanged?: () => void } = {}) {
   const [loading, setLoading] = useState(true);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
@@ -118,6 +118,7 @@ export function PlanningWizard() {
         id, type: itemType, title: title.trim(), pillarId: currentPillar.id, pillarName: currentPillar.name, pillarIcon: currentPillar.icon,
       }]);
       setTitle('');
+      onItemsChanged?.();
     } catch (err) {
       toast.error(showError(err));
     } finally {
@@ -130,6 +131,7 @@ export function PlanningWizard() {
     try {
       await apiFetch(`${endpoint}/${item.id}`, { method: 'DELETE' });
       setCreatedItems(prev => prev.filter(i => i.id !== item.id));
+      onItemsChanged?.();
     } catch (err) {
       toast.error(showError(err));
     }

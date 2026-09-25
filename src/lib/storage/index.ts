@@ -2,22 +2,25 @@ import fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import path from 'path';
 
-const DATA_DIR = process.env.LIFESYSTEM_DATA_DIR
-  ? path.resolve(process.env.LIFESYSTEM_DATA_DIR)
-  : path.join(process.cwd(), 'data');
+function dataDir() {
+  return process.env.LIFESYSTEM_DATA_DIR
+    ? path.resolve(process.env.LIFESYSTEM_DATA_DIR)
+    : path.join(process.cwd(), 'data');
+}
 const collectionLocks = new Map<string, Promise<void>>();
 
 async function ensureDataDir() {
+  const dir = dataDir();
   try {
-    await fs.access(DATA_DIR);
+    await fs.access(dir);
   } catch {
-    await fs.mkdir(DATA_DIR, { recursive: true });
+    await fs.mkdir(dir, { recursive: true });
   }
 }
 
 async function readCollection<T>(name: string): Promise<T[]> {
   await ensureDataDir();
-  const filePath = path.join(DATA_DIR, `${name}.json`);
+  const filePath = path.join(dataDir(), `${name}.json`);
   try {
     const data = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(data);
@@ -29,11 +32,20 @@ async function readCollection<T>(name: string): Promise<T[]> {
 
 async function writeCollection<T>(name: string, data: T[]): Promise<void> {
   await ensureDataDir();
-  const filePath = path.join(DATA_DIR, `${name}.json`);
-  const tempPath = path.join(DATA_DIR, `.${name}.${randomUUID()}.tmp`);
+  const filePath = path.join(dataDir(), `${name}.json`);
+  const tempPath = path.join(dataDir(), `.${name}.${randomUUID()}.tmp`);
   try {
     await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
-    await fs.rename(tempPath, filePath);
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await fs.rename(tempPath, filePath);
+        break;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (process.platform !== 'win32' || attempt >= 5 || !['EPERM', 'EACCES', 'EBUSY'].includes(code || '')) throw error;
+        await new Promise(resolve => setTimeout(resolve, 30 * (attempt + 1)));
+      }
+    }
   } finally {
     await fs.rm(tempPath, { force: true }).catch(() => undefined);
   }

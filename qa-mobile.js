@@ -1,6 +1,9 @@
-const { chromium } = require('playwright');
-const path = require('path');
-const fs = require('fs');
+import { chromium } from 'playwright';
+import path from 'node:path';
+import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const BASE = 'http://localhost:3000';
 const DIR = path.join(__dirname, 'qa-screenshots');

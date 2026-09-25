@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+:root {
+  --font-ui: "Inter Variable";
+  --font-heading: "Fraunces Variable";
+  --font-code: "JetBrains Mono Variable";
+}
+
 /* Tailwind v4: o app alterna tema pela classe .dark no <html> (toggle do
    settings.tsx). Sem esta declaração, a variante dark: escuta o
    prefers-color-scheme do SISTEMA OPERACIONAL em vez da classe — e o toggle

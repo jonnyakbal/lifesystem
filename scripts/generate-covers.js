@@ -1,8 +1,11 @@
 // One-off generator for space-themed project cover placeholders (SVG).
 // Run: node scripts/generate-covers.js
 // Output: public/covers/<id>.svg — referenced by data/projects.json's coverUrl.
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const OUT_DIR = path.join(__dirname, '..', 'public', 'covers');
 if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });

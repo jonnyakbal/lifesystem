@@ -1,11 +1,7 @@
 'use client';
 
-import { PlanningWizard } from '@/components/planning-wizard';
+import { PlanningWorkspace } from '@/components/planning-workspace';
 
 export default function PlanejarPage() {
-  return (
-    <div className="max-w-3xl p-4 lg:p-8">
-      <PlanningWizard />
-    </div>
-  );
+  return <PlanningWorkspace />;
 }

@@ -43,7 +43,8 @@ yarn-error.log*
 next-env.d.ts
 
 # Runtime data must live outside the release checkout in production.
-# Keep the checked-in seed data available for local development for now.
+# Existing tracked seed files require a separate, reviewed migration out of Git.
+/data/*.json
 /data/runtime/
 /data/backups/
 /data/google-calendar.json

@@ -2,7 +2,7 @@
 // Goal/Budget) — not covered by earlier QA passes. Creates one of each,
 // verifies it renders with no console errors, then deletes it via the API
 // so it doesn't pollute Jonny's real financial data.
-const { chromium } = require('playwright');
+import { chromium } from 'playwright';
 const BASE = 'http://localhost:3000';
 
 (async () => {

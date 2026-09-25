@@ -116,6 +116,10 @@ const SLASH_COMMANDS = [
   { id: 'callout-success', label: 'Callout ✅', icon: Smile, syntax: '\n> ✅ ' },
 ];
 
+const MARKDOWN_TOOLS = SLASH_COMMANDS.filter(command =>
+  ['heading2', 'bold', 'italic', 'strikethrough', 'code', 'quote', 'bullet', 'numbered', 'checklist', 'link', 'divider'].includes(command.id)
+).map(command => ({ ...command, title: command.label }));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function wordCount(text: string): number {
@@ -187,10 +191,6 @@ function SlashCommandMenu({
   const filtered = SLASH_COMMANDS.filter(cmd =>
     cmd.label.toLowerCase().includes(filter.toLowerCase())
   );
-
-  useEffect(() => {
-    if (open) { setFilter(''); setSelectedIndex(0); }
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -336,7 +336,12 @@ interface ContentEditorProps {
   onSaved: () => void;
 }
 
-export function ContentEditor({
+export function ContentEditor(props: ContentEditorProps) {
+  if (!props.open) return null;
+  return <ContentEditorPanel key={props.editingItem?.id || 'new'} {...props} />;
+}
+
+function ContentEditorPanel({
   open,
   onClose,
   editingItem,
@@ -351,70 +356,30 @@ export function ContentEditor({
   const [slashPos, setSlashPos] = useState({ top: 0, left: 0 });
 
   // Form state
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [channel, setChannel] = useState<ContentChannel>('blog');
-  const [stage, setStage] = useState<ContentStage>('idea');
-  const [category, setCategory] = useState('');
-  const [format, setFormat] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
+  const initialChannel = editingItem?.channel || (activeChannel === 'all' ? 'blog' : activeChannel);
+  const [title, setTitle] = useState(editingItem?.title || '');
+  const [body, setBody] = useState(editingItem?.body || '');
+  const [channel, setChannel] = useState<ContentChannel>(initialChannel);
+  const [stage, setStage] = useState<ContentStage>(editingItem?.stage || 'idea');
+  const [category, setCategory] = useState(editingItem?.category || CHANNEL_CATEGORIES[initialChannel][0]);
+  const [format, setFormat] = useState(editingItem?.format || FORMATS[initialChannel][0]);
+  const [tags, setTags] = useState<string[]>(editingItem?.tags || []);
   const [tagInput, setTagInput] = useState('');
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [publishedUrl, setPublishedUrl] = useState('');
-  const [responsible, setResponsible] = useState('');
-  const [editorialLine, setEditorialLine] = useState('');
-  const [checklist, setChecklist] = useState<{ id: string; text: string; done: boolean }[]>([]);
-  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>([]);
-  const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>([]);
+  const [scheduledDate, setScheduledDate] = useState(editingItem?.scheduledDate || '');
+  const [scheduledTime, setScheduledTime] = useState(editingItem?.scheduledTime || '');
+  const [publishedUrl, setPublishedUrl] = useState(editingItem?.publishedUrl || '');
+  const [responsible, setResponsible] = useState(editingItem?.responsible || '');
+  const [editorialLine, setEditorialLine] = useState(editingItem?.editorialLine || '');
+  const [checklist, setChecklist] = useState<{ id: string; text: string; done: boolean }[]>(editingItem?.checklist?.map(item => ({ ...item })) || []);
+  const [linkedTaskIds, setLinkedTaskIds] = useState<string[]>(editingItem?.linkedTaskIds || []);
+  const [linkedProjectIds, setLinkedProjectIds] = useState<string[]>(editingItem?.linkedProjectIds || []);
   // Guards the backdrop's close-on-click against the same click gesture that
   // opened the panel: a fast click can dispatch mousedown/mouseup far enough
   // apart that React mounts the full-viewport backdrop under the cursor
   // between them, so mouseup lands on the backdrop and closes the panel
   // it just opened.
   const openedAtRef = useRef(0);
-
-  // Initialize form
-  useEffect(() => {
-    if (!open) return;
-    openedAtRef.current = Date.now();
-    if (editingItem) {
-      setTitle(editingItem.title);
-      setBody(editingItem.body);
-      setChannel(editingItem.channel);
-      setStage(editingItem.stage);
-      setCategory(editingItem.category);
-      setFormat(editingItem.format || '');
-      setTags(editingItem.tags || []);
-      setScheduledDate(editingItem.scheduledDate || '');
-      setScheduledTime(editingItem.scheduledTime || '');
-      setPublishedUrl(editingItem.publishedUrl || '');
-      setResponsible(editingItem.responsible || '');
-      setEditorialLine(editingItem.editorialLine || '');
-      setChecklist(editingItem.checklist?.map(c => ({ ...c })) || []);
-      setLinkedTaskIds(editingItem.linkedTaskIds || []);
-      setLinkedProjectIds(editingItem.linkedProjectIds || []);
-    } else {
-      const ch = activeChannel === 'all' ? 'blog' : activeChannel;
-      setTitle('');
-      setBody('');
-      setChannel(ch);
-      setStage('idea');
-      setCategory(CHANNEL_CATEGORIES[ch][0]);
-      setFormat(FORMATS[ch][0]);
-      setTags([]);
-      setScheduledDate('');
-      setScheduledTime('');
-      setPublishedUrl('');
-      setResponsible('');
-      setEditorialLine('');
-      setChecklist([]);
-      setLinkedTaskIds([]);
-      setLinkedProjectIds([]);
-    }
-    setShowPreview(false);
-    setFocusMode(false);
-  }, [open, editingItem, activeChannel]);
+  useEffect(() => { openedAtRef.current = Date.now(); }, []);
 
   // Platform stats
   const platformStats = useMemo(() => getWordEstimate(body, channel), [body, channel]);
@@ -563,7 +528,7 @@ export function ContentEditor({
         {/* Header Bar */}
         <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border bg-card/50 backdrop-blur-sm shrink-0">
           <div className="flex items-center gap-3 min-w-0">
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onClose}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Fechar editor" onClick={onClose}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="flex items-center gap-2 min-w-0">
@@ -689,20 +654,8 @@ export function ContentEditor({
                 <div className="relative mb-6">
                   {/* Toolbar */}
                   <div className="flex flex-wrap items-center gap-0.5 rounded-t-lg border border-b-0 border-border/50 bg-muted/20 px-2 py-1.5">
-                    {[
-                      { icon: Heading2, action: () => insertMarkdown('## '), title: 'Heading' },
-                      { icon: Bold, action: () => insertMarkdown('**$1**'), title: 'Bold' },
-                      { icon: Italic, action: () => insertMarkdown('*$1*'), title: 'Italic' },
-                      { icon: Strikethrough, action: () => insertMarkdown('~~$1~~'), title: 'Strike' },
-                      { icon: Code, action: () => insertMarkdown('`$1`'), title: 'Code' },
-                      { icon: Quote, action: () => insertMarkdown('> '), title: 'Quote' },
-                      { icon: List, action: () => insertMarkdown('- '), title: 'List' },
-                      { icon: ListOrdered, action: () => insertMarkdown('1. '), title: 'Ordered' },
-                      { icon: CheckSquare, action: () => insertMarkdown('- [ ] '), title: 'Checklist' },
-                      { icon: LinkIcon, action: () => insertMarkdown('[$1](url)'), title: 'Link' },
-                      { icon: Minus, action: () => insertMarkdown('\n---\n'), title: 'Divider' },
-                    ].map((btn, i) => (
-                      <Button key={i} variant="ghost" size="icon" className="h-7 w-7" title={btn.title} onClick={btn.action} type="button">
+                    {MARKDOWN_TOOLS.map((btn) => (
+                      <Button key={btn.title} variant="ghost" size="icon" className="h-7 w-7" title={btn.title} onClick={() => insertMarkdown(btn.syntax)} type="button">
                         <btn.icon className="h-3.5 w-3.5" />
                       </Button>
                     ))}
@@ -857,12 +810,12 @@ export function ContentEditor({
 
         {/* Slash Command Menu */}
         <AnimatePresence>
-          <SlashCommandMenu
+          {slashOpen && <SlashCommandMenu
             open={slashOpen}
             position={slashPos}
             onSelect={insertMarkdown}
             onClose={() => setSlashOpen(false)}
-          />
+          />}
         </AnimatePresence>
       </motion.div>
     </>,

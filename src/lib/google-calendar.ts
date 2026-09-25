@@ -38,6 +38,11 @@ export function googleCalendarConfigured() {
   return Boolean(process.env.GOOGLE_CALENDAR_CLIENT_ID && process.env.GOOGLE_CALENDAR_CLIENT_SECRET && process.env.GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY);
 }
 
+export async function getGoogleCalendarConnectionStatus() {
+  const configured = googleCalendarConfigured();
+  return { configured, connected: configured && Boolean(await tokenRecord()) };
+}
+
 export function buildGoogleAuthorizationUrl(redirectUri: string, state: string) {
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
   url.search = new URLSearchParams({ client_id: required('GOOGLE_CALENDAR_CLIENT_ID'), redirect_uri: redirectUri, response_type: 'code', scope: 'https://www.googleapis.com/auth/calendar.events', access_type: 'offline', prompt: 'consent', state }).toString();
@@ -85,6 +90,47 @@ export async function createGoogleCalendarEvent(input: { title: string; descript
   if (!response.ok) throw new GoogleCalendarError('O Google Agenda não criou o evento. A captura foi mantida sem alterações.');
   const event = await response.json() as { id: string; htmlLink?: string };
   return { id: event.id, url: event.htmlLink };
+}
+
+export interface GoogleCalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string;
+  allDay: boolean;
+  url?: string;
+}
+
+export async function listGoogleCalendarEvents(from: string, to: string): Promise<GoogleCalendarEvent[]> {
+  const start = new Date(from);
+  const end = new Date(to);
+  const range = end.getTime() - start.getTime();
+  if (!Number.isFinite(range) || range <= 0 || range > 31 * 86400000) {
+    throw new GoogleCalendarError('Informe um intervalo válido de até 31 dias.');
+  }
+  const url = new URL(GOOGLE_EVENTS_URL);
+  url.search = new URLSearchParams({
+    timeMin: start.toISOString(), timeMax: end.toISOString(),
+    singleEvents: 'true', orderBy: 'startTime', maxResults: '250',
+  }).toString();
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${await accessToken()}` },
+    cache: 'no-store',
+  });
+  if (!response.ok) throw new GoogleCalendarError(response.status === 401 ? 'A conexão com o Google Agenda expirou. Conecte novamente.' : 'Não foi possível consultar o Google Agenda.');
+  const data = await response.json() as { items?: Array<{
+    id?: string; summary?: string; status?: string; htmlLink?: string;
+    start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string };
+  }> };
+  return (data.items || []).filter(item => item.status !== 'cancelled' && item.id && (item.start?.dateTime || item.start?.date) && (item.end?.dateTime || item.end?.date))
+    .map(item => ({
+      id: item.id!, title: item.summary?.trim() || 'Ocupado',
+      start: item.start!.dateTime || item.start!.date!,
+      end: item.end!.dateTime || item.end!.date!,
+      allDay: Boolean(item.start!.date),
+      url: item.htmlLink?.startsWith('https://') ? item.htmlLink : undefined,
+    }));
 }
 
 export function signGoogleState(nonce: string) { return createHash('sha256').update(`${required('GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY')}:${nonce}`).digest('base64url'); }

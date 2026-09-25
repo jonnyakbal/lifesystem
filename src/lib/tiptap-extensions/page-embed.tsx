@@ -7,7 +7,7 @@
 // Jonny picked when asked. Clicking the card navigates to /notas?open=<id>,
 // reusing the deep-link handling that page already has.
 import { Node, mergeAttributes } from '@tiptap/core';
-import { ReactNodeViewRenderer, NodeViewWrapper } from '@tiptap/react';
+import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useRouter } from 'next/navigation';
 import { FileText } from 'lucide-react';
 
@@ -25,7 +25,7 @@ declare module '@tiptap/core' {
   }
 }
 
-function PageEmbedView({ node, editor, getPos }: any) {
+function PageEmbedView({ node }: NodeViewProps) {
   const router = useRouter();
   const { pageId, title, icon, loading } = node.attrs;
 

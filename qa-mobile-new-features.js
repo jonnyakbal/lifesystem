@@ -1,6 +1,6 @@
 // Mobile QA for this session's additions: capture editor layout modes
 // (corner/center/fullscreen), the slash-command menu, and the login page.
-const { chromium } = require('playwright');
+import { chromium } from 'playwright';
 const BASE = 'http://localhost:3000';
 
 (async () => {

@@ -33,7 +33,12 @@ interface Project {
   status: string;
   tags: string[];
   links: { label: string; url: string }[];
+  coverUrl?: string;
+  coverColor?: string;
 }
+
+interface LinkedContent { id: string; title?: string; linkedProjectIds?: string[] }
+interface LinkedCapture { id: string; title?: string; content?: string; targetType?: string; targetId?: string }
 
 const fade = {
   initial: { opacity: 0, y: 14 },
@@ -48,8 +53,8 @@ export default function ProjectsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
-  const [linkedContent, setLinkedContent] = useState<any[]>([]);
-  const [linkedCaptures, setLinkedCaptures] = useState<any[]>([]);
+  const [linkedContent, setLinkedContent] = useState<LinkedContent[]>([]);
+  const [linkedCaptures, setLinkedCaptures] = useState<LinkedCapture[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [stages, setStages] = useState<StageDef[]>([]);
@@ -104,11 +109,11 @@ export default function ProjectsPage() {
 
   function getProjectBacklinks(projectId: string) {
     const fromContent = linkedContent
-      .filter((c: any) => (c.linkedProjectIds || []).includes(projectId))
-      .map((c: any) => ({ id: c.id, type: 'content' as const, title: c.title || 'Sem título' }));
+      .filter(c => (c.linkedProjectIds || []).includes(projectId))
+      .map(c => ({ id: c.id, type: 'content' as const, title: c.title || 'Sem título' }));
     const fromCaptures = linkedCaptures
-      .filter((c: any) => c.targetType === 'project' && c.targetId === projectId)
-      .map((c: any) => ({ id: c.id, type: 'capture' as const, title: (c.title || (c.content as string)?.replace(/<[^>]*>/g, '').slice(0, 60)) || 'Sem título' }));
+      .filter(c => c.targetType === 'project' && c.targetId === projectId)
+      .map(c => ({ id: c.id, type: 'capture' as const, title: (c.title || c.content?.replace(/<[^>]*>/g, '').slice(0, 60)) || 'Sem título' }));
     return [...fromContent, ...fromCaptures];
   }
 
@@ -148,8 +153,8 @@ export default function ProjectsPage() {
     setEditStatus(project.status);
     setEditTags([...project.tags]);
     setEditLinks([...project.links]);
-    setEditCoverUrl((project as any).coverUrl || '');
-    setEditCoverColor((project as any).coverColor || '');
+    setEditCoverUrl(project.coverUrl || '');
+    setEditCoverColor(project.coverColor || '');
     setIsEditOpen(true);
   }
 
@@ -391,10 +396,10 @@ export default function ProjectsPage() {
                            }}
                          >
                           {/* Cover Image */}
-                          {(project as any).coverUrl ? (
+                          {project.coverUrl ? (
                             <div className="relative h-28 overflow-hidden">
                               <img
-                                src={(project as any).coverUrl}
+                                src={project.coverUrl}
                                 alt=""
                                 className="w-full h-full object-cover"
                               />
@@ -403,7 +408,7 @@ export default function ProjectsPage() {
                           ) : (
                             <div className={cn(
                               'h-28 bg-gradient-to-br',
-                              (project as any).coverColor || 'from-primary/20 to-primary/5'
+                              project.coverColor || 'from-primary/20 to-primary/5'
                             )} />
                           )}
                           <CardContent className="p-4 -mt-6 relative">

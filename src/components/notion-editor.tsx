@@ -1,6 +1,7 @@
 'use client';
 
 import { useEditor, EditorContent } from '@tiptap/react';
+import type { Editor } from '@tiptap/core';
 import { BubbleMenu } from '@tiptap/react/menus';
 import { DragHandle } from '@tiptap/extension-drag-handle-react';
 import { SlashCommand } from '@/lib/tiptap-extensions/slash-command';
@@ -229,7 +230,7 @@ export function NotionEditor({
 // Notion's core formatting UX: select text, a floating toolbar appears right
 // above the selection. No persistent chrome needed for basic formatting.
 
-function SelectionToolbar({ editor }: { editor: any }) {
+function SelectionToolbar({ editor }: { editor: Editor }) {
   const btn = (active: boolean, onClick: () => void, children: React.ReactNode, title: string) => (
     <button
       type="button"
@@ -267,7 +268,7 @@ function SelectionToolbar({ editor }: { editor: any }) {
 
 // ─── Image Upload Helper ───────────────────────────────────────────────────────
 
-async function uploadAndInsertImage(file: File, editor: any) {
+async function uploadAndInsertImage(file: File, editor: Editor) {
   if (file.size > 2 * 1024 * 1024) {
     toast.error('Imagem muito grande. Máximo 2MB.');
     return;
@@ -302,7 +303,7 @@ async function uploadAndInsertImage(file: File, editor: any) {
 
 // ─── Enhanced Toolbar ──────────────────────────────────────────────────────────
 
-function EnhancedToolbar({ editor, compact }: { editor: any; compact?: boolean }) {
+function EnhancedToolbar({ editor, compact }: { editor: Editor; compact?: boolean }) {
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   const [showInsertMenu, setShowInsertMenu] = useState(false);
@@ -524,7 +525,7 @@ function ColorPicker({ colors, onSelect }: { colors: { value: string; label: str
 
 // ─── Insert Menu ───────────────────────────────────────────────────────────────
 
-function InsertMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
+function InsertMenu({ editor, onClose }: { editor: Editor; onClose: () => void }) {
   const items = [
     { label: 'Callout 💡', action: () => { editor.chain().focus().insertContent('<div data-type="callout" data-color="gray" data-icon="💡"><p></p></div>').run(); onClose(); } },
     { label: 'Callout ⚠️', action: () => { editor.chain().focus().insertContent('<div data-type="callout" data-color="yellow" data-icon="⚠️"><p></p></div>').run(); onClose(); } },
@@ -574,7 +575,7 @@ function InsertMenu({ editor, onClose }: { editor: any; onClose: () => void }) {
 
 // ─── Table Controls ────────────────────────────────────────────────────────────
 
-function TableControls({ editor }: { editor: any }) {
+function TableControls({ editor }: { editor: Editor }) {
   if (!editor.isActive('table')) return null;
 
   return (

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { PanelLeftClose, PanelLeftOpen, Search, Plus, Settings, LogOut, Menu, Sun, Moon, Orbit } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Search, Plus, Settings, LogOut, Menu, Sun, Moon, Orbit, ChevronDown, Layers } from 'lucide-react';
 import { navigation, getPageContext } from '@/lib/navigation';
 import { cn } from '@/lib/utils';
 import { BrandMark } from '@/components/brand-mark';
@@ -14,6 +14,9 @@ import { NotificationCenter } from '@/components/notification-center';
 import { useInboxCount } from '@/components/layout/nav-counts';
 import { workspaceConfig } from '@/lib/workspace-config';
 
+const mainDestinations = ['/', '/inbox', '/planejar', '/hoje', '/tarefas'];
+const visibleNavigation = navigation.flatMap(group => group.items).filter(item => !workspaceConfig.hiddenModules.includes(item.href));
+
 function openCommands() {
   window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
 }
@@ -23,9 +26,13 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const page = getPageContext(pathname);
   const inboxCount = useInboxCount();
+  const primaryItems = mainDestinations.flatMap(href => visibleNavigation.filter(item => item.href === href));
+  const otherItems = visibleNavigation.filter(item => !mainDestinations.includes(item.href));
+  const showOtherItems = moreOpen || otherItems.some(item => item.href === pathname);
 
   useEffect(() => {
     const open = () => setSettingsOpen(true);
@@ -43,9 +50,9 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
         <Search size={17} />{!compact && <><span>Buscar no seu espaço</span><kbd>⌘ K</kbd></>}
       </button>
       <nav className="workspace-navigation" aria-label={mobile ? 'Todos os destinos' : 'Navegação principal'}>
-        {navigation.map(group => ({ ...group, items: group.items.filter(item => !workspaceConfig.hiddenModules.includes(item.href)) })).filter(group => group.items.length > 0).map(group => <div key={group.label} className="workspace-nav-group">
-          {!compact && <p>{group.label}</p>}
-          {group.items.map(item => <Link key={item.href} href={item.href} title={compact ? item.title : undefined}
+        <div className="workspace-nav-group">
+          {!compact && <p>Seu percurso</p>}
+          {primaryItems.map(item => <Link key={item.href} href={item.href} title={compact ? item.title : undefined}
             aria-label={compact ? item.title : undefined} aria-current={pathname === item.href ? 'page' : undefined}
             onClick={() => setMobileOpen(false)} className={cn('workspace-nav-link', compact && 'is-compact')}>
             <item.icon size={18} strokeWidth={1.65} />{!compact && <span>{item.title}</span>}
@@ -54,7 +61,18 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
             )}
             {pathname === item.href && !compact && <span className="workspace-nav-dot" />}
           </Link>)}
-        </div>)}
+        </div>
+        {otherItems.length > 0 && <div className="workspace-nav-group">
+          <button type="button" className={cn('workspace-nav-link w-full', compact && 'is-compact')} aria-label="Mais áreas" aria-expanded={showOtherItems} onClick={() => setMoreOpen(value => !value)}>
+            <Layers size={18} strokeWidth={1.65} />{!compact && <><span>Mais áreas</span><ChevronDown size={15} className={cn('ml-auto transition-transform', showOtherItems && 'rotate-180')} /></>}
+          </button>
+          {showOtherItems && <div className="mt-1">{otherItems.map(item => <Link key={item.href} href={item.href} title={compact ? item.title : undefined}
+            aria-label={compact ? item.title : undefined} aria-current={pathname === item.href ? 'page' : undefined}
+            onClick={() => setMobileOpen(false)} className={cn('workspace-nav-link', compact && 'is-compact')}>
+            <item.icon size={18} strokeWidth={1.65} />{!compact && <span>{item.title}</span>}
+            {pathname === item.href && !compact && <span className="workspace-nav-dot" />}
+          </Link>)}</div>}
+        </div>}
       </nav>
       <div className="workspace-sidebar-footer">
         <Button onClick={openCommands} className="workspace-capture" aria-label="Captura rápida"><Plus size={18} />{!compact && 'Capturar uma ideia'}</Button>
@@ -72,7 +90,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
     </div>;
   }
 
-  const mobileItems = [navigation[0].items[0], navigation[0].items[1], navigation[1].items[0]].filter(item => !workspaceConfig.hiddenModules.includes(item.href));
+  const mobileItems = primaryItems.slice(0, 3);
   return <>
     <aside className="workspace-sidebar hidden lg:flex">{renderNavigation(collapsed)}</aside>
     <header className="workspace-mobile-header lg:hidden">

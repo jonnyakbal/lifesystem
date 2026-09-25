@@ -1,33 +1,13 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Fraunces, JetBrains_Mono } from "next/font/google";
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/fraunces/wght.css";
+import "@fontsource-variable/jetbrains-mono/wght.css";
 import "./globals.css";
 import "./astral.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { ChromeGate } from "@/components/layout/chrome-gate";
 import { PWARegister } from "@/components/pwa-register";
-
-// Inter replaced Space Grotesk as the system-wide default (Jonny asked for
-// better reading comfort) — it's built for small-size UI legibility rather
-// than display use, while Fraunces/JetBrains Mono stay as the other two
-// reading-font choices (Notas' font switcher, src/app/(dashboard)/notas).
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-ui",
-  display: "swap",
-});
-
-const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-heading",
-  display: "swap",
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-code",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "LIFESYSTEM",
@@ -69,7 +49,7 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className="dark" data-scroll-behavior="smooth">
       <body
-        className={`${inter.variable} ${fraunces.variable} ${jetbrainsMono.variable} min-h-screen bg-background font-sans antialiased`}
+        className="min-h-screen bg-background font-sans antialiased"
       >
         <TooltipProvider>
           <ChromeGate>{children}</ChromeGate>

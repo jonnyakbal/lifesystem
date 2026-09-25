@@ -313,7 +313,7 @@ export default function IndicadoresPage() {
                      <CardContent className="flex flex-col items-center justify-center py-8">
                        <BarChart3 className="h-10 w-10 text-muted-foreground/30 empty-state-icon mb-2" />
                        <p className="text-sm text-muted-foreground text-center">Nenhuma meta neste pilar</p>
-                       <p className="text-xs text-muted-foreground/50 text-center mt-1">Clique em "Nova Meta" para começar</p>
+                       <p className="text-xs text-muted-foreground/50 text-center mt-1">Clique em &quot;Nova Meta&quot; para começar</p>
                      </CardContent>
                    </Card>
                  ) : (

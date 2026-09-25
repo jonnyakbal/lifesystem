@@ -12,9 +12,11 @@ import { z } from 'zod';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { todayStr } from '@/lib/utils';
 import { storage } from '@/lib/storage';
-import { logMcpCall } from './log';
+import { runMcpToolWithAudit } from './audit';
 import { canUseMcpTool } from './auth';
 import { createGoogleCalendarEvent } from '@/lib/google-calendar';
+import { financialEntrySchema, financialEntryUpdateSchema } from '@/lib/financial-validation';
+import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -30,17 +32,7 @@ function logged<Args extends unknown[]>(
   toolName: string,
   fn: (...args: Args) => Promise<{ isError?: boolean; content: { type: 'text'; text: string }[] }>
 ) {
-  return async (...args: Args) => {
-    try {
-      const result = await fn(...args);
-      await logMcpCall(toolName, !result.isError, result.isError ? result.content[0]?.text : undefined);
-      return result;
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Erro desconhecido';
-      await logMcpCall(toolName, false, message);
-      throw err;
-    }
-  };
+  return (...args: Args) => runMcpToolWithAudit(toolName, () => fn(...args));
 }
 
 interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRawShape> {
@@ -51,6 +43,8 @@ interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRa
   createShape: TCreate;
   updateShape: TUpdate;
   buildCreatePayload: (input: z.infer<z.ZodObject<TCreate>>) => Record<string, unknown>;
+  validateCreate?: (payload: Record<string, unknown>) => Record<string, unknown>;
+  validateUpdate?: (fields: Record<string, unknown>) => Record<string, unknown> | Promise<Record<string, unknown>>;
   allowCreate?: boolean;
   allowDelete?: boolean;
 }
@@ -104,7 +98,8 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       logged(`create_${entity}`, async (rawInput: any) => {
         try {
           const input = rawInput as z.infer<z.ZodObject<TCreate>>;
-          const created = await storage.create(collection, buildCreatePayload(input));
+          const payload = buildCreatePayload(input);
+          const created = await storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
           return textResult(created);
         } catch (err) {
           return errorResult(err instanceof Error ? err.message : 'Erro ao criar item.');
@@ -122,11 +117,16 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     logged(`update_${entity}`, async (rawInput: any) => {
-      const { id, ...fields } = rawInput as { id: string } & Record<string, unknown>;
-      const cleaned = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
-      const updated = await storage.update(collection, id, cleaned);
-      if (!updated) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
-      return textResult(updated);
+      try {
+        const { id, ...fields } = rawInput as { id: string } & Record<string, unknown>;
+        const cleaned = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
+        const payload = config.validateUpdate ? await config.validateUpdate(cleaned) : cleaned;
+        const updated = await storage.update(collection, id, payload);
+        if (!updated) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
+        return textResult(updated);
+      } catch (err) {
+        return errorResult(err instanceof Error ? err.message : 'Erro ao atualizar item.');
+      }
     })
   );
 
@@ -173,7 +173,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       status: z.string().optional(),
       projectId: z.string().optional(),
       pillarId: z.string().optional(),
-      dueDate: z.string().optional(),
+      dueDate: z.string().nullable().optional(),
       tags: z.array(z.string()).optional(),
     },
     buildCreatePayload: (input) => ({
@@ -188,6 +188,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       checklist: [],
       sortOrder: 0,
     }),
+    validateUpdate: async (fields) => prepareTaskUpdate(taskUpdateSchema.parse(fields)),
   }, scopes);
 
   // Content — mirrors src/app/api/content/route.ts POST body.
@@ -447,6 +448,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
       recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(), status: z.enum(['pending', 'paid', 'overdue']).optional(), dueDate: z.string().optional(), paidDate: z.string().optional(),
     },
     buildCreatePayload: (input) => ({ ...input, tags: input.tags || [], status: input.status || 'pending' }),
+    validateCreate: payload => financialEntrySchema.parse(payload),
+    validateUpdate: fields => financialEntryUpdateSchema.parse(fields),
   }, scopes);
 
   registerCrudTools(server, {

@@ -5,7 +5,7 @@
 // (the same low-level utility Tiptap's own mention/emoji examples use) so
 // filtering, keyboard nav, and positioning all come from one well-tested
 // mechanism instead of being hand-rolled.
-import { Extension } from '@tiptap/core';
+import { Extension, type Editor } from '@tiptap/core';
 import Suggestion, { SuggestionOptions } from '@tiptap/suggestion';
 import { createRoot, Root } from 'react-dom/client';
 import {
@@ -21,11 +21,11 @@ export interface SlashItem {
   subtitle: string;
   keywords: string[];
   icon: React.ComponentType<{ className?: string }>;
-  command: (opts: { editor: any; range: { from: number; to: number } }) => void;
+  command: (opts: { editor: Editor; range: { from: number; to: number } }) => void;
 }
 
 function insertCallout(color: string, icon: string) {
-  return ({ editor, range }: { editor: any; range: { from: number; to: number } }) => {
+  return ({ editor, range }: { editor: Editor; range: { from: number; to: number } }) => {
     editor.chain().focus().deleteRange(range)
       .insertContent(`<div data-type="callout" data-color="${color}" data-icon="${icon}"><p></p></div>`)
       .run();
@@ -217,7 +217,7 @@ const suggestion: Omit<SuggestionOptions<SlashItem>, 'editor'> = {
           <SlashMenu
             ref={(r) => { handleRef = r; }}
             items={props.items}
-            command={(item) => props.command(item as any)}
+            command={(item) => props.command(item)}
           />
         );
         renderer = { onKeyDown: (opts) => handleRef?.onKeyDown(opts) ?? false };
@@ -230,7 +230,7 @@ const suggestion: Omit<SuggestionOptions<SlashItem>, 'editor'> = {
           <SlashMenu
             ref={(r) => { handleRef = r; }}
             items={props.items}
-            command={(item) => props.command(item as any)}
+            command={(item) => props.command(item)}
           />
         );
         renderer = { onKeyDown: (opts) => handleRef?.onKeyDown(opts) ?? false };

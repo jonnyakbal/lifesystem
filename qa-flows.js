@@ -1,7 +1,7 @@
 // QA sweep for previously-untested interactive flows: Diário save,
 // Indicadores CRUD, and native HTML5 drag-and-drop in Tarefas/Projetos.
 // Run: node qa-flows.js  (dev server must be running on :3000)
-const { chromium } = require('playwright');
+import { chromium } from 'playwright';
 
 const BASE = 'http://localhost:3000';
 

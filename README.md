@@ -38,7 +38,7 @@ Um "segundo cérebro" pessoal — não um produto pra terceiros, é ferramenta d
 - **INBOX** — Captura rápida estilo sticky notes com cores determinísticas
 - **Notas** — Hub de conhecimento com editor Notion-style completo
 - **Hoje** — Visão diária unificada (tarefas, indicadores, conteúdo agendado)
-- **Planejar** — Wizard de planejamento por pilar (Dia/Semana/Mês)
+- **Planejar** — Semana integrada, tarefas sem data e ritual opcional por pilar
 - **Visão** — Visão + Pilares com constelação SVG animada
 - **Projetos** — Kanban board com tags e cover images
 - **Tarefas** — Kanban completo (1683 linhas!) com prioridades e recorrência
@@ -52,7 +52,7 @@ Um "segundo cérebro" pessoal — não um produto pra terceiros, é ferramenta d
 
 ### Infraestrutura
 
-- **MCP Server** — 26 tools pra AI agents (Hermes Agent via Telegram)
+- **MCP Server** — ferramentas por escopo para agentes externos (Hermes Agent via Telegram)
 - **PWA** — Instalável no celular com service worker
 - **Auth** — Cookie HMAC-SHA256 (fail closed)
 - **Command Palette** — Busca global (Cmd+K)
@@ -66,6 +66,8 @@ npm run dev
 ```
 
 Acesse `http://localhost:3000`
+
+Uma instalação nova começa sem registros pessoais. Execute `npm run seed:demo` uma vez para criar seis pilares de exemplo; o comando preserva um `pillars.json` existente. Arquivos `data/*.json` são privados e não devem ser enviados ao Git. Antes de publicar uma versão open source, revise também o histórico do repositório, pois remover arquivos do índice atual não remove versões já publicadas.
 
 ## Estrutura
 
@@ -82,7 +84,7 @@ src/
 │   └── *.tsx                # componentes de fluxo (500+ linhas cada)
 ├── lib/
 │   ├── storage/             # camada de dados única (JSON files)
-│   ├── mcp/                 # servidor + ferramentas MCP (26 tools)
+│   ├── mcp/                 # servidor + ferramentas MCP com escopos e auditoria
 │   ├── auth.ts              # HMAC session token
 │   └── api.ts               # wrapper de fetch pro frontend
 ├── types/index.ts           # tipos de domínio (359 linhas)
@@ -105,7 +107,7 @@ data/                        # JSON "banco" (15 coleções)
 | `/api/content` | GET/POST | Listar/criar conteúdo |
 | `/api/financial` | GET/POST | Dados financeiros |
 | `/api/journal` | GET/POST | Entradas do diário |
-| `/api/mcp` | POST | Servidor MCP (26 tools) |
+| `/api/mcp` | GET/POST/DELETE | Servidor MCP Streamable HTTP |
 
 ## Deploy (Hostinger Node.js)
 
@@ -130,7 +132,7 @@ data/                        # JSON "banco" (15 coleções)
 
 ## Servidor MCP (integração com AI agents)
 
-`/api/mcp` expõe CRUD completo via [Model Context Protocol](https://modelcontextprotocol.io) pra qualquer agente de IA que suporte MCP.
+`/api/mcp` expõe ferramentas via [Model Context Protocol](https://modelcontextprotocol.io) para agentes que suportem Streamable HTTP. A tela `/hermes` mostra configuração, última chamada e histórico de ferramentas; ter uma chave configurada não prova que o agente na VPS esteja conectado.
 
 **Ferramentas disponíveis:**
 - Tasks: list, create, update, delete
@@ -142,8 +144,9 @@ data/                        # JSON "banco" (15 coleções)
 - Log entries: list, create, update, delete
 - Editais: list, create, update, delete
 - Financeiro: lançamentos, contas, orçamentos, cartões, favorecidos, faturas, metas e resumo mensal
+- Google Agenda: criação direta de eventos com `calendar:write`; `/planejar` também mostra eventos da semana após conexão OAuth
 
-**Autenticação:** `Authorization: Bearer <MCP_API_KEY>` (separado do login web)
+**Autenticação:** `Authorization: Bearer <token>` (separado do login web)
 
 Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-leitura","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","financial:read"]}]`. Escopos seguem `domínio:read` ou `domínio:write`; `domínio:*` permite ambos. A chave existente em `MCP_API_KEY` permanece compatível e mantém acesso amplo até a migração do cliente.
 
@@ -153,8 +156,9 @@ O LIFESYSTEM concentra a conexão OAuth e cifra o token no diretório de dados. 
 
 **Para conectar o Hermes Agent:**
 1. Configure um MCP server apontando pra `https://lifesystem.oj0nny.com/api/mcp`
-2. Use o `MCP_API_KEY` como Bearer token
-3. O Hermes descobre e usa as ferramentas automaticamente
+2. Use uma chave de `MCP_API_KEYS` com os escopos necessários como Bearer token; a chave legada `MCP_API_KEY` continua aceita, mas dá acesso amplo
+3. Teste o mesmo endpoint e a mesma chave do agente com `MCP_URL` e `MCP_API_KEY` no ambiente e `npm run mcp:smoke`. O teste executa o handshake, descobre as ferramentas e chama `list_tasks` quando permitido, sem imprimir os dados
+4. Confirme a chamada em `/hermes`: configuração no servidor e tráfego real são estados distintos
 
 ## Storage Layer
 

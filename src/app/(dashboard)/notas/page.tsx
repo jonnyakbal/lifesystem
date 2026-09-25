@@ -11,7 +11,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import NextLink from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, type MotionProps } from 'motion/react';
 import {
   Plus, Trash2, FileText, Search, X, ChevronLeft, PanelRight, Square, Maximize2,
   CheckSquare, FolderKanban, ArrowRight, Check, Settings2, NotebookText,
@@ -44,6 +44,7 @@ interface Capture {
   targetType?: 'task' | 'project';
   targetId?: string;
   linkedCaptureIds?: string[];
+  coverUrl?: string;
 }
 
 const COVER_COLORS = [
@@ -105,7 +106,7 @@ const LAYOUT_OPTIONS: { id: EditorLayout; label: string; icon: typeof PanelRight
 
 const LAYOUT_CONFIG: Record<EditorLayout, {
   panelClassName: string;
-  motionProps: { initial: Record<string, any>; animate: Record<string, any>; exit: Record<string, any> };
+  motionProps: Pick<MotionProps, 'initial' | 'animate' | 'exit'>;
 }> = {
   corner: {
     panelClassName: 'fixed right-0 top-0 z-[101] h-screen w-full max-w-3xl bg-background border-l border-border flex flex-col',
@@ -158,9 +159,11 @@ export default function NotasPage() {
 
   useEffect(() => {
     const stored = localStorage.getItem(EDITOR_LAYOUT_KEY) as EditorLayout | null;
-    if (stored && LAYOUT_CONFIG[stored]) setEditorLayoutState(stored);
     const storedFont = localStorage.getItem(NOTE_FONT_KEY) as NoteFont | null;
-    if (storedFont && NOTE_FONT_OPTIONS.some(f => f.id === storedFont)) setNoteFontState(storedFont);
+    queueMicrotask(() => {
+      if (stored && LAYOUT_CONFIG[stored]) setEditorLayoutState(stored);
+      if (storedFont && NOTE_FONT_OPTIONS.some(f => f.id === storedFont)) setNoteFontState(storedFont);
+    });
   }, []);
 
   // Deep-link support: the Inbox page (and ⌘K) send you here with
@@ -229,7 +232,7 @@ export default function NotasPage() {
     setEditorTitle(getTitle(capture.content));
     setEditorContent(stripLeadingTitle(capture.content));
     setEditorCategory(capture.category || categories[0]?.id || 'ideias');
-    setEditorCoverUrl((capture as any).coverUrl || '');
+    setEditorCoverUrl(capture.coverUrl || '');
     setEditorLinkedCaptureIds(capture.linkedCaptureIds || []);
     editorOpenedAtRef.current = Date.now();
     skipNextAutosaveRef.current = true;
@@ -490,8 +493,8 @@ export default function NotasPage() {
                     onClick={() => openEdit(capture)}
                   >
                     <div className={cn('h-24 w-full bg-gradient-to-br relative', coverClass)}>
-                      {(capture as any).coverUrl ? (
-                        <img src={(capture as any).coverUrl} alt="" className="w-full h-full object-cover" />
+                      {capture.coverUrl ? (
+                        <img src={capture.coverUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-20">
                           {cat?.icon || '📝'}
@@ -710,9 +713,9 @@ export default function NotasPage() {
                   long notes. */}
               <div className="flex-1 overflow-y-auto" data-lenis-prevent>
                 <div className="relative h-40 bg-gradient-to-br from-muted/30 to-muted/10">
-                  {(editingCapture as any)?.coverUrl || editorCoverUrl ? (
+                  {editingCapture?.coverUrl || editorCoverUrl ? (
                     <div className="relative w-full h-full">
-                      <img src={editorCoverUrl || (editingCapture as any)?.coverUrl} alt="" className="w-full h-full object-cover" />
+                      <img src={editorCoverUrl || editingCapture?.coverUrl} alt="" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
                       <button
                         type="button"
