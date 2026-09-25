@@ -79,3 +79,32 @@ test('MCP financial mutations reject a date invalid in the web API', async () =>
     await server.close();
   }
 });
+
+test('MCP financial tools share card validation and preserve bill installments', async () => {
+  const server = createLifesystemMcpServer(['financial:write']);
+  const client = new Client({ name: 'finance-contract-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  let billId: string | undefined;
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const invalidCard = await client.callTool({ name: 'create_card', arguments: {
+      name: 'Cartão teste', type: 'credit', lastDigits: '12', brand: 'Teste',
+    } });
+    expect(invalidCard.isError).toBe(true);
+
+    const created = await client.callTool({ name: 'create_bill', arguments: {
+      cardId: 'test-card', month: '2026-09', amount: 20,
+      dueDate: '2026-09-25', closeDate: '2026-09-15',
+      items: [{ id: 'test-item', description: 'Parcela teste', amount: 20, date: '2026-09-01', installments: { current: 1, total: 2 } }],
+    } });
+    expect(created.isError).toBeFalsy();
+    const bill = JSON.parse((created.content as { text: string }[])[0].text);
+    billId = bill.id;
+    expect(bill.items[0].installments).toEqual({ current: 1, total: 2 });
+  } finally {
+    if (billId) await client.callTool({ name: 'delete_bill', arguments: { id: billId } });
+    await client.close();
+    await server.close();
+  }
+});

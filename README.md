@@ -32,7 +32,7 @@ Um "segundo cérebro" pessoal — não um produto pra terceiros, é ferramenta d
 
 ## Features
 
-### Core Dashboard (15 páginas autenticadas)
+### Áreas do aplicativo
 
 - **Home** — Dashboard unificado com confetti quando completa tasks do dia
 - **INBOX** — Captura rápida estilo sticky notes com cores determinísticas
@@ -75,7 +75,7 @@ Uma instalação nova começa sem registros pessoais. Execute `npm run seed:demo
 src/
 ├── app/
 │   ├── api/                 # 23 REST API route groups + MCP server
-│   ├── (dashboard)/         # 15 páginas autenticadas
+│   ├── (dashboard)/         # áreas autenticadas
 │   ├── login/
 │   └── layout.tsx
 ├── components/
@@ -89,7 +89,7 @@ src/
 │   └── api.ts               # wrapper de fetch pro frontend
 ├── types/index.ts           # tipos de domínio (359 linhas)
 └── middleware.ts            # gate de auth cookie-based
-data/                        # JSON "banco" (15 coleções)
+data/                        # dados locais privados; somente README versionado
 ```
 
 ## API Routes
@@ -115,7 +115,7 @@ data/                        # JSON "banco" (15 coleções)
 2. Push pro GitHub (branch `main`)
 3. Na Hostinger: conectar o repositório com integração nativa do GitHub
 4. Comando de build: `npm run build`
-5. Pasta do app: `data/` deve ter permissão de escrita
+5. Configure `LIFESYSTEM_DATA_DIR` para uma pasta persistente com permissão de escrita, fora do checkout
 
 ### Variáveis de ambiente
 

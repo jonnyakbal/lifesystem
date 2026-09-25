@@ -15,7 +15,7 @@ import { storage } from '@/lib/storage';
 import { runMcpToolWithAudit } from './audit';
 import { canUseMcpTool } from './auth';
 import { createGoogleCalendarEvent } from '@/lib/google-calendar';
-import { financialEntrySchema, financialEntryUpdateSchema } from '@/lib/financial-validation';
+import { accountSchema, billItemSchema, billSchema, budgetSchema, cardSchema, financialEntrySchema, financialEntryUpdateSchema, financialGoalSchema, payeeSchema } from '@/lib/financial-validation';
 import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
 
 function textResult(data: unknown) {
@@ -457,6 +457,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     createShape: { name: z.string(), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() },
     updateShape: { name: z.string().optional(), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']).optional(), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() },
     buildCreatePayload: (input) => ({ ...input, balance: input.balance || 0, color: input.color || '#64748b', icon: input.icon || '🏦', isActive: input.isActive !== false, isDefault: input.isDefault || false }),
+    validateCreate: payload => accountSchema.parse(payload),
+    validateUpdate: fields => accountSchema.partial().parse(fields),
   }, scopes);
 
   registerCrudTools(server, {
@@ -464,6 +466,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     createShape: { category: z.string(), type: z.enum(['expense_fixed', 'expense_variable']), monthlyLimit: z.number().nonnegative(), spent: z.number().nonnegative().optional(), month: z.string().describe('Formato YYYY-MM') },
     updateShape: { category: z.string().optional(), type: z.enum(['expense_fixed', 'expense_variable']).optional(), monthlyLimit: z.number().nonnegative().optional(), spent: z.number().nonnegative().optional(), month: z.string().optional() },
     buildCreatePayload: (input) => ({ ...input, spent: input.spent || 0 }),
+    validateCreate: payload => budgetSchema.parse(payload),
+    validateUpdate: fields => budgetSchema.partial().parse(fields),
   }, scopes);
 
   registerCrudTools(server, {
@@ -471,6 +475,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     createShape: { name: z.string(), type: z.enum(['credit', 'debit', 'multiple']), lastDigits: z.string(), brand: z.string(), limit: z.number().nonnegative().optional(), used: z.number().nonnegative().optional(), closingDay: z.number().int().min(1).max(31).optional(), dueDay: z.number().int().min(1).max(31).optional(), color: z.string().optional(), accountId: z.string().optional(), isActive: z.boolean().optional() },
     updateShape: { name: z.string().optional(), type: z.enum(['credit', 'debit', 'multiple']).optional(), lastDigits: z.string().optional(), brand: z.string().optional(), limit: z.number().nonnegative().optional(), used: z.number().nonnegative().optional(), closingDay: z.number().int().min(1).max(31).optional(), dueDay: z.number().int().min(1).max(31).optional(), color: z.string().optional(), accountId: z.string().optional(), isActive: z.boolean().optional() },
     buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', isActive: input.isActive !== false }),
+    validateCreate: payload => cardSchema.parse(payload),
+    validateUpdate: fields => cardSchema.partial().parse(fields),
   }, scopes);
 
   registerCrudTools(server, {
@@ -478,6 +484,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     createShape: { name: z.string(), type: z.enum(['person', 'company', 'government', 'other']), document: z.string().optional(), email: z.string().optional(), phone: z.string().optional(), category: z.string().optional(), notes: z.string().optional(), color: z.string().optional(), icon: z.string().optional() },
     updateShape: { name: z.string().optional(), type: z.enum(['person', 'company', 'government', 'other']).optional(), document: z.string().optional(), email: z.string().optional(), phone: z.string().optional(), category: z.string().optional(), notes: z.string().optional(), color: z.string().optional(), icon: z.string().optional() },
     buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', icon: input.icon || '👤' }),
+    validateCreate: payload => payeeSchema.parse(payload),
+    validateUpdate: fields => payeeSchema.partial().parse(fields),
   }, scopes);
 
   registerCrudTools(server, {
@@ -485,10 +493,12 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     createShape: {
       cardId: z.string(), month: z.string().describe('Formato YYYY-MM'), amount: z.number().nonnegative(), paidAmount: z.number().nonnegative().optional(),
       status: z.enum(['open', 'paid', 'overdue', 'partial', 'closed']).optional(), dueDate: z.string(), closeDate: z.string(), description: z.string().optional(),
-      items: z.array(z.object({ id: z.string(), description: z.string(), amount: z.number().nonnegative(), date: z.string(), category: z.string().optional(), installments: z.object({ current: z.number().int().positive(), total: z.number().int().positive() }).optional() })).optional(),
+      items: z.array(billItemSchema).optional(),
     },
-    updateShape: { cardId: z.string().optional(), month: z.string().optional(), amount: z.number().nonnegative().optional(), paidAmount: z.number().nonnegative().optional(), status: z.enum(['open', 'paid', 'overdue', 'partial', 'closed']).optional(), dueDate: z.string().optional(), closeDate: z.string().optional(), description: z.string().optional(), items: z.array(z.object({ id: z.string(), description: z.string(), amount: z.number().nonnegative(), date: z.string(), category: z.string().optional() })).optional() },
+    updateShape: { cardId: z.string().optional(), month: z.string().optional(), amount: z.number().nonnegative().optional(), paidAmount: z.number().nonnegative().optional(), status: z.enum(['open', 'paid', 'overdue', 'partial', 'closed']).optional(), dueDate: z.string().optional(), closeDate: z.string().optional(), description: z.string().optional(), items: z.array(billItemSchema).optional() },
     buildCreatePayload: (input) => ({ ...input, paidAmount: input.paidAmount || 0, status: input.status || 'open', items: input.items || [] }),
+    validateCreate: payload => billSchema.parse(payload),
+    validateUpdate: fields => billSchema.partial().parse(fields),
   }, scopes);
 
   registerCrudTools(server, {
@@ -496,6 +506,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*']) {
     createShape: { name: z.string(), description: z.string().optional(), targetAmount: z.number().positive(), currentAmount: z.number().nonnegative().optional(), deadline: z.string().optional(), icon: z.string().optional(), color: z.string().optional(), status: z.enum(['active', 'completed', 'paused']).optional() },
     updateShape: { name: z.string().optional(), description: z.string().optional(), targetAmount: z.number().positive().optional(), currentAmount: z.number().nonnegative().optional(), deadline: z.string().optional(), icon: z.string().optional(), color: z.string().optional(), status: z.enum(['active', 'completed', 'paused']).optional() },
     buildCreatePayload: (input) => ({ ...input, currentAmount: input.currentAmount || 0, icon: input.icon || '🎯', color: input.color || '#eab308', status: input.status || 'active' }),
+    validateCreate: payload => financialGoalSchema.parse(payload),
+    validateUpdate: fields => financialGoalSchema.partial().parse(fields),
   }, scopes);
 
   if (canUseMcpTool('get_financial_summary', scopes)) server.registerTool('get_financial_summary', {
