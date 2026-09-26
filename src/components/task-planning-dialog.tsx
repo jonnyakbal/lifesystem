@@ -55,6 +55,7 @@ export function TaskPlanningDialog({ task, initialDate, connected, onClose, onSa
           <label className="grid gap-2 text-xs font-medium">Horário de início<Input type="time" required value={time} onChange={event => setTime(event.target.value)} /></label>
           <label className="grid gap-2 text-xs font-medium">Duração em minutos<Input type="number" required min="1" max="1440" value={minutes} onChange={event => setMinutes(event.target.value)} /></label>
         </div>
+        <div className="flex gap-2" aria-label="Durações sugeridas">{[15, 30, 45, 60, 90].map(value => <button type="button" key={value} aria-pressed={minutes === String(value)} className="rounded-full border px-2.5 py-1.5 text-xs aria-pressed:border-primary aria-pressed:bg-primary/15" onClick={() => setMinutes(String(value))}>{value} min</button>)}</div>
         <p className="text-xs text-muted-foreground">Fuso: {timeZone}. O horário será reservado por {minutes || '—'} minutos.</p>
         <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={mirror} disabled={Boolean(previous?.eventId) || !connected} onChange={event => setMirror(event.target.checked)} className="h-4 w-4 accent-primary" />Espelhar no Google Agenda</label>
         {!connected && <p className="text-xs text-muted-foreground">Você pode salvar só aqui ou <Link className="text-primary underline" href="/api/google-calendar/connect">conectar o Google Agenda</Link> antes de espelhar.</p>}

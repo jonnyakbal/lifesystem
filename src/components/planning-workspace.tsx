@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { TaskPlanningDialog } from '@/components/task-planning-dialog';
 import { Input } from '@/components/ui/input';
 import { PlanningWizard } from '@/components/planning-wizard';
+import { clockLabel, freeIntervals, minutesOnDay } from '@/lib/planning-availability';
 
 type Connection = { configured: boolean; connected: boolean };
 
@@ -34,7 +35,7 @@ function occursOn(event: GoogleCalendarEvent, day: string) {
   return new Date(event.start) < end && new Date(event.end) > start;
 }
 
-export function PlanningWorkspace() {
+export function PlanningWorkspace({ embedded = false, onTasksChanged, refreshKey = '' }: { embedded?: boolean; onTasksChanged?: () => void; refreshKey?: string } = {}) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [content, setContent] = useState<Content[]>([]);
   const [financial, setFinancial] = useState<FinancialEntry[]>([]);
@@ -52,6 +53,9 @@ export function PlanningWorkspace() {
   const [newTitle, setNewTitle] = useState('');
   const [showRitual, setShowRitual] = useState(false);
   const [showAllBacklog, setShowAllBacklog] = useState(false);
+  const [activeDay, setActiveDay] = useState(todayStr());
+  const [loadedPeriod, setLoadedPeriod] = useState('');
+  const periodKey = `${weekOffset}:${calendarRefresh}`;
 
   const weekStart = useMemo(() => weekStartAt(weekOffset), [weekOffset]);
   const weekEnd = addDays(weekStart, 7);
@@ -79,7 +83,7 @@ export function PlanningWorkspace() {
     setLoading(false);
   }
 
-  useEffect(() => { queueMicrotask(() => { void load(); }); }, []);
+  useEffect(() => { queueMicrotask(() => { void load(); }); }, [refreshKey]);
   useEffect(() => {
     if (!connection?.connected) return;
     let active = true;
@@ -88,11 +92,14 @@ export function PlanningWorkspace() {
     queueMicrotask(() => {
       if (!active) return;
       apiFetch<GoogleCalendarEvent[]>(`/api/google-calendar/events?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
-        .then(items => { if (active) { setEvents(items); setCalendarError(''); } })
-        .catch(error => { if (active) { setEvents([]); setCalendarError(showError(error)); } });
+        .then(items => { if (active) { setEvents(items); setCalendarError(''); setLoadedPeriod(periodKey); } })
+        .catch(error => { if (active) { setEvents([]); setCalendarError(showError(error)); setLoadedPeriod(periodKey); } });
     });
     return () => { active = false; };
-  }, [connection?.connected, weekStart, weekEnd, calendarRefresh]);
+  }, [connection?.connected, weekStart, weekEnd, calendarRefresh, periodKey]);
+  const calendarReady = Boolean(!loading && !loadError && connection?.connected && loadedPeriod === periodKey && !calendarError);
+  const visibleEvents = loadedPeriod === periodKey ? events : [];
+  const mobileDay = days.some(day => day.key === activeDay) ? activeDay : days[0].key;
 
   const openTasks = tasks.filter(task => !terminal.includes(task.status));
   const backlog = openTasks.filter(task => !plannedDay(task)).sort((a, b) => {
@@ -114,6 +121,7 @@ export function PlanningWorkspace() {
         body: JSON.stringify(date ? { date, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, syncToGoogle: false } : { removeGoogleEvent: Boolean(task.planning?.eventId) }),
       });
       setTasks(items => items.map(item => item.id === task.id ? updated : item));
+      onTasksChanged?.();
       setSelected(null);
       setCalendarRefresh(value => value + 1);
       toast.success(date ? 'Tarefa planejada.' : 'Tarefa devolvida ao planejamento.');
@@ -122,6 +130,8 @@ export function PlanningWorkspace() {
   }
 
   function planningSaved(updated: Task) {
+    onTasksChanged?.();
+    setActiveDay(plannedDay(updated) || todayStr());
     setTasks(items => items.map(item => item.id === updated.id ? updated : item));
     setSelected(null); setCalendarRefresh(value => value + 1);
     if (updated.planning?.syncState === 'error') toast.warning('Planejamento salvo. A sincronização com o Google precisa de atenção.');
@@ -158,6 +168,7 @@ export function PlanningWorkspace() {
         body: JSON.stringify({ title: newTitle.trim(), status: 'todo', priority: 'normal' }),
       });
       setTasks(items => [task, ...items]); setNewTitle('');
+      onTasksChanged?.();
     } catch (error) { toast.error(showError(error)); }
     finally { setSaving(false); }
   }
@@ -184,18 +195,18 @@ export function PlanningWorkspace() {
     </div>;
   }
 
-  return <main className="mx-auto max-w-[1600px] px-4 pb-24 pt-6 lg:px-8 lg:pb-12">
-    <header className="mb-7 flex flex-wrap items-end justify-between gap-4">
-      <div><p className="mb-2 text-[11px] font-semibold uppercase tracking-[.2em] text-primary">Planejar</p>
-        <h1 className="font-display text-3xl tracking-tight sm:text-4xl">Sua semana</h1>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">Compromissos reais, prioridades possíveis e um lugar para o que ainda não tem data.</p>
+  return <section aria-label="Planejamento integrado" className={embedded ? 'min-w-0' : 'mx-auto max-w-[1600px] px-4 pb-24 pt-6 lg:px-8 lg:pb-12'}>
+    <header className={cn('flex flex-wrap items-end justify-between gap-4', embedded ? 'mb-4' : 'mb-7')}>
+      <div>{!embedded && <p className="mb-2 text-[11px] font-semibold uppercase tracking-[.2em] text-primary">Planejar</p>}
+        {embedded ? <h2 className="font-display text-2xl tracking-tight">Sua semana</h2> : <h1 className="font-display text-3xl tracking-tight sm:text-4xl">Sua semana</h1>}
+        {!embedded && <p className="mt-2 max-w-xl text-sm text-muted-foreground">Compromissos reais, prioridades possíveis e um lugar para o que ainda não tem data.</p>}
       </div>
       <div className="flex flex-wrap gap-2">
         <Button variant="outline" size="sm" className="gap-2" onClick={() => setShowRitual(value => !value)}><Sparkles className="h-4 w-4" />{showRitual ? 'Fechar ritual' : 'Criar por pilar'}</Button>
-        <Link href="/tarefas" className="rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted">Todas as tarefas</Link>
+        <Link href={embedded ? '/planejar' : '/tarefas'} className="rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted">{embedded ? 'Abrir Planejar' : 'Todas as tarefas'}</Link>
       </div>
     </header>
-    {showRitual && <section className="mb-7 rounded-2xl border bg-card/70 p-4 sm:p-6"><PlanningWizard onItemsChanged={() => void load()} /></section>}
+    {showRitual && <section className="mb-7 rounded-2xl border bg-card/70 p-4 sm:p-6"><PlanningWizard onItemsChanged={() => { void load(); onTasksChanged?.(); }} /></section>}
     {loadError && <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm"><CircleAlert className="h-4 w-4" />{loadError}<Button size="sm" variant="outline" onClick={() => void load()}>Tentar novamente</Button></div>}
 
     <div className="mb-5 grid grid-cols-2 gap-2">
@@ -207,33 +218,46 @@ export function PlanningWorkspace() {
       <div className="flex items-center gap-2"><Button variant="outline" size="icon" aria-label="Semana anterior" onClick={() => setWeekOffset(value => value - 1)}><ArrowLeft className="h-4 w-4" /></Button><h2 className="min-w-44 text-center text-sm font-semibold capitalize">{period}</h2><Button variant="outline" size="icon" aria-label="Próxima semana" onClick={() => setWeekOffset(value => value + 1)}><ArrowRight className="h-4 w-4" /></Button>{weekOffset !== 0 && <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>Hoje</Button>}</div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">{connection?.connected ? <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Google Agenda conectada</> : <><CalendarDays className="h-3.5 w-3.5" /> {connection?.configured ? <Link href="/api/google-calendar/connect" className="text-primary hover:underline">Conectar Google Agenda</Link> : 'Google Agenda indisponível neste ambiente'}</>}</div>
       {calendarError && <div role="status" className="flex items-center gap-2 text-xs text-amber-500"><CircleAlert className="h-3.5 w-3.5" />{calendarError}<Link href="/api/google-calendar/connect" className="underline">Reconectar</Link></div>}
+      {connection?.connected && <Button variant="ghost" size="sm" disabled={loadedPeriod !== periodKey} onClick={() => setCalendarRefresh(value => value + 1)}>{loadedPeriod !== periodKey ? 'Atualizando agenda…' : 'Atualizar agenda'}</Button>}
     </div>
 
+    <p className="mb-3 text-xs text-muted-foreground">Horários no seu fuso · {Intl.DateTimeFormat().resolvedOptions().timeZone}. Intervalos entre 08:00 e 20:00, considerando blocos e a agenda principal do Google. Eventos de dia inteiro não reservam horas.</p>
+    <nav aria-label="Escolher dia" className="mb-3 grid grid-cols-7 gap-1 lg:hidden">{days.map(({date, key}) => <button key={key} aria-pressed={key === mobileDay} onClick={() => setActiveDay(key)} className="min-h-14 rounded-xl border text-xs aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary"><span className="block text-[10px] uppercase">{date.toLocaleDateString('pt-BR', {weekday:'short'})}</span><span className="mt-1 block text-lg">{date.getDate()}</span></button>)}</nav>
     <div className="grid min-w-0 gap-5 min-[1600px]:grid-cols-[minmax(0,1fr)_280px]">
-      <section id="planning-week-days" aria-label="Dias da semana" className="order-last grid min-w-0 scroll-mt-24 gap-2 sm:grid-cols-2 lg:order-first lg:grid-cols-7">
+      <section id="planning-week-days" aria-label="Dias da semana" className="grid min-w-0 scroll-mt-24 gap-2 lg:grid-cols-7">
         {days.map(({ date, key }) => {
-          const dayTasks = openTasks.filter(task => plannedDay(task) === key).sort((a, b) => (a.planning?.startAt || 'z').localeCompare(b.planning?.startAt || 'z'));
-          const dayEvents = events.filter(event => occursOn(event, key) && !dayTasks.some(task => task.planning?.eventId === event.id && task.planning.syncState === 'synced' && Date.parse(task.planning.startAt!) === Date.parse(event.start) && Date.parse(task.planning.endAt!) === Date.parse(event.end) && task.title === event.title));
+          const dayTasks = openTasks.filter(task => task.planning?.startAt && task.planning.endAt ? occursOn({ start: task.planning.startAt, end: task.planning.endAt, allDay: false } as GoogleCalendarEvent, key) : plannedDay(task) === key);
+          const dayEvents = visibleEvents.filter(event => occursOn(event, key) && !dayTasks.some(task => task.planning?.eventId === event.id && task.planning.syncState === 'synced' && Date.parse(task.planning.startAt!) === Date.parse(event.start) && Date.parse(task.planning.endAt!) === Date.parse(event.end) && task.title === event.title));
+          const timed = [
+            ...dayTasks.filter(task => task.planning?.startAt).map(task => ({ id: task.id, start: minutesOnDay(task.planning!.startAt!, key), end: minutesOnDay(task.planning!.endAt!, key), task, event: null })),
+            ...dayEvents.filter(event => !event.allDay).map(event => ({ id: event.id, start: minutesOnDay(event.start, key), end: minutesOnDay(event.end, key), task: null, event })),
+          ].sort((a,b) => a.start - b.start);
+          const free = freeIntervals(timed.filter(item => !item.event || item.event.busy !== false), 480, 1200);
+          const freeMinutes = free.reduce((total, item) => total + item.end - item.start, 0);
           const dayContent = content.filter(item => item.scheduledDate === key && item.status !== 'archived');
           const dayFinancial = financial.filter(item => item.dueDate === key && item.status !== 'paid');
           const isToday = key === todayStr();
           return <div key={key} onDragOver={event => event.preventDefault()} onDrop={event => {
             event.preventDefault(); const id = event.dataTransfer.getData('text/plain');
             const task = openTasks.find(item => item.id === id); if (task) void schedule(task, key);
-          }} className={cn('min-h-44 rounded-2xl border p-2.5', isToday ? 'order-first border-primary/55 bg-primary/[.06] lg:order-none' : 'border-border/70 bg-card/30')}>
+          }} className={cn('min-h-44 rounded-2xl border p-2.5 lg:block', key !== mobileDay && 'hidden', isToday ? 'border-primary/55 bg-primary/[.06]' : 'border-border/70 bg-card/30')}>
             <div className="mb-3 flex items-center justify-between px-1"><div><p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</p><p className="font-display text-2xl leading-none">{date.getDate()}</p></div>{isToday && <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-semibold text-primary">Hoje</span>}</div>
             <div className="space-y-1.5">
-              {dayEvents.map(event => <div key={event.id} className="rounded-lg border border-sky-400/20 bg-sky-400/5 px-2.5 py-2 text-xs"><p className="text-[10px] text-sky-400">{event.allDay ? 'Dia inteiro' : new Date(event.start).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · Google</p>{event.url ? <a href={event.url} target="_blank" rel="noopener noreferrer" className="mt-1 block font-medium leading-snug hover:underline">{event.title}</a> : <p className="mt-1 font-medium leading-snug">{event.title}</p>}</div>)}
-              {dayTasks.map(taskCard)}
+              <p className="pb-2 text-[11px] text-muted-foreground">{calendarReady ? `${Math.floor(freeMinutes / 60)}h${freeMinutes % 60 ? ` ${freeMinutes % 60}min` : ''} sem blocos · 08–20h` : connection?.connected ? 'Disponibilidade aguardando agenda' : 'Somente planejamento local'}</p>
+              {dayEvents.filter(event => event.allDay).map(event => <p key={event.id} className="rounded-lg border border-sky-400/20 bg-sky-400/5 p-2 text-xs">Dia inteiro · {event.title}</p>)}
+              {timed.map(item => <div key={item.id} className="border-l-2 border-primary/20 pl-2"><p className="mb-1 text-[10px] tabular-nums text-muted-foreground">{clockLabel(item.start)} – {clockLabel(item.end)}</p>{item.task ? taskCard(item.task) : <div className="rounded-lg border border-sky-400/20 bg-sky-400/5 px-2.5 py-2 text-xs"><p className="mb-1 text-[10px] text-sky-400">Google{item.event?.busy === false ? ' · Disponível' : ''}</p>{item.event?.url ? <a href={item.event.url} target="_blank" rel="noopener noreferrer" className="break-words font-medium hover:underline">{item.event.title}</a> : <p className="break-words font-medium">{item.event?.title}</p>}</div>}</div>)}
+              {calendarReady && free.length > 0 && <details className="rounded-lg border border-dashed p-2 text-[11px] text-muted-foreground"><summary className="cursor-pointer">{free.length} {free.length === 1 ? 'intervalo livre' : 'intervalos livres'}</summary><ul className="mt-2 space-y-1">{free.map(slot => <li key={slot.start} className="tabular-nums">{clockLabel(slot.start)} – {clockLabel(slot.end)}</li>)}</ul></details>}
+              {dayTasks.some(task => !task.planning?.startAt) && <p className="pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Prioridades · sem horário</p>}
+              {dayTasks.filter(task => !task.planning?.startAt).map(taskCard)}
               {dayContent.map(item => <Link key={item.id} href="/conteudo" className="flex gap-1.5 rounded-lg border border-violet-400/20 bg-violet-400/5 px-2.5 py-2 text-xs"><FileText className="mt-0.5 h-3 w-3 shrink-0 text-violet-400" /><span className="line-clamp-2">{item.title}</span></Link>)}
               {dayFinancial.map(item => <Link key={item.id} href="/financeiro" className="flex gap-1.5 rounded-lg border border-amber-400/20 bg-amber-400/5 px-2.5 py-2 text-xs"><Wallet className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" /><span className="line-clamp-2">{item.description || item.category}</span></Link>)}
             </div>
-            {!loading && dayTasks.length + dayEvents.length + dayContent.length + dayFinancial.length === 0 && <p className="px-1 py-3 text-xs text-muted-foreground/70">Espaço livre</p>}
+            {!loading && dayTasks.length + dayEvents.length + dayContent.length + dayFinancial.length === 0 && <p className="px-1 py-3 text-xs text-muted-foreground/70">Nenhum item carregado para este dia</p>}
           </div>;
         })}
       </section>
 
-      <aside id="planning-backlog" aria-label="Tarefas para planejar" className="order-first min-w-0 scroll-mt-24 lg:order-last min-[1600px]:sticky min-[1600px]:top-6 min-[1600px]:self-start"><div className="rounded-2xl border bg-card/70 p-4">
+      <aside id="planning-backlog" aria-label="Tarefas para planejar" className="min-w-0 scroll-mt-24 min-[1600px]:sticky min-[1600px]:top-6 min-[1600px]:self-start"><div className="rounded-2xl border bg-card/70 p-4">
         <div className="mb-1 flex items-center gap-2"><Inbox className="h-4 w-4 text-primary" /><h2 className="text-sm font-semibold">Para planejar</h2><span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs">{backlog.length}</span></div>
         <p className="mb-4 text-xs text-muted-foreground">Escolha o dia. O horário continua livre até você reservar um bloco.</p>
         <div className="mb-4 flex gap-2"><Input aria-label="Nova tarefa" value={newTitle} onChange={event => setNewTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') void createTask(); }} placeholder="Nova tarefa..." /><Button size="icon" aria-label="Adicionar tarefa" disabled={!newTitle.trim() || saving} onClick={() => void createTask()}><Plus className="h-4 w-4" /></Button></div>
@@ -245,5 +269,5 @@ export function PlanningWorkspace() {
     </div>
 
     {selected && <TaskPlanningDialog key={selected.id + selectedDate} task={selected} initialDate={selectedDate} connected={Boolean(connection?.connected)} onClose={() => setSelected(null)} onSaved={planningSaved} />}
-  </main>;
+  </section>;
 }

@@ -98,6 +98,7 @@ export interface GoogleCalendarEvent {
   start: string;
   end: string;
   allDay: boolean;
+  busy?: boolean;
   url?: string;
 }
 
@@ -113,24 +114,35 @@ export async function listGoogleCalendarEvents(from: string, to: string): Promis
     timeMin: start.toISOString(), timeMax: end.toISOString(),
     singleEvents: 'true', orderBy: 'startTime', maxResults: '250',
   }).toString();
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { Authorization: `Bearer ${await accessToken()}` },
-    cache: 'no-store',
-  });
-  if (!response.ok) throw new GoogleCalendarError(response.status === 401 ? 'A conexão com o Google Agenda expirou. Conecte novamente.' : 'Não foi possível consultar o Google Agenda.');
-  const data = await response.json() as { items?: Array<{
-    id?: string; summary?: string; status?: string; htmlLink?: string;
-    start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string };
-  }> };
-  return (data.items || []).filter(item => item.status !== 'cancelled' && item.id && (item.start?.dateTime || item.start?.date) && (item.end?.dateTime || item.end?.date))
-    .map(item => ({
-      id: item.id!, title: item.summary?.trim() || 'Ocupado',
-      start: item.start!.dateTime || item.start!.date!,
-      end: item.end!.dateTime || item.end!.date!,
-      allDay: Boolean(item.start!.date),
-      url: item.htmlLink?.startsWith('https://') ? item.htmlLink : undefined,
-    }));
+  const token = await accessToken();
+  const events: GoogleCalendarEvent[] = [];
+  const pages = new Set<string>();
+  do {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) throw new GoogleCalendarError(response.status === 401 ? 'A conexão com o Google Agenda expirou. Conecte novamente.' : 'Não foi possível consultar o Google Agenda.');
+    const data = await response.json() as { nextPageToken?: string; items?: Array<{
+      id?: string; summary?: string; status?: string; htmlLink?: string; transparency?: string;
+      start?: { date?: string; dateTime?: string }; end?: { date?: string; dateTime?: string };
+    }> };
+    events.push(...(data.items || []).filter(item => item.status !== 'cancelled' && item.id && (item.start?.dateTime || item.start?.date) && (item.end?.dateTime || item.end?.date))
+      .map(item => ({
+        id: item.id!, title: item.summary?.trim() || 'Ocupado',
+        start: item.start!.dateTime || item.start!.date!,
+        end: item.end!.dateTime || item.end!.date!,
+        allDay: Boolean(item.start!.date),
+        ...(item.transparency === 'transparent' ? { busy: false } : {}),
+        url: item.htmlLink?.startsWith('https://') ? item.htmlLink : undefined,
+      })));
+    if (!data.nextPageToken) return events;
+    if (pages.has(data.nextPageToken) || pages.size >= 20) throw new GoogleCalendarError('A agenda não pôde ser carregada por completo. Tente novamente.');
+    pages.add(data.nextPageToken);
+    url.searchParams.set('pageToken', data.nextPageToken);
+  } while (true);
 }
 
 export function signGoogleState(nonce: string) { return createHash('sha256').update(`${required('GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY')}:${nonce}`).digest('base64url'); }

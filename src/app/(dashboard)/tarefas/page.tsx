@@ -2,16 +2,17 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { PlanningWorkspace } from '@/components/planning-workspace';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   Plus, CheckCircle2, Circle, Trash2, Search, Copy,
   GripVertical, CalendarDays, X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
-  ArrowRight, Flame, Repeat, FileText, Wallet, Edit2, ChevronLeft, ChevronRight, CalendarPlus, Inbox
+  ArrowRight, Repeat, FileText, Wallet, Edit2
 } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -125,20 +126,6 @@ function isOverdue(task: Task) {
   return task.dueDate < todayStr();
 }
 
-function getWeekDays(weekOffset = 0) {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7) + weekOffset * 7);
-  const days: Date[] = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
-    days.push(d);
-  }
-  return days;
-}
-
 function formatDateISO(d: Date) {
   return todayStr(d);
 }
@@ -192,7 +179,6 @@ export default function TasksPage() {
 
   // View state
   const [view, setView] = useState<ViewMode>('kanban');
-  const [weekOffset, setWeekOffset] = useState(0);
   const [search, setSearch] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [showDone, setShowDone] = useState(false);
@@ -539,20 +525,6 @@ export default function TasksPage() {
     }
   }
 
-  async function handleScheduleTask(taskId: string, dueDate: string | null) {
-    try {
-      await apiFetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dueDate }),
-      });
-      loadTasks();
-      toast.success(dueDate ? 'Tarefa planejada na semana!' : 'Tarefa devolvida ao planejamento.');
-    } catch (err) {
-      toast.error(showError(err));
-    }
-  }
-
   async function handleQuickAdd(status: Task['status']) {
     if (!quickAddTitle.trim()) return;
     try {
@@ -575,7 +547,6 @@ export default function TasksPage() {
   function handleDragEnd() { setTimeout(() => setDraggedId(null), 100); }
   function handleDragOver(e: React.DragEvent) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
   async function handleDrop(e: React.DragEvent, targetStatus: Task['status']) { e.preventDefault(); const taskId = e.dataTransfer.getData('text/plain'); if (taskId) await handleQuickStatus(taskId, targetStatus); setDraggedId(null); }
-  async function handleWeekDrop(e: React.DragEvent, dueDate: string) { e.preventDefault(); const taskId = e.dataTransfer.getData('text/plain'); if (taskId) await handleScheduleTask(taskId, dueDate); setDraggedId(null); }
   const dragClickRef = useRef(false);
 
   // ─── Filtered + Sorted ───────────────────────────────────────────────────
@@ -944,119 +915,6 @@ export default function TasksPage() {
     );
   }
 
-  function renderWeek() {
-    const weekDays = getWeekDays(weekOffset);
-    const today = todayStr();
-    const weekStart = formatDateISO(weekDays[0]);
-    const weekEnd = formatDateISO(weekDays[6]);
-    const isCurrentWeek = weekOffset === 0;
-    const plannedTasks = sortedTasks.filter(t => t.status !== 'done' && t.dueDate && t.dueDate >= weekStart && t.dueDate <= weekEnd);
-    const backlog = sortedTasks.filter(t => t.status !== 'done' && !t.dueDate);
-    const urgentPlanned = plannedTasks.filter(t => t.priority === 'urgent' || isOverdue(t)).length;
-    const doneThisWeek = tasks.filter(t => t.status === 'done' && t.completedAt && t.completedAt.slice(0, 10) >= weekStart && t.completedAt.slice(0, 10) <= weekEnd).length;
-    const formatWeek = `${weekDays[0].toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} — ${weekDays[6].toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}`;
-
-    const plannerCard = (task: Task, inBacklog = false) => {
-      const project = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
-      const priority = priorityConfig[task.priority];
-      return (
-        <div
-          key={task.id}
-          draggable
-          onDragStart={(event) => handleDragStart(event, task.id)}
-          onDragEnd={handleDragEnd}
-          onClick={() => openEdit(task)}
-          className={cn('group cursor-grab rounded-lg border border-border/70 bg-card p-2.5 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/45 hover:shadow-md active:cursor-grabbing', draggedId === task.id && 'opacity-40')}
-        >
-          <div className="flex items-start gap-2">
-            <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/45" />
-            <div className="min-w-0 flex-1">
-              <p className="line-clamp-2 text-xs font-medium leading-snug">{task.title}</p>
-              <div className="mt-2 flex flex-wrap items-center gap-1">
-                <span className={cn('h-1.5 w-1.5 rounded-full', priority.dot)} />
-                <span className={cn('text-[10px] font-medium', priority.textColor)}>{priority.label}</span>
-                {project && <span className="max-w-[110px] truncate text-[10px] text-muted-foreground">{project.emoji || '📁'} {project.name}</span>}
-              </div>
-            </div>
-            {!inBacklog && (
-              <button onClick={(event) => { event.stopPropagation(); void handleScheduleTask(task.id, null); }} className="rounded p-1 text-muted-foreground opacity-0 transition hover:bg-muted hover:text-foreground group-hover:opacity-100 focus-visible:opacity-100" aria-label={`Remover data de ${task.title}`} title="Devolver ao planejamento">
-                <Inbox className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
-      );
-    };
-
-    return (
-      <div className="space-y-5">
-        <section className="overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-card to-card p-4 sm:p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-[0.18em] text-primary"><Calendar className="h-3.5 w-3.5" /> Planejamento semanal</div>
-              <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight sm:text-3xl">Planeje a semana, sem perder o que está esperando.</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Arraste tarefas sem data para reservar foco em cada dia. Tudo fica editável depois.</p>
-            </div>
-            <div className="flex items-center gap-2 self-start lg:self-auto">
-              <Button variant="outline" size="icon" onClick={() => setWeekOffset(offset => offset - 1)} aria-label="Semana anterior"><ChevronLeft className="h-4 w-4" /></Button>
-              <Button variant={isCurrentWeek ? 'secondary' : 'outline'} size="sm" onClick={() => setWeekOffset(0)}>Esta semana</Button>
-              <Button variant="outline" size="icon" onClick={() => setWeekOffset(offset => offset + 1)} aria-label="Próxima semana"><ChevronRight className="h-4 w-4" /></Button>
-            </div>
-          </div>
-          <div className="mt-5 flex flex-wrap items-center gap-2 text-sm">
-            <Badge variant="secondary" className="bg-background/50 px-2.5 py-1">{formatWeek}</Badge>
-            <Badge variant="outline" className="px-2.5 py-1"><CalendarPlus className="mr-1.5 h-3.5 w-3.5 text-primary" />{plannedTasks.length} planejadas</Badge>
-            <Badge variant="outline" className="px-2.5 py-1"><Inbox className="mr-1.5 h-3.5 w-3.5 text-qty" />{backlog.length} sem data</Badge>
-            {urgentPlanned > 0 && <Badge variant="outline" className="border-destructive/35 bg-destructive/5 px-2.5 py-1 text-destructive"><Flame className="mr-1.5 h-3.5 w-3.5" />{urgentPlanned} urgentes</Badge>}
-            {doneThisWeek > 0 && <Badge variant="outline" className="border-money/35 bg-money/5 px-2.5 py-1 text-money"><CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />{doneThisWeek} concluídas</Badge>}
-          </div>
-        </section>
-
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
-          <section className="overflow-x-auto pb-2">
-            <div className="grid min-w-[980px] grid-cols-7 gap-3 xl:min-w-0">
-              {weekDays.map((day, index) => {
-                const dateStr = formatDateISO(day);
-                const dayTasks = plannedTasks.filter(task => task.dueDate === dateStr);
-                const isToday = dateStr === today;
-                const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                const capacity = 3;
-                return (
-                  <motion.div key={dateStr} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.035 }} className={cn('flex min-h-[390px] flex-col rounded-xl border p-2', isToday ? 'border-primary/60 bg-primary/[0.07] shadow-[0_12px_32px_-24px_var(--color-primary)]' : isWeekend ? 'border-border/60 bg-muted/20' : 'border-border/70 bg-card/60')} onDragOver={handleDragOver} onDrop={(event) => void handleWeekDrop(event, dateStr)}>
-                    <div className="mb-3 rounded-lg px-1.5 py-1">
-                      <div className="flex items-center justify-between"><span className={cn('text-[11px] font-semibold uppercase tracking-wider', isToday ? 'text-primary' : 'text-muted-foreground')}>{day.toLocaleDateString('pt-BR', { weekday: 'short' })}</span>{isToday && <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">HOJE</span>}</div>
-                      <div className="mt-1 flex items-baseline justify-between"><span className="font-mono-num text-2xl font-bold">{day.getDate()}</span><span className={cn('text-[10px]', dayTasks.length > capacity ? 'text-destructive' : 'text-muted-foreground')}>{dayTasks.length}/{capacity} foco</span></div>
-                      <div className="mt-2 flex gap-1">{Array.from({ length: capacity }).map((_, slot) => <span key={slot} className={cn('h-1 flex-1 rounded-full', slot < dayTasks.length ? (dayTasks.length > capacity ? 'bg-destructive' : 'bg-primary') : 'bg-border')} />)}</div>
-                    </div>
-                    <div className="flex flex-1 flex-col gap-2">
-                      {dayTasks.map(task => plannerCard(task))}
-                      {dayTasks.length === 0 && <div className="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-border/70 px-2 text-center text-xs text-muted-foreground/70"><CalendarPlus className="mb-2 h-4 w-4 text-primary/60" />Solte uma tarefa aqui</div>}
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </section>
-
-          <aside className="xl:sticky xl:top-5 xl:self-start">
-            <Card className="overflow-hidden border-qty/25">
-              <CardHeader className="border-b border-border/60 bg-qty/5 pb-4">
-                <div className="flex items-start justify-between gap-3"><div><CardTitle className="flex items-center gap-2 text-base"><Inbox className="h-4 w-4 text-qty" /> Para planejar</CardTitle><p className="mt-1 text-xs text-muted-foreground">Tarefas sem data aguardando uma decisão.</p></div><Badge variant="secondary">{backlog.length}</Badge></div>
-              </CardHeader>
-              <CardContent className="p-3">
-                <div className="max-h-[34rem] space-y-2 overflow-y-auto pr-1">
-                  {backlog.map(task => plannerCard(task, true))}
-                  {backlog.length === 0 && <div className="flex flex-col items-center py-10 text-center"><CheckCircle2 className="mb-2 h-7 w-7 text-money/70" /><p className="text-sm font-medium">Tudo tem um lugar.</p><p className="mt-1 text-xs text-muted-foreground">A caixa de planejamento está vazia.</p></div>}
-                </div>
-                <Button variant="outline" className="mt-3 w-full gap-2" onClick={openCreate}><Plus className="h-4 w-4" /> Capturar tarefa</Button>
-              </CardContent>
-            </Card>
-          </aside>
-        </div>
-      </div>
-    );
-  }
-
   function renderCalendar() {
     const now = new Date();
     const monthName = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -1064,7 +922,7 @@ export default function TasksPage() {
     return (
       <div>
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-medium capitalize">{monthName}</h3>
+          <h3 className="text-lg font-medium capitalize">{monthName} · Prazos</h3>
           <div className="flex items-center gap-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><Circle className="h-2 w-2 fill-current" /> Tarefa</span>
             <span className="flex items-center gap-1"><FileText className="h-2.5 w-2.5" /> Conteúdo</span>
@@ -1325,7 +1183,7 @@ export default function TasksPage() {
             </div>
           ))}
         </div>
-      ) : filteredTasks.length === 0 ? (
+      ) : filteredTasks.length === 0 && view !== 'week' ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted"><CheckCircle2 className="h-6 w-6 text-muted-foreground" /></div>
@@ -1337,7 +1195,7 @@ export default function TasksPage() {
         <motion.div variants={fade}>
           {view === 'kanban' && renderKanban()}
           {view === 'list' && renderList()}
-          {view === 'week' && renderWeek()}
+          {view === 'week' && <><p className="mb-3 text-xs text-muted-foreground">Agenda integrada de todas as tarefas. Os filtros acima se aplicam ao quadro, lista e prazos.</p><PlanningWorkspace embedded refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} /></>}
           {view === 'calendar' && renderCalendar()}
         </motion.div>
       )}

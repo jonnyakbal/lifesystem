@@ -28,7 +28,10 @@ test('lista eventos da semana, incluindo dia inteiro, sem alterar a agenda', asy
       expect(url.searchParams.get('singleEvents')).toBe('true');
       expect(url.searchParams.get('timeMin')).toBe('2026-09-21T00:00:00.000Z');
       expect(url.searchParams.get('timeMax')).toBe('2026-09-28T00:00:00.000Z');
-      return Response.json({ items: [
+      if (url.searchParams.get('pageToken') === 'next') return Response.json({ items: [
+        { id: 'free-event', summary: 'Lembrete', transparency: 'transparent', start: { dateTime: '2026-09-22T16:00:00-03:00' }, end: { dateTime: '2026-09-22T17:00:00-03:00' } },
+      ] });
+      return Response.json({ nextPageToken: 'next', items: [
         { id: 'meeting-1', summary: 'Reunião', start: { dateTime: '2026-09-22T14:00:00-03:00' }, end: { dateTime: '2026-09-22T15:00:00-03:00' }, htmlLink: 'https://calendar.google.com/a' },
         { id: 'holiday-1', summary: 'Feriado', start: { date: '2026-09-23' }, end: { date: '2026-09-24' } },
         { id: 'deleted', status: 'cancelled', summary: 'Removido', start: { date: '2026-09-24' }, end: { date: '2026-09-25' } },
@@ -41,6 +44,7 @@ test('lista eventos da semana, incluindo dia inteiro, sem alterar a agenda', asy
     expect(events).toEqual([
       { id: 'meeting-1', title: 'Reunião', start: '2026-09-22T14:00:00-03:00', end: '2026-09-22T15:00:00-03:00', allDay: false, url: 'https://calendar.google.com/a' },
       { id: 'holiday-1', title: 'Feriado', start: '2026-09-23', end: '2026-09-24', allDay: true, url: undefined },
+      { id: 'free-event', title: 'Lembrete', start: '2026-09-22T16:00:00-03:00', end: '2026-09-22T17:00:00-03:00', allDay: false, busy: false, url: undefined },
     ]);
   } finally {
     globalThis.fetch = previousFetch;
