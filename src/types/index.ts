@@ -84,7 +84,24 @@ export interface TaskChecklistItem {
   done: boolean;
 }
 
+export interface TaskPlanning {
+  date: string | null;
+  startAt?: string;
+  endAt?: string;
+  timeZone: string;
+  syncToGoogle: boolean;
+  syncState: 'local' | 'pending' | 'synced' | 'error';
+  calendarId?: string;
+  eventId?: string;
+  etag?: string;
+  eventUrl?: string;
+  lastSyncedAt?: string;
+  syncError?: string;
+  lastAttempt?: { title: string; startAt: string; endAt: string; description: string | null };
+}
+
 export interface Task extends BaseEntity {
+  planning?: TaskPlanning;
   title: string;
   description?: string;
   priority: TaskPriority;

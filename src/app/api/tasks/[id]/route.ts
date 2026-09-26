@@ -40,7 +40,9 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const deleted = await storage.delete<Task>('tasks', id);
+  let deleted: boolean;
+  try { deleted = await storage.delete<Task>('tasks', id); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível excluir a tarefa.' }, { status: 409 }); }
   if (!deleted) {
     return NextResponse.json({ error: 'Tarefa não encontrada' }, { status: 404 });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Task } from '@/types';
+import { taskUpdateSchema, prepareTaskUpdate } from '@/lib/task-domain';
 
 export async function PATCH(request: NextRequest) {
   const body = await request.json();
@@ -10,12 +11,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'IDs array required' }, { status: 400 });
   }
 
-  const updateData = { ...data };
-  if (updateData.status === 'done' && !updateData.completedAt) {
-    updateData.completedAt = new Date().toISOString();
-  } else if (updateData.status !== 'done') {
-    updateData.completedAt = undefined;
-  }
+  const parsed = taskUpdateSchema.safeParse(data);
+  if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos.' }, { status: 400 });
+  const updateData = await prepareTaskUpdate(parsed.data);
   const results = await storage.updateMany<Task>('tasks', ids, updateData);
 
   return NextResponse.json({ updated: results.length, missing: ids.filter((id: string) => !results.some((task) => task.id === id)) });
@@ -29,7 +27,9 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'IDs array required' }, { status: 400 });
   }
 
-  const deleted = await storage.deleteMany<Task>('tasks', ids);
+  let deleted: string[];
+  try { deleted = await storage.deleteMany<Task>('tasks', ids); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível excluir as tarefas.' }, { status: 409 }); }
 
   return NextResponse.json({ deleted: deleted.length, missing: ids.filter((id: string) => !deleted.includes(id)) });
 }

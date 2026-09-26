@@ -9,6 +9,12 @@ function dataDir() {
 }
 const collectionLocks = new Map<string, Promise<void>>();
 
+function assertDeletable(collection: string, items: unknown[]) {
+  if (collection === 'tasks' && items.some(item => Boolean((item as { planning?: { eventId?: string } }).planning?.eventId))) {
+    throw new Error('Esta tarefa possui evento espelhado. Remova o bloco em Planejar antes de excluir a tarefa.');
+  }
+}
+
 async function ensureDataDir() {
   const dir = dataDir();
   try {
@@ -134,6 +140,7 @@ export const storage = {
   async delete<T extends { id: string }>(collection: string, id: string): Promise<boolean> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);
+      assertDeletable(collection, items.filter(item => item.id === id));
       const filtered = items.filter(item => item.id !== id);
       if (filtered.length === items.length) return false;
       await writeCollection(collection, filtered);
@@ -144,6 +151,7 @@ export const storage = {
   async deleteWhere<T extends { id: string }>(collection: string, predicate: (item: T) => boolean): Promise<number> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);
+      assertDeletable(collection, items.filter(predicate));
       const kept = items.filter(item => !predicate(item));
       if (kept.length === items.length) return 0;
       await writeCollection(collection, kept);
@@ -179,6 +187,7 @@ export const storage = {
   async deleteMany<T extends { id: string }>(collection: string, ids: string[]): Promise<string[]> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);
+      assertDeletable(collection, items.filter(item => ids.includes(item.id)));
       const wanted = new Set(ids);
       const deleted = items.filter((item) => wanted.has(item.id)).map((item) => item.id);
       if (deleted.length > 0) {

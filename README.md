@@ -153,6 +153,12 @@ Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambient
 
 ### Google Agenda
 
+Em **Planejar**, abra uma tarefa e escolha **Reservar horário** para definir início e duração. O prazo (`dueDate`) permanece independente do bloco. Ative **Espelhar no Google Agenda** para criar um evento na agenda principal; salvar um replanejamento atualiza o mesmo evento. A conexão Google precisa estar autorizada antes de ativar o espelho.
+
+O cartão mostra se o bloco foi sincronizado ou ficou pendente. Falhas preservam os dados locais e permitem **Tentar sincronizar**. Se o evento foi alterado no Google, **Adotar bloco do Google** importa título e horário após confirmação. **Devolver ao planejamento** pede confirmação antes de remover o evento gerenciado; exclua esse bloco antes de excluir uma tarefa espelhada. Concluir a tarefa preserva o evento como histórico.
+
+Esta entrega suporta um bloco por tarefa na agenda principal. Espelhamento de finanças/conteúdos, múltiplas agendas, sincronização de alterações em segundo plano e múltiplos blocos continuam no roadmap. Mudanças no título feitas fora de Planejar chegam ao Google ao salvar ou sincronizar novamente o bloco. A persistência JSON e os bloqueios atuais pressupõem uma instância do servidor; múltiplas réplicas exigem armazenamento e coordenação transacionais compartilhados.
+
 O LIFESYSTEM concentra a conexão OAuth e cifra o token no diretório de dados. Configure as três variáveis `GOOGLE_CALENDAR_*`, habilite a Google Calendar API e cadastre `https://SEU_DOMINIO/api/google-calendar/callback` como URI de redirecionamento no Google Cloud. Depois, acesse `/api/google-calendar/connect` uma vez para autorizar a conta. Clientes MCP que precisem criar eventos devem receber somente o escopo `calendar:write`; o token Google nunca é exposto pelo MCP.
 
 **Para conectar o Hermes Agent:**

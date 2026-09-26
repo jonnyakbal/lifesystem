@@ -9,11 +9,16 @@ import type { GoogleCalendarEvent } from '@/lib/google-calendar';
 import { apiFetch, showError } from '@/lib/api';
 import { addDays, cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { TaskPlanningDialog } from '@/components/task-planning-dialog';
 import { Input } from '@/components/ui/input';
 import { PlanningWizard } from '@/components/planning-wizard';
 
 type Connection = { configured: boolean; connected: boolean };
+
+function plannedDay(task: Task) {
+  if (task.planning?.startAt) return todayStr(new Date(task.planning.startAt));
+  return task.planning ? task.planning.date : task.dueDate;
+}
 
 function weekStartAt(offset: number) {
   const date = new Date();
@@ -43,6 +48,7 @@ export function PlanningWorkspace() {
   const [selected, setSelected] = useState<Task | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [saving, setSaving] = useState(false);
+  const [calendarRefresh, setCalendarRefresh] = useState(0);
   const [newTitle, setNewTitle] = useState('');
   const [showRitual, setShowRitual] = useState(false);
   const [showAllBacklog, setShowAllBacklog] = useState(false);
@@ -86,27 +92,60 @@ export function PlanningWorkspace() {
         .catch(error => { if (active) { setEvents([]); setCalendarError(showError(error)); } });
     });
     return () => { active = false; };
-  }, [connection?.connected, weekStart, weekEnd]);
+  }, [connection?.connected, weekStart, weekEnd, calendarRefresh]);
 
   const openTasks = tasks.filter(task => !terminal.includes(task.status));
-  const backlog = openTasks.filter(task => !task.dueDate).sort((a, b) => {
+  const backlog = openTasks.filter(task => !plannedDay(task)).sort((a, b) => {
     const order = { urgent: 0, important: 1, normal: 2 };
     return order[a.priority] - order[b.priority] || a.createdAt.localeCompare(b.createdAt);
   });
-  const overdue = openTasks.filter(task => task.dueDate && task.dueDate < days[0].key);
-  const weekTasks = openTasks.filter(task => task.dueDate && task.dueDate >= days[0].key && task.dueDate < weekEnd);
+  const overdue = openTasks.filter(task => plannedDay(task) && plannedDay(task)! < days[0].key);
+  const weekTasks = openTasks.filter(task => plannedDay(task) && plannedDay(task)! >= days[0].key && plannedDay(task)! < weekEnd);
   const period = `${days[0].date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })} – ${days[6].date.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 
   async function schedule(task: Task, date: string | null) {
+    if (saving) return;
+    if (date && task.planning?.startAt) { setSelected(task); setSelectedDate(date); return; }
+    if (!date && task.planning?.eventId && !window.confirm('Devolver a tarefa ao planejamento e remover seu evento espelhado do Google Agenda? O prazo da tarefa será mantido.')) return;
     setSaving(true);
     try {
-      const updated = await apiFetch<Task>(`/api/tasks/${task.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dueDate: date }),
+      const updated = await apiFetch<Task>(`/api/tasks/${task.id}/planning`, {
+        method: date ? 'PUT' : 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(date ? { date, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, syncToGoogle: false } : { removeGoogleEvent: Boolean(task.planning?.eventId) }),
       });
       setTasks(items => items.map(item => item.id === task.id ? updated : item));
       setSelected(null);
+      setCalendarRefresh(value => value + 1);
       toast.success(date ? 'Tarefa planejada.' : 'Tarefa devolvida ao planejamento.');
     } catch (error) { toast.error(showError(error)); }
+    finally { setSaving(false); }
+  }
+
+  function planningSaved(updated: Task) {
+    setTasks(items => items.map(item => item.id === updated.id ? updated : item));
+    setSelected(null); setCalendarRefresh(value => value + 1);
+    if (updated.planning?.syncState === 'error') toast.warning('Planejamento salvo. A sincronização com o Google precisa de atenção.');
+    else toast.success(updated.planning?.syncState === 'synced' ? 'Bloco salvo e espelhado no Google.' : 'Tarefa planejada.');
+  }
+
+  async function retrySync(task: Task) {
+    const plan = task.planning;
+    if (!plan?.date || saving) return;
+    setSaving(true);
+    try {
+      planningSaved(await apiFetch<Task>(`/api/tasks/${task.id}/planning`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: plan.date, startAt: plan.startAt, endAt: plan.endAt, timeZone: plan.timeZone, syncToGoogle: true }),
+      }));
+    } catch (error) { toast.error(showError(error)); }
+    finally { setSaving(false); }
+  }
+
+  async function adoptGoogle(task: Task) {
+    if (saving || !window.confirm('Adotar o título e o horário atuais do evento Google nesta tarefa? O prazo e o status serão preservados.')) return;
+    setSaving(true);
+    try { planningSaved(await apiFetch<Task>(`/api/tasks/${task.id}/planning`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'adopt-google' }) })); }
+    catch (error) { toast.error(showError(error)); }
     finally { setSaving(false); }
   }
 
@@ -128,12 +167,19 @@ export function PlanningWorkspace() {
       onDragStart={event => event.dataTransfer.setData('text/plain', task.id)}
       className={cn('rounded-xl border bg-card px-3 py-2.5 shadow-sm', task.priority === 'urgent' ? 'border-l-2 border-l-rose-500' : 'border-border/70')}>
       <p className="break-words text-sm font-medium leading-snug">{task.title}</p>
+      {task.planning?.startAt && <p className="mt-2 text-xs font-medium text-primary">{new Date(task.planning.startAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} – {new Date(task.planning.endAt!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · Bloco de foco</p>}
+      {task.planning?.syncToGoogle && <div className="mt-2 text-[11px] text-muted-foreground">
+        {task.planning.syncState === 'synced' ? 'Espelhado no Google' : task.planning.syncState === 'pending' ? 'Sincronização pendente' : task.planning.syncError || 'Falha ao sincronizar'}
+        {task.planning.eventUrl && <a className="ml-2 text-primary underline" target="_blank" rel="noopener noreferrer" href={task.planning.eventUrl}>Abrir no Google</a>}
+        {task.planning.syncState !== 'synced' && <button disabled={saving} className="mt-1 block text-primary underline" onClick={() => void retrySync(task)}>Tentar sincronizar</button>}
+        {task.planning.syncState === 'error' && task.planning.eventId && <button disabled={saving} className="mt-1 block text-primary underline" onClick={() => void adoptGoogle(task)}>Adotar bloco do Google</button>}
+      </div>}
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px]">
         {task.priority === 'urgent' && <span className="text-rose-400">Urgente</span>}
         <button className="font-medium text-primary hover:underline" onClick={() => {
-          setSelected(task); setSelectedDate(task.dueDate || (days[0].key > todayStr() ? days[0].key : todayStr()));
-        }}>{task.dueDate ? 'Mudar dia' : 'Planejar'}</button>
-        {task.dueDate && <button className="text-muted-foreground hover:text-foreground hover:underline" disabled={saving} onClick={() => void schedule(task, null)}>Devolver ao planejamento</button>}
+          setSelected(task); setSelectedDate(plannedDay(task) || (days[0].key > todayStr() ? days[0].key : todayStr()));
+        }}>{task.planning?.startAt ? 'Replanejar' : plannedDay(task) ? 'Mudar dia' : 'Planejar'}</button>
+        {plannedDay(task) && <button className="text-muted-foreground hover:text-foreground hover:underline" disabled={saving} onClick={() => void schedule(task, null)}>Devolver ao planejamento</button>}
       </div>
     </div>;
   }
@@ -166,8 +212,8 @@ export function PlanningWorkspace() {
     <div className="grid min-w-0 gap-5 min-[1600px]:grid-cols-[minmax(0,1fr)_280px]">
       <section id="planning-week-days" aria-label="Dias da semana" className="order-last grid min-w-0 scroll-mt-24 gap-2 sm:grid-cols-2 lg:order-first lg:grid-cols-7">
         {days.map(({ date, key }) => {
-          const dayTasks = openTasks.filter(task => task.dueDate === key);
-          const dayEvents = events.filter(event => occursOn(event, key));
+          const dayTasks = openTasks.filter(task => plannedDay(task) === key).sort((a, b) => (a.planning?.startAt || 'z').localeCompare(b.planning?.startAt || 'z'));
+          const dayEvents = events.filter(event => occursOn(event, key) && !dayTasks.some(task => task.planning?.eventId === event.id && task.planning.syncState === 'synced' && Date.parse(task.planning.startAt!) === Date.parse(event.start) && Date.parse(task.planning.endAt!) === Date.parse(event.end) && task.title === event.title));
           const dayContent = content.filter(item => item.scheduledDate === key && item.status !== 'archived');
           const dayFinancial = financial.filter(item => item.dueDate === key && item.status !== 'paid');
           const isToday = key === todayStr();
@@ -198,6 +244,6 @@ export function PlanningWorkspace() {
       </div></aside>
     </div>
 
-    <Dialog open={Boolean(selected)} onOpenChange={open => { if (!open) setSelected(null); }}><DialogContent className="max-w-sm"><DialogHeader><DialogTitle>Planejar tarefa</DialogTitle><DialogDescription>{selected?.title}</DialogDescription></DialogHeader><label className="grid gap-2 text-sm font-medium">Dia escolhido<Input type="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)} /></label><div className="flex justify-end gap-2"><Button variant="ghost" onClick={() => setSelected(null)}>Cancelar</Button><Button disabled={!selectedDate || saving} onClick={() => { if (selected) void schedule(selected, selectedDate); }}>Salvar dia</Button></div></DialogContent></Dialog>
+    {selected && <TaskPlanningDialog key={selected.id + selectedDate} task={selected} initialDate={selectedDate} connected={Boolean(connection?.connected)} onClose={() => setSelected(null)} onSaved={planningSaved} />}
   </main>;
 }
