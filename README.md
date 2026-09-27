@@ -116,7 +116,7 @@ data/                        # dados locais privados; somente README versionado
 3. O workflow `.github/workflows/ci.yml` também roda TypeScript, build e Playwright como validação; ele não é responsável pelo deploy.
 4. Configure `LIFESYSTEM_DATA_DIR` para uma pasta persistente com permissão de escrita, fora do checkout.
 
-Um `401` do conector Hostinger no Codex indica que ele não pode consultar o hPanel naquela sessão; não indica falha no push nem no deploy nativo. Confira o site público e os recursos da versão servida para verificar o release. O conector só é necessário para consultar dados da conta, como logs de build e variáveis de ambiente.
+Um `401` do conector Hostinger no Codex indica que ele não pode consultar o hPanel naquela sessão; não indica falha no push nem no deploy nativo. Confira o site público e os recursos da versão servida para verificar o release. O conector só é necessário para consultar dados da conta, como logs de build e variáveis de ambiente. Consulte [o procedimento e as evidências de deploy](docs/deploy-producao.md).
 
 ### Variáveis de ambiente
 
