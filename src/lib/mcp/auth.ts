@@ -88,6 +88,19 @@ const PLURAL_SCOPES: Record<string, string> = {
 export function canUseMcpTool(toolName: string, scopes: string[]): boolean {
   if (scopes.includes('*')) return true;
 
+  const actionScopes: Record<string, string[]> = {
+    convert_capture: ['captures:convert', 'captures:write', 'captures:*'],
+    plan_task_block: ['tasks:plan', 'tasks:write', 'tasks:*'],
+    remove_task_block: ['tasks:plan', 'tasks:write', 'tasks:*'],
+    adopt_task_calendar_event: ['tasks:plan', 'tasks:write', 'tasks:*'],
+    list_calendar_events: ['calendar:read', 'calendar:write', 'calendar:*'],
+    create_calendar_event: ['calendar:legacy', 'calendar:*'],
+    create_managed_calendar_event: ['calendar:write', 'calendar:*'],
+    update_managed_calendar_event: ['calendar:write', 'calendar:*'],
+    cancel_managed_calendar_event: ['calendar:write', 'calendar:*'],
+  };
+  if (actionScopes[toolName]) return actionScopes[toolName].some(scope => scopes.includes(scope));
+
   const summary = toolName === 'get_financial_summary';
   if (summary) return scopes.includes('financial:read') || scopes.includes('financial:*');
 
@@ -98,8 +111,17 @@ export function canUseMcpTool(toolName: string, scopes: string[]): boolean {
     : ENTITY_SCOPES[toolName.slice(`${operation[1]}_`.length)];
   if (!domain) return false;
 
-  const action = operation[1] === 'list' ? 'read' : 'write';
+  const action = operation[1] === 'list' ? 'read' : operation[1] === 'delete' ? 'delete' : 'write';
   return scopes.includes(`${domain}:${action}`) || scopes.includes(`${domain}:*`);
+}
+
+/** The model gateway is a separate capability from data/tool access. */
+export function canInvokeAi(scopes: string[]): boolean {
+  return scopes.includes('*') || scopes.includes('ai:invoke');
+}
+
+export function canPublishAgentHeartbeat(scopes: string[]): boolean {
+  return scopes.includes('*') || scopes.includes('agent:heartbeat');
 }
 
 export function scopeForMcpEntity(entity: string) {

@@ -11,6 +11,13 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 3. Recarregue uma rota pública afetada e confira um elemento ou comportamento exclusivo da mudança. Se possível, valide também os recursos da versão servida. Uma interface ainda antiga pode indicar que o deploy está pendente ou falhou.
 4. Só marque a release como publicada quando a nova versão for observável no site. Registre o commit conferido e a evidência funcional. A confirmação do site não revela o status interno nem os logs do build Hostinger.
 
+## Pós-deploy do Hermes MCP
+
+1. Cadastre duas credenciais em `MCP_API_KEYS`: uma com `ai:invoke` para `/api/ai/v1` e outra nomeada para `/api/mcp`, com os escopos mínimos necessários.
+2. Atualize o Hermes na VPS para usar as duas chaves separadamente e para enviar um heartbeat autenticado a `/api/hermes/heartbeat` a cada cinco minutos.
+3. Execute `MCP_URL=https://lifesystem.oj0nny.com/api/mcp MCP_API_KEY=<chave-hermes-mcp> npm run mcp:smoke` na VPS. Não imprima a chave nem registros pessoais.
+4. Abra `/hermes` autenticado e confirme a identidade da chave, a última chamada de ferramenta e o heartbeat. Só então a conexão VPS → produção está comprovada.
+
 ## Diagnóstico
 
 - Se `main` não contém o commit, investigue Git antes da hospedagem.

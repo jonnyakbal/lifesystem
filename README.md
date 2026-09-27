@@ -124,7 +124,8 @@ Um `401` do conector Hostinger no Codex indica que ele não pode consultar o hPa
 |---|---|---|
 | `AUTH_USER` | ✅ (produção) | Credencial de login |
 | `AUTH_PASSWORD` | ✅ (produção) | Senha de login |
-| `MCP_API_KEY` | ✅ (MCP) | Token pra agentes de IA |
+| `MCP_API_KEYS` | ✅ (Hermes/MCP) | JSON de credenciais nomeadas e escopadas para agentes |
+| `MCP_API_KEY` | ❌ (migração) | Chave ampla legada; substitua por credenciais escopadas |
 | `NOUS_API_KEY` | ❌ | Chave API Nous Research |
 | `LIFESYSTEM_DATA_DIR` | ✅ (produção) | Diretório persistente fora da pasta do deploy |
 | `GOOGLE_CALENDAR_CLIENT_ID` | ❌ | Cliente OAuth Web do Google Agenda |
@@ -145,11 +146,12 @@ Um `401` do conector Hostinger no Codex indica que ele não pode consultar o hPa
 - Log entries: list, create, update, delete
 - Editais: list, create, update, delete
 - Financeiro: lançamentos, contas, orçamentos, cartões, favorecidos, faturas, metas e resumo mensal
-- Google Agenda: criação direta de eventos com `calendar:write`; `/planejar` também mostra eventos da semana após conexão OAuth
+- Ações de produto: conversão idempotente de capturas e planejamento/remover/adotar blocos de tarefas
+- Google Agenda: leitura de eventos, eventos gerenciados e blocos de tarefas espelhados; a criação solta antiga só permanece para `calendar:legacy`
 
 **Autenticação:** `Authorization: Bearer <token>` (separado do login web)
 
-Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-leitura","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","financial:read"]}]`. Escopos seguem `domínio:read` ou `domínio:write`; `domínio:*` permite ambos. Use um `id` exclusivo para o Hermes: ele aparece no histórico de chamadas sem expor a chave e permite distinguir o agente de outros clientes. A chave existente em `MCP_API_KEY` permanece compatível e mantém acesso amplo até a migração do cliente; chamadas com essa chave aparecem como `legacy` e não identificam a origem.
+Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-mcp","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","tasks:plan","captures:convert","calendar:read","calendar:write","agent:heartbeat"]},{"id":"hermes-ai","key":"outro-segredo-com-32-caracteres-ou-mais","scopes":["ai:invoke"]}]`. Além de `domínio:read`, `domínio:write`, `domínio:delete` e `domínio:*`, há `captures:convert`, `tasks:plan`, `calendar:read`, `ai:invoke` e `agent:heartbeat`. Exclusões exigem o escopo explícito `domínio:delete`. Use identidades distintas para ferramentas e inferência. A chave legada `MCP_API_KEY` permanece compatível somente durante a migração e aparece como `legacy` no histórico.
 
 ### Google Agenda
 
@@ -164,10 +166,11 @@ Esta entrega suporta um bloco por tarefa na agenda principal. Espelhamento de fi
 O LIFESYSTEM concentra a conexão OAuth e cifra o token no diretório de dados. Configure as três variáveis `GOOGLE_CALENDAR_*`, habilite a Google Calendar API e cadastre `https://SEU_DOMINIO/api/google-calendar/callback` como URI de redirecionamento no Google Cloud. Depois, acesse `/api/google-calendar/connect` uma vez para autorizar a conta. Clientes MCP que precisem criar eventos devem receber somente o escopo `calendar:write`; o token Google nunca é exposto pelo MCP.
 
 **Para conectar o Hermes Agent:**
-1. Configure um MCP server apontando pra `https://lifesystem.oj0nny.com/api/mcp`
-2. Use uma chave de `MCP_API_KEYS` com os escopos necessários como Bearer token; a chave legada `MCP_API_KEY` continua aceita, mas dá acesso amplo
-3. Teste o mesmo endpoint e a mesma chave do agente com `MCP_URL` e `MCP_API_KEY` no ambiente e `npm run mcp:smoke`. O teste executa o handshake, descobre as ferramentas e chama `list_tasks` quando permitido, sem imprimir os dados
-4. Confirme a chamada em `/hermes`: configuração no servidor e tráfego real são estados distintos
+1. Configure o MCP do Hermes em `https://lifesystem.oj0nny.com/api/mcp` com a chave `hermes-mcp`.
+2. Configure o endpoint OpenAI compatível em `https://lifesystem.oj0nny.com/api/ai/v1` com a chave `hermes-ai`. Ela só possui `ai:invoke` e não acessa ferramentas.
+3. Faça o Hermes enviar `POST /api/hermes/heartbeat` a cada cinco minutos com a chave `hermes-mcp`, status, versão e ferramentas detectadas.
+4. Execute `npm run mcp:smoke` na própria VPS com a URL e chave reais do Hermes. O teste faz handshake e uma leitura permitida sem imprimir dados.
+5. Confirme no `/hermes` a chamada MCP e o heartbeat nomeado. Configuração, atividade e saúde da VPS são sinais distintos.
 
 ## Storage Layer
 

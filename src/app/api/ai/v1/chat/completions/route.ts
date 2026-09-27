@@ -17,20 +17,27 @@
 // and errors — but doesn't care whether the content arrives in one chunk or
 // many, so this satisfies it without a real token-by-token pipe.
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeStringEqual } from '@/lib/auth';
 import { chatCompletion, type ChatMessage, type ChatTool } from '@/lib/ai';
+import { authorizeMcpToken, canInvokeAi } from '@/lib/mcp/auth';
+import { consumeRateLimit } from '@/lib/rate-limit';
 
 function unauthorized() {
   return NextResponse.json({ error: { message: 'Unauthorized', type: 'invalid_request_error' } }, { status: 401 });
 }
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.MCP_API_KEY;
-  if (!apiKey) return unauthorized();
-
   const auth = request.headers.get('authorization') || '';
   const presented = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!presented || !timingSafeStringEqual(presented, apiKey)) return unauthorized();
+  const authorization = presented ? authorizeMcpToken(presented) : null;
+  if (!authorization || !canInvokeAi(authorization.scopes)) return unauthorized();
+
+  const rateLimit = consumeRateLimit(`ai:${authorization.keyId}`, 30, 60 * 1000);
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: { message: 'Muitas solicitações de IA. Tente novamente em instantes.', type: 'rate_limit_error' } },
+      { status: 429, headers: { 'Retry-After': String(rateLimit.retryAfterSeconds) } },
+    );
+  }
 
   let body: {
     model?: string;

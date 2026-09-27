@@ -8,7 +8,7 @@ import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 // /api/mcp does its own Bearer-token auth (see src/app/api/mcp/route.ts) —
 // it's called by external agents with no browser session, so the cookie
 // gate below doesn't apply to it.
-const PUBLIC_PATHS = ['/login', '/privacidade', '/termos', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions', '/api/ai/v1/models'];
+const PUBLIC_PATHS = ['/login', '/privacidade', '/termos', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions', '/api/ai/v1/models', '/api/hermes/heartbeat'];
 
 export async function proxy(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
@@ -16,7 +16,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const { pathname } = request.nextUrl;
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && pathname !== '/api/mcp') {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && !['/api/mcp', '/api/hermes/heartbeat'].includes(pathname)) {
     const origin = request.headers.get('origin');
     if (origin) {
       // request.nextUrl.origin is built from the Host header Next.js sees

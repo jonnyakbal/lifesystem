@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { authorizeMcpToken, canUseMcpTool, getMcpConfigurationStatus, parseMcpKeyConfigurations } from '../src/lib/mcp/auth';
+import { authorizeMcpToken, canInvokeAi, canUseMcpTool, getMcpConfigurationStatus, parseMcpKeyConfigurations } from '../src/lib/mcp/auth';
 
 const scopedKey = 'test-mcp-key-that-is-long-enough-123456';
 const configured = JSON.stringify([{ id: 'hermes-readonly', key: scopedKey, scopes: ['tasks:read', 'financial:read'] }]);
@@ -17,7 +17,8 @@ test.describe('MCP key scopes', () => {
     expect(canUseMcpTool('create_task', ['tasks:read'])).toBe(false);
     expect(canUseMcpTool('get_financial_summary', ['financial:read'])).toBe(true);
     expect(canUseMcpTool('create_financial_entry', ['financial:read'])).toBe(false);
-    expect(canUseMcpTool('create_calendar_event', ['calendar:write'])).toBe(true);
+    expect(canUseMcpTool('create_calendar_event', ['calendar:write'])).toBe(false);
+    expect(canUseMcpTool('create_managed_calendar_event', ['calendar:write'])).toBe(true);
     expect(canUseMcpTool('create_calendar_event', ['calendar:read'])).toBe(false);
   });
 
@@ -32,6 +33,18 @@ test.describe('MCP key scopes', () => {
   test('does not permit unknown tools through scoped credentials', () => {
     expect(canUseMcpTool('delete_everything', ['tasks:write'])).toBe(false);
     expect(canUseMcpTool('get_vision', ['tasks:read'])).toBe(false);
+  });
+
+  test('keeps inference access separate from MCP data tools', () => {
+    expect(canInvokeAi(['ai:invoke'])).toBe(true);
+    expect(canUseMcpTool('list_tasks', ['ai:invoke'])).toBe(false);
+    expect(canInvokeAi(['tasks:read'])).toBe(false);
+    expect(canInvokeAi(['*'])).toBe(true);
+  });
+
+  test('requires an explicit delete capability for irreversible tools', () => {
+    expect(canUseMcpTool('delete_task', ['tasks:write'])).toBe(false);
+    expect(canUseMcpTool('delete_task', ['tasks:delete'])).toBe(true);
   });
 
   test('reports a valid scoped credential as configured without a legacy key', () => {

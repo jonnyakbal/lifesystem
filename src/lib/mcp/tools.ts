@@ -14,9 +14,11 @@ import { todayStr } from '@/lib/utils';
 import { storage } from '@/lib/storage';
 import { runMcpToolWithAudit } from './audit';
 import { canUseMcpTool } from './auth';
-import { createGoogleCalendarEvent } from '@/lib/google-calendar';
+import { createGoogleCalendarEvent, createManagedMcpEventId, listGoogleCalendarEvents, removeManagedMcpCalendarEvent, syncManagedMcpCalendarEvent } from '@/lib/google-calendar';
 import { accountSchema, billItemSchema, billSchema, budgetSchema, cardSchema, financialEntrySchema, financialEntryUpdateSchema, financialGoalSchema, payeeSchema } from '@/lib/financial-validation';
 import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
+import { adoptTaskCalendarEventAction, convertCaptureAction, convertCaptureActionSchema, planTaskBlockAction, removeTaskBlockAction, taskPlanningActionSchema } from './actions';
+import { idempotencyKeySchema, runMcpIdempotent } from './receipts';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -48,6 +50,7 @@ interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRa
   validateUpdate?: (fields: Record<string, unknown>) => Record<string, unknown> | Promise<Record<string, unknown>>;
   allowCreate?: boolean;
   allowDelete?: boolean;
+  idempotentCreate?: boolean;
 }
 
 function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRawShape>(
@@ -60,9 +63,11 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
   const allowCreate = config.allowCreate ?? true;
   const allowDelete = config.allowDelete ?? true;
 
-  const filterShape: z.ZodRawShape = Object.fromEntries(
-    listFilters.map((key) => [String(key), z.string().optional().describe(`Filtrar por ${String(key)}`)])
-  );
+  const filterShape: z.ZodRawShape = {
+    ...Object.fromEntries(listFilters.map((key) => [String(key), z.string().optional().describe(`Filtrar por ${String(key)}`)])),
+    limit: z.number().int().min(1).max(100).optional().describe('Itens por página; padrão 50, máximo 100.'),
+    cursor: z.string().regex(/^\d+$/).optional().describe('Cursor da página seguinte retornado pelo LIFESYSTEM.'),
+  };
 
   if (canUseMcpTool(`list_${plural}`, scopes)) server.registerTool(
     `list_${plural}`,
@@ -81,7 +86,13 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       const items = Object.keys(filters).length > 0
         ? await storage.query(collection, filters)
         : await storage.getAll(collection);
-      return textResult(items);
+      const limit = input?.limit || 50;
+      const offset = Number(input?.cursor || 0);
+      const page = items.slice(offset, offset + limit);
+      return textResult({
+        items: page,
+        ...(offset + page.length < items.length ? { nextCursor: String(offset + page.length) } : {}),
+      });
     }, clientId)
   );
 
@@ -94,15 +105,22 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       {
         title: `Criar ${entity}`,
         description: `Cria um novo item em ${plural} no LIFESYSTEM.`,
-        inputSchema: createShapeConcrete,
+        inputSchema: config.idempotentCreate
+          ? { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.optional().describe('Chave estável para tornar uma nova tentativa segura.') }
+          : createShapeConcrete,
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logged(`create_${entity}`, async (rawInput: any) => {
         try {
-          const input = rawInput as z.infer<z.ZodObject<TCreate>>;
+          const { idempotencyKey, ...fields } = rawInput as { idempotencyKey?: string } & z.infer<z.ZodObject<TCreate>>;
+          const input = fields as z.infer<z.ZodObject<TCreate>>;
           const payload = buildCreatePayload(input);
-          const created = await storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
-          return textResult(created);
+          const create = () => storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
+          if (config.idempotentCreate && idempotencyKey) {
+            const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, create);
+            return textResult({ ...outcome.result, replayed: outcome.replayed });
+          }
+          return textResult(await create());
         } catch (err) {
           return errorResult(err instanceof Error ? err.message : 'Erro ao criar item.');
         }
@@ -192,6 +210,42 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     }),
     validateUpdate: async (fields) => prepareTaskUpdate(taskUpdateSchema.parse(fields)),
   }, scopes, clientId);
+
+  if (canUseMcpTool('convert_capture', scopes)) server.registerTool('convert_capture', {
+    title: 'Converter uma captura',
+    description: 'Converte uma captura do INBOX de forma idempotente em nota, tarefa, conteúdo, lançamento financeiro, evento, projeto ou edital.',
+    inputSchema: convertCaptureActionSchema.shape,
+  }, logged('convert_capture', async (input: unknown) => {
+    try { return textResult(await convertCaptureAction(input)); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível converter a captura.'); }
+  }, clientId));
+
+  if (canUseMcpTool('plan_task_block', scopes)) server.registerTool('plan_task_block', {
+    title: 'Planejar bloco de uma tarefa',
+    description: 'Reserva um dia ou bloco de foco para uma tarefa e, quando solicitado, espelha o bloco no Google Agenda conectado.',
+    inputSchema: taskPlanningActionSchema.shape,
+  }, logged('plan_task_block', async (input: unknown) => {
+    try { return textResult(await planTaskBlockAction(input)); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível planejar a tarefa.'); }
+  }, clientId));
+
+  if (canUseMcpTool('remove_task_block', scopes)) server.registerTool('remove_task_block', {
+    title: 'Remover bloco de uma tarefa',
+    description: 'Remove o bloco de planejamento e o evento Google gerenciado vinculado à tarefa.',
+    inputSchema: { taskId: z.string().min(1) },
+  }, logged('remove_task_block', async ({ taskId }: { taskId: string }) => {
+    try { return textResult(await removeTaskBlockAction(taskId)); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível remover o bloco.'); }
+  }, clientId));
+
+  if (canUseMcpTool('adopt_task_calendar_event', scopes)) server.registerTool('adopt_task_calendar_event', {
+    title: 'Adotar alteração externa do evento',
+    description: 'Lê o evento Google gerenciado e incorpora horário e título alterados fora do LIFESYSTEM.',
+    inputSchema: { taskId: z.string().min(1) },
+  }, logged('adopt_task_calendar_event', async ({ taskId }: { taskId: string }) => {
+    try { return textResult(await adoptTaskCalendarEventAction(taskId)); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível adotar o evento.'); }
+  }, clientId));
 
   // Content — mirrors src/app/api/content/route.ts POST body.
   registerCrudTools(server, {
@@ -452,6 +506,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     buildCreatePayload: (input) => ({ ...input, tags: input.tags || [], status: input.status || 'pending' }),
     validateCreate: payload => financialEntrySchema.parse(payload),
     validateUpdate: fields => financialEntryUpdateSchema.parse(fields),
+    idempotentCreate: true,
   }, scopes, clientId);
 
   registerCrudTools(server, {
@@ -536,13 +591,64 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     inputSchema: {
       title: z.string().min(1).describe('Título do evento'),
       description: z.string().optional().describe('Descrição do evento'),
-      start: z.string().datetime().describe('Início em ISO 8601, com fuso horário'),
-      end: z.string().datetime().describe('Fim em ISO 8601, com fuso horário'),
+      start: z.string().datetime({ offset: true }).describe('Início em ISO 8601, com fuso horário'),
+      end: z.string().datetime({ offset: true }).describe('Fim em ISO 8601, com fuso horário'),
       timeZone: z.string().optional().describe('Ex.: America/Sao_Paulo'),
     },
   }, logged('create_calendar_event', async (input: { title: string; description?: string; start: string; end: string; timeZone?: string }) => {
     try { return textResult(await createGoogleCalendarEvent(input)); }
     catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível criar o evento.'); }
+  }, clientId));
+
+  if (canUseMcpTool('list_calendar_events', scopes)) server.registerTool('list_calendar_events', {
+    title: 'Listar eventos do Google Agenda',
+    description: 'Lê eventos no intervalo solicitado para consultar agenda e disponibilidade. Não altera o Google Agenda.',
+    inputSchema: { from: z.string().datetime({ offset: true }), to: z.string().datetime({ offset: true }) },
+  }, logged('list_calendar_events', async ({ from, to }: { from: string; to: string }) => {
+    try { return textResult(await listGoogleCalendarEvents(from, to)); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível ler a agenda.'); }
+  }, clientId));
+
+  const managedCalendarInput = {
+    title: z.string().trim().min(1).max(300),
+    description: z.string().max(10_000).optional(),
+    start: z.string().datetime({ offset: true }),
+    end: z.string().datetime({ offset: true }),
+    timeZone: z.string().min(1).max(100).default('America/Sao_Paulo'),
+  };
+  if (canUseMcpTool('create_managed_calendar_event', scopes)) server.registerTool('create_managed_calendar_event', {
+    title: 'Criar evento gerenciado no Google Agenda',
+    description: 'Cria um evento identificado pelo LIFESYSTEM. Informe uma chave de idempotência estável para evitar duplicidade em novas tentativas.',
+    inputSchema: { ...managedCalendarInput, idempotencyKey: idempotencyKeySchema },
+  }, logged('create_managed_calendar_event', async (input: { title: string; description?: string; start: string; end: string; timeZone: string; idempotencyKey: string }) => {
+    try {
+      const outcome = await runMcpIdempotent(clientId || 'legacy', 'calendar.create', input.idempotencyKey, async () => {
+        const eventId = createManagedMcpEventId(clientId || 'legacy', input.idempotencyKey);
+        const event = await syncManagedMcpCalendarEvent({ ...input, eventId, clientId: clientId || 'legacy' });
+        return { id: event.id, eventId, url: event.htmlLink?.startsWith('https://') ? event.htmlLink : undefined };
+      });
+      return textResult({ ...outcome.result, replayed: outcome.replayed });
+    } catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível criar o evento.'); }
+  }, clientId));
+
+  if (canUseMcpTool('update_managed_calendar_event', scopes)) server.registerTool('update_managed_calendar_event', {
+    title: 'Atualizar evento gerenciado no Google Agenda',
+    description: 'Atualiza somente um evento criado e identificado pelo LIFESYSTEM MCP.',
+    inputSchema: { eventId: z.string().regex(/^[a-f0-9]{32}$/), ...managedCalendarInput },
+  }, logged('update_managed_calendar_event', async ({ eventId, ...input }: { eventId: string; title: string; description?: string; start: string; end: string; timeZone: string }) => {
+    try {
+      const event = await syncManagedMcpCalendarEvent({ eventId, ...input, clientId: clientId || 'legacy' });
+      return textResult({ id: event.id, eventId, url: event.htmlLink?.startsWith('https://') ? event.htmlLink : undefined });
+    } catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível atualizar o evento.'); }
+  }, clientId));
+
+  if (canUseMcpTool('cancel_managed_calendar_event', scopes)) server.registerTool('cancel_managed_calendar_event', {
+    title: 'Cancelar evento gerenciado no Google Agenda',
+    description: 'Cancela somente um evento criado e identificado pelo LIFESYSTEM MCP.',
+    inputSchema: { eventId: z.string().regex(/^[a-f0-9]{32}$/) },
+  }, logged('cancel_managed_calendar_event', async ({ eventId }: { eventId: string }) => {
+    try { await removeManagedMcpCalendarEvent(eventId, clientId || 'legacy'); return textResult({ success: true, eventId }); }
+    catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível cancelar o evento.'); }
   }, clientId));
 
   // ─── Content Hub (Central de Fontes) ──────────────────────────────────────

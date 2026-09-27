@@ -4,15 +4,13 @@
 // The actual model used per request is chosen by the fallback chain in
 // src/lib/ai.ts, not by this list — see /api/ai/v1/chat/completions.
 import { NextRequest, NextResponse } from 'next/server';
-import { timingSafeStringEqual } from '@/lib/auth';
+import { authorizeMcpToken, canInvokeAi } from '@/lib/mcp/auth';
 
 export async function GET(request: NextRequest) {
-  const apiKey = process.env.MCP_API_KEY;
-  if (!apiKey) return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
-
   const auth = request.headers.get('authorization') || '';
   const presented = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-  if (!presented || !timingSafeStringEqual(presented, apiKey)) {
+  const authorization = presented ? authorizeMcpToken(presented) : null;
+  if (!authorization || !canInvokeAi(authorization.scopes)) {
     return NextResponse.json({ error: { message: 'Unauthorized' } }, { status: 401 });
   }
 

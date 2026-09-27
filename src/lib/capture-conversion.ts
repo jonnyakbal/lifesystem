@@ -7,7 +7,7 @@ import type { Capture } from '@/types';
 export const captureConversionSchema = z.object({
   targetType: z.enum(['note', 'task', 'content', 'financial', 'event', 'project', 'edital']),
   financial: financialEntrySchema.optional(),
-  event: z.object({ start: z.string().datetime(), end: z.string().datetime(), timeZone: z.string().optional() }).optional(),
+  event: z.object({ start: z.string().datetime({ offset: true }), end: z.string().datetime({ offset: true }), timeZone: z.string().optional() }).optional(),
 });
 
 

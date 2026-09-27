@@ -36,6 +36,14 @@ async function handle(request: NextRequest): Promise<Response> {
     return Response.json({ error: 'Não autorizado.' }, { status: 401 });
   }
 
+  const clientLimit = consumeRateLimit(`mcp-client:${authorization.keyId}`, MCP_REQUEST_LIMIT, MCP_WINDOW_MS);
+  if (!clientLimit.allowed) {
+    return Response.json(
+      { error: 'Muitas solicitações desta credencial MCP. Tente novamente em instantes.' },
+      { status: 429, headers: { 'Retry-After': String(clientLimit.retryAfterSeconds) } },
+    );
+  }
+
   const transport = new WebStandardStreamableHTTPServerTransport({ enableJsonResponse: true });
   const server = createLifesystemMcpServer(authorization.scopes, authorization.keyId);
   await server.connect(transport);

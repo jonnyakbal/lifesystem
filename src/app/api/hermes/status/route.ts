@@ -6,6 +6,7 @@ import { googleCalendarConfigured } from '@/lib/google-calendar';
 import { getMcpConfigurationStatus } from '@/lib/mcp/auth';
 import { storage } from '@/lib/storage';
 import type { McpCallLog } from '@/lib/mcp/log';
+import { getLatestMcpHeartbeat } from '@/lib/mcp/heartbeat';
 
 export async function GET() {
   const configuration = getMcpConfigurationStatus();
@@ -14,6 +15,7 @@ export async function GET() {
   let lastSuccessAt: string | null = null;
   let recentFailures = 0;
   let auditAvailable = true;
+  let heartbeat = null;
   try {
     const logs = (await storage.getAll<McpCallLog>('mcp-logs'))
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -24,6 +26,7 @@ export async function GET() {
   } catch {
     auditAvailable = false;
   }
+  try { heartbeat = await getLatestMcpHeartbeat(); } catch { /* status remains available without heartbeat */ }
   return NextResponse.json({
     mcpConfigured: configuration.configured,
     mcpMode: configuration.mode,
@@ -33,6 +36,7 @@ export async function GET() {
     lastSuccessAt,
     recentFailures,
     auditAvailable,
+    heartbeat,
     nousConfigured: Boolean(process.env.NOUS_API_KEY),
     googleCalendarConfigured: googleCalendarConfigured(),
   });

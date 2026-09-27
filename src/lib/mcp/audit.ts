@@ -1,7 +1,8 @@
 import { logMcpCall } from './log';
+import { randomUUID } from 'node:crypto';
 
 type ToolResult = { isError?: boolean; content: { type: 'text'; text: string }[] };
-type AuditWriter = (tool: string, success: boolean, error?: string, clientId?: string) => Promise<void>;
+type AuditWriter = (tool: string, success: boolean, error?: string, clientId?: string, meta?: { requestId: string; durationMs: number }) => Promise<void>;
 
 /** Audit is observability, so its availability must never change the tool result. */
 export async function runMcpToolWithAudit<T extends ToolResult>(
@@ -10,9 +11,11 @@ export async function runMcpToolWithAudit<T extends ToolResult>(
   record: AuditWriter = logMcpCall,
   clientId?: string,
 ): Promise<T> {
+  const requestId = randomUUID();
+  const startedAt = Date.now();
   async function write(success: boolean, error?: string) {
     try {
-      await record(tool, success, error, clientId);
+      await record(tool, success, error, clientId, { requestId, durationMs: Date.now() - startedAt });
     } catch {
       console.error(`MCP audit unavailable for ${tool}`);
     }

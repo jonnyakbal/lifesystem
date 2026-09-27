@@ -150,7 +150,7 @@ export function signGoogleState(nonce: string) { return createHash('sha256').upd
 type ManagedEvent = {
   id: string; etag: string; htmlLink?: string; status?: string; summary?: string; description?: string;
   start?: { dateTime?: string }; end?: { dateTime?: string };
-  extendedProperties?: { private?: { lifesystemTaskId?: string } };
+  extendedProperties?: { private?: { lifesystemTaskId?: string; lifesystemMcpEventId?: string; lifesystemMcpClientId?: string } };
 };
 
 async function managedRequest(eventId: string, options?: RequestInit) {
@@ -163,6 +163,59 @@ async function managedRequest(eventId: string, options?: RequestInit) {
 function assertManaged(event: ManagedEvent, taskId: string) {
   if (event.status === 'cancelled') throw new GoogleCalendarError('O evento foi removido no Google. Revise a agenda antes de sincronizar.');
   if (event.extendedProperties?.private?.lifesystemTaskId !== taskId) throw new GoogleCalendarError('O evento não pertence a esta tarefa. A agenda não foi alterada.');
+}
+
+export function createManagedMcpEventId(clientId: string, idempotencyKey: string) {
+  return createHash('sha256').update(`lifesystem:mcp:${clientId}:${idempotencyKey}`).digest('hex').slice(0, 32);
+}
+
+function assertMcpManaged(event: ManagedEvent, eventId: string, clientId: string) {
+  if (event.status === 'cancelled') throw new GoogleCalendarError('O evento foi removido no Google.');
+  if (event.extendedProperties?.private?.lifesystemMcpEventId !== eventId) {
+    throw new GoogleCalendarError('O evento não pertence ao LIFESYSTEM MCP. A agenda não foi alterada.');
+  }
+  if (event.extendedProperties?.private?.lifesystemMcpClientId !== clientId) {
+    throw new GoogleCalendarError('O evento pertence a outra credencial MCP. A agenda não foi alterada.');
+  }
+}
+
+export async function syncManagedMcpCalendarEvent(input: { eventId: string; clientId: string; title: string; description?: string; start: string; end: string; timeZone: string }) {
+  const start = new Date(input.start); const end = new Date(input.end);
+  if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || end <= start) throw new GoogleCalendarError('Informe início e fim válidos para o evento.');
+  const body = {
+    summary: input.title,
+    description: input.description || '',
+    start: { dateTime: input.start, timeZone: input.timeZone },
+    end: { dateTime: input.end, timeZone: input.timeZone },
+    extendedProperties: { private: { lifesystemMcpEventId: input.eventId, lifesystemMcpClientId: input.clientId } },
+  };
+  const current = await managedRequest(input.eventId);
+  let response: Response;
+  if (current.ok) {
+    const event = await current.json() as ManagedEvent;
+    assertMcpManaged(event, input.eventId, input.clientId);
+    if (event.summary === body.summary && (event.description || '') === body.description &&
+      Date.parse(event.start?.dateTime || '') === Date.parse(input.start) && Date.parse(event.end?.dateTime || '') === Date.parse(input.end)) return event;
+    response = await managedRequest(input.eventId, { method: 'PATCH', headers: { 'If-Match': event.etag }, body: JSON.stringify(body) });
+  } else if (current.status === 404 || current.status === 410) {
+    response = await fetch(GOOGLE_EVENTS_URL, {
+      method: 'POST', signal: AbortSignal.timeout(15000),
+      headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: input.eventId, ...body }),
+    });
+  } else throw new GoogleCalendarError('Não foi possível consultar o Google Agenda.');
+  if (!response.ok) throw new GoogleCalendarError('Não foi possível salvar o evento no Google Agenda.');
+  return await response.json() as ManagedEvent;
+}
+
+export async function removeManagedMcpCalendarEvent(eventId: string, clientId: string) {
+  const current = await managedRequest(eventId);
+  if (current.status === 404 || current.status === 410) return;
+  if (!current.ok) throw new GoogleCalendarError('Não foi possível consultar o Google Agenda.');
+  const event = await current.json() as ManagedEvent;
+  assertMcpManaged(event, eventId, clientId);
+  const response = await managedRequest(eventId, { method: 'DELETE', headers: { 'If-Match': event.etag } });
+  if (!response.ok && response.status !== 404 && response.status !== 410) throw new GoogleCalendarError('Não foi possível remover o evento no Google Agenda.');
 }
 
 export async function syncManagedTaskEvent(input: { taskId: string; eventId: string; etag?: string; title: string; startAt: string; endAt: string; timeZone: string; lastAttempt?: { title: string; startAt: string; endAt: string; description: string | null }; beforeWrite?: (description: string | null) => Promise<void> }) {

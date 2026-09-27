@@ -57,7 +57,7 @@ test('MCP audit identifies the scoped client', async () => {
 });
 
 test('MCP task completion follows the same domain rule as the web API', async () => {
-  const server = createLifesystemMcpServer(['tasks:write']);
+  const server = createLifesystemMcpServer(['tasks:write', 'tasks:delete']);
   const client = new Client({ name: 'task-domain-test', version: '1.0.0' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   let taskId: string | undefined;
@@ -82,7 +82,7 @@ test('MCP task completion follows the same domain rule as the web API', async ()
 });
 
 test('MCP financial mutations reject a date invalid in the web API', async () => {
-  const server = createLifesystemMcpServer(['financial:write']);
+  const server = createLifesystemMcpServer(['financial:write', 'financial:delete']);
   const client = new Client({ name: 'finance-domain-test', version: '1.0.0' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   try {
@@ -122,6 +122,80 @@ test('MCP financial tools share card validation and preserve bill installments',
     expect(bill.items[0].installments).toEqual({ current: 1, total: 2 });
   } finally {
     if (billId) await client.callTool({ name: 'delete_bill', arguments: { id: billId } });
+    await client.close();
+    await server.close();
+  }
+});
+
+test('MCP exposes bounded reads and delegates capture conversion and task planning to product engines', async () => {
+  const server = createLifesystemMcpServer(['tasks:read', 'tasks:plan', 'captures:convert']);
+  const client = new Client({ name: 'planning-actions-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    const capture = await storage.create<{ id: string; content: string; type: 'text'; status: 'inbox'; title: string }> ('captures', {
+      content: 'Preparar roteiro', type: 'text', status: 'inbox', title: 'Roteiro',
+    });
+    const task = await storage.create<{ id: string; title: string; status: string; priority: 'normal'; sortOrder: number; tags: string[]; checklist: unknown[] }> ('tasks', {
+      title: 'Reservar foco', status: 'todo', priority: 'normal', sortOrder: 0, tags: [], checklist: [],
+    });
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+
+    const tools = (await client.listTools()).tools.map(tool => tool.name);
+    expect(tools).toContain('convert_capture');
+    expect(tools).toContain('plan_task_block');
+    expect(tools).not.toContain('delete_task');
+
+    const converted = await client.callTool({ name: 'convert_capture', arguments: { captureId: capture.id, targetType: 'task' } });
+    expect(converted.isError).toBeFalsy();
+    expect(JSON.parse((converted.content as { text: string }[])[0].text)).toMatchObject({ targetType: 'task' });
+
+    const planned = await client.callTool({ name: 'plan_task_block', arguments: {
+      taskId: task.id, date: '2026-10-01', timeZone: 'America/Sao_Paulo', syncToGoogle: false,
+    } });
+    expect(planned.isError).toBeFalsy();
+    expect(JSON.parse((planned.content as { text: string }[])[0].text).planning).toMatchObject({ date: '2026-10-01', syncState: 'local' });
+
+    const listed = await client.callTool({ name: 'list_tasks', arguments: { limit: 1 } });
+    const page = JSON.parse((listed.content as { text: string }[])[0].text);
+    expect(page.items).toHaveLength(1);
+    expect(page.nextCursor).toEqual(expect.any(String));
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test('calendar scopes expose only the intended read and managed lifecycle tools', async () => {
+  const server = createLifesystemMcpServer(['calendar:read']);
+  const client = new Client({ name: 'calendar-scope-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const tools = (await client.listTools()).tools.map(tool => tool.name);
+    expect(tools).toEqual(['list_calendar_events']);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test('financial idempotency key replays one created entry', async () => {
+  const server = createLifesystemMcpServer(['financial:write'], 'hermes-finance');
+  const client = new Client({ name: 'financial-idempotency-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const args = { type: 'expense_variable', category: 'Teste', amount: 25, date: '2026-10-01', idempotencyKey: 'finance-2026-10-01-001' };
+    const first = await client.callTool({ name: 'create_financial_entry', arguments: args });
+    const second = await client.callTool({ name: 'create_financial_entry', arguments: args });
+    const one = JSON.parse((first.content as { text: string }[])[0].text);
+    const replay = JSON.parse((second.content as { text: string }[])[0].text);
+    expect(replay.id).toBe(one.id);
+    expect(replay.replayed).toBe(true);
+  } finally {
     await client.close();
     await server.close();
   }

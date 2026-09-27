@@ -27,6 +27,7 @@ interface HermesStatus {
   lastSuccessAt: string | null;
   recentFailures: number;
   auditAvailable: boolean;
+  heartbeat: { clientId: string; status: 'online' | 'degraded'; version?: string; lastSeenAt: string } | null;
   nousConfigured: boolean;
 }
 interface McpCallLog { id: string; tool: string; clientId?: string; success: boolean; error?: string; createdAt: string; }
@@ -134,6 +135,11 @@ export default function HermesPage() {
                   <span className="text-xs text-muted-foreground">Credencial</span>
                   <p className="mt-1 font-medium">{status?.mcpConfigured ? `${status.mcpKeyCount} configurada${status.mcpKeyCount !== 1 ? 's' : ''}` : 'Não configurada'}</p>
                   <p className="mt-1 text-xs text-muted-foreground">{status?.mcpMode === 'scoped' ? 'Acesso por escopos' : status?.mcpMode === 'both' ? 'Legada e por escopos' : status?.mcpMode === 'legacy' ? 'Chave legada com acesso amplo' : 'Configure uma chave para o agente'}</p>
+                </div>
+                <div className="rounded-xl border bg-muted/20 p-3">
+                  <span className="text-xs text-muted-foreground">Hermes na VPS</span>
+                  <p className="mt-1 font-medium">{status?.heartbeat ? (status.heartbeat.status === 'online' ? 'Online' : 'Atenção') : 'Sem sinal'}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{status?.heartbeat ? `${status.heartbeat.clientId} · ${timeAgo(status.heartbeat.lastSeenAt)}${status.heartbeat.version ? ` · v${status.heartbeat.version}` : ''}` : 'O agente ainda não enviou heartbeat.'}</p>
                 </div>
                 <div className="rounded-xl border bg-muted/20 p-3">
                   <span className="text-xs text-muted-foreground">Última chamada recebida</span>

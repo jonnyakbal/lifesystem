@@ -10,14 +10,16 @@ export interface McpCallLog {
   clientId?: string;
   success: boolean;
   error?: string;
+  requestId?: string;
+  durationMs?: number;
   createdAt: string;
   updatedAt: string;
 }
 
 const MAX_LOGS = 200;
 
-export async function logMcpCall(tool: string, success: boolean, error?: string, clientId?: string): Promise<void> {
-  await storage.create<McpCallLog>('mcp-logs', { tool, success, error, clientId } as Omit<McpCallLog, 'id' | 'createdAt' | 'updatedAt'>);
+export async function logMcpCall(tool: string, success: boolean, error?: string, clientId?: string, meta?: { requestId: string; durationMs: number }): Promise<void> {
+  await storage.create<McpCallLog>('mcp-logs', { tool, success, error, clientId, ...meta } as Omit<McpCallLog, 'id' | 'createdAt' | 'updatedAt'>);
   const all = await storage.getAll<McpCallLog>('mcp-logs');
   if (all.length > MAX_LOGS) {
     const sorted = [...all].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
