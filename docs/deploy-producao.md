@@ -13,10 +13,11 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 ## Pós-deploy do Hermes MCP
 
-1. Cadastre duas credenciais em `MCP_API_KEYS`: uma com `ai:invoke` para `/api/ai/v1` e outra nomeada para `/api/mcp`, com os escopos mínimos necessários.
-2. Atualize o Hermes na VPS para usar as duas chaves separadamente e para enviar um heartbeat autenticado a `/api/hermes/heartbeat` a cada cinco minutos.
-3. Execute `MCP_URL=https://lifesystem.oj0nny.com/api/mcp MCP_API_KEY=<chave-hermes-mcp> npm run mcp:smoke` na VPS. Não imprima a chave nem registros pessoais.
-4. Abra `/hermes` autenticado e confirme a identidade da chave, a última chamada de ferramenta e o heartbeat. Só então a conexão VPS → produção está comprovada.
+1. No hPanel da hospedagem compartilhada do LIFESYSTEM, configure `MCP_API_KEYS` com três credenciais separadas: `hermes-mcp` com os escopos mínimos de ferramentas, `hermes-ai` somente com `ai:invoke` e `hermes-heartbeat` somente com `agent:heartbeat`. Não cadastre essas chaves na VPS.
+2. Na VPS do Hermes, salve as chaves MCP e IA como secrets separados. Salve a chave de heartbeat como `LIFESYSTEM_HEARTBEAT_KEY` e permita que esse nome passe para scripts do terminal em `terminal.env_passthrough`.
+3. Configure o cron nativo do Hermes para executar, a cada cinco minutos, o job script-only `lifesystem-heartbeat` (modo `no_agent`), apontando para `/opt/data/scripts/lifesystem-heartbeat.sh`. O script envia `POST https://lifesystem.oj0nny.com/api/hermes/heartbeat`; não coloque a chave no arquivo, no job ou em logs. Esse intervalo não chama o modelo.
+4. Valide a conexão pelo teste do servidor `lifesystem` no Hermes e confirme que as ferramentas MCP carregam. Dispare o cron uma vez e abra `/hermes` no LIFESYSTEM: deve aparecer o estado online com a identidade `hermes-heartbeat` e uma hora recente.
+5. Execute `MCP_URL=https://lifesystem.oj0nny.com/api/mcp MCP_API_KEY=<chave-hermes-mcp> npm run mcp:smoke` na VPS. Não imprima a chave nem registros pessoais.
 
 ## Diagnóstico
 
