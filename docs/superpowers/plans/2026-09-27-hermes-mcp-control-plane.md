@@ -31,9 +31,9 @@
 - Modify: `src/lib/mcp/auth.ts`, `src/app/api/ai/v1/chat/completions/route.ts`, `src/app/api/ai/v1/models/route.ts`, `src/app/api/mcp/route.ts`
 - Test: `tests/mcp-auth.spec.ts`, `tests/security-api.spec.ts`
 
-- [ ] Add `canInvokeAi()` and authenticate the inference endpoints with a scoped `ai:invoke` credential or the legacy compatibility key.
-- [ ] Use the named credential ID for rate-limit partitioning after authorization.
-- [ ] Add a failing test proving capability separation, then implement it and re-run the focused tests.
+- [x] Add `canInvokeAi()` and authenticate the inference endpoints with a scoped `ai:invoke` credential or the legacy compatibility key.
+- [x] Use the named credential ID for rate-limit partitioning after authorization.
+- [x] Add a failing test proving capability separation, then implement it and re-run the focused tests.
 
 ### Task 2: Domain actions and read bounds
 
@@ -42,9 +42,9 @@
 - Modify: `src/lib/mcp/tools.ts`, `src/lib/mcp/auth.ts`
 - Test: `tests/mcp-protocol.spec.ts`
 
-- [ ] Add `limit` and `cursor` to generated list tools with a maximum page size of 100.
-- [ ] Add conversion and planning actions that delegate to `convertCapture` and task-planning functions.
-- [ ] Validate a failing MCP protocol test for each action before implementation, then re-run it green.
+- [x] Add `limit` and `cursor` to generated list tools with a maximum page size of 100.
+- [x] Add conversion and planning actions that delegate to `convertCapture` and task-planning functions.
+- [x] Validate a failing MCP protocol test for each action before implementation, then re-run it green.
 
 ### Task 3: Managed calendar lifecycle and idempotency receipts
 
@@ -53,9 +53,9 @@
 - Modify: `src/lib/google-calendar.ts`, `src/lib/mcp/tools.ts`, `src/lib/mcp/auth.ts`
 - Test: `tests/mcp-protocol.spec.ts`, `tests/google-calendar.spec.ts`
 
-- [ ] Create idempotency receipt helpers with operation and client binding.
-- [ ] Add calendar read plus create/update/cancel operations that use LIFESYSTEM-managed event metadata.
-- [ ] Prove duplicate create returns the first receipt without a second network request.
+- [x] Create idempotency receipt helpers with operation and client binding.
+- [x] Add calendar read plus create/update/cancel operations that use LIFESYSTEM-managed event metadata.
+- [x] Prove duplicate create returns the first receipt without a second network request.
 
 ### Task 4: Operational audit and Hermes heartbeat
 
@@ -64,9 +64,9 @@
 - Modify: `src/lib/mcp/audit.ts`, `src/lib/mcp/log.ts`, `src/app/api/hermes/status/route.ts`, `src/app/(dashboard)/hermes/page.tsx`, `src/proxy.ts`
 - Test: `tests/mcp-reliability.spec.ts`, `tests/mcp-auth.spec.ts`
 
-- [ ] Add correlation ID and duration to audit data without storing request bodies.
-- [ ] Add authenticated heartbeat storage and surface the latest named-agent heartbeat in `/hermes`.
-- [ ] Prove an unauthorized heartbeat fails and an authorized heartbeat updates the status record.
+- [x] Add correlation ID and duration to audit data without storing request bodies.
+- [x] Add authenticated heartbeat storage and surface the latest named-agent heartbeat in `/hermes`.
+- [x] Prove an unauthorized heartbeat fails and an authorized heartbeat updates the status record.
 
 ### Task 5: Documentation, release validation and deployment
 
@@ -74,6 +74,10 @@
 - Modify: `README.md`, `docs/deploy-producao.md`
 - Test: full project test, lint and build
 
-- [ ] Document two Hermes credentials, least-privilege scopes, real VPS smoke verification and migration away from legacy access.
-- [ ] Run focused tests, then the full suite, lint and build.
-- [ ] Commit the implementation and push `main` so Hostinger’s native Git integration deploys it.
+- [x] Document Hermes credentials, least-privilege scopes, VPS smoke verification and migration away from legacy access.
+- [x] Run focused tests, the full suite, lint and build.
+- [x] Commit the implementation and push `main` so Hostinger’s native Git integration deploys it.
+
+## Conclusão
+
+Implementado em `d1dbe4d` e publicado em `main`. A CI da GitHub Actions passou no run #41; a conexão de produção foi verificada no painel `/hermes` em 28/09/2026.

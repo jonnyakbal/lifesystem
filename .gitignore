@@ -15,6 +15,11 @@
 /test-results/
 /playwright-report/
 
+# Local visual QA artifacts can contain personal calendar/finance data.
+/screenshots/
+/qa-screenshots/
+/.claude/
+
 # next.js
 /.next/
 /out/

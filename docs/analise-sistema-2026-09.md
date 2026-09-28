@@ -1,6 +1,6 @@
 # Análise completa do LIFESYSTEM — telas, UX, design e código
 
-*Data: 2026-09-17 · Escopo: 15 telas (desktop 1440px + mobile 390px), navegação, temas, arquitetura front, segurança e qualidade. Base: screenshots de `screenshots/astral-review/`, `qa-screenshots/` e leitura integral do código em `src/`.*
+*Data: 2026-09-17 · Escopo: 15 telas (desktop 1440px + mobile 390px), navegação, temas, arquitetura front, segurança e qualidade. Base: capturas locais de `screenshots/astral-review/` e `qa-screenshots/` (mantidas fora do Git por poderem conter dados pessoais) e leitura integral do código em `src/`.*
 
 ---
 
@@ -179,7 +179,7 @@ Correções aplicadas nesta rodada (branch `arena/01a0b176-lifesystem`):
 
 **Pendências desta análise (P0 de dados/privacidade e os itens P2 de infra):** seguem abertas — ver seções 2.1 (repo público — precisa de decisão do dono) e 4 (sessão rotativa, NavCountsProvider, testes de tema).
 
-*Nota de validação: os screenshots de `screenshots/astral-review/` foram tirados com o SO em light, o que mascarava o bug do dark:. Re-auditar dark/light com o toggle do app após o fix do `@custom-variant`.*
+*Nota de validação: as capturas locais de `screenshots/astral-review/` foram tiradas com o SO em light, o que mascarava o bug do dark:. Re-auditar dark/light com o toggle do app após o fix do `@custom-variant`. As capturas não são distribuídas no repositório.*
 
 ---
 

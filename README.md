@@ -3,19 +3,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CI](https://github.com/jonnyakbal/lifesystem/actions/workflows/ci.yml/badge.svg)](https://github.com/jonnyakbal/lifesystem/actions/workflows/ci.yml)
 
-Sistema pessoal de gestão da vida — "segundo cérebro" do Jonny.
+Sistema open source e auto-hospedado para organizar tarefas, projetos, conteúdo, finanças pessoais e calendário integrado.
 
-**ARCOLABS** — Ferramenta pessoal de uso diário, feita pra reduzir a carga cognitiva de gerir a vida num só lugar.
+**ARCOLABS** — Uma base modular para reduzir a carga cognitiva de gerir a vida num só lugar. Cada instalação é isolada; marca e módulos podem ser personalizados.
 
 ## O que é o LIFESYSTEM
 
-Um "segundo cérebro" pessoal — não um produto pra terceiros, é ferramenta de uso próprio, de uso diário, feita pra reduzir a carga cognitiva de gerir a vida num só lugar.
+O LIFESYSTEM é um espaço de planejamento e execução que pode ser adaptado para cada instalação. A configuração atual é single-user; o projeto não afirma oferecer multi-tenancy.
 
 **Princípios que guiaram as decisões de produto:**
 - **Captura rápida, processamento deliberado.** O INBOX existe pra tirar qualquer ideia da cabeça em segundos; a Revisão Semanal e o Wizard "Planejar" são os momentos deliberados de decidir o que aquilo vira.
-- **6 Pilares como eixo central.** Fé & Propósito, Físico/Corpo, Mente/Conhecimento, Profissional/Talentos, Dinheiro & Patrimônio, Comunidade.
+- **Pilares como eixo central.** A instalação vem com seis pilares de exemplo, que podem ser personalizados.
 - **BHAG em cima, indicadores operacionais embaixo.** Cada pilar tem uma meta grande de ano e metas menores/recorrentes.
-- **Single-user por design.** Não é multi-tenant, não tem plano de virar SaaS — é o sistema pessoal do Jonny.
+- **Privacidade por instalação.** Os dados ficam no ambiente auto-hospedado e não são compartilhados entre instalações.
 - **Mobile-first na prática, não só em CSS.** PWA instalável, bottom nav, ajuste de fontes.
 
 ## Stack

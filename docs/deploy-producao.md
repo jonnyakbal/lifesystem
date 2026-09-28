@@ -29,3 +29,11 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 ## Evidência confirmada
 
 O commit `9cdac5120742d0b1dc8058a3879c985cf23d18a7` foi confirmado em `origin/main`. Após o push, o Planejar público foi recarregado e mostrou o novo componente de agenda integrada, “Atualizar agenda” e os intervalos livres entre 08:00 e 20:00. Isso confirma a funcionalidade na aplicação pública. O estado interno e os logs de build da Hostinger não foram inspecionados nesta sessão.
+
+### Verificação mais recente — 28/09/2026
+
+- `origin/main` está em `0cbe179`; a última mudança de aplicação é `d1dbe4d` (controle MCP Hermes). O run #42 da CI passou para `0cbe179`; o run #41 também passou para `d1dbe4d`.
+- No Planejar público, a semana mostra eventos do Google, prioridades sem horário, horários livres e um bloco de tarefa espelhado com link para abrir no Google.
+- O formulário simplificado do Financeiro carregou sem o erro de validação reportado. Nenhuma transação foi criada durante a verificação.
+- `/hermes` mostra heartbeat online e chamadas MCP recentes bem-sucedidas. O cron `lifesystem-heartbeat` está ativo no Hermes da VPS e tinha executado poucos minutos antes da checagem.
+- O conector Hostinger respondeu `401`, então os logs internos do build não foram consultados. A confirmação da versão foi feita pelos fluxos públicos; o push de documentação não altera o código em execução.
