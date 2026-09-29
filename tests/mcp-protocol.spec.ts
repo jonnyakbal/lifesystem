@@ -18,12 +18,12 @@ test('MCP mantém centavos exatos e permite remover vencimento pela mesma regra 
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     for (const amount of [0.1, 0.2]) {
-      const result = await client.callTool({ name: 'create_financial_entry', arguments: { type: 'income', category: 'Teste centavos', amount, date: '2035-01-01', paidDate: '2035-02-01', status: 'paid' } });
+      const result = await client.callTool({ name: 'create_financial_entry', arguments: { type: 'income', category: 'Teste centavos', amount, date: '2035-01-01', paidDate: '2035-02-01', status: 'paid', idempotencyKey: `cents-${amount}` } });
       expect(result.isError).toBeFalsy();
     }
     const response = await client.callTool({ name: 'get_financial_summary', arguments: { month: '2035-02' } });
     expect(JSON.parse((response.content as { text: string }[])[0].text)).toMatchObject({ realized: { income: 0.3, balance: 0.3 } });
-    const created = await client.callTool({ name: 'create_financial_entry', arguments: { type: 'expense_fixed', category: 'Teste vencimento', amount: 50, date: '2035-01-01', dueDate: '2035-02-02', status: 'pending' } });
+    const created = await client.callTool({ name: 'create_financial_entry', arguments: { type: 'expense_fixed', category: 'Teste vencimento', amount: 50, date: '2035-01-01', dueDate: '2035-02-02', status: 'pending', idempotencyKey: 'due-date-test-2035' } });
     const id = JSON.parse((created.content as { text: string }[])[0].text).id;
     const updated = await client.callTool({ name: 'update_financial_entry', arguments: { id, dueDate: null } });
     expect(updated.isError).toBeFalsy();
@@ -111,7 +111,7 @@ test('MCP financial mutations reject a date invalid in the web API', async () =>
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     const result = await client.callTool({ name: 'create_financial_entry', arguments: {
-      type: 'income', category: 'Teste', amount: 1, date: 'amanhã',
+      type: 'income', category: 'Teste', amount: 1, date: 'amanhã', idempotencyKey: 'invalid-date-test-001',
     } });
     expect(result.isError).toBe(true);
   } finally {
@@ -211,12 +211,37 @@ test('financial idempotency key replays one created entry', async () => {
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     const args = { type: 'expense_variable', category: 'Teste', amount: 25, date: '2026-10-01', idempotencyKey: 'finance-2026-10-01-001' };
-    const first = await client.callTool({ name: 'create_financial_entry', arguments: args });
-    const second = await client.callTool({ name: 'create_financial_entry', arguments: args });
+    const [first, second] = await Promise.all([
+      client.callTool({ name: 'create_financial_entry', arguments: args }),
+      client.callTool({ name: 'create_financial_entry', arguments: args }),
+    ]);
     const one = JSON.parse((first.content as { text: string }[])[0].text);
     const replay = JSON.parse((second.content as { text: string }[])[0].text);
     expect(replay.id).toBe(one.id);
     expect(replay.replayed).toBe(true);
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});
+
+test('financial entry creation requires a stable idempotency key', async () => {
+  const server = createLifesystemMcpServer(['financial:write'], 'hermes-finance-required-key');
+  const client = new Client({ name: 'financial-required-key-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    const listed = await client.listTools();
+    const createTool = listed.tools.find(tool => tool.name === 'create_financial_entry');
+    expect(createTool).toBeTruthy();
+    expect((createTool?.inputSchema as { required?: string[] }).required).toContain('idempotencyKey');
+
+    const result = await client.callTool({ name: 'create_financial_entry', arguments: {
+      type: 'expense_variable', category: 'Teste sem chave', amount: 19.9, date: '2045-01-01',
+    } });
+    expect(result.isError).toBe(true);
+    expect(await storage.query('financial', { category: 'Teste sem chave' })).toHaveLength(0);
   } finally {
     await client.close();
     await server.close();
@@ -231,9 +256,9 @@ test('MCP resume previsões pelo vencimento e pagamentos pelo dia pago', async (
     await server.connect(serverTransport);
     await client.connect(clientTransport);
     for (const entry of [
-      { type: 'expense_fixed', category: 'Teste previsto', amount: 200, date: '2041-12-28', dueDate: '2042-01-10', status: 'pending' },
-      { type: 'expense_variable', category: 'Teste pago', amount: 75, date: '2041-12-28', dueDate: '2042-01-12', paidDate: '2042-02-03', status: 'paid' },
-      { type: 'income', category: 'Teste legado', amount: 50, date: '2042-01-15', status: 'paid' },
+      { type: 'expense_fixed', category: 'Teste previsto', amount: 200, date: '2041-12-28', dueDate: '2042-01-10', status: 'pending', idempotencyKey: 'period-pending-2042-01' },
+      { type: 'expense_variable', category: 'Teste pago', amount: 75, date: '2041-12-28', dueDate: '2042-01-12', paidDate: '2042-02-03', status: 'paid', idempotencyKey: 'period-paid-2042-02' },
+      { type: 'income', category: 'Teste legado', amount: 50, date: '2042-01-15', status: 'paid', idempotencyKey: 'period-legacy-2042-01' },
     ]) {
       expect((await client.callTool({ name: 'create_financial_entry', arguments: entry })).isError).toBeFalsy();
     }

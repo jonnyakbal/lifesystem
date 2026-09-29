@@ -106,9 +106,11 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       `create_${entity}`,
       {
         title: `Criar ${entity}`,
-        description: `Cria um novo item em ${plural} no LIFESYSTEM.`,
+        description: config.idempotentCreate
+          ? `Cria um novo item em ${plural} no LIFESYSTEM. idempotencyKey é obrigatória: gere uma chave única para cada nova despesa e reutilize exatamente a mesma chave apenas ao repetir a mesma solicitação, para evitar duplicidades. Despesas distintas precisam de chaves distintas, mesmo quando os dados coincidirem.`
+          : `Cria um novo item em ${plural} no LIFESYSTEM.`,
         inputSchema: config.idempotentCreate
-          ? { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.optional().describe('Chave estável para tornar uma nova tentativa segura.') }
+          ? { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.describe('OBRIGATÓRIA. Gere uma chave única para esta intenção de criação e reutilize a mesma chave somente em tentativas repetidas da mesma solicitação.') }
           : createShapeConcrete,
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -118,7 +120,8 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
           const input = fields as z.infer<z.ZodObject<TCreate>>;
           const payload = buildCreatePayload(input);
           const create = () => storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
-          if (config.idempotentCreate && idempotencyKey) {
+          if (config.idempotentCreate) {
+            if (!idempotencyKey) return errorResult('idempotencyKey é obrigatória para criar lançamentos financeiros. Reutilize a mesma chave somente ao repetir a mesma solicitação.');
             const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, create);
             return textResult({ ...outcome.result, replayed: outcome.replayed });
           }

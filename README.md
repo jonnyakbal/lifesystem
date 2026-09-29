@@ -151,6 +151,8 @@ Um `401` do conector Hostinger no Codex indica que ele não pode consultar o hPa
 
 **Autenticação:** `Authorization: Bearer <token>` (separado do login web)
 
+Para criar um lançamento financeiro pelo MCP, `idempotencyKey` é obrigatória. O Hermes deve reutilizar a mesma chave apenas ao repetir a mesma solicitação e gerar outra chave para cada despesa distinta; isso permite ao LIFESYSTEM devolver o lançamento já criado quando uma chamada é reenviada, sem duplicá-lo.
+
 Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambiente do servidor. Cada item tem `id`, `key` (mínimo de 32 caracteres) e `scopes`, por exemplo `[{"id":"hermes-mcp","key":"substitua-por-um-segredo-com-32-caracteres-ou-mais","scopes":["tasks:read","tasks:plan","captures:convert","calendar:read","calendar:write","agent:heartbeat"]},{"id":"hermes-ai","key":"outro-segredo-com-32-caracteres-ou-mais","scopes":["ai:invoke"]}]`. Além de `domínio:read`, `domínio:write`, `domínio:delete` e `domínio:*`, há `captures:convert`, `tasks:plan`, `calendar:read`, `ai:invoke` e `agent:heartbeat`. Exclusões exigem o escopo explícito `domínio:delete`. Use identidades distintas para ferramentas e inferência. A chave legada `MCP_API_KEY` permanece compatível somente durante a migração e aparece como `legacy` no histórico.
 
 ### Google Agenda
