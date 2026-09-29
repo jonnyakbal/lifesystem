@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { financialEntrySchema } from '../src/lib/financial-validation';
+import { todayStr } from '../src/lib/utils';
 
 for (const frequency of ['none', 'monthly']) {
   test(`lançamento ${frequency} envia recorrência aceita pela API`, async ({ page }) => {
@@ -67,7 +68,10 @@ test('navega por meses vazios e pela virada do ano', async ({ page }) => {
 });
 
 test('despesa prevista de outro mês não soma como pagamento', async ({ page }) => {
-  await page.clock.install({ time: new Date('2026-09-28T12:00:00Z') });
+  const today = new Date();
+  const dueDate = new Date(today.getFullYear(), today.getMonth() + 1, 15);
+  const currentLabel = today.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const dueLabel = dueDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   const records: Record<string, unknown>[] = [];
   await page.route('**/api/financial', async route => {
     if (route.request().method() === 'GET') return route.fulfill({ json: records });
@@ -76,16 +80,16 @@ test('despesa prevista de outro mês não soma como pagamento', async ({ page })
     return route.fulfill({ status: 201, json: records[0] });
   });
   await page.goto('/financeiro');
-  await expect(page.getByTestId('financial-period-label')).toContainText('setembro de 2026');
+  await expect(page.getByTestId('financial-period-label')).toContainText(currentLabel);
   const form = page.getByRole('form', { name: 'Novo Lançamento' });
   await form.getByRole('combobox').nth(1).click();
   await page.getByRole('option', { name: 'Alimentação', exact: true }).click();
   await form.getByLabel('Valor (R$)').fill('200');
-  await form.getByLabel('Vencimento · opcional').fill('2026-10-15');
+  await form.getByLabel('Vencimento · opcional').fill(todayStr(dueDate));
   await form.getByRole('button', { name: 'Salvar lançamento' }).click();
-  expect(records[0]).toMatchObject({ date: '2026-09-28', dueDate: '2026-10-15', status: 'pending', amount: 200 });
+  expect(records[0]).toMatchObject({ date: todayStr(today), dueDate: todayStr(dueDate), status: 'pending', amount: 200 });
   expect(records[0].paidDate).toBeUndefined();
-  await expect(page.getByTestId('financial-period-label')).toContainText('outubro de 2026');
+  await expect(page.getByTestId('financial-period-label')).toContainText(dueLabel);
   await expect(page.getByTestId('financial-paid-expenses')).toContainText('R$ 0');
   await expect(page.getByTestId('financial-planned-expenses')).toContainText('R$ 200');
 });
