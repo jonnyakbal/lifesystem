@@ -48,7 +48,7 @@ export function TaskPlanningDialog({ task, initialDate, connected, onClose, onSa
     <DialogHeader><DialogTitle>Planejar tarefa</DialogTitle><DialogDescription>{task.title}</DialogDescription></DialogHeader>
     <form onSubmit={save} className="space-y-5">
       <label className="grid gap-2 text-sm font-medium">Dia escolhido<Input required type="date" value={date} onChange={event => setDate(event.target.value)} /></label>
-      {task.dueDate && <p className="text-xs text-muted-foreground">Prazo da tarefa: {new Date(`${task.dueDate}T12:00:00`).toLocaleDateString('pt-BR')}. Reservar um bloco não muda esse prazo.</p>}
+      <p className="text-xs text-muted-foreground">O dia planejado e o prazo da tarefa ficam sincronizados.</p>
       <label className="flex items-center gap-3 rounded-xl border p-3 text-sm"><input type="checkbox" checked={timed} disabled={Boolean(previous?.eventId)} onChange={event => setTimed(event.target.checked)} className="h-4 w-4 accent-primary" />Reservar horário</label>
       {timed && <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
         <div className="grid grid-cols-2 gap-3">

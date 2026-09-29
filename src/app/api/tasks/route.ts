@@ -3,9 +3,10 @@ import { z } from 'zod';
 import { storage } from '@/lib/storage';
 import { Task } from '@/types';
 import { readJson, taskPayloadSchema } from '@/lib/validation';
+import { reconcilePlannedTaskDeadlines } from '@/lib/task-domain';
 
 export async function GET() {
-  const tasks = await storage.getAll<Task>('tasks');
+  const tasks = await reconcilePlannedTaskDeadlines();
   return NextResponse.json(tasks);
 }
 

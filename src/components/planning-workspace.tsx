@@ -18,7 +18,7 @@ type Connection = { configured: boolean; connected: boolean };
 
 function plannedDay(task: Task) {
   if (task.planning?.startAt) return todayStr(new Date(task.planning.startAt));
-  return task.planning ? task.planning.date : task.dueDate;
+  return task.planning?.date || task.dueDate;
 }
 
 function weekStartAt(offset: number) {

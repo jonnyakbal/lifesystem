@@ -25,7 +25,7 @@ import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { StageConfigDialog } from '@/components/stage-config-dialog';
-import type { StageDef } from '@/types';
+import type { StageDef, TaskPlanning } from '@/types';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import { spawnNextOccurrenceIfRecurring, RECURRING_LABELS, type RecurringFrequency } from '@/lib/recurring';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -55,6 +55,7 @@ interface Task {
   projectId?: string;
   pillarId?: string;
   dueDate?: string;
+  planning?: TaskPlanning;
   completedAt?: string;
   createdAt: string;
   updatedAt?: string;
@@ -1240,10 +1241,11 @@ export default function TasksPage() {
             </div>
             <div className="grid gap-2">
               <Label>Prazo</Label>
-              <Input type="date" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} className="max-w-[200px]" />
+              <Input type="date" value={newDueDate} disabled={Boolean(editingTask?.planning?.startAt)} onChange={(e) => setNewDueDate(e.target.value)} className="max-w-[200px]" />
+              {editingTask?.planning?.startAt && <p className="text-xs text-muted-foreground">Esta tarefa já tem um bloco de horário. Mova a data em <Link href="/planejar" className="text-primary underline">Planejar</Link> para manter o Google Agenda sincronizado.</p>}
               <div className="flex flex-wrap gap-1">
                 {[{ label: 'Hoje', offset: 0 }, { label: 'Amanhã', offset: 1 }, { label: '2 dias', offset: 2 }, { label: 'Fim de semana', offset: (6 - new Date().getDay() + 7) % 7 || 7 }].map(s => (
-                  <Button key={s.label} variant="outline" size="sm" className="h-6 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
+                  <Button key={s.label} variant="outline" size="sm" disabled={Boolean(editingTask?.planning?.startAt)} className="h-6 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
                 ))}
               </div>
             </div>

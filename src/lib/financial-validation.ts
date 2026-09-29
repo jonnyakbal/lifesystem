@@ -9,7 +9,7 @@ export const financialEntrySchema = z.object({
   accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
   status: z.enum(['pending', 'paid', 'overdue']).optional(), dueDate: dateSchema.optional(), paidDate: dateSchema.optional(),
 }).strict();
-export const financialEntryUpdateSchema = financialEntrySchema.partial();
+export const financialEntryUpdateSchema = financialEntrySchema.partial().extend({ paidDate: dateSchema.nullable().optional() });
 export const accountSchema = z.object({ name: z.string().min(1), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().finite().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() }).strict();
 export const budgetSchema = z.object({ category: z.string().min(1), type: z.enum(['expense_fixed', 'expense_variable']), monthlyLimit: z.number().finite().nonnegative(), spent: z.number().finite().nonnegative().optional(), month: monthSchema }).strict();
 export const billItemSchema = z.object({

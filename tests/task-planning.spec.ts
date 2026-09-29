@@ -5,9 +5,10 @@ import { join } from 'node:path';
 import { storage } from '../src/lib/storage';
 import type { Task } from '../src/types';
 import { saveTaskPlanning, removeTaskPlanning, planningSchema, adoptTaskGoogleEvent } from '../src/lib/task-planning';
+import { reconcilePlannedTaskDeadlines } from '../src/lib/task-domain';
 import { exchangeGoogleCode } from '../src/lib/google-calendar';
 
-test('bloco preserva prazo, sincroniza sem duplicar, protege edição externa e recupera falhas', async () => {
+test('dia planejado atualiza o prazo, sincroniza sem duplicar, protege edição externa e recupera falhas', async () => {
   const originalEnv = { ...process.env };
   const originalFetch = globalThis.fetch;
   const dir = await mkdtemp(join(tmpdir(), 'ls-planning-'));
@@ -40,7 +41,7 @@ test('bloco preserva prazo, sincroniza sem duplicar, protege edição externa e 
     const task = await storage.create<Task>('tasks', { title: 'Foco', dueDate: '2026-10-15', status: 'todo', priority: 'normal', sortOrder: 0, tags: [], checklist: [] });
     const input = { date: '2026-10-01', startAt: '2026-10-01T13:00:00.000Z', endAt: '2026-10-01T13:45:00.000Z', timeZone: 'America/Sao_Paulo', syncToGoogle: true };
     let result = await saveTaskPlanning(task.id, input);
-    expect(result.dueDate).toBe('2026-10-15');
+    expect(result.dueDate).toBe(input.date);
     expect(result.planning?.syncState).toBe('synced');
     const id = result.planning?.eventId;
     await expect(storage.delete('tasks', task.id)).rejects.toThrow('Planejar');
@@ -48,8 +49,9 @@ test('bloco preserva prazo, sincroniza sem duplicar, protege edição externa e 
     await expect(storage.deleteWhere<{ id: string }>('tasks', item => item.id === task.id)).rejects.toThrow('Planejar');
     await saveTaskPlanning(task.id, input);
     expect(inserts).toBe(1); expect(patches).toBe(0);
-    const moved = { ...input, startAt: '2026-10-01T14:00:00.000Z', endAt: '2026-10-01T14:45:00.000Z' };
+    const moved = { ...input, date: '2026-10-02', startAt: '2026-10-02T14:00:00.000Z', endAt: '2026-10-02T14:45:00.000Z' };
     result = await saveTaskPlanning(task.id, moved);
+    expect(result.dueDate).toBe(moved.date);
     expect(result.planning?.eventId).toBe(id); expect(patches).toBe(1);
     fail = true;
     result = await saveTaskPlanning(task.id, input);
@@ -66,11 +68,12 @@ test('bloco preserva prazo, sincroniza sem duplicar, protege edição externa e 
     await expect(removeTaskPlanning(task.id, true)).rejects.toThrow();
     result = await adoptTaskGoogleEvent(task.id);
     expect(result.title).toBe('Editado no Google');
+    expect(result.dueDate).toBe('2026-10-01');
     await saveTaskPlanning(task.id, moved);
     expect(remote!.description).toBe('Anotações externas a preservar');
     result = await removeTaskPlanning(task.id, true);
     expect(result.planning?.date).toBeNull();
-    expect(result.dueDate).toBe('2026-10-15');
+    expect(result.dueDate).toBeUndefined();
     expect(remote).toBeNull();
     loseAcknowledgement = true;
     result = await saveTaskPlanning(task.id, input);
@@ -95,5 +98,22 @@ test('planejamento rejeita horário invertido, dia inválido, fuso inválido e e
   expect(planningSchema.safeParse(day).success).toBe(true);
   for (const invalid of [{ ...day, date: '2026-02-30' }, { ...day, timeZone: 'Invalid/Zone' }, { ...day, syncToGoogle: true }, { ...day, startAt: '2026-10-01T15:00:00Z', endAt: '2026-10-01T14:00:00Z' }]) {
     expect(planningSchema.safeParse(invalid).success).toBe(false);
+  }
+});
+
+test('corrige prazos antigos para a data que já estava planejada', async () => {
+  const originalDir = process.env.LIFESYSTEM_DATA_DIR;
+  const dir = await mkdtemp(join(tmpdir(), 'ls-planning-migration-'));
+  process.env.LIFESYSTEM_DATA_DIR = dir;
+  try {
+    const task = await storage.create<Task>('tasks', {
+      title: 'Academia', dueDate: '2026-09-26', status: 'todo', priority: 'important', sortOrder: 0, tags: [], checklist: [],
+      planning: { date: '2026-09-29', timeZone: 'America/Sao_Paulo', syncToGoogle: false, syncState: 'local' },
+    });
+    const tasks = await reconcilePlannedTaskDeadlines();
+    expect(tasks.find(item => item.id === task.id)?.dueDate).toBe('2026-09-29');
+  } finally {
+    if (originalDir === undefined) delete process.env.LIFESYSTEM_DATA_DIR; else process.env.LIFESYSTEM_DATA_DIR = originalDir;
+    await rm(dir, { recursive: true, force: true });
   }
 });

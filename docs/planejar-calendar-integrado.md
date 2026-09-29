@@ -8,7 +8,7 @@ O Google Calendar é o espaço dos compromissos que já existem. O LIFESYSTEM é
 
 ## Estado atual — 28/09/2026
 
-Já estão implementados o planejamento de tarefas por dia e bloco de foco, a semana integrada com eventos da agenda principal e itens sem horário, e a sincronização explícita de blocos de tarefas com o Google Calendar. Prazo e horário planejado continuam independentes.
+Já estão implementados o planejamento de tarefas por dia e bloco de foco, a semana integrada com eventos da agenda principal e itens sem horário, e a sincronização explícita de blocos de tarefas com o Google Calendar. A tarefa tem uma única data: o dia escolhido em Planejar é o prazo mostrado em Tarefas. Reservar horário continua opcional; a data e o bloco não são dois prazos diferentes.
 
 Permanecem no roadmap o espelhamento de contas, conteúdos e marcos de projetos; múltiplas agendas; sincronização incremental em segundo plano; e mais de um bloco por tarefa. A documentação operacional da entrega de blocos está em [Tarefas com horário e espelho Google](task-calendar-blocks-execution.md).
 
@@ -36,7 +36,7 @@ Nenhuma tarefa, conta ou conteúdo cria um evento automaticamente sem uma regra 
 | Informação | Fonte de verdade | Papel na outra superfície |
 | --- | --- | --- |
 | Evento pessoal ou profissional já existente | Google Calendar | Espelhado no LIFESYSTEM como bloqueio de tempo somente leitura |
-| Tarefa, checklist e status | LIFESYSTEM | Pode gerar bloco de foco ou prazo no Google |
+| Tarefa, checklist, status e data | LIFESYSTEM | Pode gerar um bloco de foco no Google; o dia da tarefa e o prazo são o mesmo dado |
 | Conta, recorrência e pagamento | LIFESYSTEM | Pode gerar lembrete ou vencimento no Google |
 | Conteúdo, produção e publicação | LIFESYSTEM | Pode gerar marcos selecionados no Google |
 | Projeto e edital | LIFESYSTEM | Pode gerar marcos e prazos selecionados no Google |

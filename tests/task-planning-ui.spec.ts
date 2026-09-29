@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test('mobile reserva e move um bloco sem mudar o prazo da tarefa', async ({ page, request }) => {
+test('mobile reserva e move um bloco mantendo o prazo na mesma data planejada', async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const title = `Bloco UI ${Date.now()}`;
   const task = await (await request.post('/api/tasks', { data: { title, dueDate: '2030-12-20' } })).json();
@@ -22,8 +22,12 @@ test('mobile reserva e move um bloco sem mudar o prazo da tarefa', async ({ page
     await page.getByRole('button', { name: 'Salvar bloco', exact: true }).click();
     await expect(card).toContainText('15:00');
     const saved = await (await request.get(`/api/tasks/${task.id}`)).json();
-    expect(saved.dueDate).toBe('2030-12-20');
+    expect(saved.dueDate).toBe(saved.planning.date);
     expect(saved.planning.syncState).toBe('local');
+    await page.goto('/tarefas');
+    await expect(page.getByText(title, { exact: true })).toBeVisible();
+    const dueLabel = new Date(`${saved.dueDate}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    await expect(page.getByText(dueLabel, { exact: false })).toBeVisible();
     await page.screenshot({ path: 'screenshots/task-block-mobile.png' });
   } finally { await request.delete(`/api/tasks/${task.id}`); }
 });

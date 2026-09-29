@@ -55,7 +55,9 @@ export async function saveTaskPlanning(id: string, raw: unknown): Promise<Task> 
       } : {}),
     };
     // Persist the intention and stable event ID before crossing the network boundary.
-    const saved = await storage.update<Task>('tasks', id, { planning });
+    // A task has one day: choosing or moving it in Planejar also moves its deadline.
+    // Save the day before the Google request so local state stays correct on outages.
+    const saved = await storage.update<Task>('tasks', id, { dueDate: input.date, planning });
     if (!saved) throw new Error('Tarefa não encontrada.');
     if (!input.syncToGoogle) return saved;
     try {
@@ -73,7 +75,7 @@ export async function saveTaskPlanning(id: string, raw: unknown): Promise<Task> 
       planning.syncState = 'error';
       planning.syncError = error instanceof GoogleCalendarError ? error.message : 'Google indisponível. O planejamento foi salvo; tente sincronizar novamente.';
     }
-    const updated = await storage.update<Task>('tasks', id, { planning });
+    const updated = await storage.update<Task>('tasks', id, { dueDate: input.date, planning });
     if (!updated) throw new Error('Tarefa removida durante a sincronização. Verifique o evento no Google.');
     return updated;
   });
@@ -87,7 +89,7 @@ export async function removeTaskPlanning(id: string, removeGoogleEvent: boolean)
       if (!removeGoogleEvent) throw new Error('Confirme a remoção do evento espelhado.');
       await deleteManagedTaskEvent(id, task.planning.eventId, task.planning.etag);
     }
-    const updated = await storage.update<Task>('tasks', id, { planning: { date: null, timeZone: task.planning?.timeZone || 'America/Sao_Paulo', syncToGoogle: false, syncState: 'local' } });
+    const updated = await storage.update<Task>('tasks', id, { dueDate: undefined, planning: { date: null, timeZone: task.planning?.timeZone || 'America/Sao_Paulo', syncToGoogle: false, syncState: 'local' } });
     if (!updated) throw new Error('Tarefa não encontrada.');
     return updated;
   });
@@ -106,7 +108,7 @@ export async function adoptTaskGoogleEvent(id: string): Promise<Task> {
     const input = planningSchema.parse({ date: `${part('year')}-${part('month')}-${part('day')}`, startAt, endAt, timeZone, syncToGoogle: true });
     const title = event.summary?.trim().slice(0, 300) || task.title;
     const planning: TaskPlanning = { ...task.planning, ...input, etag: event.etag, syncState: 'synced', syncError: undefined, lastAttempt: undefined, lastSyncedAt: new Date().toISOString() };
-    const updated = await storage.update<Task>('tasks', id, { title, planning });
+    const updated = await storage.update<Task>('tasks', id, { title, dueDate: input.date, planning });
     if (!updated) throw new Error('Tarefa não encontrada.');
     return updated;
   });

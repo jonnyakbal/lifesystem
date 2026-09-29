@@ -27,7 +27,11 @@ export async function PATCH(
   }
   const parsed = taskUpdateSchema.safeParse(rawBody);
   if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos' }, { status: 400 });
-  const body = await prepareTaskUpdate(parsed.data);
+  const existing = await storage.getById<Task>('tasks', id);
+  if (!existing) return NextResponse.json({ error: 'Tarefa não encontrada' }, { status: 404 });
+  let body: Partial<Task>;
+  try { body = await prepareTaskUpdate(parsed.data, existing); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível alterar a data.' }, { status: 409 }); }
   const updated = await storage.update<Task>('tasks', id, body);
   if (!updated) {
     return NextResponse.json({ error: 'Tarefa não encontrada' }, { status: 404 });

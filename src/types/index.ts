@@ -261,7 +261,7 @@ export interface FinancialEntry extends BaseEntity {
   tags?: string[];
   status?: 'pending' | 'paid' | 'overdue';
   dueDate?: string;
-  paidDate?: string;
+  paidDate?: string | null;
 }
 
 export interface Budget extends BaseEntity {

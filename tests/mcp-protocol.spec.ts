@@ -200,3 +200,31 @@ test('financial idempotency key replays one created entry', async () => {
     await server.close();
   }
 });
+
+test('MCP resume previsões pelo vencimento e pagamentos pelo dia pago', async () => {
+  const server = createLifesystemMcpServer(['financial:read', 'financial:write'], 'finance-period-test');
+  const client = new Client({ name: 'financial-period-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    for (const entry of [
+      { type: 'expense_fixed', category: 'Teste previsto', amount: 200, date: '2041-12-28', dueDate: '2042-01-10', status: 'pending' },
+      { type: 'expense_variable', category: 'Teste pago', amount: 75, date: '2041-12-28', dueDate: '2042-01-12', paidDate: '2042-02-03', status: 'paid' },
+      { type: 'income', category: 'Teste legado', amount: 50, date: '2042-01-15', status: 'paid' },
+    ]) {
+      expect((await client.callTool({ name: 'create_financial_entry', arguments: entry })).isError).toBeFalsy();
+    }
+    const read = async (month: string) => {
+      const result = await client.callTool({ name: 'get_financial_summary', arguments: { month } });
+      expect(result.isError).toBeFalsy();
+      return JSON.parse((result.content as { text: string }[])[0].text);
+    };
+    expect(await read('2041-12')).toMatchObject({ entries: 0 });
+    expect(await read('2042-01')).toMatchObject({ entries: 2, realized: { income: 50, expenses: 0 }, projected: { expenses: 200 } });
+    expect(await read('2042-02')).toMatchObject({ entries: 1, realized: { expenses: 75 }, projected: { expenses: 0 } });
+  } finally {
+    await client.close();
+    await server.close();
+  }
+});

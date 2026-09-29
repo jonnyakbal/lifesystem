@@ -17,6 +17,8 @@ import { canUseMcpTool } from './auth';
 import { createGoogleCalendarEvent, createManagedMcpEventId, listGoogleCalendarEvents, removeManagedMcpCalendarEvent, syncManagedMcpCalendarEvent } from '@/lib/google-calendar';
 import { accountSchema, billItemSchema, billSchema, budgetSchema, cardSchema, financialEntrySchema, financialEntryUpdateSchema, financialGoalSchema, payeeSchema } from '@/lib/financial-validation';
 import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
+import type { Task } from '@/types';
+import { summarizeFinancialMonth, type FinancialPeriodEntry } from '@/lib/financial-period';
 import { adoptTaskCalendarEventAction, convertCaptureAction, convertCaptureActionSchema, planTaskBlockAction, removeTaskBlockAction, taskPlanningActionSchema } from './actions';
 import { idempotencyKeySchema, runMcpIdempotent } from './receipts';
 
@@ -47,7 +49,7 @@ interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRa
   updateShape: TUpdate;
   buildCreatePayload: (input: z.infer<z.ZodObject<TCreate>>) => Record<string, unknown>;
   validateCreate?: (payload: Record<string, unknown>) => Record<string, unknown>;
-  validateUpdate?: (fields: Record<string, unknown>) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  validateUpdate?: (fields: Record<string, unknown>, id: string) => Record<string, unknown> | Promise<Record<string, unknown>>;
   allowCreate?: boolean;
   allowDelete?: boolean;
   idempotentCreate?: boolean;
@@ -140,7 +142,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       try {
         const { id, ...fields } = rawInput as { id: string } & Record<string, unknown>;
         const cleaned = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
-        const payload = config.validateUpdate ? await config.validateUpdate(cleaned) : cleaned;
+        const payload = config.validateUpdate ? await config.validateUpdate(cleaned, id) : cleaned;
         const updated = await storage.update(collection, id, payload);
         if (!updated) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
         return textResult(updated);
@@ -208,7 +210,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       checklist: [],
       sortOrder: 0,
     }),
-    validateUpdate: async (fields) => prepareTaskUpdate(taskUpdateSchema.parse(fields)),
+    validateUpdate: async (fields, id) => prepareTaskUpdate(taskUpdateSchema.parse(fields), await storage.getById<Task>('tasks', id)),
   }, scopes, clientId);
 
   if (canUseMcpTool('convert_capture', scopes)) server.registerTool('convert_capture', {
@@ -494,14 +496,19 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     createShape: {
       type: z.enum(['income', 'expense_fixed', 'expense_variable']).describe('Tipo do lançamento'),
       category: z.string().describe('Categoria financeira'),
-      description: z.string().optional(), amount: z.number().positive(), date: z.string().describe('Formato YYYY-MM-DD'),
+      description: z.string().optional(), amount: z.number().positive(), date: z.string().describe('Data do registro, YYYY-MM-DD. Não substitua pelo vencimento ou pelo pagamento.'),
       recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(),
       accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
-      status: z.enum(['pending', 'paid', 'overdue']).optional(), dueDate: z.string().optional(), paidDate: z.string().optional(),
+      status: z.enum(['pending', 'paid', 'overdue']).optional().describe('pending/overdue = previsto; paid = realizado. Padrão: pending.'),
+      dueDate: z.string().optional().describe('Vencimento YYYY-MM-DD; define o mês de pendentes/atrasados.'),
+      paidDate: z.string().optional().describe('Pagamento YYYY-MM-DD; use somente quando status=paid. Define o mês realizado.'),
     },
     updateShape: {
-      type: z.enum(['income', 'expense_fixed', 'expense_variable']).optional(), category: z.string().optional(), description: z.string().optional(), amount: z.number().positive().optional(), date: z.string().optional(),
-      recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(), status: z.enum(['pending', 'paid', 'overdue']).optional(), dueDate: z.string().optional(), paidDate: z.string().optional(),
+      type: z.enum(['income', 'expense_fixed', 'expense_variable']).optional(), category: z.string().optional(), description: z.string().optional(), amount: z.number().positive().optional(), date: z.string().optional().describe('Data original do registro YYYY-MM-DD.'),
+      recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
+      status: z.enum(['pending', 'paid', 'overdue']).optional().describe('paid entra no realizado; pending/overdue entram no previsto.'),
+      dueDate: z.string().optional().describe('Vencimento YYYY-MM-DD para previsão.'),
+      paidDate: z.string().nullable().optional().describe('Dia do pagamento YYYY-MM-DD; null limpa quando volta a pendente.'),
     },
     buildCreatePayload: (input) => ({ ...input, tags: input.tags || [], status: input.status || 'pending' }),
     validateCreate: payload => financialEntrySchema.parse(payload),
@@ -569,20 +576,11 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
 
   if (canUseMcpTool('get_financial_summary', scopes)) server.registerTool('get_financial_summary', {
     title: 'Resumo financeiro',
-    description: 'Calcula receitas, despesas e saldo dos lançamentos financeiros de um mês (YYYY-MM).',
-    inputSchema: { month: z.string().describe('Mês no formato YYYY-MM') },
+    description: 'Resumo mensal separado em realizado (paidDate ou date) e previsto (dueDate ou date). Pendentes não reduzem o saldo realizado.',
+    inputSchema: { month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).describe('Mês no formato YYYY-MM') },
   }, logged('get_financial_summary', async ({ month }: { month: string }) => {
-    const entries = await storage.getAll<{ type: string; amount: number; date: string; status?: string }>('financial');
-    const filtered = entries.filter((entry) => entry.date.startsWith(month));
-    const realized = filtered.filter((entry) => entry.status === 'paid');
-    const projected = filtered.filter((entry) => entry.status !== 'paid');
-    const totals = (items: typeof filtered) => ({
-      income: items.filter((entry) => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0),
-      expenses: items.filter((entry) => entry.type !== 'income').reduce((sum, entry) => sum + entry.amount, 0),
-    });
-    const realizedTotals = totals(realized);
-    const projectedTotals = totals(projected);
-    return textResult({ month, realized: { ...realizedTotals, balance: realizedTotals.income - realizedTotals.expenses }, projected: { ...projectedTotals, balance: projectedTotals.income - projectedTotals.expenses }, entries: filtered.length });
+    const entries = await storage.getAll<FinancialPeriodEntry>('financial');
+    return textResult({ month, ...summarizeFinancialMonth(entries, month) });
   }, clientId));
 
   if (canUseMcpTool('create_calendar_event', scopes)) server.registerTool('create_calendar_event', {

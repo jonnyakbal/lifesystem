@@ -44,7 +44,7 @@ O LIFESYSTEM é um espaço de planejamento e execução que pode ser adaptado pa
 - **Tarefas** — Kanban completo (1683 linhas!) com prioridades e recorrência
 - **Conteúdo** — Gestão de conteúdo (blog/YouTube/Instagram/TikTok)
 - **Indicadores** — Tracking de metas por pilar com 5 tipos
-- **Financeiro** — Controle financeiro completo (contas, cartões, orçamentos)
+- **Financeiro** — Controle financeiro completo (contas, cartões, orçamentos), com meses navegáveis e previsão separada de pagamentos ([regras de período](docs/financeiro-periodos.md))
 - **Diário** — Journal pessoal com check-ins por pilar
 - **Diário de Bordo** — Log técnico (templo vivo, editável via MCP)
 - **Revisão** — Revisão semanal 5 passos (GTD)
@@ -155,7 +155,7 @@ Para clientes com acesso limitado, configure `MCP_API_KEYS` como JSON no ambient
 
 ### Google Agenda
 
-Em **Planejar**, abra uma tarefa e escolha **Reservar horário** para definir início e duração. O prazo (`dueDate`) permanece independente do bloco. Ative **Espelhar no Google Agenda** para criar um evento na agenda principal; salvar um replanejamento atualiza o mesmo evento. A conexão Google precisa estar autorizada antes de ativar o espelho.
+Em **Planejar**, escolha o dia da tarefa; essa mesma data é o prazo (`dueDate`) mostrado em **Tarefas**. Se reservar horário, o bloco é opcional e pode ser espelhado na agenda principal. Mover o dia atualiza o prazo e o mesmo evento Google; devolver ao planejamento remove a data. A conexão Google precisa estar autorizada antes de ativar o espelho.
 
 A visão **Semana** de Tarefas usa o mesmo planejamento. No celular, selecione um dia; no desktop, compare os sete dias. Blocos e eventos aparecem em ordem de horário; prioridades sem horário ficam separadas. Os intervalos entre 08h e 20h consideram a união dos horários ocupados, sem contar eventos transparentes ou de dia inteiro. Eles são uma referência da agenda principal, não uma jornada de trabalho configurada. Disponibilidade só aparece com tarefas e agenda carregadas; use **Atualizar agenda** após mudanças externas. O calendário mensal de Tarefas continua sendo uma visão de prazos.
 

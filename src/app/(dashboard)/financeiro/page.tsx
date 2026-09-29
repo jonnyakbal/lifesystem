@@ -3,25 +3,24 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  Wallet, TrendingUp, TrendingDown, Plus, Trash2, Edit2, PieChart, BarChart3,
-  Target, Calendar, Search, ArrowUpRight, ArrowDownRight, Flame, PiggyBank,
-  X, Check, AlertTriangle, Zap, Repeat, ChevronDown, ChevronUp,
-  ArrowRightLeft, CreditCard, Building2, Landmark, Banknote, CircleDollarSign,
-  Clock, CheckCircle2, AlertCircle, MoreHorizontal, Filter, Copy, Receipt,
-  ArrowRight, CircleDot, DollarSign, BadgeCheck, LandmarkIcon, Lock
+  TrendingUp, TrendingDown, Plus, Trash2, PieChart, BarChart3,
+  Target, Search, ArrowUpRight, ArrowDownRight, Flame,
+  Check, AlertTriangle, Repeat, ChevronLeft, ChevronRight,
+  CreditCard, Building2, Landmark, CircleDollarSign,
+  Clock, CheckCircle2, MoreHorizontal, Receipt,
+  CircleDot, Lock
 } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { effectiveFinancialDate, financialEntriesForRange, financialPeriodRange, shiftFinancialPeriod, summarizeFinancialEntries, summarizeFinancialMonth } from '@/lib/financial-period';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -46,7 +45,7 @@ interface FinancialEntry {
   tags?: string[];
   status?: 'pending' | 'paid' | 'overdue';
   dueDate?: string;
-  paidDate?: string;
+  paidDate?: string | null;
 }
 
 interface Account {
@@ -184,6 +183,7 @@ export default function FinanceiroPage() {
   // View state
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'cards' | 'bills' | 'transactions' | 'categories'>('overview');
   const [dateRange, setDateRange] = useState<'month' | 'quarter' | 'year' | 'all'>('month');
+  const [selectedMonth, setSelectedMonth] = useState(() => todayStr().slice(0, 7));
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -195,10 +195,10 @@ export default function FinanceiroPage() {
   const [quickType, setQuickType] = useState<FinancialEntry['type']>('expense_variable');
   const [quickDescription, setQuickDescription] = useState('');
   const [quickAccountId, setQuickAccountId] = useState('');
-  const [quickCardId, setQuickCardId] = useState('');
   const [quickPayee, setQuickPayee] = useState('');
   const [quickRecurring, setQuickRecurring] = useState<RecurringType>('none');
   const [quickDueDate, setQuickDueDate] = useState('');
+  const [quickStatus, setQuickStatus] = useState<'pending' | 'paid'>('pending');
   const [quickSaving, setQuickSaving] = useState(false);
   const [quickError, setQuickError] = useState('');
   const quickAmountRef = useRef<HTMLInputElement>(null);
@@ -209,7 +209,6 @@ export default function FinanceiroPage() {
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
   const [isPayeeDialogOpen, setIsPayeeDialogOpen] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<FinancialEntry | null>(null);
 
   // These 5 dialogs are hand-rolled (not the Radix-based Dialog used elsewhere
   // in the app), so they don't get Escape-to-close for free — wire it up here.
@@ -232,7 +231,7 @@ export default function FinanceiroPage() {
   const [accountBank, setAccountBank] = useState('');
   const [accountBalance, setAccountBalance] = useState('');
   const [accountColor, setAccountColor] = useState('#3b82f6');
-  const [accountIcon, setAccountIcon] = useState('🏦');
+  const accountIcon = '🏦';
 
   // Card form
   const [cardName, setCardName] = useState('');
@@ -242,7 +241,7 @@ export default function FinanceiroPage() {
   const [cardLimit, setCardLimit] = useState('');
   const [cardClosingDay, setCardClosingDay] = useState('');
   const [cardDueDay, setCardDueDay] = useState('');
-  const [cardColor, setCardColor] = useState('#64748b');
+  const cardColor = '#64748b';
 
   // Payee form
   const [payeeName, setPayeeName] = useState('');
@@ -294,30 +293,13 @@ export default function FinanceiroPage() {
 
   // ─── Date Range Filter ────────────────────────────────────────────────────
 
-  const range = useMemo(() => {
-    const now = new Date();
-    const today = todayStr(now);
-    if (dateRange === 'month') {
-      const start = todayStr(new Date(now.getFullYear(), now.getMonth(), 1));
-      return { start, end: today, label: now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) };
-    }
-    if (dateRange === 'quarter') {
-      const q = Math.floor(now.getMonth() / 3);
-      const start = todayStr(new Date(now.getFullYear(), q * 3, 1));
-      return { start, end: today, label: `T${q + 1} ${now.getFullYear()}` };
-    }
-    if (dateRange === 'year') {
-      const start = todayStr(new Date(now.getFullYear(), 0, 1));
-      return { start, end: today, label: `${now.getFullYear()}` };
-    }
-    return { start: '2000-01-01', end: '2099-12-31', label: 'Todo o período' };
-  }, [dateRange]);
+  const range = useMemo(() => financialPeriodRange(selectedMonth, dateRange), [selectedMonth, dateRange]);
+  const periodEntries = useMemo(() => financialEntriesForRange(entries, range), [entries, range]);
 
   const filteredEntries = useMemo(() => {
-    return entries.filter(e => {
-      if (e.date < range.start || e.date > range.end) return false;
+    return periodEntries.filter(e => {
       if (filterType !== 'all' && e.type !== filterType) return false;
-      if (filterStatus !== 'all' && e.status !== filterStatus) return false;
+      if (filterStatus !== 'all' && (e.status || 'pending') !== filterStatus) return false;
       if (categoryFilter && e.category !== categoryFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
@@ -325,78 +307,64 @@ export default function FinanceiroPage() {
       }
       return true;
     });
-  }, [entries, range, filterType, filterStatus, searchQuery, categoryFilter]);
+  }, [periodEntries, filterType, filterStatus, searchQuery, categoryFilter]);
 
   // ─── Calculations ─────────────────────────────────────────────────────────
 
-  const totalIncome = filteredEntries.filter(e => e.type === 'income').reduce((a, e) => a + e.amount, 0);
-  const totalExpensesFixed = filteredEntries.filter(e => e.type === 'expense_fixed').reduce((a, e) => a + e.amount, 0);
-  const totalExpensesVar = filteredEntries.filter(e => e.type === 'expense_variable').reduce((a, e) => a + e.amount, 0);
-  const totalExpenses = totalExpensesFixed + totalExpensesVar;
-  const balance = totalIncome - totalExpenses;
+  const periodSummary = useMemo(() => summarizeFinancialEntries(periodEntries), [periodEntries]);
+  const filteredSummary = useMemo(() => summarizeFinancialEntries(filteredEntries), [filteredEntries]);
+  const totalIncome = periodSummary.realized.income;
+  const totalExpenses = periodSummary.realized.expenses;
+  const balance = periodSummary.realized.balance;
   const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
   const totalBalance = accounts.filter(a => a.isActive).reduce((a, acc) => a + acc.balance, 0);
-  const totalCardUsed = cards.filter(c => c.type === 'credit' && c.isActive).reduce((a, c) => a + (c.used || 0), 0);
-  const totalCardLimit = cards.filter(c => c.type === 'credit' && c.isActive).reduce((a, c) => a + (c.limit || 0), 0);
 
-  const pendingEntries = entries.filter(e => e.status === 'pending' && e.dueDate);
-  const overdueEntries = pendingEntries.filter(e => e.dueDate && e.dueDate < todayStr());
+  const pendingEntries = periodEntries.filter(e => e.type !== 'income' && e.status !== 'paid')
+    .sort((a, b) => effectiveFinancialDate(a).localeCompare(effectiveFinancialDate(b)));
 
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   const currentBudgets = useMemo(() => budgets
-    .filter(b => b.month === currentMonth)
+    .filter(b => b.month === selectedMonth)
     .map(budget => ({
       ...budget,
-      spent: entries
-        .filter(entry => entry.type === budget.type && entry.category === budget.category && entry.date.startsWith(budget.month) && entry.status === 'paid')
+      spent: periodEntries
+        .filter(entry => entry.type === budget.type && entry.category === budget.category && effectiveFinancialDate(entry).startsWith(budget.month) && entry.status === 'paid')
         .reduce((total, entry) => total + entry.amount, 0),
-    })), [budgets, entries, currentMonth]);
+      planned: periodEntries
+        .filter(entry => entry.type === budget.type && entry.category === budget.category && effectiveFinancialDate(entry).startsWith(budget.month) && entry.status !== 'paid')
+        .reduce((total, entry) => total + entry.amount, 0),
+    })), [budgets, periodEntries, selectedMonth]);
 
-  const incomePercent = totalIncome + totalExpenses > 0 ? Math.round((totalIncome / (totalIncome + totalExpenses)) * 100) : 50;
-
-  const currentMonthExpenses = useMemo(() => {
-    return entries.filter(e => e.type !== 'income' && e.date.startsWith(currentMonth)).reduce((a, e) => a + e.amount, 0);
-  }, [entries, currentMonth]);
-
-  const daysInMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate();
-  const dayOfMonth = new Date().getDate();
-  const dailyBurnRate = dayOfMonth > 0 ? Math.round(currentMonthExpenses / dayOfMonth) : 0;
-  const projectedMonthEnd = dailyBurnRate * daysInMonth;
+  const selectedDate = useMemo(() => new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)) - 1, 1), [selectedMonth]);
+  const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
+  const elapsedDays = selectedMonth > currentMonth ? 0 : selectedMonth === currentMonth ? now.getDate() : daysInMonth;
+  const selectedMonthPaidExpenses = summarizeFinancialMonth(entries, selectedMonth).realized.expenses;
+  const dailyBurnRate = elapsedDays > 0 ? Math.round(selectedMonthPaidExpenses / elapsedDays) : 0;
+  const projectedMonthEnd = selectedMonth === currentMonth ? dailyBurnRate * daysInMonth : selectedMonthPaidExpenses;
 
   const expenseByCategory = useMemo(() => {
     const map = new Map<string, number>();
-    filteredEntries.filter(e => e.type !== 'income').forEach(e => {
+    periodEntries.filter(e => e.type !== 'income' && e.status === 'paid').forEach(e => {
       map.set(e.category, (map.get(e.category) || 0) + e.amount);
     });
     return Array.from(map.entries())
       .map(([label, value]) => ({ label, value, color: categoryColors[label] || '#64748b' }))
       .sort((a, b) => b.value - a.value);
-  }, [filteredEntries]);
-
-  const incomeByCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    filteredEntries.filter(e => e.type === 'income').forEach(e => {
-      map.set(e.category, (map.get(e.category) || 0) + e.amount);
-    });
-    return Array.from(map.entries())
-      .map(([label, value]) => ({ label, value, color: categoryColors[label] || '#22c55e' }))
-      .sort((a, b) => b.value - a.value);
-  }, [filteredEntries]);
+  }, [periodEntries]);
+  const expenseCategories = useMemo(() => [...new Set(periodEntries.filter(e => e.type !== 'income').map(e => e.category))], [periodEntries]);
 
   const monthlyTrend = useMemo(() => {
-    const now = new Date();
-    const months: { label: string; income: number; expense: number; balance: number }[] = [];
+    const months: { label: string; income: number; expense: number; balance: number; planned: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStr = d.toISOString().slice(0, 7);
-      const label = d.toLocaleDateString('pt-BR', { month: 'short' });
-      const inc = entries.filter(e => e.type === 'income' && e.date.startsWith(monthStr)).reduce((a, e) => a + e.amount, 0);
-      const exp = entries.filter(e => e.type !== 'income' && e.date.startsWith(monthStr)).reduce((a, e) => a + e.amount, 0);
-      months.push({ label, income: inc, expense: exp, balance: inc - exp });
+      const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - i, 1);
+      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      const summary = summarizeFinancialMonth(entries, monthStr);
+      months.push({ label, income: summary.realized.income, expense: summary.realized.expenses, balance: summary.realized.balance, planned: summary.projected.expenses });
     }
     return months;
-  }, [entries]);
+  }, [entries, selectedDate]);
 
   // ─── CRUD Functions ───────────────────────────────────────────────────────
 
@@ -407,11 +375,14 @@ export default function FinanceiroPage() {
       setQuickError('Escolha uma categoria e informe um valor maior que zero.');
       return;
     }
+    if (quickStatus === 'pending' && dateRange === 'month' && selectedMonth !== todayStr().slice(0, 7) && !quickDueDate) {
+      setQuickError('Informe o vencimento para lançar uma previsão neste mês.');
+      return;
+    }
     setQuickError('');
     setQuickSaving(true);
     try {
       const today = todayStr();
-      const isFuture = quickDueDate && quickDueDate > today;
       await apiFetch('/api/financial', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -419,12 +390,13 @@ export default function FinanceiroPage() {
           type: quickType, category: quickCategory, description: quickDescription,
           amount: Number(quickAmount), date: today, recurring: quickRecurring !== 'none',
           recurringFrequency: quickRecurring === 'none' ? undefined : quickRecurring,
-          accountId: quickAccountId || undefined, cardId: quickCardId || undefined,
-          payee: quickPayee || undefined, status: isFuture ? 'pending' : 'paid',
-          dueDate: quickDueDate || undefined,
+          accountId: quickAccountId || undefined,
+          payee: quickPayee || undefined, status: quickStatus,
+          dueDate: quickDueDate || undefined, paidDate: quickStatus === 'paid' ? today : undefined,
         }),
       });
-      setQuickAmount(''); setQuickDescription(''); setQuickPayee(''); setQuickDueDate('');
+      if (dateRange !== 'all') setSelectedMonth((quickStatus === 'paid' ? today : quickDueDate || today).slice(0, 7));
+      setQuickAmount(''); setQuickDescription(''); setQuickPayee(''); setQuickDueDate(''); setQuickStatus('pending');
       loadAll();
       toast.success('Lançamento adicionado!');
       setTimeout(() => quickAmountRef.current?.focus(), 100);
@@ -487,11 +459,9 @@ export default function FinanceiroPage() {
   async function handleCreateBudget() {
     if (!budgetCategory || !budgetLimit) return;
     try {
-      const now = new Date();
-      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
       await apiFetch('/api/budgets', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: budgetCategory, type: 'expense_variable', monthlyLimit: parseFloat(budgetLimit), spent: 0, month }),
+        body: JSON.stringify({ category: budgetCategory, type: 'expense_variable', monthlyLimit: parseFloat(budgetLimit), spent: 0, month: selectedMonth }),
       });
       setBudgetCategory(''); setBudgetLimit('');
       setIsBudgetDialogOpen(false); loadAll(); toast.success('Orçamento criado!');
@@ -516,10 +486,10 @@ export default function FinanceiroPage() {
     try {
       await apiFetch(`/api/financial/${entry.id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, paidDate: newStatus === 'paid' ? todayStr() : undefined }),
+        body: JSON.stringify({ status: newStatus, paidDate: newStatus === 'paid' ? todayStr() : null }),
       });
       loadAll();
-      toast.success(newStatus === 'paid' ? 'Marcado como pago!' : 'Marcado como pendente');
+      toast.success(newStatus === 'paid' ? entry.type === 'income' ? 'Marcado como recebido!' : 'Marcado como pago!' : 'Marcado como pendente');
     } catch (err) { toast.error(showError(err)); }
   }
 
@@ -538,12 +508,6 @@ export default function FinanceiroPage() {
 
   function getCurrentBillMonth() {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
-
-  function getNextBillMonth() {
-    const now = new Date();
-    now.setMonth(now.getMonth() + 1);
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
   }
 
@@ -608,7 +572,6 @@ export default function FinanceiroPage() {
       return;
     }
     const card = creditCards[0];
-    const now = new Date();
     const month = getCurrentBillMonth();
     const closeDate = `${month}-${String(card.closingDay || 1).padStart(2, '0')}`;
     const [year, mon] = month.split('-').map(Number);
@@ -645,14 +608,20 @@ export default function FinanceiroPage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
-              <SelectTrigger className="w-[140px] h-10"><SelectValue /></SelectTrigger>
+              <SelectTrigger aria-label="Período financeiro" className="w-[130px] h-10"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="month">Este Mês</SelectItem>
+                <SelectItem value="month">Mês</SelectItem>
                 <SelectItem value="quarter">Trimestre</SelectItem>
                 <SelectItem value="year">Ano</SelectItem>
                 <SelectItem value="all">Tudo</SelectItem>
               </SelectContent>
             </Select>
+            <div className="flex h-10 items-center rounded-xl border border-border/70 bg-card/70">
+              <Button type="button" variant="ghost" size="icon" disabled={dateRange === 'all'} aria-label={dateRange === 'month' ? 'Mês anterior' : 'Período anterior'} onClick={() => setSelectedMonth(month => shiftFinancialPeriod(month, dateRange, -1))} className="h-9 w-9 rounded-r-none"><ChevronLeft className="h-4 w-4" /></Button>
+              <span data-testid="financial-period-label" className="min-w-[158px] px-2 text-center text-sm font-semibold first-letter:uppercase tabular-nums">{range.label}</span>
+              <Button type="button" variant="ghost" size="icon" disabled={dateRange === 'all'} aria-label={dateRange === 'month' ? 'Próximo mês' : 'Próximo período'} onClick={() => setSelectedMonth(month => shiftFinancialPeriod(month, dateRange, 1))} className="h-9 w-9 rounded-l-none"><ChevronRight className="h-4 w-4" /></Button>
+            </div>
+            {selectedMonth !== currentMonth && <Button type="button" variant="outline" size="sm" onClick={() => setSelectedMonth(currentMonth)} className="h-10">Mês atual</Button>}
           </div>
         </div>
       </motion.div>
@@ -667,7 +636,7 @@ export default function FinanceiroPage() {
               <Card className="border-l-4 border-l-money bg-money/5">
                 <CardContent className="p-3 lg:p-5">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Saldo Total</span>
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Saldo atual nas contas</span>
                     <Landmark className="h-4 w-4 text-money" />
                   </div>
                   <div className="text-xl lg:text-3xl font-bold text-money font-mono-num">R$ {totalBalance.toLocaleString('pt-BR')}</div>
@@ -679,7 +648,7 @@ export default function FinanceiroPage() {
               <Card className="border-l-4 border-l-primary bg-primary/5">
                 <CardContent className="p-3 lg:p-5">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Receitas</span>
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Recebido</span>
                     <TrendingUp className="h-4 w-4 text-primary" />
                   </div>
                   <div className="text-xl lg:text-3xl font-bold text-primary font-mono-num">R$ {totalIncome.toLocaleString('pt-BR')}</div>
@@ -691,10 +660,10 @@ export default function FinanceiroPage() {
               <Card className="border-l-4 border-l-critical bg-critical/5">
                 <CardContent className="p-3 lg:p-5">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Despesas</span>
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Despesas pagas</span>
                     <TrendingDown className="h-4 w-4 text-critical" />
                   </div>
-                  <div className="text-xl lg:text-3xl font-bold text-critical font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</div>
+                  <div data-testid="financial-paid-expenses" className="text-xl lg:text-3xl font-bold text-critical font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</div>
                   <p className="text-xs text-muted-foreground mt-0.5">{range.label}</p>
                 </CardContent>
               </Card>
@@ -703,7 +672,7 @@ export default function FinanceiroPage() {
               <Card className={cn('border-l-4', balance >= 0 ? 'border-l-money bg-money/5' : 'border-l-critical bg-critical/5')}>
                 <CardContent className="p-3 lg:p-5">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Fluxo Líquido</span>
+                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Resultado realizado</span>
                     <CircleDollarSign className={cn('h-4 w-4', balance >= 0 ? 'text-money' : 'text-critical')} />
                   </div>
                   <div className={cn('text-xl lg:text-3xl font-bold font-mono-num', balance >= 0 ? 'text-money' : 'text-critical')}>
@@ -720,15 +689,25 @@ export default function FinanceiroPage() {
         )}
       </motion.div>
 
+      {!isLoading && <div className="mb-6 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-3 sm:gap-6" aria-label="Valores previstos no período">
+        <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">A receber · previsto</p><p className="mt-1 font-mono-num text-lg font-semibold text-primary">R$ {periodSummary.projected.income.toLocaleString('pt-BR')}</p></div>
+        <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">A pagar · previsto</p><p data-testid="financial-planned-expenses" className="mt-1 font-mono-num text-lg font-semibold text-qty">R$ {periodSummary.projected.expenses.toLocaleString('pt-BR')}</p></div>
+        <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Resultado previsto</p><p className={cn('mt-1 font-mono-num text-lg font-semibold', periodSummary.projected.balance >= 0 ? 'text-money' : 'text-qty')}>R$ {periodSummary.projected.balance.toLocaleString('pt-BR')}</p></div>
+      </div>}
+
       {/* ─── Quick Add (Full-width bar) ────────────────────────────────────── */}
       <motion.div className="mb-6" variants={fade}>
         <Card className="rounded-2xl border-border/70 bg-card/70 shadow-sm">
           <form onSubmit={handleQuickAdd} className="p-4 sm:p-6" aria-label="Novo Lançamento">
             <div className="mb-5">
               <h2 className="font-medium">Novo Lançamento</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Registre o que entrou ou saiu. Acrescente detalhes quando precisar.</p>
+              <p className="mt-1 text-xs text-muted-foreground">Escolha se é uma previsão ou um valor já realizado.</p>
             </div>
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="mb-5 inline-flex rounded-xl border border-border/70 bg-muted/30 p-1" role="group" aria-label="Situação do lançamento">
+              <button type="button" aria-pressed={quickStatus === 'pending'} onClick={() => setQuickStatus('pending')} className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors', quickStatus === 'pending' ? 'bg-qty/15 text-qty shadow-sm' : 'text-muted-foreground hover:text-foreground')}>Previsto</button>
+              <button type="button" aria-pressed={quickStatus === 'paid'} onClick={() => setQuickStatus('paid')} className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors', quickStatus === 'paid' ? 'bg-money/15 text-money shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{quickType === 'income' ? 'Recebido' : 'Pago'}</button>
+            </div>
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-6">
               <div className="space-y-1">
                 <Label htmlFor="quick-type" className="text-xs text-muted-foreground">Movimentação</Label>
                 <Select value={quickType} onValueChange={(v) => { setQuickType(v as FinancialEntry['type']); setQuickCategory(''); }}>
@@ -757,6 +736,7 @@ export default function FinanceiroPage() {
                 <Label htmlFor="quick-description" className="text-xs text-muted-foreground">Descrição · opcional</Label>
                 <Input id="quick-description" value={quickDescription} onChange={(e) => setQuickDescription(e.target.value)} placeholder="O que foi?" className="h-11" />
               </div>
+              <div className="space-y-1"><Label htmlFor="quick-due" className="text-xs text-muted-foreground">Vencimento · opcional</Label><Input id="quick-due" type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-11" /></div>
               <div className="space-y-1">
                 <Label htmlFor="quick-account" className="text-xs text-muted-foreground">Conta · opcional</Label>
                 <Select value={quickAccountId} onValueChange={setQuickAccountId}>
@@ -769,7 +749,7 @@ export default function FinanceiroPage() {
             </div>
             <details className="mt-5 rounded-xl border border-border/60 px-4 py-3">
               <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Mais detalhes</summary>
-              <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label htmlFor="quick-frequency" className="text-xs text-muted-foreground">Repetir</Label>
                 <Select value={quickRecurring} onValueChange={(v) => setQuickRecurring(v as RecurringType)}>
@@ -779,13 +759,12 @@ export default function FinanceiroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1"><Label htmlFor="quick-due" className="text-xs text-muted-foreground">Vencimento · opcional</Label><Input id="quick-due" type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-11" /></div>
               <div className="space-y-1"><Label htmlFor="quick-payee" className="text-xs text-muted-foreground">Pessoa ou empresa · opcional</Label><Input id="quick-payee" value={quickPayee} onChange={(e) => setQuickPayee(e.target.value)} placeholder="Nome do favorecido" className="h-11" /></div>
               </div>
             </details>
             {quickError && <p role="alert" className="mt-3 text-sm text-destructive">{quickError}</p>}
             <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">Registrado hoje. Vencimentos futuros ficam pendentes.</p>
+              <p className="text-xs text-muted-foreground">Registrado hoje. {quickStatus === 'paid' ? 'Pagamento contabilizado hoje.' : 'A previsão aparece no mês do vencimento.'}</p>
               <Button type="submit" size="lg" disabled={quickSaving || !quickAmount || !quickCategory} className="h-11 w-full sm:w-auto px-6">
                 <Plus className="mr-2 h-4 w-4" /> {quickSaving ? 'Salvando…' : 'Salvar lançamento'}
               </Button>
@@ -830,19 +809,17 @@ export default function FinanceiroPage() {
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Flame className="h-5 w-5 text-orange-500" /> Burn Rate Diário
+                    <Flame className="h-5 w-5 text-orange-500" /> Média paga por dia · {selectedMonth}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="text-3xl font-bold font-mono-num">R$ {dailyBurnRate.toLocaleString('pt-BR')}</div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Projeção fim do mês: <span className="font-bold text-critical">R$ {projectedMonthEnd.toLocaleString('pt-BR')}</span>
-                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">{selectedMonth > currentMonth ? 'Ainda sem pagamentos neste mês.' : selectedMonth === currentMonth ? 'Estimativa pelo ritmo: ' : 'Total pago no mês: '}<span className="font-bold text-critical">{selectedMonth > currentMonth ? '' : `R$ ${projectedMonthEnd.toLocaleString('pt-BR')}`}</span></p>
                   <div className="mt-3">
                     <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Dia {dayOfMonth}</span><span>{daysInMonth} dias</span>
+                      <span>Dia {elapsedDays}</span><span>{daysInMonth} dias</span>
                     </div>
-                    <Progress value={(dayOfMonth / daysInMonth) * 100} className="h-2" />
+                    <Progress value={(elapsedDays / daysInMonth) * 100} className="h-2" />
                   </div>
                 </CardContent>
               </Card>
@@ -851,13 +828,13 @@ export default function FinanceiroPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <Clock className="h-5 w-5 text-yellow-500" /> Contas a Pagar
+                    <Clock className="h-5 w-5 text-yellow-500" /> A pagar no período
                   </CardTitle>
                   <Badge variant="secondary">{pendingEntries.length}</Badge>
                 </CardHeader>
                 <CardContent>
                   {pendingEntries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma conta pendente</p>
+                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma despesa prevista</p>
                   ) : (
                     <div className="space-y-2">
                       {pendingEntries.slice(0, 5).map(entry => (
@@ -867,9 +844,9 @@ export default function FinanceiroPage() {
                           </button>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{entry.category}</p>
-                            <p className="text-xs text-muted-foreground">Vence {new Date(entry.dueDate! + 'T12:00:00').toLocaleDateString('pt-BR')}</p>
+                            <p className="text-xs text-muted-foreground">{entry.dueDate ? 'Vence' : 'Prevista para'} {new Date(`${effectiveFinancialDate(entry)}T12:00:00`).toLocaleDateString('pt-BR')}</p>
                           </div>
-                          <span className="text-sm font-bold font-mono-num text-critical">R$ {entry.amount.toLocaleString('pt-BR')}</span>
+                            <span className="text-sm font-bold font-mono-num text-qty">R$ {entry.amount.toLocaleString('pt-BR')}</span>
                         </div>
                       ))}
                     </div>
@@ -918,24 +895,26 @@ export default function FinanceiroPage() {
             <div className="grid gap-6 lg:grid-cols-2 mb-6">
               {/* Monthly Trend */}
               <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-5 w-5" /> Tendência Mensal</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-5 w-5" /> Tendência Mensal · pago e previsto</CardTitle></CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     {monthlyTrend.map((m) => {
-                      const maxVal = Math.max(m.income, m.expense, 1);
+                      const totalVal = Math.max(m.income + m.expense + m.planned, 1);
                       return (
                         <div key={m.label} className="space-y-1">
-                          <div className="flex items-center justify-between text-sm">
-                            <span className="text-muted-foreground capitalize w-8">{m.label}</span>
+                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs sm:flex sm:items-center sm:justify-between sm:text-sm">
+                            <span className="col-span-2 text-muted-foreground capitalize sm:w-8">{m.label}</span>
                             <span className="font-mono-num text-money">+R$ {m.income.toLocaleString('pt-BR')}</span>
                             <span className="font-mono-num text-critical">-R$ {m.expense.toLocaleString('pt-BR')}</span>
-                            <span className={cn('font-mono-num font-bold w-24 text-right', m.balance >= 0 ? 'text-money' : 'text-critical')}>
+                            <span className="font-mono-num text-qty">◇ R$ {m.planned.toLocaleString('pt-BR')}</span>
+                            <span className={cn('font-mono-num font-bold text-right sm:w-24', m.balance >= 0 ? 'text-money' : 'text-critical')}>
                               R$ {m.balance.toLocaleString('pt-BR')}
                             </span>
                           </div>
                           <div className="flex gap-0.5 h-4 rounded-full overflow-hidden">
-                            <motion.div className="h-full rounded-l-full bg-money/70" initial={{ width: 0 }} animate={{ width: `${(m.income / maxVal) * 50}%` }} transition={{ duration: 0.6 }} />
-                            <motion.div className="h-full rounded-r-full bg-critical/70" initial={{ width: 0 }} animate={{ width: `${(m.expense / maxVal) * 50}%` }} transition={{ duration: 0.6 }} />
+                            <motion.div className="h-full rounded-l-full bg-money/70" initial={{ width: 0 }} animate={{ width: `${(m.income / totalVal) * 100}%` }} transition={{ duration: 0.6 }} />
+                            <motion.div className="h-full bg-critical/70" initial={{ width: 0 }} animate={{ width: `${(m.expense / totalVal) * 100}%` }} transition={{ duration: 0.6 }} />
+                            <motion.div className="h-full rounded-r-full bg-qty/70" initial={{ width: 0 }} animate={{ width: `${(m.planned / totalVal) * 100}%` }} transition={{ duration: 0.6 }} />
                           </div>
                         </div>
                       );
@@ -946,13 +925,13 @@ export default function FinanceiroPage() {
 
               {/* Category Breakdown */}
               <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><PieChart className="h-5 w-5" /> Por Categoria</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><PieChart className="h-5 w-5" /> Despesas pagas por categoria</CardTitle></CardHeader>
                 <CardContent>
                   {expenseByCategory.length === 0 ? (
                     <p className="text-sm text-muted-foreground py-8 text-center">Sem despesas no período</p>
                   ) : (
                     <div className="space-y-2">
-                      {expenseByCategory.slice(0, 8).map((cat, i) => {
+                      {expenseByCategory.slice(0, 8).map((cat) => {
                         const total = expenseByCategory.reduce((a, c) => a + c.value, 0);
                         const pct = total > 0 ? Math.round((cat.value / total) * 100) : 0;
                         return (
@@ -975,7 +954,7 @@ export default function FinanceiroPage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <AlertTriangle className="h-5 w-5 text-qty" /> Orçamentos do Mês
+                    <AlertTriangle className="h-5 w-5 text-qty" /> Orçamentos · {selectedMonth}
                   </CardTitle>
                   <Button variant="ghost" size="sm" onClick={() => setIsBudgetDialogOpen(true)}><Plus className="h-4 w-4 mr-1" /> Novo</Button>
                 </CardHeader>
@@ -992,6 +971,7 @@ export default function FinanceiroPage() {
                           </div>
                           <div className="text-lg font-bold font-mono-num">R$ {budget.spent.toLocaleString('pt-BR')}</div>
                           <div className="text-xs text-muted-foreground">de R$ {budget.monthlyLimit.toLocaleString('pt-BR')}</div>
+                          {budget.planned > 0 && <div className="mt-1 text-xs text-qty">Previsto: R$ {budget.planned.toLocaleString('pt-BR')}</div>}
                           <Progress value={Math.min(percent, 100)} className={cn('h-2 mt-2', isOver && '[&>div]:bg-critical')} />
                           <div className="text-right text-xs font-bold mt-1" style={{ color: isOver ? 'hsl(350 88% 64%)' : 'hsl(162 80% 58%)' }}>{percent}%</div>
                         </div>
@@ -1141,9 +1121,7 @@ export default function FinanceiroPage() {
                 {cards.filter(c => c.type === 'credit').map(card => {
                   const brandColor = cardBrandColors[card.brand] || card.color;
                   const currentMonth = getCurrentBillMonth();
-                  const nextMonth = getNextBillMonth();
                   const currentBill = getBillForCardMonth(card.id, currentMonth);
-                  const nextBill = getBillForCardMonth(card.id, nextMonth);
                   const currentTransactions = getCardTransactionsForMonth(card.id, currentMonth);
                   const currentTotal = currentTransactions.reduce((a, e) => a + e.amount, 0);
 
@@ -1306,21 +1284,14 @@ export default function FinanceiroPage() {
 
             {/* Monthly Summary Bar */}
             <Card className="mb-4">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">Proporção</span>
-                  <div className="flex items-center gap-4 text-xs">
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-money" /> Entradas {incomePercent}%</span>
-                    <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-critical" /> Saídas {100 - incomePercent}%</span>
-                  </div>
+              <CardContent className="grid gap-4 p-4 sm:grid-cols-2">
+                <div className="rounded-xl border border-money/20 bg-money/5 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-money">Realizado · filtros ativos</p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-mono-num"><span>Recebido R$ {filteredSummary.realized.income.toLocaleString('pt-BR')}</span><span>Pago R$ {filteredSummary.realized.expenses.toLocaleString('pt-BR')}</span></div>
                 </div>
-                <div className="flex h-4 w-full overflow-hidden rounded-full bg-muted">
-                  <motion.div className="h-full bg-money" initial={{ width: 0 }} animate={{ width: `${incomePercent}%` }} />
-                  <motion.div className="h-full bg-critical" initial={{ width: 0 }} animate={{ width: `${100 - incomePercent}%` }} />
-                </div>
-                <div className="flex justify-between mt-2 text-sm font-mono-num">
-                  <span className="text-money font-bold">+R$ {totalIncome.toLocaleString('pt-BR')}</span>
-                  <span className="text-critical font-bold">-R$ {totalExpenses.toLocaleString('pt-BR')}</span>
+                <div className="rounded-xl border border-qty/20 bg-qty/5 p-3">
+                  <p className="text-xs font-medium uppercase tracking-wide text-qty">Previsto · filtros ativos</p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-mono-num"><span>A receber R$ {filteredSummary.projected.income.toLocaleString('pt-BR')}</span><span>A pagar R$ {filteredSummary.projected.expenses.toLocaleString('pt-BR')}</span></div>
                 </div>
               </CardContent>
             </Card>
@@ -1330,10 +1301,10 @@ export default function FinanceiroPage() {
               <button onClick={() => setCategoryFilter(null)} className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all', categoryFilter === null ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
                 Todos
               </button>
-              {expenseByCategory.map(cat => (
-                <button key={cat.label} onClick={() => setCategoryFilter(categoryFilter === cat.label ? null : cat.label)} className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all', categoryFilter === cat.label ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: cat.color }} />
-                  {cat.label}
+              {expenseCategories.map(category => (
+                <button key={category} onClick={() => setCategoryFilter(categoryFilter === category ? null : category)} className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all', categoryFilter === category ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: categoryColors[category] || '#64748b' }} />
+                  {category}
                 </button>
               ))}
             </div>
@@ -1347,7 +1318,7 @@ export default function FinanceiroPage() {
               </CardContent></Card>
             ) : (
               <div className="space-y-4">
-                {filteredEntries.sort((a, b) => b.date.localeCompare(a.date)).map(entry => {
+                {filteredEntries.slice().sort((a, b) => effectiveFinancialDate(b).localeCompare(effectiveFinancialDate(a))).map(entry => {
                   const statusInfo = statusConfig[entry.status || 'pending'];
                   return (
                     <motion.div key={entry.id} layout initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
@@ -1360,13 +1331,15 @@ export default function FinanceiroPage() {
                             <div className="flex items-center gap-2">
                               <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: categoryColors[entry.category] || '#64748b' }} />
                               <p className="font-medium truncate">{entry.category}</p>
+                              <Badge variant="outline" className={cn('text-xs', statusInfo.color, statusInfo.bgColor)}>{entry.type === 'income' && entry.status === 'paid' ? 'Recebido' : statusInfo.label}</Badge>
                               {entry.payee && <span className="text-xs text-muted-foreground">• {entry.payee}</span>}
                             </div>
                             {entry.description && <p className="text-sm text-muted-foreground truncate mt-0.5">{entry.description}</p>}
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-muted-foreground">{new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                              <span className="text-xs text-muted-foreground">Registrado {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
                               {entry.recurring && <Badge variant="secondary" className="text-xs px-1 py-0"><Repeat className="h-2 w-2 mr-0.5" />{recurringLabels[entry.recurringFrequency || (typeof entry.recurring === 'string' ? entry.recurring : 'none')]}</Badge>}
                               {entry.dueDate && <span className="text-xs text-muted-foreground">Vence {new Date(entry.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+                              {entry.status === 'paid' && <span className="text-xs text-money">{entry.type === 'income' ? 'Recebido' : 'Pago'} {new Date(`${entry.paidDate || entry.date}T12:00:00`).toLocaleDateString('pt-BR')}</span>}
                             </div>
                           </div>
                           <div className="text-right shrink-0">
@@ -1380,7 +1353,7 @@ export default function FinanceiroPage() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={() => handleTogglePaid(entry)}>
-                                {entry.status === 'paid' ? '⏳ Marcar Pendente' : '✅ Marcar Pago'}
+                                {entry.status === 'paid' ? '⏳ Marcar Pendente' : entry.type === 'income' ? '✅ Marcar Recebido' : '✅ Marcar Pago'}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem onClick={() => handleDeleteEntry(entry.id)} className="text-destructive">
@@ -1409,18 +1382,17 @@ export default function FinanceiroPage() {
                 const typeLabels = { income: '💰 Receitas', expense_fixed: '📌 Despesas Fixas', expense_variable: '🔄 Despesas Variáveis' };
                 return (
                   <Card key={type}>
-                    <CardHeader><CardTitle className="text-base">{typeLabels[type]}</CardTitle></CardHeader>
+                    <CardHeader><CardTitle className="text-base">{typeLabels[type]}</CardTitle><p className="text-xs text-muted-foreground">Totais de todos os períodos, separados por situação.</p></CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {[...new Set([...categories[type], ...entries.filter(entry => entry.type === type).map(entry => entry.category)])].map(cat => (
-                          <div key={cat} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                        {[...new Set([...categories[type], ...entries.filter(entry => entry.type === type).map(entry => entry.category)])].map(cat => {
+                          const totals = summarizeFinancialEntries(entries.filter(entry => entry.type === type && entry.category === cat));
+                          return <div key={cat} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
                             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: categoryColors[cat] || '#64748b' }} />
                             <span className="text-sm font-medium flex-1">{cat}</span>
-                            <Badge variant="secondary" className="text-xs">
-                              {entries.filter(e => e.category === cat).reduce((a, e) => a + e.amount, 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                            </Badge>
-                          </div>
-                        ))}
+                            <span className="text-right text-xs text-muted-foreground">Realizado R$ {(type === 'income' ? totals.realized.income : totals.realized.expenses).toLocaleString('pt-BR')}<br />Previsto R$ {(type === 'income' ? totals.projected.income : totals.projected.expenses).toLocaleString('pt-BR')}</span>
+                          </div>;
+                        })}
                       </div>
                     </CardContent>
                   </Card>

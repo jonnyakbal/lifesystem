@@ -9,7 +9,7 @@ Make the LIFESYSTEM MCP a safe control plane for Hermes: the agent may inspect c
 1. Hermes has a distinct identity and least-privilege credentials. A model-inference credential must not automatically grant data mutation rights.
 2. The agent uses domain actions, never broad record deletion, for personal operations. Generic CRUD stays available only to explicitly scoped trusted clients for backwards compatibility.
 3. A capture is triage material and can be converted idempotently into a note, task, content item, financial entry, calendar event, project or edital.
-4. A task keeps its deadline independently from its planned focus block. A Google event created for a task is owned, linked and conflict-protected by the task-planning engine.
+4. A task has one date: its planned day is also its `dueDate`; its focus-time block is optional. A Google event created for a task is owned, linked and conflict-protected by the task-planning engine.
 5. Read tools are paginated and bounded. Write tools accept a caller-provided idempotency key where a retry could produce duplicate external or financial effects.
 6. The audit records the client identity, request correlation, timing, outcome and safe target metadata. It never stores secrets or arbitrary input bodies.
 7. The Hermes panel only calls a connection healthy after a signed heartbeat or a recent real tool call from a named credential.

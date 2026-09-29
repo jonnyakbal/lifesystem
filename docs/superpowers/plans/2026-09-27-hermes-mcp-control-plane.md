@@ -22,7 +22,7 @@
 - A scoped inference key must not call MCP tools, and an MCP key must not invoke inference.
 - A duplicate financial or calendar request with one idempotency key must not duplicate an external effect.
 - A calendar action must reject an event owned by another LIFESYSTEM resource.
-- A task planning action must preserve `dueDate` while creating its focus block.
+- Task planning must keep one task date: choosing or moving the day updates `dueDate`; the focus-time block remains optional.
 - Pagination must never return more than the requested bounded page.
 
 ### Task 1: Capability credentials and bounded transport

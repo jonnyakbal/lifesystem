@@ -85,6 +85,29 @@ test.describe('Tasks API', () => {
     expect((await unscheduled.json()).dueDate).toBeUndefined();
   });
 
+  test('editar o prazo mantém o dia planejado alinhado e protege blocos com horário', async ({ request }) => {
+    const created = await (await request.post('/api/tasks', { data: { title: 'Prazo único', dueDate: '2026-09-26' } })).json();
+    try {
+      expect((await request.put(`/api/tasks/${created.id}/planning`, { data: {
+        date: '2026-09-29', timeZone: 'America/Sao_Paulo', syncToGoogle: false,
+      } })).ok()).toBe(true);
+      const moved = await request.patch(`/api/tasks/${created.id}`, { data: { dueDate: '2026-09-30' } });
+      expect(moved.ok()).toBe(true);
+      expect((await moved.json()).planning.date).toBe('2026-09-30');
+
+      expect((await request.put(`/api/tasks/${created.id}/planning`, { data: {
+        date: '2026-09-30', startAt: '2026-09-30T14:00:00.000Z', endAt: '2026-09-30T14:30:00.000Z', timeZone: 'America/Sao_Paulo', syncToGoogle: false,
+      } })).ok()).toBe(true);
+      const blocked = await request.patch(`/api/tasks/${created.id}`, { data: { dueDate: '2026-10-01' } });
+      expect(blocked.status()).toBe(409);
+      const unchanged = await (await request.get(`/api/tasks/${created.id}`)).json();
+      expect(unchanged.dueDate).toBe('2026-09-30');
+    } finally {
+      await request.delete(`/api/tasks/${created.id}/planning`, { data: {} });
+      await request.delete(`/api/tasks/${created.id}`);
+    }
+  });
+
   test('DELETE /api/tasks/[id] deletes task', async ({ request }) => {
     const response = await request.delete(`/api/tasks/${createdTaskId}`);
     expect(response.ok()).toBeTruthy();
