@@ -10,6 +10,28 @@ import path from 'node:path';
 
 let testDataDir: string;
 
+test('MCP mantém centavos exatos e permite remover vencimento pela mesma regra da interface', async () => {
+  const server = createLifesystemMcpServer(['financial:read', 'financial:write']);
+  const client = new Client({ name: 'financial-redesign-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    for (const amount of [0.1, 0.2]) {
+      const result = await client.callTool({ name: 'create_financial_entry', arguments: { type: 'income', category: 'Teste centavos', amount, date: '2035-01-01', paidDate: '2035-02-01', status: 'paid' } });
+      expect(result.isError).toBeFalsy();
+    }
+    const response = await client.callTool({ name: 'get_financial_summary', arguments: { month: '2035-02' } });
+    expect(JSON.parse((response.content as { text: string }[])[0].text)).toMatchObject({ realized: { income: 0.3, balance: 0.3 } });
+    const created = await client.callTool({ name: 'create_financial_entry', arguments: { type: 'expense_fixed', category: 'Teste vencimento', amount: 50, date: '2035-01-01', dueDate: '2035-02-02', status: 'pending' } });
+    const id = JSON.parse((created.content as { text: string }[])[0].text).id;
+    const updated = await client.callTool({ name: 'update_financial_entry', arguments: { id, dueDate: null } });
+    expect(updated.isError).toBeFalsy();
+    const january = await client.callTool({ name: 'get_financial_summary', arguments: { month: '2035-01' } });
+    expect(JSON.parse((january.content as { text: string }[])[0].text)).toMatchObject({ projected: { expenses: 50 }, realized: { expenses: 0 } });
+  } finally { await client.close(); await server.close(); }
+});
+
 test.beforeAll(async () => {
   testDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lifesystem-mcp-test-'));
   process.env.LIFESYSTEM_DATA_DIR = testDataDir;

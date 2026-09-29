@@ -1,4 +1,5 @@
-/* Solar identity: decoration belongs behind content, never behind form text. */
+/* Astral identity: electric cyan is the action color; violet carries the
+   cosmic accent. Warm colors stay reserved for financial and warning states. */
 .dark {
   --color-background: #0b1017;
   --color-foreground: #edf0f4;
@@ -6,32 +7,32 @@
   --color-card-foreground: #edf0f4;
   --color-popover: #17212e;
   --color-popover-foreground: #edf0f4;
-  --color-primary: #ecc48d;
-  --color-primary-foreground: #20180f;
-  --color-secondary: #1c2734;
+  --color-primary: #63d9f2;
+  --color-primary-foreground: #071821;
+  --color-secondary: #172b3b;
   --color-secondary-foreground: #e3eaf1;
-  --color-muted: #18222e;
+  --color-muted: #17232f;
   --color-muted-foreground: #9aaabc;
-  --color-accent: #263344;
-  --color-accent-foreground: #f4e2c8;
-  --color-border: #273343;
-  --color-input: #314051;
-  --color-ring: #ecc48d;
+  --color-accent: #153548;
+  --color-accent-foreground: #c8f5ff;
+  --color-border: #263846;
+  --color-input: #344957;
+  --color-ring: #63d9f2;
 }
 .light {
-  --color-background: #f5f4ef;
-  --color-foreground: #202d3a;
-  --color-card: #fffefa;
-  --color-card-foreground: #202d3a;
-  --color-primary: #855522;
-  --color-primary-foreground: #fffefa;
-  --color-muted: #eaece7;
-  --color-muted-foreground: #5d6d78;
-  --color-border: #d9ded8;
-  --color-input: #c7cfc8;
-  --color-accent: #ede3d4;
-  --color-accent-foreground: #644019;
-  --color-ring: #855522;
+  --color-background: #f3f7fb;
+  --color-foreground: #192838;
+  --color-card: #ffffff;
+  --color-card-foreground: #192838;
+  --color-primary: #087f9f;
+  --color-primary-foreground: #ffffff;
+  --color-muted: #eaf0f5;
+  --color-muted-foreground: #5b6f82;
+  --color-border: #d7e2eb;
+  --color-input: #c3d1de;
+  --color-accent: #e3f3f8;
+  --color-accent-foreground: #12536a;
+  --color-ring: #087f9f;
 }
 .workspace-frame { --workspace-sidebar-width: 248px; }
 .workspace-main { min-width: 0; padding-top: 64px; padding-bottom: calc(86px + env(safe-area-inset-bottom)); }

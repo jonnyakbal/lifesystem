@@ -1,15 +1,52 @@
 'use client';
 
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+import {
+  type FinancialEntry,
+  type Account,
+  type Card as FinanceCard,
+  type Budget,
+  type Bill,
+  type FinancialGoal,
+  type Payee,
+  accountTypeConfig,
+  cardBrandColors,
+  categories,
+  categoryColors,
+} from '@/lib/finance-model';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  TrendingUp, TrendingDown, Plus, Trash2, PieChart, BarChart3,
-  Target, Search, ArrowUpRight, ArrowDownRight, Flame,
-  Check, AlertTriangle, Repeat, ChevronLeft, ChevronRight,
-  CreditCard, Building2, Landmark, CircleDollarSign,
-  Clock, CheckCircle2, MoreHorizontal, Receipt,
-  CircleDot, Lock
+  Plus,
+  BarChart3,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  CreditCard,
+  Building2,
+  Landmark,
+  CircleDollarSign,
+  MoreHorizontal,
+  Receipt,
+  Lock,
 } from 'lucide-react';
+import { EntryDialog } from '@/components/financial/entry-dialog';
+import {
+  FinanceOverview,
+  FinanceSummary,
+} from '@/components/financial/finance-overview';
+import { FinancialTransactions } from '@/components/financial/transactions';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  financialCreatePayload,
+  financialDisplayStatus,
+  billCycleDates,
+  formatMoney,
+} from '@/lib/financial-insights';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,160 +57,40 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
-import { effectiveFinancialDate, financialEntriesForRange, financialPeriodRange, shiftFinancialPeriod, summarizeFinancialEntries, summarizeFinancialMonth } from '@/lib/financial-period';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
+  effectiveFinancialDate,
+  financialEntriesForRange,
+  financialPeriodRange,
+  shiftFinancialPeriod,
+  summarizeFinancialEntries,
+} from '@/lib/financial-period';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type RecurringType = 'none' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
-
-interface FinancialEntry {
-  id: string;
-  type: 'income' | 'expense_fixed' | 'expense_variable';
-  category: string;
-  description?: string;
-  amount: number;
-  date: string;
-  recurring?: boolean | RecurringType;
-  recurringFrequency?: RecurringType;
-  accountId?: string;
-  cardId?: string;
-  payee?: string;
-  tags?: string[];
-  status?: 'pending' | 'paid' | 'overdue';
-  dueDate?: string;
-  paidDate?: string | null;
-}
-
-interface Account {
-  id: string;
-  name: string;
-  type: 'checking' | 'savings' | 'digital' | 'cash' | 'investment' | 'pj';
-  bank?: string;
-  balance: number;
-  color: string;
-  icon: string;
-  isActive: boolean;
-  isDefault: boolean;
-}
-
-interface Card {
-  id: string;
-  name: string;
-  type: 'credit' | 'debit' | 'multiple';
-  lastDigits: string;
-  brand: string;
-  limit?: number;
-  used?: number;
-  closingDay?: number;
-  dueDay?: number;
-  color: string;
-  accountId?: string;
-  isActive: boolean;
-}
-
-interface Bill {
-  id: string;
-  cardId: string;
-  month: string;
-  amount: number;
-  paidAmount: number;
-  status: 'open' | 'paid' | 'overdue' | 'partial' | 'closed';
-  dueDate: string;
-  closeDate: string;
-  description?: string;
-  items: BillItem[];
-}
-
-interface BillItem {
-  id: string;
-  description: string;
-  amount: number;
-  date: string;
-  category?: string;
-  installments?: { current: number; total: number };
-}
-
-interface Budget {
-  id: string;
-  category: string;
-  type: string;
-  monthlyLimit: number;
-  spent: number;
-  month: string;
-}
-
-interface FinancialGoal {
-  id: string;
-  name: string;
-  description?: string;
-  targetAmount: number;
-  currentAmount: number;
-  deadline?: string;
-  icon: string;
-  color: string;
-  status: 'active' | 'completed' | 'paused';
-}
-
-interface Payee {
-  id: string;
-  name: string;
-  type: 'person' | 'company' | 'government' | 'other';
-  document?: string;
-  color: string;
-  icon: string;
-}
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const accountTypeConfig: Record<string, { label: string; icon: string; color: string }> = {
-  checking: { label: 'Conta Corrente', icon: '🏦', color: '#3b82f6' },
-  savings: { label: 'Poupança', icon: '🐷', color: '#22c55e' },
-  digital: { label: 'Conta Digital', icon: '📱', color: '#8b5cf6' },
-  cash: { label: 'Dinheiro', icon: '💵', color: '#f59e0b' },
-  investment: { label: 'Investimento', icon: '📈', color: '#06b6d4' },
-  pj: { label: 'Conta PJ', icon: '🏢', color: '#ec4899' },
-};
-
-const cardBrandColors: Record<string, string> = {
-  Visa: '#1a1f71', Mastercard: '#eb001b', Elo: '#00a5b5', American: '#006fcf',
-  Hiper: '#cc0000', Nubank: '#820ad1', Inter: '#ff7a00', Mercado: '#009ee3',
-};
-
-const categories = {
-  income: ['Salário', 'Serviços', 'Vendas', 'Projetos', 'Rendimentos', 'Outros'],
-  expense_fixed: ['Aluguel', 'Condomínio', 'Água', 'Luz', 'Internet', 'Celular', 'Faculdade', 'Seguro', 'Carro', 'Software', 'Assinaturas'],
-  expense_variable: ['Alimentação', 'Combustível', 'Lazer', 'Roupas', 'Saúde', 'Educação', 'Presentes', 'Emergências', 'Marketing', 'Viagem'],
-};
-
-const categoryColors: Record<string, string> = {
-  'Salário': '#22c55e', 'Serviços': '#3b82f6', 'Vendas': '#a78bfa', 'Projetos': '#f59e0b', 'Rendimentos': '#06b6d4', 'Outros': '#64748b',
-  'Aluguel': '#ef4444', 'Condomínio': '#f97316', 'Água': '#06b6d4', 'Luz': '#eab308', 'Internet': '#3b82f6', 'Celular': '#8b5cf6', 'Faculdade': '#a78bfa', 'Seguro': '#64748b', 'Carro': '#ef4444', 'Software': '#22c55e', 'Assinaturas': '#ec4899',
-  'Alimentação': '#ef4444', 'Combustível': '#f97316', 'Lazer': '#ec4899', 'Roupas': '#a78bfa', 'Saúde': '#22c55e', 'Educação': '#3b82f6', 'Presentes': '#f59e0b', 'Emergências': '#dc2626', 'Marketing': '#8b5cf6', 'Viagem': '#06b6d4',
-};
-
-const recurringLabels: Record<RecurringType, string> = {
-  none: 'Único', weekly: 'Semanal', biweekly: 'Quinzenal', monthly: 'Mensal', yearly: 'Anual',
-};
-
-const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: string }> = {
-  pending: { label: 'Pendente', color: 'text-yellow-500', bgColor: 'bg-yellow-500/10', icon: '⏳' },
-  paid: { label: 'Pago', color: 'text-green-500', bgColor: 'bg-green-500/10', icon: '✅' },
-  overdue: { label: 'Atrasado', color: 'text-red-500', bgColor: 'bg-red-500/10', icon: '⚠️' },
-};
-
 const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
-const stagger = { animate: { transition: { staggerChildren: 0.04, delayChildren: 0.04 } } };
+const stagger = {
+  animate: { transition: { staggerChildren: 0.04, delayChildren: 0.04 } },
+};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function FinanceiroPage() {
   const [entries, setEntries] = useState<FinancialEntry[]>([]);
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [cards, setCards] = useState<Card[]>([]);
+  const [cards, setCards] = useState<FinanceCard[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
@@ -181,27 +98,43 @@ export default function FinanceiroPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // View state
-  const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'cards' | 'bills' | 'transactions' | 'categories'>('overview');
-  const [dateRange, setDateRange] = useState<'month' | 'quarter' | 'year' | 'all'>('month');
-  const [selectedMonth, setSelectedMonth] = useState(() => todayStr().slice(0, 7));
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'accounts' | 'cards' | 'bills' | 'transactions' | 'categories'
+  >('overview');
+  const [dateRange, setDateRange] = useState<
+    'month' | 'quarter' | 'year' | 'all'
+  >('month');
+  const [selectedMonth, setSelectedMonth] = useState(() =>
+    todayStr().slice(0, 7)
+  );
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
-  // Quick add
-  const [quickAmount, setQuickAmount] = useState('');
-  const [quickCategory, setQuickCategory] = useState('');
-  const [quickType, setQuickType] = useState<FinancialEntry['type']>('expense_variable');
-  const [quickDescription, setQuickDescription] = useState('');
-  const [quickAccountId, setQuickAccountId] = useState('');
-  const [quickPayee, setQuickPayee] = useState('');
-  const [quickRecurring, setQuickRecurring] = useState<RecurringType>('none');
-  const [quickDueDate, setQuickDueDate] = useState('');
-  const [quickStatus, setQuickStatus] = useState<'pending' | 'paid'>('pending');
-  const [quickSaving, setQuickSaving] = useState(false);
-  const [quickError, setQuickError] = useState('');
-  const quickAmountRef = useRef<HTMLInputElement>(null);
+  const [entryDialog, setEntryDialog] = useState<FinancialEntry | 'new' | null>(
+    null
+  );
+  const [loadError, setLoadError] = useState('');
+  const [balanceAccount, setBalanceAccount] = useState<Account | null>(null);
+  const [newBalance, setNewBalance] = useState('');
+  const [balanceSaving, setBalanceSaving] = useState(false);
+  const [isBillDialogOpen, setIsBillDialogOpen] = useState(false);
+  const [billCardId, setBillCardId] = useState('');
+  const [billSaving, setBillSaving] = useState(false);
+  const today = todayStr();
+
+  function openTransactions(
+    status = 'all',
+    type = 'all',
+    category: string | null = null
+  ) {
+    setFilterStatus(status);
+    setFilterType(type);
+    setCategoryFilter(category);
+    setSearchQuery('');
+    setActiveTab('transactions');
+  }
 
   // Dialogs
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
@@ -209,21 +142,6 @@ export default function FinanceiroPage() {
   const [isGoalDialogOpen, setIsGoalDialogOpen] = useState(false);
   const [isBudgetDialogOpen, setIsBudgetDialogOpen] = useState(false);
   const [isPayeeDialogOpen, setIsPayeeDialogOpen] = useState(false);
-
-  // These 5 dialogs are hand-rolled (not the Radix-based Dialog used elsewhere
-  // in the app), so they don't get Escape-to-close for free — wire it up here.
-  useEffect(() => {
-    function handleEscape(e: KeyboardEvent) {
-      if (e.key !== 'Escape') return;
-      setIsAccountDialogOpen(false);
-      setIsCardDialogOpen(false);
-      setIsGoalDialogOpen(false);
-      setIsBudgetDialogOpen(false);
-      setIsPayeeDialogOpen(false);
-    }
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, []);
 
   // Account form
   const [accountName, setAccountName] = useState('');
@@ -235,7 +153,7 @@ export default function FinanceiroPage() {
 
   // Card form
   const [cardName, setCardName] = useState('');
-  const [cardType, setCardType] = useState<Card['type']>('credit');
+  const [cardType, setCardType] = useState<FinanceCard['type']>('credit');
   const [cardLastDigits, setCardLastDigits] = useState('');
   const [cardBrand, setCardBrand] = useState('');
   const [cardLimit, setCardLimit] = useState('');
@@ -258,26 +176,46 @@ export default function FinanceiroPage() {
   // Budget form
   const [budgetCategory, setBudgetCategory] = useState('');
   const [budgetLimit, setBudgetLimit] = useState('');
+  const [budgetType, setBudgetType] = useState<
+    'expense_fixed' | 'expense_variable'
+  >('expense_variable');
 
-  useEffect(() => { loadAll(); }, []);
+  useEffect(() => {
+    loadAll();
+  }, []);
 
   async function loadAll() {
+    setLoadError('');
     try {
-      const [entriesData, accountsData, cardsData, budgetsData, goalsData, payeesData, billsData] = await Promise.all([
+      const [
+        entriesData,
+        accountsData,
+        cardsData,
+        budgetsData,
+        goalsData,
+        payeesData,
+        billsData,
+      ] = await Promise.all([
         apiFetch<FinancialEntry[]>('/api/financial'),
         apiFetch<Account[]>('/api/accounts'),
-        apiFetch<Card[]>('/api/cards'),
+        apiFetch<FinanceCard[]>('/api/cards'),
         apiFetch<Budget[]>('/api/budgets'),
         apiFetch<FinancialGoal[]>('/api/financial-goals'),
         apiFetch<Payee[]>('/api/payees'),
         apiFetch<Bill[]>('/api/bills'),
       ]);
-      setEntries(entriesData.map((entry) => {
-        if (typeof entry.recurring === 'string') {
-          return { ...entry, recurring: entry.recurring !== 'none', recurringFrequency: entry.recurring };
-        }
-        return entry;
-      }));
+      setEntries(
+        entriesData.map((entry) => {
+          if (typeof entry.recurring === 'string') {
+            return {
+              ...entry,
+              recurring: entry.recurring !== 'none',
+              recurringFrequency: entry.recurring,
+            };
+          }
+          return entry;
+        })
+      );
       setAccounts(accountsData);
       setCards(cardsData);
       setBudgets(budgetsData);
@@ -285,7 +223,7 @@ export default function FinanceiroPage() {
       setPayees(payeesData);
       setBills(billsData);
     } catch (err) {
-      toast.error(showError(err));
+      setLoadError(showError(err));
     } finally {
       setIsLoading(false);
     }
@@ -293,298 +231,443 @@ export default function FinanceiroPage() {
 
   // ─── Date Range Filter ────────────────────────────────────────────────────
 
-  const range = useMemo(() => financialPeriodRange(selectedMonth, dateRange), [selectedMonth, dateRange]);
-  const periodEntries = useMemo(() => financialEntriesForRange(entries, range), [entries, range]);
+  const range = useMemo(
+    () => financialPeriodRange(selectedMonth, dateRange),
+    [selectedMonth, dateRange]
+  );
+  const periodEntries = useMemo(
+    () => financialEntriesForRange(entries, range),
+    [entries, range]
+  );
 
   const filteredEntries = useMemo(() => {
-    return periodEntries.filter(e => {
-      if (filterType !== 'all' && e.type !== filterType) return false;
-      if (filterStatus !== 'all' && (e.status || 'pending') !== filterStatus) return false;
+    return periodEntries.filter((e) => {
+      if (
+        filterType === 'expenses'
+          ? e.type === 'income'
+          : filterType !== 'all' && e.type !== filterType
+      )
+        return false;
+      if (
+        filterStatus === 'open'
+          ? e.status === 'paid'
+          : filterStatus !== 'all' &&
+            financialDisplayStatus(e, today) !== filterStatus
+      )
+        return false;
       if (categoryFilter && e.category !== categoryFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
-        return e.category.toLowerCase().includes(q) || e.description?.toLowerCase().includes(q) || e.payee?.toLowerCase().includes(q);
+        return (
+          e.category.toLowerCase().includes(q) ||
+          e.description?.toLowerCase().includes(q) ||
+          e.payee?.toLowerCase().includes(q)
+        );
       }
       return true;
     });
-  }, [periodEntries, filterType, filterStatus, searchQuery, categoryFilter]);
+  }, [
+    periodEntries,
+    filterType,
+    filterStatus,
+    searchQuery,
+    categoryFilter,
+    today,
+  ]);
 
   // ─── Calculations ─────────────────────────────────────────────────────────
 
-  const periodSummary = useMemo(() => summarizeFinancialEntries(periodEntries), [periodEntries]);
-  const filteredSummary = useMemo(() => summarizeFinancialEntries(filteredEntries), [filteredEntries]);
-  const totalIncome = periodSummary.realized.income;
-  const totalExpenses = periodSummary.realized.expenses;
-  const balance = periodSummary.realized.balance;
-  const savingsRate = totalIncome > 0 ? Math.round(((totalIncome - totalExpenses) / totalIncome) * 100) : 0;
-  const totalBalance = accounts.filter(a => a.isActive).reduce((a, acc) => a + acc.balance, 0);
-
-  const pendingEntries = periodEntries.filter(e => e.type !== 'income' && e.status !== 'paid')
-    .sort((a, b) => effectiveFinancialDate(a).localeCompare(effectiveFinancialDate(b)));
-
-  const now = new Date();
-  const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  const currentBudgets = useMemo(() => budgets
-    .filter(b => b.month === selectedMonth)
-    .map(budget => ({
-      ...budget,
-      spent: periodEntries
-        .filter(entry => entry.type === budget.type && entry.category === budget.category && effectiveFinancialDate(entry).startsWith(budget.month) && entry.status === 'paid')
-        .reduce((total, entry) => total + entry.amount, 0),
-      planned: periodEntries
-        .filter(entry => entry.type === budget.type && entry.category === budget.category && effectiveFinancialDate(entry).startsWith(budget.month) && entry.status !== 'paid')
-        .reduce((total, entry) => total + entry.amount, 0),
-    })), [budgets, periodEntries, selectedMonth]);
-
-  const selectedDate = useMemo(() => new Date(Number(selectedMonth.slice(0, 4)), Number(selectedMonth.slice(5, 7)) - 1, 1), [selectedMonth]);
-  const daysInMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0).getDate();
-  const elapsedDays = selectedMonth > currentMonth ? 0 : selectedMonth === currentMonth ? now.getDate() : daysInMonth;
-  const selectedMonthPaidExpenses = summarizeFinancialMonth(entries, selectedMonth).realized.expenses;
-  const dailyBurnRate = elapsedDays > 0 ? Math.round(selectedMonthPaidExpenses / elapsedDays) : 0;
-  const projectedMonthEnd = selectedMonth === currentMonth ? dailyBurnRate * daysInMonth : selectedMonthPaidExpenses;
-
-  const expenseByCategory = useMemo(() => {
-    const map = new Map<string, number>();
-    periodEntries.filter(e => e.type !== 'income' && e.status === 'paid').forEach(e => {
-      map.set(e.category, (map.get(e.category) || 0) + e.amount);
-    });
-    return Array.from(map.entries())
-      .map(([label, value]) => ({ label, value, color: categoryColors[label] || '#64748b' }))
-      .sort((a, b) => b.value - a.value);
-  }, [periodEntries]);
-  const expenseCategories = useMemo(() => [...new Set(periodEntries.filter(e => e.type !== 'income').map(e => e.category))], [periodEntries]);
-
-  const monthlyTrend = useMemo(() => {
-    const months: { label: string; income: number; expense: number; balance: number; planned: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(selectedDate.getFullYear(), selectedDate.getMonth() - i, 1);
-      const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
-      const summary = summarizeFinancialMonth(entries, monthStr);
-      months.push({ label, income: summary.realized.income, expense: summary.realized.expenses, balance: summary.realized.balance, planned: summary.projected.expenses });
-    }
-    return months;
-  }, [entries, selectedDate]);
-
-  // ─── CRUD Functions ───────────────────────────────────────────────────────
-
-  async function handleQuickAdd(e: React.FormEvent) {
-    e.preventDefault();
-    if (quickSaving) return;
-    if (!quickCategory || !Number.isFinite(Number(quickAmount)) || Number(quickAmount) <= 0) {
-      setQuickError('Escolha uma categoria e informe um valor maior que zero.');
-      return;
-    }
-    if (quickStatus === 'pending' && dateRange === 'month' && selectedMonth !== todayStr().slice(0, 7) && !quickDueDate) {
-      setQuickError('Informe o vencimento para lançar uma previsão neste mês.');
-      return;
-    }
-    setQuickError('');
-    setQuickSaving(true);
-    try {
-      const today = todayStr();
-      await apiFetch('/api/financial', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: quickType, category: quickCategory, description: quickDescription,
-          amount: Number(quickAmount), date: today, recurring: quickRecurring !== 'none',
-          recurringFrequency: quickRecurring === 'none' ? undefined : quickRecurring,
-          accountId: quickAccountId || undefined,
-          payee: quickPayee || undefined, status: quickStatus,
-          dueDate: quickDueDate || undefined, paidDate: quickStatus === 'paid' ? today : undefined,
-        }),
-      });
-      if (dateRange !== 'all') setSelectedMonth((quickStatus === 'paid' ? today : quickDueDate || today).slice(0, 7));
-      setQuickAmount(''); setQuickDescription(''); setQuickPayee(''); setQuickDueDate(''); setQuickStatus('pending');
-      loadAll();
-      toast.success('Lançamento adicionado!');
-      setTimeout(() => quickAmountRef.current?.focus(), 100);
-    } catch (err) {
-      setQuickError(showError(err));
-      toast.error(showError(err));
-    } finally {
-      setQuickSaving(false);
-    }
-  }
+  const periodSummary = useMemo(
+    () => summarizeFinancialEntries(periodEntries),
+    [periodEntries]
+  );
+  const totalBalance = accounts
+    .filter((a) => a.isActive)
+    .reduce((sum, account) => sum + account.balance, 0);
+  const currentMonth = today.slice(0, 7);
+  const currentBudgets = useMemo(
+    () =>
+      budgets
+        .filter((b) => b.month === selectedMonth)
+        .map((budget) => ({
+          ...budget,
+          spent: entries
+            .filter(
+              (entry) =>
+                entry.type === budget.type &&
+                entry.category === budget.category &&
+                effectiveFinancialDate(entry).startsWith(budget.month) &&
+                entry.status === 'paid'
+            )
+            .reduce((total, entry) => total + entry.amount, 0),
+          planned: entries
+            .filter(
+              (entry) =>
+                entry.type === budget.type &&
+                entry.category === budget.category &&
+                effectiveFinancialDate(entry).startsWith(budget.month) &&
+                entry.status !== 'paid'
+            )
+            .reduce((total, entry) => total + entry.amount, 0),
+        })),
+    [budgets, entries, selectedMonth]
+  );
 
   async function handleCreateAccount() {
     if (!accountName) return;
     try {
       await apiFetch('/api/accounts', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: accountName, type: accountType, bank: accountBank, balance: parseFloat(accountBalance) || 0, color: accountColor, icon: accountIcon }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: accountName,
+          type: accountType,
+          bank: accountBank,
+          balance: parseFloat(accountBalance) || 0,
+          color: accountColor,
+          icon: accountIcon,
+        }),
       });
-      setAccountName(''); setAccountBank(''); setAccountBalance('');
-      setIsAccountDialogOpen(false); loadAll(); toast.success('Conta criada!');
-    } catch (err) { toast.error(showError(err)); }
+      setAccountName('');
+      setAccountBank('');
+      setAccountBalance('');
+      setIsAccountDialogOpen(false);
+      loadAll();
+      toast.success('Conta criada!');
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleCreateCard() {
     if (!cardName || !cardLastDigits) return;
     try {
       await apiFetch('/api/cards', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: cardName, type: cardType, lastDigits: cardLastDigits, brand: cardBrand, limit: parseFloat(cardLimit) || undefined, closingDay: parseInt(cardClosingDay) || undefined, dueDay: parseInt(cardDueDay) || undefined, color: cardColor }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: cardName,
+          type: cardType,
+          lastDigits: cardLastDigits,
+          brand: cardBrand,
+          limit: parseFloat(cardLimit) || undefined,
+          closingDay: parseInt(cardClosingDay) || undefined,
+          dueDay: parseInt(cardDueDay) || undefined,
+          color: cardColor,
+        }),
       });
-      setCardName(''); setCardLastDigits(''); setCardBrand(''); setCardLimit(''); setCardClosingDay(''); setCardDueDay('');
-      setIsCardDialogOpen(false); loadAll(); toast.success('Cartão criado!');
-    } catch (err) { toast.error(showError(err)); }
+      setCardName('');
+      setCardLastDigits('');
+      setCardBrand('');
+      setCardLimit('');
+      setCardClosingDay('');
+      setCardDueDay('');
+      setIsCardDialogOpen(false);
+      loadAll();
+      toast.success('Cartão criado!');
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleCreatePayee() {
     if (!payeeName) return;
     try {
       await apiFetch('/api/payees', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: payeeName, type: payeeType, document: payeeDocument }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: payeeName,
+          type: payeeType,
+          document: payeeDocument,
+        }),
       });
-      setPayeeName(''); setPayeeDocument('');
-      setIsPayeeDialogOpen(false); loadAll(); toast.success('Credor criado!');
-    } catch (err) { toast.error(showError(err)); }
+      setPayeeName('');
+      setPayeeDocument('');
+      setIsPayeeDialogOpen(false);
+      loadAll();
+      toast.success('Credor criado!');
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleCreateGoal() {
     if (!goalName || !goalTarget) return;
     try {
       await apiFetch('/api/financial-goals', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: goalName, targetAmount: parseFloat(goalTarget), currentAmount: parseFloat(goalCurrent) || 0, deadline: goalDeadline || undefined, icon: goalIcon }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: goalName,
+          targetAmount: parseFloat(goalTarget),
+          currentAmount: parseFloat(goalCurrent) || 0,
+          deadline: goalDeadline || undefined,
+          icon: goalIcon,
+        }),
       });
-      setGoalName(''); setGoalTarget(''); setGoalCurrent(''); setGoalDeadline('');
-      setIsGoalDialogOpen(false); loadAll(); toast.success('Meta criada!');
-    } catch (err) { toast.error(showError(err)); }
+      setGoalName('');
+      setGoalTarget('');
+      setGoalCurrent('');
+      setGoalDeadline('');
+      setIsGoalDialogOpen(false);
+      loadAll();
+      toast.success('Meta criada!');
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleCreateBudget() {
     if (!budgetCategory || !budgetLimit) return;
     try {
       await apiFetch('/api/budgets', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ category: budgetCategory, type: 'expense_variable', monthlyLimit: parseFloat(budgetLimit), spent: 0, month: selectedMonth }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: budgetCategory,
+          type: budgetType,
+          monthlyLimit: parseFloat(budgetLimit),
+          spent: 0,
+          month: selectedMonth,
+        }),
       });
-      setBudgetCategory(''); setBudgetLimit('');
-      setIsBudgetDialogOpen(false); loadAll(); toast.success('Orçamento criado!');
-    } catch (err) { toast.error(showError(err)); }
+      setBudgetCategory('');
+      setBudgetLimit('');
+      setIsBudgetDialogOpen(false);
+      loadAll();
+      toast.success('Orçamento criado!');
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleDeleteEntry(id: string) {
-    const entry = entries.find(e => e.id === id);
+    const entry = entries.find((e) => e.id === id);
     try {
       await apiFetch(`/api/financial/${id}`, { method: 'DELETE' });
       loadAll();
       toast('Lançamento excluído', {
-        action: { label: 'Desfazer', onClick: async () => {
-          if (entry) { await apiFetch('/api/financial', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(entry) }); loadAll(); toast.success('Restaurado!'); }
-        }},
+        action: {
+          label: 'Desfazer',
+          onClick: async () => {
+            if (entry) {
+              try {
+                await apiFetch('/api/financial', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(financialCreatePayload(entry)),
+                });
+                await loadAll();
+                toast.success('Restaurado!');
+              } catch (err) {
+                toast.error(showError(err));
+              }
+            }
+          },
+        },
       });
-    } catch (err) { toast.error(showError(err)); }
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleTogglePaid(entry: FinancialEntry) {
-    const newStatus = entry.status === 'paid' ? 'pending' : 'paid';
+    if (entry.status !== 'paid') {
+      setEntryDialog({ ...entry, status: 'paid', paidDate: today });
+      return;
+    }
+    const newStatus = 'pending';
     try {
       await apiFetch(`/api/financial/${entry.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, paidDate: newStatus === 'paid' ? todayStr() : null }),
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, paidDate: null }),
       });
       loadAll();
-      toast.success(newStatus === 'paid' ? entry.type === 'income' ? 'Marcado como recebido!' : 'Marcado como pago!' : 'Marcado como pendente');
-    } catch (err) { toast.error(showError(err)); }
+      toast.success('Devolvido a previsto.');
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
-  async function handleUpdateAccountBalance(account: Account, delta: number) {
-    const newBalance = account.balance + delta;
+  async function handleUpdateAccountBalance() {
+    if (
+      !balanceAccount ||
+      !newBalance.trim() ||
+      !Number.isFinite(Number(newBalance)) ||
+      balanceSaving
+    )
+      return;
+    setBalanceSaving(true);
     try {
-      await apiFetch(`/api/accounts/${account.id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ balance: newBalance }),
+      await apiFetch('/api/accounts/' + balanceAccount.id, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ balance: Number(newBalance) }),
       });
-      loadAll();
-    } catch (err) { toast.error(showError(err)); }
+      setBalanceAccount(null);
+      await loadAll();
+      toast.success('Saldo informado atualizado.');
+    } catch (err) {
+      toast.error(showError(err));
+    } finally {
+      setBalanceSaving(false);
+    }
   }
 
   // ─── Bill Closing Functions ───────────────────────────────────────────────
 
-  function getCurrentBillMonth() {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  }
-
   function getCardTransactionsForMonth(cardId: string, month: string) {
-    return entries.filter(e => e.cardId === cardId && e.date.startsWith(month) && e.type !== 'income');
+    return entries.filter(
+      (e) =>
+        e.cardId === cardId && e.date.startsWith(month) && e.type !== 'income'
+    );
   }
 
   function getBillForCardMonth(cardId: string, month: string) {
-    return bills.find(b => b.cardId === cardId && b.month === month);
+    return bills.find((b) => b.cardId === cardId && b.month === month);
   }
 
   async function handleCloseBill(cardId: string, month: string) {
-    const card = cards.find(c => c.id === cardId);
+    const card = cards.find((c) => c.id === cardId);
     if (!card) return;
 
     const transactions = getCardTransactionsForMonth(cardId, month);
     const total = transactions.reduce((a, e) => a + e.amount, 0);
-    const closeDate = `${month}-${String(card.closingDay || 1).padStart(2, '0')}`;
-    // Due date is in the NEXT month
-    const [year, mon] = month.split('-').map(Number);
-    const dueDateObj = new Date(year, mon, card.dueDay || 10);
-    const dueDate = dueDateObj.toISOString().slice(0, 10);
+    const { closeDate, dueDate } = billCycleDates(
+      month,
+      card.closingDay || 1,
+      card.dueDay || 10
+    );
 
     const existingBill = getBillForCardMonth(cardId, month);
+    if (
+      existingBill &&
+      (existingBill.paidAmount > 0 || existingBill.status === 'paid')
+    ) {
+      toast.error(
+        'Uma fatura com pagamento registrado não pode ser fechada novamente.'
+      );
+      return;
+    }
 
     try {
       if (existingBill) {
         await apiFetch(`/api/bills/${existingBill.id}`, {
-          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount: total, status: 'closed', closeDate, dueDate, items: transactions.map(t => ({ id: t.id, description: t.category + (t.description ? ` - ${t.description}` : ''), amount: t.amount, date: t.date, category: t.category })) }),
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: total,
+            status: 'closed',
+            closeDate,
+            dueDate,
+            items: transactions.map((t) => ({
+              id: t.id,
+              description:
+                t.category + (t.description ? ` - ${t.description}` : ''),
+              amount: t.amount,
+              date: t.date,
+              category: t.category,
+            })),
+          }),
         });
       } else {
         await apiFetch('/api/bills', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cardId, month, amount: total, paidAmount: 0, status: 'closed', closeDate, dueDate, items: transactions.map(t => ({ id: t.id, description: t.category + (t.description ? ` - ${t.description}` : ''), amount: t.amount, date: t.date, category: t.category })) }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cardId,
+            month,
+            amount: total,
+            paidAmount: 0,
+            status: 'closed',
+            closeDate,
+            dueDate,
+            items: transactions.map((t) => ({
+              id: t.id,
+              description:
+                t.category + (t.description ? ` - ${t.description}` : ''),
+              amount: t.amount,
+              date: t.date,
+              category: t.category,
+            })),
+          }),
         });
       }
       loadAll();
-      toast.success(`Fatura de ${card.name} fechada! R$ ${total.toLocaleString('pt-BR')}`);
-    } catch (err) { toast.error(showError(err)); }
+      toast.success(
+        `Fatura de ${card.name} fechada! R$ ${total.toLocaleString('pt-BR')}`
+      );
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handlePayBill(billId: string, amount: number) {
-    const bill = bills.find(b => b.id === billId);
+    const bill = bills.find((b) => b.id === billId);
     if (!bill) return;
     const newPaidAmount = Math.min(bill.paidAmount + amount, bill.amount);
     const newStatus = newPaidAmount >= bill.amount ? 'paid' : 'partial';
     try {
       await apiFetch(`/api/bills/${billId}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paidAmount: newPaidAmount, status: newStatus }),
       });
       loadAll();
-      toast.success(newStatus === 'paid' ? 'Fatura quitada!' : `Pago R$ ${amount.toLocaleString('pt-BR')}`);
-    } catch (err) { toast.error(showError(err)); }
+      toast.success(
+        newStatus === 'paid'
+          ? 'Fatura quitada!'
+          : `Pago R$ ${amount.toLocaleString('pt-BR')}`
+      );
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   async function handleCreateBill() {
-    const creditCards = cards.filter(c => c.type === 'credit');
-    if (creditCards.length === 0) {
-      toast.error('Cadastre um cartão de crédito primeiro');
+    const card = cards.find(
+      (c) =>
+        c.id === billCardId &&
+        c.isActive &&
+        (c.type === 'credit' || c.type === 'multiple')
+    );
+    if (!card || billSaving) return;
+    const month = selectedMonth;
+    if (getBillForCardMonth(card.id, month)) {
+      toast.info('Este cartão já tem uma fatura neste mês.');
       return;
     }
-    const card = creditCards[0];
-    const month = getCurrentBillMonth();
-    const closeDate = `${month}-${String(card.closingDay || 1).padStart(2, '0')}`;
-    const [year, mon] = month.split('-').map(Number);
-    const dueDateObj = new Date(year, mon, card.dueDay || 10);
-    const dueDate = dueDateObj.toISOString().slice(0, 10);
+    const { closeDate, dueDate } = billCycleDates(
+      month,
+      card.closingDay || 1,
+      card.dueDay || 10
+    );
+    setBillSaving(true);
     try {
       await apiFetch('/api/bills', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cardId: card.id, month, amount: 0, paidAmount: 0, status: 'open', closeDate, dueDate, items: [] }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId: card.id,
+          month,
+          amount: 0,
+          paidAmount: 0,
+          status: 'open',
+          closeDate,
+          dueDate,
+          items: [],
+        }),
       });
       loadAll();
       toast.success('Fatura criada!');
-    } catch (err) { toast.error(showError(err)); }
+      setIsBillDialogOpen(false);
+    } catch (err) {
+      toast.error(showError(err));
+    } finally {
+      setBillSaving(false);
+    }
   }
 
   async function handleDeleteBill(id: string) {
@@ -592,23 +675,45 @@ export default function FinanceiroPage() {
       await apiFetch(`/api/bills/${id}`, { method: 'DELETE' });
       loadAll();
       toast.success('Fatura excluída!');
-    } catch (err) { toast.error(showError(err)); }
+    } catch (err) {
+      toast.error(showError(err));
+    }
   }
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <motion.div className="p-4 lg:p-8 max-w-[1600px] mx-auto" variants={stagger} initial="initial" animate="animate">
+    <motion.div
+      className="mx-auto max-w-[1600px] p-4 pb-12 sm:p-6 lg:p-8"
+      variants={stagger}
+      initial="initial"
+      animate="animate"
+    >
       {/* Header */}
       <motion.div className="mb-6" variants={fade}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-5">
           <div>
-            <h1 className="font-display text-4xl font-bold tracking-tight">Central Financeira</h1>
-            <p className="text-lg text-muted-foreground mt-1">Controle de caixa, saldos, cartões e relatórios</p>
+            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.25em] text-primary">
+              FINANCEIRO / LIFESYSTEM
+            </p>
+            <h1 className="font-display text-3xl tracking-tight sm:text-4xl lg:text-5xl">
+              Seu dinheiro, em perspectiva.
+            </h1>
+            <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
+              Clareza sobre o que passou. Espaço para o que vem.
+            </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={dateRange} onValueChange={(v) => setDateRange(v as typeof dateRange)}>
-              <SelectTrigger aria-label="Período financeiro" className="w-[130px] h-10"><SelectValue /></SelectTrigger>
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/30 p-2">
+            <Select
+              value={dateRange}
+              onValueChange={(v) => setDateRange(v as typeof dateRange)}
+            >
+              <SelectTrigger
+                aria-label="Período financeiro"
+                className="w-[130px] h-10"
+              >
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="month">Mês</SelectItem>
                 <SelectItem value="quarter">Trimestre</SelectItem>
@@ -617,177 +722,131 @@ export default function FinanceiroPage() {
               </SelectContent>
             </Select>
             <div className="flex h-10 items-center rounded-xl border border-border/70 bg-card/70">
-              <Button type="button" variant="ghost" size="icon" disabled={dateRange === 'all'} aria-label={dateRange === 'month' ? 'Mês anterior' : 'Período anterior'} onClick={() => setSelectedMonth(month => shiftFinancialPeriod(month, dateRange, -1))} className="h-9 w-9 rounded-r-none"><ChevronLeft className="h-4 w-4" /></Button>
-              <span data-testid="financial-period-label" className="min-w-[158px] px-2 text-center text-sm font-semibold first-letter:uppercase tabular-nums">{range.label}</span>
-              <Button type="button" variant="ghost" size="icon" disabled={dateRange === 'all'} aria-label={dateRange === 'month' ? 'Próximo mês' : 'Próximo período'} onClick={() => setSelectedMonth(month => shiftFinancialPeriod(month, dateRange, 1))} className="h-9 w-9 rounded-l-none"><ChevronRight className="h-4 w-4" /></Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={dateRange === 'all'}
+                aria-label={
+                  dateRange === 'month' ? 'Mês anterior' : 'Período anterior'
+                }
+                onClick={() =>
+                  setSelectedMonth((month) =>
+                    shiftFinancialPeriod(month, dateRange, -1)
+                  )
+                }
+                className="h-9 w-9 rounded-r-none"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <span
+                data-testid="financial-period-label"
+                className="min-w-[158px] px-2 text-center text-sm font-semibold first-letter:uppercase tabular-nums"
+              >
+                {range.label}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                disabled={dateRange === 'all'}
+                aria-label={
+                  dateRange === 'month' ? 'Próximo mês' : 'Próximo período'
+                }
+                onClick={() =>
+                  setSelectedMonth((month) =>
+                    shiftFinancialPeriod(month, dateRange, 1)
+                  )
+                }
+                className="h-9 w-9 rounded-l-none"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            {selectedMonth !== currentMonth && <Button type="button" variant="outline" size="sm" onClick={() => setSelectedMonth(currentMonth)} className="h-10">Mês atual</Button>}
+            {selectedMonth !== currentMonth && dateRange !== 'all' && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedMonth(currentMonth)}
+                className="h-10"
+              >
+                Mês atual
+              </Button>
+            )}
+            <Button
+              id="financial-new-entry"
+              onClick={() => setEntryDialog('new')}
+              className="h-11 w-full rounded-xl sm:ml-auto sm:w-auto"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Novo lançamento
+            </Button>
           </div>
         </div>
       </motion.div>
 
-      {/* ─── Balances Overview (Organizze-style) ──────────────────────────── */}
-      <motion.div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" variants={stagger}>
-        {isLoading ? Array.from({ length: 4 }).map((_, i) => (
-          <Card key={i}><CardContent className="p-3 lg:p-5"><Skeleton className="h-4 w-20 mb-2" /><Skeleton className="h-6 w-24" /></CardContent></Card>
-        )) : (
-          <>
-            <motion.div variants={fade}>
-              <Card className="border-l-4 border-l-money bg-money/5">
-                <CardContent className="p-3 lg:p-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Saldo atual nas contas</span>
-                    <Landmark className="h-4 w-4 text-money" />
-                  </div>
-                  <div className="text-xl lg:text-3xl font-bold text-money font-mono-num">R$ {totalBalance.toLocaleString('pt-BR')}</div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{accounts.filter(a => a.isActive).length} contas ativas</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div variants={fade}>
-              <Card className="border-l-4 border-l-primary bg-primary/5">
-                <CardContent className="p-3 lg:p-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Recebido</span>
-                    <TrendingUp className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="text-xl lg:text-3xl font-bold text-primary font-mono-num">R$ {totalIncome.toLocaleString('pt-BR')}</div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{range.label}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div variants={fade}>
-              <Card className="border-l-4 border-l-critical bg-critical/5">
-                <CardContent className="p-3 lg:p-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Despesas pagas</span>
-                    <TrendingDown className="h-4 w-4 text-critical" />
-                  </div>
-                  <div data-testid="financial-paid-expenses" className="text-xl lg:text-3xl font-bold text-critical font-mono-num">R$ {totalExpenses.toLocaleString('pt-BR')}</div>
-                  <p className="text-xs text-muted-foreground mt-0.5">{range.label}</p>
-                </CardContent>
-              </Card>
-            </motion.div>
-            <motion.div variants={fade}>
-              <Card className={cn('border-l-4', balance >= 0 ? 'border-l-money bg-money/5' : 'border-l-critical bg-critical/5')}>
-                <CardContent className="p-3 lg:p-5">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs lg:text-sm font-medium text-muted-foreground">Resultado realizado</span>
-                    <CircleDollarSign className={cn('h-4 w-4', balance >= 0 ? 'text-money' : 'text-critical')} />
-                  </div>
-                  <div className={cn('text-xl lg:text-3xl font-bold font-mono-num', balance >= 0 ? 'text-money' : 'text-critical')}>
-                    {balance >= 0 ? '+' : ''} R$ {balance.toLocaleString('pt-BR')}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Progress value={savingsRate} className="h-1.5 flex-1" />
-                    <span className="text-xs text-muted-foreground">{savingsRate}% poupança</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </>
-        )}
-      </motion.div>
-
-      {!isLoading && <div className="mb-6 grid gap-3 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-3 sm:gap-6" aria-label="Valores previstos no período">
-        <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">A receber · previsto</p><p className="mt-1 font-mono-num text-lg font-semibold text-primary">R$ {periodSummary.projected.income.toLocaleString('pt-BR')}</p></div>
-        <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">A pagar · previsto</p><p data-testid="financial-planned-expenses" className="mt-1 font-mono-num text-lg font-semibold text-qty">R$ {periodSummary.projected.expenses.toLocaleString('pt-BR')}</p></div>
-        <div><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Resultado previsto</p><p className={cn('mt-1 font-mono-num text-lg font-semibold', periodSummary.projected.balance >= 0 ? 'text-money' : 'text-qty')}>R$ {periodSummary.projected.balance.toLocaleString('pt-BR')}</p></div>
-      </div>}
-
-      {/* ─── Quick Add (Full-width bar) ────────────────────────────────────── */}
-      <motion.div className="mb-6" variants={fade}>
-        <Card className="rounded-2xl border-border/70 bg-card/70 shadow-sm">
-          <form onSubmit={handleQuickAdd} className="p-4 sm:p-6" aria-label="Novo Lançamento">
-            <div className="mb-5">
-              <h2 className="font-medium">Novo Lançamento</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Escolha se é uma previsão ou um valor já realizado.</p>
-            </div>
-            <div className="mb-5 inline-flex rounded-xl border border-border/70 bg-muted/30 p-1" role="group" aria-label="Situação do lançamento">
-              <button type="button" aria-pressed={quickStatus === 'pending'} onClick={() => setQuickStatus('pending')} className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors', quickStatus === 'pending' ? 'bg-qty/15 text-qty shadow-sm' : 'text-muted-foreground hover:text-foreground')}>Previsto</button>
-              <button type="button" aria-pressed={quickStatus === 'paid'} onClick={() => setQuickStatus('paid')} className={cn('rounded-lg px-4 py-2 text-sm font-medium transition-colors', quickStatus === 'paid' ? 'bg-money/15 text-money shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{quickType === 'income' ? 'Recebido' : 'Pago'}</button>
-            </div>
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 xl:grid-cols-6">
-              <div className="space-y-1">
-                <Label htmlFor="quick-type" className="text-xs text-muted-foreground">Movimentação</Label>
-                <Select value={quickType} onValueChange={(v) => { setQuickType(v as FinancialEntry['type']); setQuickCategory(''); }}>
-                  <SelectTrigger id="quick-type" className="h-11 w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="income">Entrada</SelectItem>
-                    <SelectItem value="expense_fixed">Despesa fixa</SelectItem>
-                    <SelectItem value="expense_variable">Despesa variável</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="quick-category" className="text-xs text-muted-foreground">Categoria</Label>
-                <Select value={quickCategory} onValueChange={setQuickCategory}>
-                  <SelectTrigger id="quick-category" className="h-11 w-full"><SelectValue placeholder="Selecionar" /></SelectTrigger>
-                  <SelectContent>
-                    {[...new Set([...categories[quickType], ...entries.filter(entry => entry.type === quickType).map(entry => entry.category)])].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="quick-amount" className="text-xs text-muted-foreground">Valor (R$)</Label>
-                <Input id="quick-amount" ref={quickAmountRef} type="number" inputMode="decimal" min="0.01" step="0.01" required value={quickAmount} onChange={(e) => setQuickAmount(e.target.value)} placeholder="0,00" className="h-11 font-mono-num text-lg" />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="quick-description" className="text-xs text-muted-foreground">Descrição · opcional</Label>
-                <Input id="quick-description" value={quickDescription} onChange={(e) => setQuickDescription(e.target.value)} placeholder="O que foi?" className="h-11" />
-              </div>
-              <div className="space-y-1"><Label htmlFor="quick-due" className="text-xs text-muted-foreground">Vencimento · opcional</Label><Input id="quick-due" type="date" value={quickDueDate} onChange={(e) => setQuickDueDate(e.target.value)} className="h-11" /></div>
-              <div className="space-y-1">
-                <Label htmlFor="quick-account" className="text-xs text-muted-foreground">Conta · opcional</Label>
-                <Select value={quickAccountId} onValueChange={setQuickAccountId}>
-                  <SelectTrigger id="quick-account" className="h-11 w-full"><SelectValue placeholder="Sem conta" /></SelectTrigger>
-                  <SelectContent>
-                    {accounts.filter(a => a.isActive).map(a => <SelectItem key={a.id} value={a.id}>{a.icon} {a.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <details className="mt-5 rounded-xl border border-border/60 px-4 py-3">
-              <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">Mais detalhes</summary>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <div className="space-y-1">
-                <Label htmlFor="quick-frequency" className="text-xs text-muted-foreground">Repetir</Label>
-                <Select value={quickRecurring} onValueChange={(v) => setQuickRecurring(v as RecurringType)}>
-                  <SelectTrigger id="quick-frequency" className="h-11 w-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(recurringLabels) as RecurringType[]).map(r => <SelectItem key={r} value={r}>{recurringLabels[r]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1"><Label htmlFor="quick-payee" className="text-xs text-muted-foreground">Pessoa ou empresa · opcional</Label><Input id="quick-payee" value={quickPayee} onChange={(e) => setQuickPayee(e.target.value)} placeholder="Nome do favorecido" className="h-11" /></div>
-              </div>
-            </details>
-            {quickError && <p role="alert" className="mt-3 text-sm text-destructive">{quickError}</p>}
-            <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">Registrado hoje. {quickStatus === 'paid' ? 'Pagamento contabilizado hoje.' : 'A previsão aparece no mês do vencimento.'}</p>
-              <Button type="submit" size="lg" disabled={quickSaving || !quickAmount || !quickCategory} className="h-11 w-full sm:w-auto px-6">
-                <Plus className="mr-2 h-4 w-4" /> {quickSaving ? 'Salvando…' : 'Salvar lançamento'}
-              </Button>
-            </div>
-          </form>
-        </Card>
-      </motion.div>
+      {loadError && (
+        <div
+          role="alert"
+          className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-5"
+        >
+          <p className="font-medium">
+            Não foi possível atualizar o financeiro.
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">{loadError}</p>
+          <Button
+            variant="outline"
+            className="mt-3"
+            onClick={() => {
+              setIsLoading(true);
+              loadAll();
+            }}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+      {isLoading ? (
+        <div
+          className="mb-6 h-60 animate-pulse rounded-3xl bg-muted/30"
+          aria-label="Carregando financeiro"
+        />
+      ) : (
+        !loadError && (
+          <FinanceSummary
+            summary={periodSummary}
+            totalBalance={totalBalance}
+            onTransactions={openTransactions}
+            onAccounts={() => setActiveTab('accounts')}
+          />
+        )
+      )}
 
       {/* ─── Tab Navigation ─────────────────────────────────────────────────── */}
-      <motion.div className="mb-6 flex flex-wrap gap-1 border-b border-border pb-1" variants={fade}>
+      <motion.div
+        className="mb-6 flex gap-1 overflow-x-auto border-b border-border pb-1"
+        aria-label="Áreas do financeiro"
+        variants={fade}
+      >
         {[
           { id: 'overview' as const, label: 'Visão Geral', icon: BarChart3 },
+          {
+            id: 'transactions' as const,
+            label: 'Lançamentos',
+            icon: CircleDollarSign,
+          },
           { id: 'accounts' as const, label: 'Contas', icon: Landmark },
           { id: 'cards' as const, label: 'Cartões', icon: CreditCard },
           { id: 'bills' as const, label: 'Faturas', icon: Receipt },
-          { id: 'transactions' as const, label: 'Lançamentos', icon: CircleDollarSign },
           { id: 'categories' as const, label: 'Cadastros', icon: Building2 },
-        ].map(tab => (
+        ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
+            aria-pressed={activeTab === tab.id}
             className={cn(
-              'flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-all border-b-2',
+              'flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium rounded-t-lg transition-colors border-b-2',
               activeTab === tab.id
                 ? 'border-primary text-primary bg-primary/5'
                 : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50'
@@ -801,232 +860,127 @@ export default function FinanceiroPage() {
 
       {/* ─── Tab Content ────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
-        {activeTab === 'overview' && (
-          <motion.div key="overview" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-            {/* Cash Flow + Budgets */}
-            <div className="grid gap-6 lg:grid-cols-3 mb-6">
-              {/* Burn Rate */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Flame className="h-5 w-5 text-orange-500" /> Média paga por dia · {selectedMonth}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold font-mono-num">R$ {dailyBurnRate.toLocaleString('pt-BR')}</div>
-                  <p className="text-sm text-muted-foreground mt-1">{selectedMonth > currentMonth ? 'Ainda sem pagamentos neste mês.' : selectedMonth === currentMonth ? 'Estimativa pelo ritmo: ' : 'Total pago no mês: '}<span className="font-bold text-critical">{selectedMonth > currentMonth ? '' : `R$ ${projectedMonthEnd.toLocaleString('pt-BR')}`}</span></p>
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                      <span>Dia {elapsedDays}</span><span>{daysInMonth} dias</span>
-                    </div>
-                    <Progress value={(elapsedDays / daysInMonth) * 100} className="h-2" />
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Pending Bills */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Clock className="h-5 w-5 text-yellow-500" /> A pagar no período
-                  </CardTitle>
-                  <Badge variant="secondary">{pendingEntries.length}</Badge>
-                </CardHeader>
-                <CardContent>
-                  {pendingEntries.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma despesa prevista</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {pendingEntries.slice(0, 5).map(entry => (
-                        <div key={entry.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                          <button onClick={() => handleTogglePaid(entry)}>
-                            {entry.status === 'paid' ? <CheckCircle2 className="h-4 w-4 text-money" /> : <CircleDot className="h-4 w-4 text-yellow-500" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{entry.category}</p>
-                            <p className="text-xs text-muted-foreground">{entry.dueDate ? 'Vence' : 'Prevista para'} {new Date(`${effectiveFinancialDate(entry)}T12:00:00`).toLocaleDateString('pt-BR')}</p>
-                          </div>
-                            <span className="text-sm font-bold font-mono-num text-qty">R$ {entry.amount.toLocaleString('pt-BR')}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Goals */}
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Target className="h-5 w-5 text-stellar" /> Metas
-                  </CardTitle>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsGoalDialogOpen(true)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  {goals.filter(g => g.status === 'active').length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhuma meta ativa</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {goals.filter(g => g.status === 'active').slice(0, 4).map(goal => {
-                        const progress = Math.round((goal.currentAmount / goal.targetAmount) * 100);
-                        return (
-                          <div key={goal.id}>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-sm font-medium flex items-center gap-1">{goal.icon} {goal.name}</span>
-                              <span className="text-xs text-muted-foreground font-mono-num">{progress}%</span>
-                            </div>
-                            <Progress value={Math.min(progress, 100)} className="h-2" />
-                            <div className="flex justify-between mt-1 text-xs text-muted-foreground">
-                              <span>R$ {goal.currentAmount.toLocaleString('pt-BR')}</span>
-                              <span>R$ {goal.targetAmount.toLocaleString('pt-BR')}</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Charts Row */}
-            <div className="grid gap-6 lg:grid-cols-2 mb-6">
-              {/* Monthly Trend */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><BarChart3 className="h-5 w-5" /> Tendência Mensal · pago e previsto</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {monthlyTrend.map((m) => {
-                      const totalVal = Math.max(m.income + m.expense + m.planned, 1);
-                      return (
-                        <div key={m.label} className="space-y-1">
-                          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs sm:flex sm:items-center sm:justify-between sm:text-sm">
-                            <span className="col-span-2 text-muted-foreground capitalize sm:w-8">{m.label}</span>
-                            <span className="font-mono-num text-money">+R$ {m.income.toLocaleString('pt-BR')}</span>
-                            <span className="font-mono-num text-critical">-R$ {m.expense.toLocaleString('pt-BR')}</span>
-                            <span className="font-mono-num text-qty">◇ R$ {m.planned.toLocaleString('pt-BR')}</span>
-                            <span className={cn('font-mono-num font-bold text-right sm:w-24', m.balance >= 0 ? 'text-money' : 'text-critical')}>
-                              R$ {m.balance.toLocaleString('pt-BR')}
-                            </span>
-                          </div>
-                          <div className="flex gap-0.5 h-4 rounded-full overflow-hidden">
-                            <motion.div className="h-full rounded-l-full bg-money/70" initial={{ width: 0 }} animate={{ width: `${(m.income / totalVal) * 100}%` }} transition={{ duration: 0.6 }} />
-                            <motion.div className="h-full bg-critical/70" initial={{ width: 0 }} animate={{ width: `${(m.expense / totalVal) * 100}%` }} transition={{ duration: 0.6 }} />
-                            <motion.div className="h-full rounded-r-full bg-qty/70" initial={{ width: 0 }} animate={{ width: `${(m.planned / totalVal) * 100}%` }} transition={{ duration: 0.6 }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Category Breakdown */}
-              <Card>
-                <CardHeader><CardTitle className="flex items-center gap-2 text-base"><PieChart className="h-5 w-5" /> Despesas pagas por categoria</CardTitle></CardHeader>
-                <CardContent>
-                  {expenseByCategory.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-8 text-center">Sem despesas no período</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {expenseByCategory.slice(0, 8).map((cat) => {
-                        const total = expenseByCategory.reduce((a, c) => a + c.value, 0);
-                        const pct = total > 0 ? Math.round((cat.value / total) * 100) : 0;
-                        return (
-                          <div key={cat.label} className="flex items-center gap-3">
-                            <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: cat.color }} />
-                            <span className="text-sm flex-1 truncate">{cat.label}</span>
-                            <span className="text-sm font-mono-num font-medium">{pct}%</span>
-                            <span className="text-sm font-mono-num text-muted-foreground">R$ {cat.value.toLocaleString('pt-BR')}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Budgets */}
-            {currentBudgets.length > 0 && (
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <AlertTriangle className="h-5 w-5 text-qty" /> Orçamentos · {selectedMonth}
-                  </CardTitle>
-                  <Button variant="ghost" size="sm" onClick={() => setIsBudgetDialogOpen(true)}><Plus className="h-4 w-4 mr-1" /> Novo</Button>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    {currentBudgets.map(budget => {
-                      const percent = Math.round((budget.spent / budget.monthlyLimit) * 100);
-                      const isOver = percent > 100;
-                      return (
-                        <div key={budget.id} className="rounded-xl border p-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm font-medium">{budget.category}</span>
-                            {isOver && <Badge variant="destructive" className="text-xs">Estourado</Badge>}
-                          </div>
-                          <div className="text-lg font-bold font-mono-num">R$ {budget.spent.toLocaleString('pt-BR')}</div>
-                          <div className="text-xs text-muted-foreground">de R$ {budget.monthlyLimit.toLocaleString('pt-BR')}</div>
-                          {budget.planned > 0 && <div className="mt-1 text-xs text-qty">Previsto: R$ {budget.planned.toLocaleString('pt-BR')}</div>}
-                          <Progress value={Math.min(percent, 100)} className={cn('h-2 mt-2', isOver && '[&>div]:bg-critical')} />
-                          <div className="text-right text-xs font-bold mt-1" style={{ color: isOver ? 'hsl(350 88% 64%)' : 'hsl(162 80% 58%)' }}>{percent}%</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </motion.div>
+        {activeTab === 'overview' && !isLoading && !loadError && (
+          <FinanceOverview
+            entries={entries}
+            periodEntries={periodEntries}
+            range={range}
+            selectedMonth={selectedMonth}
+            today={today}
+            goals={goals}
+            budgets={currentBudgets}
+            onCategory={(category, status) =>
+              openTransactions(status, 'expenses', category)
+            }
+            onMonth={(month) => {
+              setSelectedMonth(month);
+              setDateRange('month');
+            }}
+            onTransactions={openTransactions}
+            onPay={handleTogglePaid}
+            onNewEntry={() => setEntryDialog('new')}
+            onNewGoal={() => setIsGoalDialogOpen(true)}
+            onNewBudget={() => setIsBudgetDialogOpen(true)}
+          />
         )}
 
         {activeTab === 'accounts' && (
-          <motion.div key="accounts" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div
+            key="accounts"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-bold font-display">Contas</h2>
-              <Button onClick={() => setIsAccountDialogOpen(true)} size="lg"><Plus className="mr-2 h-4 w-4" /> Nova Conta</Button>
+              <Button onClick={() => setIsAccountDialogOpen(true)} size="lg">
+                <Plus className="mr-2 h-4 w-4" /> Nova Conta
+              </Button>
             </div>
             {isLoading ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {Array.from({ length: 3 }).map((_, i) => <Card key={i}><CardContent className="p-6"><Skeleton className="h-6 w-32 mb-2" /><Skeleton className="h-10 w-48" /></CardContent></Card>)}
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-10 w-48" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : accounts.length === 0 ? (
-              <Card className="border-dashed"><CardContent className="flex flex-col items-center justify-center py-16">
-                <Landmark className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                <p className="text-lg font-medium">Nenhuma conta cadastrada</p>
-                <p className="text-sm text-muted-foreground mb-4">Cadastre suas contas para controle de caixa</p>
-                <Button onClick={() => setIsAccountDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Criar Primeira Conta</Button>
-              </CardContent></Card>
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <Landmark className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-lg font-medium">
+                    Nenhuma conta cadastrada
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Cadastre suas contas para controle de caixa
+                  </p>
+                  <Button onClick={() => setIsAccountDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Criar Primeira Conta
+                  </Button>
+                </CardContent>
+              </Card>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {accounts.map(account => {
-                  const typeInfo = accountTypeConfig[account.type] || { label: account.type, icon: '🏦', color: '#64748b' };
+                {accounts.map((account) => {
+                  const typeInfo = accountTypeConfig[account.type] || {
+                    label: account.type,
+                    icon: '🏦',
+                    color: '#64748b',
+                  };
                   return (
-                    <Card key={account.id} className="overflow-hidden hover:shadow-lg transition-all">
-                      <div className="h-3" style={{ backgroundColor: account.color }} />
+                    <Card
+                      key={account.id}
+                      className="overflow-hidden hover:shadow-lg transition-all"
+                    >
+                      <div
+                        className="h-3"
+                        style={{ backgroundColor: account.color }}
+                      />
                       <CardContent className="p-5">
                         <div className="flex items-center gap-3 mb-4">
-                          <span className="text-3xl">{account.icon || typeInfo.icon}</span>
+                          <span className="text-3xl">
+                            {account.icon || typeInfo.icon}
+                          </span>
                           <div>
-                            <h3 className="font-bold text-lg">{account.name}</h3>
-                            <p className="text-sm text-muted-foreground">{typeInfo.label} {account.bank ? `• ${account.bank}` : ''}</p>
+                            <h3 className="font-bold text-lg">
+                              {account.name}
+                            </h3>
+                            <p className="text-sm text-muted-foreground">
+                              {typeInfo.label}{' '}
+                              {account.bank ? `• ${account.bank}` : ''}
+                            </p>
                           </div>
                         </div>
-                        <div className="text-3xl font-bold font-mono-num mb-4" style={{ color: account.balance >= 0 ? 'hsl(162 80% 58%)' : 'hsl(350 88% 64%)' }}>
-                          R$ {account.balance.toLocaleString('pt-BR')}
+                        <div
+                          className="text-3xl font-bold font-mono-num mb-4"
+                          style={{
+                            color:
+                              account.balance >= 0
+                                ? 'hsl(162 80% 58%)'
+                                : 'hsl(350 88% 64%)',
+                          }}
+                        >
+                          {formatMoney(account.balance)}
                         </div>
-                        <div className="flex gap-2">
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleUpdateAccountBalance(account, 100)}>
-                            <ArrowDownRight className="h-3 w-3 mr-1" /> +R$100
-                          </Button>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleUpdateAccountBalance(account, -100)}>
-                            <ArrowUpRight className="h-3 w-3 mr-1" /> -R$100
-                          </Button>
-                        </div>
+                        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+                          Saldo informado manualmente. Lançamentos e previsões
+                          não alteram este valor.
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="w-full rounded-xl"
+                          aria-label={`Atualizar saldo de ${account.name}`}
+                          onClick={() => {
+                            setBalanceAccount(account);
+                            setNewBalance(String(account.balance));
+                          }}
+                        >
+                          Atualizar saldo
+                        </Button>
                       </CardContent>
                     </Card>
                   );
@@ -1037,58 +991,122 @@ export default function FinanceiroPage() {
         )}
 
         {activeTab === 'cards' && (
-          <motion.div key="cards" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div
+            key="cards"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-2xl font-bold font-display">Cartões</h2>
-              <Button onClick={() => setIsCardDialogOpen(true)} size="lg"><Plus className="mr-2 h-4 w-4" /> Novo Cartão</Button>
+              <Button onClick={() => setIsCardDialogOpen(true)} size="lg">
+                <Plus className="mr-2 h-4 w-4" /> Novo Cartão
+              </Button>
             </div>
             {isLoading ? (
               <div className="grid gap-4 sm:grid-cols-2">
-                {Array.from({ length: 2 }).map((_, i) => <Card key={i}><CardContent className="p-6"><Skeleton className="h-6 w-32 mb-2" /><Skeleton className="h-10 w-48" /></CardContent></Card>)}
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <Card key={i}>
+                    <CardContent className="p-6">
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-10 w-48" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : cards.length === 0 ? (
-              <Card className="border-dashed"><CardContent className="flex flex-col items-center justify-center py-16">
-                <CreditCard className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                <p className="text-lg font-medium">Nenhum cartão cadastrado</p>
-                <p className="text-sm text-muted-foreground mb-4">Cadastre seus cartões de crédito e débito</p>
-                <Button onClick={() => setIsCardDialogOpen(true)}><Plus className="mr-2 h-4 w-4" /> Criar Primeiro Cartão</Button>
-              </CardContent></Card>
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <CreditCard className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-lg font-medium">
+                    Nenhum cartão cadastrado
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Cadastre seus cartões de crédito e débito
+                  </p>
+                  <Button onClick={() => setIsCardDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Criar Primeiro Cartão
+                  </Button>
+                </CardContent>
+              </Card>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
-                {cards.map(card => {
+                {cards.map((card) => {
                   const brandColor = cardBrandColors[card.brand] || card.color;
-                  const usagePercent = card.limit ? Math.round(((card.used || 0) / card.limit) * 100) : 0;
+                  const usagePercent = card.limit
+                    ? Math.round(((card.used || 0) / card.limit) * 100)
+                    : 0;
                   return (
-                    <Card key={card.id} className="overflow-hidden hover:shadow-lg transition-all">
-                      <div className="h-40 p-6 flex flex-col justify-between relative" style={{ background: `linear-gradient(135deg, ${brandColor}, ${brandColor}cc)` }}>
+                    <Card
+                      key={card.id}
+                      className="overflow-hidden hover:shadow-lg transition-all"
+                    >
+                      <div
+                        className="h-40 p-6 flex flex-col justify-between relative"
+                        style={{
+                          background: `linear-gradient(135deg, ${brandColor}, ${brandColor}cc)`,
+                        }}
+                      >
                         <div className="flex items-center justify-between">
-                          <span className="text-white/80 text-sm font-medium">{card.name}</span>
-                          <Badge variant="secondary" className="bg-white/20 text-white border-0">{card.type === 'credit' ? 'Crédito' : 'Débito'}</Badge>
+                          <span className="text-white/80 text-sm font-medium">
+                            {card.name}
+                          </span>
+                          <Badge
+                            variant="secondary"
+                            className="bg-white/20 text-white border-0"
+                          >
+                            {card.type === 'credit' || card.type === 'multiple'
+                              ? 'Crédito'
+                              : 'Débito'}
+                          </Badge>
                         </div>
                         <div>
                           <div className="text-white text-2xl font-bold tracking-wider mb-1">
                             **** **** **** {card.lastDigits}
                           </div>
-                          <div className="text-white/70 text-sm">{card.brand}</div>
+                          <div className="text-white/70 text-sm">
+                            {card.brand}
+                          </div>
                         </div>
                       </div>
                       <CardContent className="p-5">
-                        {card.type === 'credit' && card.limit && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">Limite usado</span>
-                              <span className="font-mono-num font-medium">R$ {(card.used || 0).toLocaleString('pt-BR')} / R$ {card.limit.toLocaleString('pt-BR')}</span>
+                        {(card.type === 'credit' || card.type === 'multiple') &&
+                          card.limit && (
+                            <div className="space-y-2">
+                              <div className="flex justify-between text-sm">
+                                <span className="text-muted-foreground">
+                                  Limite usado
+                                </span>
+                                <span className="font-mono-num font-medium">
+                                  R$ {(card.used || 0).toLocaleString('pt-BR')}{' '}
+                                  / R$ {card.limit.toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              <Progress
+                                value={Math.min(usagePercent, 100)}
+                                className={cn(
+                                  'h-3',
+                                  usagePercent > 80 && '[&>div]:bg-critical'
+                                )}
+                              />
+                              <div className="flex justify-between text-xs text-muted-foreground">
+                                <span>{usagePercent}% utilizado</span>
+                                <span>
+                                  Disponível: R${' '}
+                                  {(
+                                    card.limit - (card.used || 0)
+                                  ).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
                             </div>
-                            <Progress value={Math.min(usagePercent, 100)} className={cn('h-3', usagePercent > 80 && '[&>div]:bg-critical')} />
-                            <div className="flex justify-between text-xs text-muted-foreground">
-                              <span>{usagePercent}% utilizado</span>
-                              <span>Disponível: R$ {(card.limit - (card.used || 0)).toLocaleString('pt-BR')}</span>
-                            </div>
-                          </div>
-                        )}
+                          )}
                         <div className="flex gap-4 mt-3 text-sm text-muted-foreground">
-                          {card.closingDay && <span>Fechamento: dia {card.closingDay}</span>}
-                          {card.dueDay && <span>Vencimento: dia {card.dueDay}</span>}
+                          {card.closingDay && (
+                            <span>Fechamento: dia {card.closingDay}</span>
+                          )}
+                          {card.dueDay && (
+                            <span>Vencimento: dia {card.dueDay}</span>
+                          )}
                         </div>
                       </CardContent>
                     </Card>
@@ -1100,322 +1118,509 @@ export default function FinanceiroPage() {
         )}
 
         {activeTab === 'bills' && (
-          <motion.div key="bills" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div
+            key="bills"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             <div className="mb-4 flex items-center justify-between">
               <div>
-                <h2 className="text-2xl font-bold font-display">Faturas dos Cartões</h2>
-                <p className="text-sm text-muted-foreground">Controle de fechamento e pagamento de faturas</p>
+                <h2 className="text-2xl font-bold font-display">
+                  Faturas dos Cartões
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Controle separado dos lançamentos. Registrar quitação aqui não
+                  movimenta contas nem quita as compras.
+                </p>
               </div>
-              <Button onClick={handleCreateBill} size="lg"><Plus className="mr-2 h-4 w-4" /> Nova Fatura</Button>
+              <Button
+                onClick={() => {
+                  setBillCardId('');
+                  setIsBillDialogOpen(true);
+                }}
+                size="lg"
+              >
+                <Plus className="mr-2 h-4 w-4" /> Nova Fatura
+              </Button>
             </div>
 
             {/* Credit Cards with Bills */}
-            {cards.filter(c => c.type === 'credit').length === 0 ? (
-              <Card className="border-dashed"><CardContent className="flex flex-col items-center justify-center py-16">
-                <CreditCard className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                <p className="text-lg font-medium">Nenhum cartão de crédito</p>
-                <p className="text-sm text-muted-foreground mb-4">Cadastre um cartão de crédito na aba Cartões</p>
-              </CardContent></Card>
+            {cards.filter((c) => c.type === 'credit' || c.type === 'multiple')
+              .length === 0 ? (
+              <Card className="border-dashed">
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <CreditCard className="h-12 w-12 text-muted-foreground/30 mb-3" />
+                  <p className="text-lg font-medium">
+                    Nenhum cartão de crédito
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Cadastre um cartão de crédito na aba Cartões
+                  </p>
+                </CardContent>
+              </Card>
             ) : (
               <div className="space-y-6">
-                {cards.filter(c => c.type === 'credit').map(card => {
-                  const brandColor = cardBrandColors[card.brand] || card.color;
-                  const currentMonth = getCurrentBillMonth();
-                  const currentBill = getBillForCardMonth(card.id, currentMonth);
-                  const currentTransactions = getCardTransactionsForMonth(card.id, currentMonth);
-                  const currentTotal = currentTransactions.reduce((a, e) => a + e.amount, 0);
+                {cards
+                  .filter((c) => c.type === 'credit' || c.type === 'multiple')
+                  .map((card) => {
+                    const brandColor =
+                      cardBrandColors[card.brand] || card.color;
+                    const currentMonth = selectedMonth;
+                    const currentBill = getBillForCardMonth(
+                      card.id,
+                      currentMonth
+                    );
+                    const currentTransactions = getCardTransactionsForMonth(
+                      card.id,
+                      currentMonth
+                    );
+                    const currentTotal = currentTransactions.reduce(
+                      (a, e) => a + e.amount,
+                      0
+                    );
 
-                  return (
-                    <Card key={card.id} className="overflow-hidden">
-                      {/* Card Header */}
-                      <div className="p-5 flex items-center gap-4" style={{ background: `linear-gradient(135deg, ${brandColor}20, ${brandColor}05)` }}>
-                        <div className="h-14 w-14 rounded-xl flex items-center justify-center text-2xl" style={{ backgroundColor: brandColor + '30' }}>
-                          💳
+                    return (
+                      <Card key={card.id} className="overflow-hidden">
+                        {/* Card Header */}
+                        <div
+                          className="p-5 flex items-center gap-4"
+                          style={{
+                            background: `linear-gradient(135deg, ${brandColor}20, ${brandColor}05)`,
+                          }}
+                        >
+                          <div
+                            className="h-14 w-14 rounded-xl flex items-center justify-center text-2xl"
+                            style={{ backgroundColor: brandColor + '30' }}
+                          >
+                            💳
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="font-bold text-lg">{card.name}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              **** {card.lastDigits} • {card.brand}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xs text-muted-foreground">
+                              Limite disponível
+                            </p>
+                            <p className="text-lg font-bold font-mono-num text-money">
+                              R${' '}
+                              {(
+                                (card.limit || 0) - (card.used || 0)
+                              ).toLocaleString('pt-BR')}
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-bold text-lg">{card.name}</h3>
-                          <p className="text-sm text-muted-foreground">**** {card.lastDigits} • {card.brand}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground">Limite disponível</p>
-                          <p className="text-lg font-bold font-mono-num text-money">R$ {((card.limit || 0) - (card.used || 0)).toLocaleString('pt-BR')}</p>
-                        </div>
-                      </div>
 
-                      <CardContent className="p-5">
-                        {/* Current Month Bill */}
-                        <div className="mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold">Fatura Atual</span>
-                              <Badge variant="secondary" className="text-xs">{currentMonth}</Badge>
-                              {currentBill && (
-                                <Badge variant={currentBill.status === 'paid' ? 'default' : currentBill.status === 'closed' ? 'secondary' : 'outline'} className={cn('text-xs', currentBill.status === 'paid' && 'bg-money/10 text-money')}>
-                                  {currentBill.status === 'paid' ? '✅ Paga' : currentBill.status === 'closed' ? '🔒 Fechada' : currentBill.status === 'partial' ? '⏳ Parcial' : '📋 Aberta'}
+                        <CardContent className="p-5">
+                          {/* Current Month Bill */}
+                          <div className="mb-4">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-bold">
+                                  Fatura · {selectedMonth}
+                                </span>
+                                <Badge variant="secondary" className="text-xs">
+                                  {currentMonth}
                                 </Badge>
+                                {currentBill && (
+                                  <Badge
+                                    variant={
+                                      currentBill.status === 'paid'
+                                        ? 'default'
+                                        : currentBill.status === 'closed'
+                                          ? 'secondary'
+                                          : 'outline'
+                                    }
+                                    className={cn(
+                                      'text-xs',
+                                      currentBill.status === 'paid' &&
+                                        'bg-money/10 text-money'
+                                    )}
+                                  >
+                                    {currentBill.status === 'paid'
+                                      ? '✅ Paga'
+                                      : currentBill.status === 'closed'
+                                        ? '🔒 Fechada'
+                                        : currentBill.status === 'partial'
+                                          ? '⏳ Parcial'
+                                          : '📋 Aberta'}
+                                  </Badge>
+                                )}
+                              </div>
+                              {card.closingDay && (
+                                <span className="text-xs text-muted-foreground">
+                                  Fecha dia {card.closingDay} • Vence dia{' '}
+                                  {card.dueDay || 10}
+                                </span>
                               )}
                             </div>
-                            {card.closingDay && (
-                              <span className="text-xs text-muted-foreground">
-                                Fecha dia {card.closingDay} • Vence dia {card.dueDay || 10}
-                              </span>
-                            )}
-                          </div>
 
-                          {/* Bill Amount */}
-                          <div className="rounded-xl border p-4 mb-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-sm text-muted-foreground">Valor da fatura</span>
-                              <span className="text-2xl font-bold font-mono-num">R$ {(currentBill?.amount || currentTotal).toLocaleString('pt-BR')}</span>
-                            </div>
-                            {currentBill && currentBill.paidAmount > 0 && (
+                            {/* Bill Amount */}
+                            <div className="rounded-xl border p-4 mb-3">
                               <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm text-muted-foreground">Pago</span>
-                                <span className="text-lg font-bold font-mono-num text-money">R$ {currentBill.paidAmount.toLocaleString('pt-BR')}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  Valor da fatura
+                                </span>
+                                <span className="text-2xl font-bold font-mono-num">
+                                  R${' '}
+                                  {(
+                                    currentBill?.amount || currentTotal
+                                  ).toLocaleString('pt-BR')}
+                                </span>
                               </div>
-                            )}
-                            {currentBill && currentBill.status !== 'paid' && (
-                              <div className="flex items-center justify-between">
-                                <span className="text-sm font-medium">Saldo da fatura</span>
-                                <span className="text-xl font-bold font-mono-num text-critical">R$ {((currentBill?.amount || currentTotal) - (currentBill?.paidAmount || 0)).toLocaleString('pt-BR')}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Action Buttons */}
-                          <div className="flex gap-2">
-                            {!currentBill || currentBill.status === 'open' ? (
-                              <Button onClick={() => handleCloseBill(card.id, currentMonth)} className="flex-1" variant="outline">
-                                <Lock className="mr-2 h-4 w-4" /> Fechar Fatura
-                              </Button>
-                            ) : currentBill.status !== 'paid' ? (
-                              <Button onClick={() => handlePayBill(currentBill.id, (currentBill.amount - currentBill.paidAmount))} className="flex-1 bg-money hover:bg-money/90">
-                                <Check className="mr-2 h-4 w-4" /> Pagar Fatura
-                              </Button>
-                            ) : (
-                              <div className="flex-1 text-center py-2 text-sm text-money font-medium">✅ Fatura quitada</div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Transactions in Current Bill */}
-                        {currentTransactions.length > 0 && (
-                          <div>
-                            <h4 className="text-sm font-medium mb-2">Compras nesta fatura ({currentTransactions.length})</h4>
-                            <div className="space-y-1 max-h-48 overflow-y-auto">
-                              {currentTransactions.sort((a, b) => b.date.localeCompare(a.date)).map(t => (
-                                <div key={t.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 text-sm">
-                                  <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: categoryColors[t.category] || '#64748b' }} />
-                                  <span className="flex-1 truncate">{t.category}{t.description ? ` - ${t.description}` : ''}</span>
-                                  <span className="text-xs text-muted-foreground">{new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
-                                  <span className="font-mono-num font-medium text-critical">R$ {t.amount.toLocaleString('pt-BR')}</span>
+                              {currentBill && currentBill.paidAmount > 0 && (
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm text-muted-foreground">
+                                    Pago
+                                  </span>
+                                  <span className="text-lg font-bold font-mono-num text-money">
+                                    R${' '}
+                                    {currentBill.paidAmount.toLocaleString(
+                                      'pt-BR'
+                                    )}
+                                  </span>
                                 </div>
-                              ))}
+                              )}
+                              {currentBill && currentBill.status !== 'paid' && (
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm font-medium">
+                                    Saldo da fatura
+                                  </span>
+                                  <span className="text-xl font-bold font-mono-num text-critical">
+                                    R${' '}
+                                    {(
+                                      (currentBill?.amount || currentTotal) -
+                                      (currentBill?.paidAmount || 0)
+                                    ).toLocaleString('pt-BR')}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                              {!currentBill || currentBill.status === 'open' ? (
+                                <Button
+                                  onClick={() =>
+                                    handleCloseBill(card.id, currentMonth)
+                                  }
+                                  className="flex-1"
+                                  variant="outline"
+                                >
+                                  <Lock className="mr-2 h-4 w-4" /> Fechar
+                                  Fatura
+                                </Button>
+                              ) : currentBill.status !== 'paid' ? (
+                                <Button
+                                  onClick={() =>
+                                    handlePayBill(
+                                      currentBill.id,
+                                      currentBill.amount -
+                                        currentBill.paidAmount
+                                    )
+                                  }
+                                  className="flex-1 bg-money hover:bg-money/90"
+                                >
+                                  <Check className="mr-2 h-4 w-4" /> Pagar
+                                  Fatura
+                                </Button>
+                              ) : (
+                                <div className="flex-1 text-center py-2 text-sm text-money font-medium">
+                                  ✅ Fatura quitada
+                                </div>
+                              )}
                             </div>
                           </div>
-                        )}
 
-                        {/* Previous Bills */}
-                        {bills.filter(b => b.cardId === card.id && b.month < currentMonth).length > 0 && (
-                          <div className="mt-4 pt-4 border-t">
-                            <h4 className="text-sm font-medium mb-2 text-muted-foreground">Faturas Anteriores</h4>
-                            <div className="space-y-2">
-                              {bills.filter(b => b.cardId === card.id && b.month < currentMonth).sort((a, b) => b.month.localeCompare(a.month)).slice(0, 6).map(bill => (
-                                <div key={bill.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                                  <span className="text-xs text-muted-foreground w-16">{bill.month}</span>
-                                  <span className="flex-1 text-sm font-mono-num">R$ {bill.amount.toLocaleString('pt-BR')}</span>
-                                  <Badge variant={bill.status === 'paid' ? 'default' : 'destructive'} className={cn('text-xs', bill.status === 'paid' && 'bg-money/10 text-money')}>
-                                    {bill.status === 'paid' ? 'Paga' : bill.status === 'closed' ? 'Fechada' : bill.status === 'partial' ? 'Parcial' : 'Aberta'}
-                                  </Badge>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-3.5 w-3.5" /></Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      {bill.status !== 'paid' && (
-                                        <DropdownMenuItem onClick={() => handlePayBill(bill.id, bill.amount - bill.paidAmount)}>✅ Pagar</DropdownMenuItem>
-                                      )}
-                                      <DropdownMenuItem onClick={() => handleDeleteBill(bill.id)} className="text-destructive">🗑️ Excluir</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                              ))}
+                          {/* Transactions in Current Bill */}
+                          {currentTransactions.length > 0 && (
+                            <div>
+                              <h4 className="text-sm font-medium mb-2">
+                                Compras nesta fatura (
+                                {currentTransactions.length})
+                              </h4>
+                              <div className="space-y-1 max-h-48 overflow-y-auto">
+                                {currentTransactions
+                                  .sort((a, b) => b.date.localeCompare(a.date))
+                                  .map((t) => (
+                                    <div
+                                      key={t.id}
+                                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 text-sm"
+                                    >
+                                      <span
+                                        className="h-2 w-2 rounded-full shrink-0"
+                                        style={{
+                                          backgroundColor:
+                                            categoryColors[t.category] ||
+                                            '#64748b',
+                                        }}
+                                      />
+                                      <span className="flex-1 truncate">
+                                        {t.category}
+                                        {t.description
+                                          ? ` - ${t.description}`
+                                          : ''}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(
+                                          t.date + 'T12:00:00'
+                                        ).toLocaleDateString('pt-BR', {
+                                          day: '2-digit',
+                                          month: 'short',
+                                        })}
+                                      </span>
+                                      <span className="font-mono-num font-medium text-critical">
+                                        R$ {t.amount.toLocaleString('pt-BR')}
+                                      </span>
+                                    </div>
+                                  ))}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                          )}
+
+                          {/* Previous Bills */}
+                          {bills.filter(
+                            (b) =>
+                              b.cardId === card.id && b.month < currentMonth
+                          ).length > 0 && (
+                            <div className="mt-4 pt-4 border-t">
+                              <h4 className="text-sm font-medium mb-2 text-muted-foreground">
+                                Faturas Anteriores
+                              </h4>
+                              <div className="space-y-2">
+                                {bills
+                                  .filter(
+                                    (b) =>
+                                      b.cardId === card.id &&
+                                      b.month < currentMonth
+                                  )
+                                  .sort((a, b) =>
+                                    b.month.localeCompare(a.month)
+                                  )
+                                  .slice(0, 6)
+                                  .map((bill) => (
+                                    <div
+                                      key={bill.id}
+                                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                                    >
+                                      <span className="text-xs text-muted-foreground w-16">
+                                        {bill.month}
+                                      </span>
+                                      <span className="flex-1 text-sm font-mono-num">
+                                        R$ {bill.amount.toLocaleString('pt-BR')}
+                                      </span>
+                                      <Badge
+                                        variant={
+                                          bill.status === 'paid'
+                                            ? 'default'
+                                            : 'destructive'
+                                        }
+                                        className={cn(
+                                          'text-xs',
+                                          bill.status === 'paid' &&
+                                            'bg-money/10 text-money'
+                                        )}
+                                      >
+                                        {bill.status === 'paid'
+                                          ? 'Paga'
+                                          : bill.status === 'closed'
+                                            ? 'Fechada'
+                                            : bill.status === 'partial'
+                                              ? 'Parcial'
+                                              : 'Aberta'}
+                                      </Badge>
+                                      <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8"
+                                          >
+                                            <MoreHorizontal className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end">
+                                          {bill.status !== 'paid' && (
+                                            <DropdownMenuItem
+                                              onClick={() =>
+                                                handlePayBill(
+                                                  bill.id,
+                                                  bill.amount - bill.paidAmount
+                                                )
+                                              }
+                                            >
+                                              ✅ Pagar
+                                            </DropdownMenuItem>
+                                          )}
+                                          <DropdownMenuItem
+                                            onClick={() =>
+                                              handleDeleteBill(bill.id)
+                                            }
+                                            className="text-destructive"
+                                          >
+                                            🗑️ Excluir
+                                          </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                      </DropdownMenu>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
               </div>
             )}
           </motion.div>
         )}
 
-        {activeTab === 'transactions' && (
-          <motion.div key="transactions" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h2 className="text-2xl font-bold font-display">Lançamentos ({filteredEntries.length})</h2>
-              <div className="flex flex-wrap gap-2">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Buscar..." className="pl-9 h-10 w-48" />
-                </div>
-                <Select value={filterType} onValueChange={setFilterType}>
-                  <SelectTrigger className="w-[130px] h-10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos</SelectItem>
-                    <SelectItem value="income">💰 Entradas</SelectItem>
-                    <SelectItem value="expense_fixed">📌 Fixas</SelectItem>
-                    <SelectItem value="expense_variable">🔄 Variáveis</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger className="w-[130px] h-10"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Status</SelectItem>
-                    <SelectItem value="paid">✅ Pago</SelectItem>
-                    <SelectItem value="pending">⏳ Pendente</SelectItem>
-                    <SelectItem value="overdue">⚠️ Atrasado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Monthly Summary Bar */}
-            <Card className="mb-4">
-              <CardContent className="grid gap-4 p-4 sm:grid-cols-2">
-                <div className="rounded-xl border border-money/20 bg-money/5 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-money">Realizado · filtros ativos</p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-mono-num"><span>Recebido R$ {filteredSummary.realized.income.toLocaleString('pt-BR')}</span><span>Pago R$ {filteredSummary.realized.expenses.toLocaleString('pt-BR')}</span></div>
-                </div>
-                <div className="rounded-xl border border-qty/20 bg-qty/5 p-3">
-                  <p className="text-xs font-medium uppercase tracking-wide text-qty">Previsto · filtros ativos</p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-mono-num"><span>A receber R$ {filteredSummary.projected.income.toLocaleString('pt-BR')}</span><span>A pagar R$ {filteredSummary.projected.expenses.toLocaleString('pt-BR')}</span></div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Category Filter Pills */}
-            <div className="mb-4 flex flex-wrap gap-1.5">
-              <button onClick={() => setCategoryFilter(null)} className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all', categoryFilter === null ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
-                Todos
-              </button>
-              {expenseCategories.map(category => (
-                <button key={category} onClick={() => setCategoryFilter(categoryFilter === category ? null : category)} className={cn('inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-medium transition-all', categoryFilter === category ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/80')}>
-                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: categoryColors[category] || '#64748b' }} />
-                  {category}
-                </button>
-              ))}
-            </div>
-
-            {/* Transaction List */}
-            {filteredEntries.length === 0 ? (
-              <Card className="border-dashed"><CardContent className="flex flex-col items-center justify-center py-16">
-                <Receipt className="h-12 w-12 text-muted-foreground/30 mb-3" />
-                <p className="text-lg font-medium">Nenhum lançamento</p>
-                <p className="text-sm text-muted-foreground">Adicione lançamentos usando o formulário acima</p>
-              </CardContent></Card>
-            ) : (
-              <div className="space-y-4">
-                {filteredEntries.slice().sort((a, b) => effectiveFinancialDate(b).localeCompare(effectiveFinancialDate(a))).map(entry => {
-                  const statusInfo = statusConfig[entry.status || 'pending'];
-                  return (
-                    <motion.div key={entry.id} layout initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }}>
-                      <Card className="hover:shadow-md transition-all">
-                        <CardContent className="p-4 flex items-center gap-4">
-                          <button onClick={() => handleTogglePaid(entry)} className="shrink-0">
-                            {entry.status === 'paid' ? <CheckCircle2 className="h-6 w-6 text-money" /> : <CircleDot className="h-6 w-6 text-yellow-500" />}
-                          </button>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: categoryColors[entry.category] || '#64748b' }} />
-                              <p className="font-medium truncate">{entry.category}</p>
-                              <Badge variant="outline" className={cn('text-xs', statusInfo.color, statusInfo.bgColor)}>{entry.type === 'income' && entry.status === 'paid' ? 'Recebido' : statusInfo.label}</Badge>
-                              {entry.payee && <span className="text-xs text-muted-foreground">• {entry.payee}</span>}
-                            </div>
-                            {entry.description && <p className="text-sm text-muted-foreground truncate mt-0.5">{entry.description}</p>}
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-xs text-muted-foreground">Registrado {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
-                              {entry.recurring && <Badge variant="secondary" className="text-xs px-1 py-0"><Repeat className="h-2 w-2 mr-0.5" />{recurringLabels[entry.recurringFrequency || (typeof entry.recurring === 'string' ? entry.recurring : 'none')]}</Badge>}
-                              {entry.dueDate && <span className="text-xs text-muted-foreground">Vence {new Date(entry.dueDate + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
-                              {entry.status === 'paid' && <span className="text-xs text-money">{entry.type === 'income' ? 'Recebido' : 'Pago'} {new Date(`${entry.paidDate || entry.date}T12:00:00`).toLocaleDateString('pt-BR')}</span>}
-                            </div>
-                          </div>
-                          <div className="text-right shrink-0">
-                            <span className={cn('text-xl font-bold font-mono-num', entry.type === 'income' ? 'text-money' : 'text-critical')}>
-                              {entry.type === 'income' ? '+' : '-'} R$ {entry.amount.toLocaleString('pt-BR')}
-                            </span>
-                          </div>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0"><MoreHorizontal className="h-4 w-4" /></Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleTogglePaid(entry)}>
-                                {entry.status === 'paid' ? '⏳ Marcar Pendente' : entry.type === 'income' ? '✅ Marcar Recebido' : '✅ Marcar Pago'}
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => handleDeleteEntry(entry.id)} className="text-destructive">
-                                <Trash2 className="h-4 w-4 mr-2" /> Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            )}
-          </motion.div>
+        {activeTab === 'transactions' && !loadError && (
+          <FinancialTransactions
+            entries={filteredEntries}
+            filterType={filterType}
+            filterStatus={filterStatus}
+            categoryFilter={categoryFilter}
+            search={searchQuery}
+            today={today}
+            onType={setFilterType}
+            onStatus={setFilterStatus}
+            onSearch={setSearchQuery}
+            onClear={() => openTransactions()}
+            onEdit={setEntryDialog}
+            onPay={handleTogglePaid}
+            onDelete={handleDeleteEntry}
+            onNew={() => setEntryDialog('new')}
+          />
         )}
 
         {activeTab === 'categories' && (
-          <motion.div key="categories" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+          <motion.div
+            key="categories"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold font-display">Gestão de Cadastros</h2>
+              <h2 className="text-2xl font-bold font-display">
+                Gestão de Cadastros
+              </h2>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Categories by Type */}
-              {(['income', 'expense_fixed', 'expense_variable'] as const).map(type => {
-                const typeLabels = { income: '💰 Receitas', expense_fixed: '📌 Despesas Fixas', expense_variable: '🔄 Despesas Variáveis' };
-                return (
-                  <Card key={type}>
-                    <CardHeader><CardTitle className="text-base">{typeLabels[type]}</CardTitle><p className="text-xs text-muted-foreground">Totais de todos os períodos, separados por situação.</p></CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        {[...new Set([...categories[type], ...entries.filter(entry => entry.type === type).map(entry => entry.category)])].map(cat => {
-                          const totals = summarizeFinancialEntries(entries.filter(entry => entry.type === type && entry.category === cat));
-                          return <div key={cat} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
-                            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: categoryColors[cat] || '#64748b' }} />
-                            <span className="text-sm font-medium flex-1">{cat}</span>
-                            <span className="text-right text-xs text-muted-foreground">Realizado R$ {(type === 'income' ? totals.realized.income : totals.realized.expenses).toLocaleString('pt-BR')}<br />Previsto R$ {(type === 'income' ? totals.projected.income : totals.projected.expenses).toLocaleString('pt-BR')}</span>
-                          </div>;
-                        })}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              {(['income', 'expense_fixed', 'expense_variable'] as const).map(
+                (type) => {
+                  const typeLabels = {
+                    income: '💰 Receitas',
+                    expense_fixed: '📌 Despesas Fixas',
+                    expense_variable: '🔄 Despesas Variáveis',
+                  };
+                  return (
+                    <Card key={type}>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          {typeLabels[type]}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">
+                          Totais de todos os períodos, separados por situação.
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {[
+                            ...new Set([
+                              ...categories[type],
+                              ...entries
+                                .filter((entry) => entry.type === type)
+                                .map((entry) => entry.category),
+                            ]),
+                          ].map((cat) => {
+                            const totals = summarizeFinancialEntries(
+                              entries.filter(
+                                (entry) =>
+                                  entry.type === type && entry.category === cat
+                              )
+                            );
+                            return (
+                              <div
+                                key={cat}
+                                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                              >
+                                <span
+                                  className="h-3 w-3 rounded-full"
+                                  style={{
+                                    backgroundColor:
+                                      categoryColors[cat] || '#64748b',
+                                  }}
+                                />
+                                <span className="text-sm font-medium flex-1">
+                                  {cat}
+                                </span>
+                                <span className="text-right text-xs text-muted-foreground">
+                                  Realizado R${' '}
+                                  {(type === 'income'
+                                    ? totals.realized.income
+                                    : totals.realized.expenses
+                                  ).toLocaleString('pt-BR')}
+                                  <br />
+                                  Previsto R${' '}
+                                  {(type === 'income'
+                                    ? totals.projected.income
+                                    : totals.projected.expenses
+                                  ).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+              )}
 
               {/* Payees */}
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">👤 Credores/Fornecedores</CardTitle>
-                  <Button variant="ghost" size="sm" onClick={() => setIsPayeeDialogOpen(true)}><Plus className="h-4 w-4 mr-1" /> Novo</Button>
+                  <CardTitle className="text-base">
+                    👤 Credores/Fornecedores
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsPayeeDialogOpen(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Novo
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   {payees.length === 0 ? (
-                    <p className="text-sm text-muted-foreground py-4 text-center">Nenhum credor cadastrado</p>
+                    <p className="text-sm text-muted-foreground py-4 text-center">
+                      Nenhum credor cadastrado
+                    </p>
                   ) : (
                     <div className="space-y-2">
-                      {payees.map(payee => (
-                        <div key={payee.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50">
+                      {payees.map((payee) => (
+                        <div
+                          key={payee.id}
+                          className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                        >
                           <span className="text-xl">{payee.icon || '👤'}</span>
                           <div className="flex-1">
-                            <span className="text-sm font-medium">{payee.name}</span>
-                            <p className="text-xs text-muted-foreground">{payee.type === 'person' ? 'Pessoa' : payee.type === 'company' ? 'Empresa' : 'Órgão Público'}</p>
+                            <span className="text-sm font-medium">
+                              {payee.name}
+                            </span>
+                            <p className="text-xs text-muted-foreground">
+                              {payee.type === 'person'
+                                ? 'Pessoa'
+                                : payee.type === 'company'
+                                  ? 'Empresa'
+                                  : 'Órgão Público'}
+                            </p>
                           </div>
                         </div>
                       ))}
@@ -1429,65 +1634,136 @@ export default function FinanceiroPage() {
       </AnimatePresence>
 
       {/* ─── Account Dialog ─────────────────────────────────────────────────── */}
-      <div className={cn('fixed inset-0 z-50 flex items-center justify-center', !isAccountDialogOpen && 'hidden')}>
-        {isAccountDialogOpen && <div className="fixed inset-0 bg-black/60" onClick={() => setIsAccountDialogOpen(false)} />}
-        <div className="relative z-50 w-full max-w-md rounded-xl border bg-popover p-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-1">Nova Conta</h2>
-          <p className="text-sm text-muted-foreground mb-4">Cadastre uma conta bancária ou carteira</p>
+      <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-3xl">
+          <DialogTitle className="font-display text-2xl">
+            Nova Conta
+          </DialogTitle>
+          <DialogDescription>
+            Cadastre uma conta bancária ou carteira
+          </DialogDescription>
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label>Nome</Label>
-              <Input value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Ex: Nubank, Itaú, Carteira" />
+              <Label htmlFor="finance-accountName">Nome</Label>
+              <Input
+                id="finance-accountName"
+                value={accountName}
+                onChange={(e) => setAccountName(e.target.value)}
+                placeholder="Ex: Nubank, Itaú, Carteira"
+              />
             </div>
             <div className="grid gap-2">
               <Label>Tipo</Label>
-              <Select value={accountType} onValueChange={(v) => setAccountType(v as Account['type'])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={accountType}
+                onValueChange={(v) => setAccountType(v as Account['type'])}
+              >
+                <SelectTrigger aria-label="Tipo de conta">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(accountTypeConfig).map(([key, cfg]) => <SelectItem key={key} value={key}>{cfg.icon} {cfg.label}</SelectItem>)}
+                  {Object.entries(accountTypeConfig).map(([key, cfg]) => (
+                    <SelectItem key={key} value={key}>
+                      {cfg.icon} {cfg.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Banco</Label>
-              <Input value={accountBank} onChange={(e) => setAccountBank(e.target.value)} placeholder="Ex: Nubank, Bradesco" />
+              <Label htmlFor="finance-accountBank">Banco</Label>
+              <Input
+                id="finance-accountBank"
+                value={accountBank}
+                onChange={(e) => setAccountBank(e.target.value)}
+                placeholder="Ex: Nubank, Bradesco"
+              />
             </div>
             <div className="grid gap-2">
-              <Label>Saldo Atual (R$)</Label>
-              <Input type="number" step="0.01" value={accountBalance} onChange={(e) => setAccountBalance(e.target.value)} placeholder="0,00" className="font-mono-num text-lg" />
+              <Label htmlFor="finance-accountBalance">Saldo Atual (R$)</Label>
+              <Input
+                id="finance-accountBalance"
+                type="number"
+                step="0.01"
+                value={accountBalance}
+                onChange={(e) => setAccountBalance(e.target.value)}
+                placeholder="0,00"
+                className="font-mono-num text-lg"
+              />
             </div>
             <div className="grid gap-2">
               <Label>Cor</Label>
               <div className="flex gap-2">
-                {['#3b82f6', '#22c55e', '#8b5cf6', '#ec4899', '#f59e0b', '#06b6d4', '#ef4444', '#64748b'].map(color => (
-                  <button key={color} type="button" onClick={() => setAccountColor(color)} className={cn('w-8 h-8 rounded-full border-2 transition-all', accountColor === color ? 'border-white scale-110' : 'border-border')} style={{ backgroundColor: color }} />
+                {[
+                  '#3b82f6',
+                  '#22c55e',
+                  '#8b5cf6',
+                  '#ec4899',
+                  '#f59e0b',
+                  '#06b6d4',
+                  '#ef4444',
+                  '#64748b',
+                ].map((color) => (
+                  <button
+                    key={color}
+                    aria-label={`Cor ${color}`}
+                    type="button"
+                    onClick={() => setAccountColor(color)}
+                    className={cn(
+                      'w-8 h-8 rounded-full border-2 transition-all',
+                      accountColor === color
+                        ? 'border-white scale-110'
+                        : 'border-border'
+                    )}
+                    style={{ backgroundColor: color }}
+                  />
                 ))}
               </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsAccountDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateAccount} disabled={!accountName}>Criar</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsAccountDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateAccount} disabled={!accountName}>
+              Criar
+            </Button>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Card Dialog ────────────────────────────────────────────────────── */}
-      <div className={cn('fixed inset-0 z-50 flex items-center justify-center', !isCardDialogOpen && 'hidden')}>
-        {isCardDialogOpen && <div className="fixed inset-0 bg-black/60" onClick={() => setIsCardDialogOpen(false)} />}
-        <div className="relative z-50 w-full max-w-md rounded-xl border bg-popover p-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-1">Novo Cartão</h2>
-          <p className="text-sm text-muted-foreground mb-4">Cadastre um cartão de crédito ou débito</p>
+      <Dialog open={isCardDialogOpen} onOpenChange={setIsCardDialogOpen}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-3xl">
+          <DialogTitle className="font-display text-2xl">
+            Novo Cartão
+          </DialogTitle>
+          <DialogDescription>
+            Cadastre um cartão de crédito ou débito
+          </DialogDescription>
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label>Nome</Label>
-              <Input value={cardName} onChange={(e) => setCardName(e.target.value)} placeholder="Ex: Nubank Ultravioleta" />
+              <Label htmlFor="finance-cardName">Nome</Label>
+              <Input
+                id="finance-cardName"
+                value={cardName}
+                onChange={(e) => setCardName(e.target.value)}
+                placeholder="Ex: Nubank Ultravioleta"
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label>Tipo</Label>
-                <Select value={cardType} onValueChange={(v) => setCardType(v as Card['type'])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={cardType}
+                  onValueChange={(v) => setCardType(v as FinanceCard['type'])}
+                >
+                  <SelectTrigger aria-label="Tipo de cartão">
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="credit">Crédito</SelectItem>
                     <SelectItem value="debit">Débito</SelectItem>
@@ -1498,56 +1774,113 @@ export default function FinanceiroPage() {
               <div className="grid gap-2">
                 <Label>Bandeira</Label>
                 <Select value={cardBrand} onValueChange={setCardBrand}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                  <SelectTrigger aria-label="Bandeira">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {Object.keys(cardBrandColors).map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                    {Object.keys(cardBrandColors).map((b) => (
+                      <SelectItem key={b} value={b}>
+                        {b}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Últimos 4 dígitos</Label>
-              <Input value={cardLastDigits} onChange={(e) => setCardLastDigits(e.target.value)} placeholder="1234" maxLength={4} />
+              <Label htmlFor="finance-cardLastDigits">Últimos 4 dígitos</Label>
+              <Input
+                id="finance-cardLastDigits"
+                value={cardLastDigits}
+                onChange={(e) => setCardLastDigits(e.target.value)}
+                placeholder="1234"
+                maxLength={4}
+              />
             </div>
             {cardType === 'credit' && (
               <div className="grid gap-2">
-                <Label>Limite (R$)</Label>
-                <Input type="number" step="0.01" value={cardLimit} onChange={(e) => setCardLimit(e.target.value)} placeholder="0,00" className="font-mono-num" />
+                <Label htmlFor="finance-cardLimit">Limite (R$)</Label>
+                <Input
+                  id="finance-cardLimit"
+                  type="number"
+                  step="0.01"
+                  value={cardLimit}
+                  onChange={(e) => setCardLimit(e.target.value)}
+                  placeholder="0,00"
+                  className="font-mono-num"
+                />
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label>Dia Fechamento</Label>
-                <Input type="number" value={cardClosingDay} onChange={(e) => setCardClosingDay(e.target.value)} placeholder="1-31" min="1" max="31" />
+                <Label htmlFor="finance-cardClosingDay">Dia Fechamento</Label>
+                <Input
+                  id="finance-cardClosingDay"
+                  type="number"
+                  value={cardClosingDay}
+                  onChange={(e) => setCardClosingDay(e.target.value)}
+                  placeholder="1-31"
+                  min="1"
+                  max="31"
+                />
               </div>
               <div className="grid gap-2">
-                <Label>Dia Vencimento</Label>
-                <Input type="number" value={cardDueDay} onChange={(e) => setCardDueDay(e.target.value)} placeholder="1-31" min="1" max="31" />
+                <Label htmlFor="finance-cardDueDay">Dia Vencimento</Label>
+                <Input
+                  id="finance-cardDueDay"
+                  type="number"
+                  value={cardDueDay}
+                  onChange={(e) => setCardDueDay(e.target.value)}
+                  placeholder="1-31"
+                  min="1"
+                  max="31"
+                />
               </div>
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsCardDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateCard} disabled={!cardName || !cardLastDigits}>Criar</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsCardDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateCard}
+              disabled={!cardName || !cardLastDigits}
+            >
+              Criar
+            </Button>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Payee Dialog ───────────────────────────────────────────────────── */}
-      <div className={cn('fixed inset-0 z-50 flex items-center justify-center', !isPayeeDialogOpen && 'hidden')}>
-        {isPayeeDialogOpen && <div className="fixed inset-0 bg-black/60" onClick={() => setIsPayeeDialogOpen(false)} />}
-        <div className="relative z-50 w-full max-w-md rounded-xl border bg-popover p-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-1">Novo Credor/Fornecedor</h2>
-          <p className="text-sm text-muted-foreground mb-4">Cadastre quem recebe ou paga</p>
+      <Dialog open={isPayeeDialogOpen} onOpenChange={setIsPayeeDialogOpen}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-3xl">
+          <DialogTitle className="font-display text-2xl">
+            Novo Credor/Fornecedor
+          </DialogTitle>
+          <DialogDescription>Cadastre quem recebe ou paga</DialogDescription>
           <div className="space-y-4">
             <div className="grid gap-2">
-              <Label>Nome</Label>
-              <Input value={payeeName} onChange={(e) => setPayeeName(e.target.value)} placeholder="Ex: Manoel, Facebook Ads" />
+              <Label htmlFor="finance-payeeName">Nome</Label>
+              <Input
+                id="finance-payeeName"
+                value={payeeName}
+                onChange={(e) => setPayeeName(e.target.value)}
+                placeholder="Ex: Manoel, Facebook Ads"
+              />
             </div>
             <div className="grid gap-2">
               <Label>Tipo</Label>
-              <Select value={payeeType} onValueChange={(v) => setPayeeType(v as Payee['type'])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={payeeType}
+                onValueChange={(v) => setPayeeType(v as Payee['type'])}
+              >
+                <SelectTrigger aria-label="Tipo de pessoa">
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="person">👤 Pessoa</SelectItem>
                   <SelectItem value="company">🏢 Empresa</SelectItem>
@@ -1557,73 +1890,310 @@ export default function FinanceiroPage() {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Documento (CPF/CNPJ)</Label>
-              <Input value={payeeDocument} onChange={(e) => setPayeeDocument(e.target.value)} placeholder="Opcional" />
+              <Label htmlFor="finance-payeeDocument">
+                Documento (CPF/CNPJ)
+              </Label>
+              <Input
+                id="finance-payeeDocument"
+                value={payeeDocument}
+                onChange={(e) => setPayeeDocument(e.target.value)}
+                placeholder="Opcional"
+              />
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsPayeeDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreatePayee} disabled={!payeeName}>Criar</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsPayeeDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCreatePayee} disabled={!payeeName}>
+              Criar
+            </Button>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Goal Dialog ────────────────────────────────────────────────────── */}
-      <div className={cn('fixed inset-0 z-50 flex items-center justify-center', !isGoalDialogOpen && 'hidden')}>
-        {isGoalDialogOpen && <div className="fixed inset-0 bg-black/60" onClick={() => setIsGoalDialogOpen(false)} />}
-        <div className="relative z-50 w-full max-w-md rounded-xl border bg-popover p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-          <h2 className="text-xl font-bold mb-1">Nova Meta Financeira</h2>
-          <p className="text-sm text-muted-foreground mb-4">Defina uma meta de economia ou investimento</p>
+      <Dialog open={isGoalDialogOpen} onOpenChange={setIsGoalDialogOpen}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-3xl">
+          <DialogTitle className="font-display text-2xl">
+            Nova Meta Financeira
+          </DialogTitle>
+          <DialogDescription>
+            Defina uma meta de economia ou investimento
+          </DialogDescription>
           <div className="space-y-4">
             <div className="grid gap-2">
               <Label>Ícone</Label>
               <div className="flex gap-2 flex-wrap">
-                {['🎯', '🏠', '🚗', '✈️', '📚', '💎', '🛡️', '🎓', '🏖️', '💼', '💊', '🔧'].map(icon => (
-                  <button key={icon} onClick={() => setGoalIcon(icon)} className={cn('h-10 w-10 rounded-lg border-2 text-xl flex items-center justify-center transition-all', goalIcon === icon ? 'border-primary bg-primary/10 scale-110' : 'border-border hover:border-muted-foreground/50')}>{icon}</button>
+                {[
+                  '🎯',
+                  '🏠',
+                  '🚗',
+                  '✈️',
+                  '📚',
+                  '💎',
+                  '🛡️',
+                  '🎓',
+                  '🏖️',
+                  '💼',
+                  '💊',
+                  '🔧',
+                ].map((icon) => (
+                  <button
+                    key={icon}
+                    aria-label={`Ícone ${icon}`}
+                    onClick={() => setGoalIcon(icon)}
+                    className={cn(
+                      'h-10 w-10 rounded-lg border-2 text-xl flex items-center justify-center transition-all',
+                      goalIcon === icon
+                        ? 'border-primary bg-primary/10 scale-110'
+                        : 'border-border hover:border-muted-foreground/50'
+                    )}
+                  >
+                    {icon}
+                  </button>
                 ))}
               </div>
             </div>
-            <div className="grid gap-2"><Label>Nome</Label><Input value={goalName} onChange={(e) => setGoalName(e.target.value)} placeholder="Ex: Reserva de emergência" /></div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2"><Label>Valor Alvo (R$)</Label><Input type="number" step="0.01" value={goalTarget} onChange={(e) => setGoalTarget(e.target.value)} placeholder="0,00" className="font-mono-num" /></div>
-              <div className="grid gap-2"><Label>Valor Atual (R$)</Label><Input type="number" step="0.01" value={goalCurrent} onChange={(e) => setGoalCurrent(e.target.value)} placeholder="0,00" className="font-mono-num" /></div>
+            <div className="grid gap-2">
+              <Label htmlFor="finance-goalName">Nome</Label>
+              <Input
+                id="finance-goalName"
+                value={goalName}
+                onChange={(e) => setGoalName(e.target.value)}
+                placeholder="Ex: Reserva de emergência"
+              />
             </div>
-            <div className="grid gap-2"><Label>Prazo</Label><Input type="date" value={goalDeadline} onChange={(e) => setGoalDeadline(e.target.value)} /></div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="finance-goalTarget">Valor Alvo (R$)</Label>
+                <Input
+                  id="finance-goalTarget"
+                  type="number"
+                  step="0.01"
+                  value={goalTarget}
+                  onChange={(e) => setGoalTarget(e.target.value)}
+                  placeholder="0,00"
+                  className="font-mono-num"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="finance-goalCurrent">Valor Atual (R$)</Label>
+                <Input
+                  id="finance-goalCurrent"
+                  type="number"
+                  step="0.01"
+                  value={goalCurrent}
+                  onChange={(e) => setGoalCurrent(e.target.value)}
+                  placeholder="0,00"
+                  className="font-mono-num"
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="finance-goalDeadline">Prazo</Label>
+              <Input
+                id="finance-goalDeadline"
+                type="date"
+                value={goalDeadline}
+                onChange={(e) => setGoalDeadline(e.target.value)}
+              />
+            </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsGoalDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateGoal} disabled={!goalName || !goalTarget}>Criar Meta</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsGoalDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateGoal}
+              disabled={!goalName || !goalTarget}
+            >
+              Criar Meta
+            </Button>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ─── Budget Dialog ──────────────────────────────────────────────────── */}
-      <div className={cn('fixed inset-0 z-50 flex items-center justify-center', !isBudgetDialogOpen && 'hidden')}>
-        {isBudgetDialogOpen && <div className="fixed inset-0 bg-black/60" onClick={() => setIsBudgetDialogOpen(false)} />}
-        <div className="relative z-50 w-full max-w-md rounded-xl border bg-popover p-6 shadow-2xl">
-          <h2 className="text-xl font-bold mb-1">Novo Orçamento</h2>
-          <p className="text-sm text-muted-foreground mb-4">Defina um limite de gasto por categoria</p>
+      <Dialog open={isBudgetDialogOpen} onOpenChange={setIsBudgetDialogOpen}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-1.5rem)] max-w-md overflow-y-auto rounded-3xl">
+          <DialogTitle className="font-display text-2xl">
+            Novo Orçamento
+          </DialogTitle>
+          <DialogDescription>
+            Defina um limite de gasto por categoria
+          </DialogDescription>
           <div className="space-y-4">
             <div className="grid gap-2">
+              <Label>Tipo de despesa</Label>
+              <Select
+                value={budgetType}
+                onValueChange={(v) => {
+                  setBudgetType(v as typeof budgetType);
+                  setBudgetCategory('');
+                }}
+              >
+                <SelectTrigger aria-label="Tipo do orçamento">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense_fixed">Fixa</SelectItem>
+                  <SelectItem value="expense_variable">Variável</SelectItem>
+                </SelectContent>
+              </Select>
               <Label>Categoria</Label>
               <Select value={budgetCategory} onValueChange={setBudgetCategory}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectTrigger aria-label="Categoria do orçamento">
+                  <SelectValue placeholder="Selecione" />
+                </SelectTrigger>
                 <SelectContent>
-                  {[...categories.expense_fixed, ...categories.expense_variable].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {[
+                    ...new Set([
+                      ...categories[budgetType],
+                      ...entries
+                        .filter((e) => e.type === budgetType)
+                        .map((e) => e.category),
+                    ]),
+                  ].map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Limite Mensal (R$)</Label>
-              <Input type="number" step="0.01" value={budgetLimit} onChange={(e) => setBudgetLimit(e.target.value)} placeholder="0,00" className="font-mono-num" />
+              <Label htmlFor="finance-budgetLimit">Limite Mensal (R$)</Label>
+              <Input
+                id="finance-budgetLimit"
+                type="number"
+                step="0.01"
+                value={budgetLimit}
+                onChange={(e) => setBudgetLimit(e.target.value)}
+                placeholder="0,00"
+                className="font-mono-num"
+              />
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-6">
-            <Button variant="outline" onClick={() => setIsBudgetDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleCreateBudget} disabled={!budgetCategory || !budgetLimit}>Criar</Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsBudgetDialogOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCreateBudget}
+              disabled={!budgetCategory || !budgetLimit}
+            >
+              Criar
+            </Button>
           </div>
-        </div>
-      </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isBillDialogOpen}
+        onOpenChange={(open) => {
+          if (!billSaving) setIsBillDialogOpen(open);
+        }}
+      >
+        <DialogContent className="w-[calc(100%-1.5rem)] max-w-md rounded-3xl">
+          <DialogTitle>Nova fatura</DialogTitle>
+          <DialogDescription>
+            Escolha o cartão. Esta fatura pertence a {selectedMonth}, por data
+            de compra.
+          </DialogDescription>
+          <Label htmlFor="bill-card">Cartão de crédito</Label>
+          <Select value={billCardId} onValueChange={setBillCardId}>
+            <SelectTrigger id="bill-card">
+              <SelectValue placeholder="Selecionar cartão" />
+            </SelectTrigger>
+            <SelectContent>
+              {cards
+                .filter(
+                  (c) =>
+                    c.isActive && (c.type === 'credit' || c.type === 'multiple')
+                )
+                .map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+          {!cards.some(
+            (c) => c.isActive && (c.type === 'credit' || c.type === 'multiple')
+          ) && (
+            <p className="text-sm text-muted-foreground">
+              Cadastre um cartão de crédito na aba Cartões para começar.
+            </p>
+          )}
+          <Button
+            disabled={!billCardId || billSaving}
+            onClick={handleCreateBill}
+          >
+            {billSaving ? 'Criando…' : 'Criar fatura'}
+          </Button>
+        </DialogContent>
+      </Dialog>
+      {entryDialog && (
+        <EntryDialog
+          entry={entryDialog === 'new' ? undefined : entryDialog}
+          entries={entries}
+          accounts={accounts}
+          selectedMonth={selectedMonth}
+          onClose={() => setEntryDialog(null)}
+          onSaved={(month) => {
+            setSelectedMonth(month);
+            setDateRange('month');
+            if (activeTab === 'transactions') openTransactions();
+            loadAll();
+          }}
+        />
+      )}
+      <Dialog
+        open={!!balanceAccount}
+        onOpenChange={(open) => {
+          if (!open && !balanceSaving) setBalanceAccount(null);
+        }}
+      >
+        <DialogContent className="w-[calc(100%-1.5rem)] max-w-md rounded-3xl">
+          <DialogTitle>Atualizar saldo</DialogTitle>
+          <DialogDescription>
+            Informe o saldo atual de {balanceAccount?.name}. Este ajuste não
+            cria receita ou despesa.
+          </DialogDescription>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdateAccountBalance();
+            }}
+            className="space-y-4"
+          >
+            <Label htmlFor="account-exact-balance">Saldo informado (R$)</Label>
+            <Input
+              id="account-exact-balance"
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              required
+              value={newBalance}
+              onChange={(e) => setNewBalance(e.target.value)}
+              className="h-12 font-mono-num text-xl"
+            />
+            <Button type="submit" className="w-full" disabled={balanceSaving}>
+              {balanceSaving ? 'Salvando…' : 'Salvar saldo'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

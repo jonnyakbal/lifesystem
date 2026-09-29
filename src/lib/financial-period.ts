@@ -69,11 +69,14 @@ export function summarizeFinancialEntries(entries: FinancialPeriodEntry[]): Fina
   const projected: FinancialTotals = { income: 0, expenses: 0, balance: 0 };
   for (const entry of entries) {
     const totals = entry.status === 'paid' ? realized : projected;
-    if (entry.type === 'income') totals.income += entry.amount;
-    else totals.expenses += entry.amount;
+    if (entry.type === 'income') totals.income += Math.round(entry.amount * 100);
+    else totals.expenses += Math.round(entry.amount * 100);
   }
-  realized.balance = realized.income - realized.expenses;
-  projected.balance = projected.income - projected.expenses;
+  for (const totals of [realized, projected]) {
+    totals.balance = (totals.income - totals.expenses) / 100;
+    totals.income /= 100;
+    totals.expenses /= 100;
+  }
   return { realized, projected, entries: entries.length };
 }
 

@@ -21,8 +21,8 @@
   --color-card-foreground: hsl(250 30% 96%);
   --color-popover: hsl(256 38% 7%);
   --color-popover-foreground: hsl(250 30% 96%);
-  --color-primary: hsl(262 90% 70%);
-  --color-primary-foreground: hsl(256 38% 6%);
+  --color-primary: hsl(191 85% 67%);
+  --color-primary-foreground: hsl(198 80% 8%);
   --color-secondary: hsl(255 25% 15%);
   --color-secondary-foreground: hsl(250 30% 92%);
   --color-muted: hsl(255 22% 14%);
@@ -33,7 +33,7 @@
   --color-destructive-foreground: hsl(0 0% 100%);
   --color-border: hsl(255 25% 18%);
   --color-input: hsl(255 25% 18%);
-  --color-ring: hsl(262 90% 70%);
+  --color-ring: hsl(191 85% 67%);
   --color-stellar: hsl(262 95% 72%);
   --color-money: hsl(162 80% 58%);
   --color-qty: hsl(207 92% 66%);
@@ -61,8 +61,8 @@
 
 /* Light theme — overrides the @theme defaults (which are dark-first) when
    the Settings dialog's theme toggle (useTheme in settings.tsx) puts
-   `.light` on <html>. Same hues as the dark palette, tuned for a light
-   background, so the app keeps its cosmic/purple identity either way. */
+   `.light` on <html>. The same cyan-and-violet identity is tuned for a light
+   background so actions stay legible in both appearances. */
 .light {
   --color-background: hsl(250 45% 98%);
   --color-foreground: hsl(256 35% 12%);
@@ -70,19 +70,19 @@
   --color-card-foreground: hsl(256 35% 12%);
   --color-popover: hsl(0 0% 100%);
   --color-popover-foreground: hsl(256 35% 12%);
-  --color-primary: hsl(262 75% 52%);
+  --color-primary: hsl(191 90% 32%);
   --color-primary-foreground: hsl(0 0% 100%);
   --color-secondary: hsl(255 30% 94%);
   --color-secondary-foreground: hsl(256 35% 18%);
   --color-muted: hsl(255 25% 95%);
   --color-muted-foreground: hsl(252 15% 42%);
-  --color-accent: hsl(262 55% 93%);
-  --color-accent-foreground: hsl(262 65% 32%);
+  --color-accent: hsl(191 55% 93%);
+  --color-accent-foreground: hsl(196 70% 25%);
   --color-destructive: hsl(350 78% 48%);
   --color-destructive-foreground: hsl(0 0% 100%);
   --color-border: hsl(255 22% 88%);
   --color-input: hsl(255 22% 88%);
-  --color-ring: hsl(262 75% 52%);
+  --color-ring: hsl(191 90% 32%);
   --color-stellar: hsl(262 80% 52%);
   --color-money: hsl(162 75% 32%);
   --color-qty: hsl(207 82% 46%);

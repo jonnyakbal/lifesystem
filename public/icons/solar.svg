@@ -4,7 +4,7 @@
       <stop stop-color="#11183A"/><stop offset="1" stop-color="#040611"/>
     </radialGradient>
     <radialGradient id="sun" cx="34%" cy="28%" r="72%">
-      <stop stop-color="#FFF7D6"/><stop offset=".3" stop-color="#FDE68A"/><stop offset=".7" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D28D9"/>
+      <stop stop-color="#D9FAFF"/><stop offset=".3" stop-color="#67E8F9"/><stop offset=".7" stop-color="#818CF8"/><stop offset="1" stop-color="#6D28D9"/>
     </radialGradient>
     <linearGradient id="mark" x1="120" y1="120" x2="350" y2="420" gradientUnits="userSpaceOnUse">
       <stop stop-color="#EDE9FE"/><stop offset=".42" stop-color="#A78BFA"/><stop offset="1" stop-color="#6D28D9"/>
@@ -26,7 +26,7 @@
   <g transform="rotate(-19 280 232)">
     <circle cx="448" cy="232" r="18" fill="#67E8F9"/><circle cx="110" cy="232" r="10" fill="#C4B5FD"/>
   </g>
-  <g transform="rotate(28 280 232)"><circle cx="280" cy="128" r="12" fill="#FDE68A"/><circle cx="280" cy="336" r="7" fill="#A78BFA"/></g>
+  <g transform="rotate(28 280 232)"><circle cx="280" cy="128" r="12" fill="#67E8F9"/><circle cx="280" cy="336" r="7" fill="#A78BFA"/></g>
   <path d="M126 126v214c0 38 23 61 62 61h128" stroke="#070A1C" stroke-opacity=".68" stroke-width="67" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M126 126v214c0 38 23 61 62 61h128" stroke="url(#mark)" stroke-width="45" stroke-linecap="round" stroke-linejoin="round"/>
   <path d="M70 320c42-62 90-99 145-112" stroke="#DDD6FE" stroke-opacity=".55" stroke-width="8" stroke-linecap="round"/>

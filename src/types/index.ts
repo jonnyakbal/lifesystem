@@ -260,7 +260,7 @@ export interface FinancialEntry extends BaseEntity {
   payee?: string;
   tags?: string[];
   status?: 'pending' | 'paid' | 'overdue';
-  dueDate?: string;
+  dueDate?: string | null;
   paidDate?: string | null;
 }
 

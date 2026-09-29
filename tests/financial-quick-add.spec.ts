@@ -2,6 +2,10 @@ import { test, expect } from '@playwright/test';
 import { financialEntrySchema } from '../src/lib/financial-validation';
 import { todayStr } from '../src/lib/utils';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/**', route => route.fulfill({ json: [] }));
+});
+
 for (const frequency of ['none', 'monthly']) {
   test(`lançamento ${frequency} envia recorrência aceita pela API`, async ({ page }) => {
     await page.route('**/api/financial', async route => {
@@ -10,7 +14,8 @@ for (const frequency of ['none', 'monthly']) {
       await route.fulfill({ status: parsed.success ? 201 : 400, json: parsed.success ? { id: 'test', ...parsed.data } : { error: 'Dados financeiros inválidos.' } });
     });
     await page.goto('/financeiro');
-    const form = page.locator('form').filter({ hasText: 'Novo Lançamento' });
+  await page.getByRole('button', { name: 'Novo lançamento', exact: true }).click();
+    const form = page.getByRole('form', { name: 'Novo Lançamento' });
     await form.getByRole('combobox').nth(1).click();
     await page.getByRole('option', { name: 'Alimentação', exact: true }).click();
     await form.getByPlaceholder('0,00', { exact: true }).fill('1000');
@@ -34,6 +39,7 @@ for (const frequency of ['none', 'monthly']) {
 test('formulário móvel mantém detalhes opcionais recolhidos e campos acessíveis', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/financeiro');
+  await page.getByRole('button', { name: 'Novo lançamento', exact: true }).click();
   const form = page.getByRole('form', { name: 'Novo Lançamento' });
   await expect(form.getByLabel('Valor (R$)')).toBeVisible();
   await expect(form.getByLabel('Vencimento · opcional')).toBeVisible();
@@ -52,6 +58,8 @@ test('navega por meses vazios e pela virada do ano', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-12-15T12:00:00Z') });
   await page.route('**/api/financial', route => route.fulfill({ json: [] }));
   await page.goto('/financeiro');
+  await page.getByRole('button', { name: 'Novo lançamento', exact: true }).click();
+  await page.keyboard.press('Escape');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await expect(page.getByTestId('financial-period-label')).toContainText('dezembro de 2026');
   await page.getByRole('button', { name: 'Próximo mês' }).click();
@@ -61,7 +69,7 @@ test('navega por meses vazios e pela virada do ano', async ({ page }) => {
   await expect(page.getByTestId('financial-period-label')).toContainText('novembro de 2026');
   await page.getByRole('button', { name: 'Mês atual' }).click();
   await expect(page.getByTestId('financial-period-label')).toContainText('dezembro de 2026');
-  await page.getByRole('button', { name: 'Lançamentos' }).click();
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
   await expect(page.getByText('Nenhum lançamento')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: 'screenshots/financial-future-month-mobile.png', fullPage: true });
@@ -80,6 +88,7 @@ test('despesa prevista de outro mês não soma como pagamento', async ({ page })
     return route.fulfill({ status: 201, json: records[0] });
   });
   await page.goto('/financeiro');
+  await page.getByRole('button', { name: 'Novo lançamento', exact: true }).click();
   await expect(page.getByTestId('financial-period-label')).toContainText(currentLabel);
   const form = page.getByRole('form', { name: 'Novo Lançamento' });
   await form.getByRole('combobox').nth(1).click();

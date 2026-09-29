@@ -507,7 +507,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       type: z.enum(['income', 'expense_fixed', 'expense_variable']).optional(), category: z.string().optional(), description: z.string().optional(), amount: z.number().positive().optional(), date: z.string().optional().describe('Data original do registro YYYY-MM-DD.'),
       recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
       status: z.enum(['pending', 'paid', 'overdue']).optional().describe('paid entra no realizado; pending/overdue entram no previsto.'),
-      dueDate: z.string().optional().describe('Vencimento YYYY-MM-DD para previsão.'),
+      dueDate: z.string().nullable().optional().describe('Vencimento YYYY-MM-DD para previsão; null remove o vencimento e usa date como fallback.'),
       paidDate: z.string().nullable().optional().describe('Dia do pagamento YYYY-MM-DD; null limpa quando volta a pendente.'),
     },
     buildCreatePayload: (input) => ({ ...input, tags: input.tags || [], status: input.status || 'pending' }),
