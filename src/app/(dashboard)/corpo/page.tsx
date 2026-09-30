@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import type { HealthObservation, HealthProposal } from '@/lib/health/schemas';
+import type { HealthContext, HealthContextData, HealthObservation, HealthProposal } from '@/lib/health/schemas';
+import type { Pillar } from '@/types';
 
 type Summary = { observations: number; counts: Record<string, number>; waterMl: number; sleepMinutes: number; averageEnergy: number | null; averageStress: number | null; averageWeightKg: number | null; coverage: { observedDays: number; missingMeansUnknown: boolean } };
 const labels: Record<string, string> = { water: 'Água', weight: 'Peso', sleep: 'Sono', meal: 'Refeição', movement: 'Movimento', energy: 'Energia', stress: 'Estresse' };
@@ -34,7 +35,7 @@ function details(item: HealthObservation) {
     case 'energy': case 'stress': return `${data.score}/10 · autorrelato`;
   }
 }
-function proposalDetails(data: HealthProposal['input']['observation']) {
+function proposalDetails(data: Extract<HealthProposal['input'], { operation: 'record' }>['observation']) {
   switch (data.type) {
     case 'water': return `${data.ml} ml consumidos`;
     case 'weight': return `${data.kg} kg medidos`;
@@ -45,11 +46,30 @@ function proposalDetails(data: HealthProposal['input']['observation']) {
   }
 }
 function localValue(value: string) { return value.slice(0, 16); }
+const emptyContext: HealthContextData = { profile: null, objectives: [], preferences: [], routines: [], limitations: null, equipment: null, healthPillarIds: [] };
+function lines(value: string) { return value.split('\n').map(item => item.trim()).filter(Boolean); }
+
+function ProposalPreview({ proposal }: { proposal: HealthProposal }) {
+  const input = proposal.input;
+  if (input.operation === 'context') return <div className="space-y-2 text-sm">
+    <strong>Contexto e objetivos · revisão {input.expectedRevision}</strong>
+    <p>Objetivos: {input.context.objectives.join(' · ') || 'não informados'}</p>
+    <p>Preferências: {input.context.preferences.join(' · ') || 'não informadas'}</p>
+    <p>Rotinas: {input.context.routines.map(item => `${item.dayType}: ${item.description}`).join(' · ') || 'não informadas'}</p>
+    <p>Perfil: {input.context.profile ?? 'desconhecido'} · Limitações: {input.context.limitations ?? 'desconhecidas'} · Equipamento: {input.context.equipment ?? 'desconhecido'}</p>
+    <p className="break-all text-xs text-muted-foreground">Pilares autorizados: {input.context.healthPillarIds.join(', ') || 'nenhum'}</p>
+  </div>;
+  return <div className="space-y-1"><strong className="block text-sm">{labels[input.observation.type]}</strong><p className="text-sm text-foreground/85">{proposalDetails(input.observation)}</p><p className="text-xs text-muted-foreground">Observado em {displayDate(input.observation.observedAt)} · {input.observation.timezone}</p>{input.operation === 'correct' && <p className="text-xs text-muted-foreground">Alvo {input.observationId} · revisão {input.expectedRevision} · motivo: {input.reason}</p>}{input.observation.sourceRef && <p className="text-xs text-muted-foreground">Fonte: {input.observation.sourceRef}</p>}{(input.observation.pillarId || input.observation.indicatorId) && <p className="break-all text-xs text-muted-foreground">Pilar {input.observation.pillarId || 'não associado'} · indicador {input.observation.indicatorId || 'não associado'}</p>}</div>;
+}
 
 export default function HealthPage() {
   const [items, setItems] = useState<HealthObservation[]>([]);
   const [proposals, setProposals] = useState<HealthProposal[]>([]);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [context, setContext] = useState<HealthContext | null>(null);
+  const [contextDraft, setContextDraft] = useState<HealthContextData>(emptyContext);
+  const [contextOpen, setContextOpen] = useState(false);
+  const [pillars, setPillars] = useState<Pillar[]>([]);
   const [loading, setLoading] = useState(true);
   const [editor, setEditor] = useState<HealthObservation | 'new' | null>(null);
   const [type, setType] = useState('water');
@@ -64,12 +84,14 @@ export default function HealthPage() {
 
   const load = useCallback(async () => {
     try {
-      const [observations, pending, overview] = await Promise.all([
+      const [observations, pending, overview, currentContext, allPillars] = await Promise.all([
         apiFetch<{ items: HealthObservation[] }>('/api/health?view=observations&limit=30'),
         apiFetch<{ items: HealthProposal[] }>('/api/health?view=proposals'),
         apiFetch<Summary>(`/api/health?view=summary&from=${dates.from}&to=${dates.to}`),
+        apiFetch<HealthContext>('/api/health?view=context'),
+        apiFetch<Pillar[]>('/api/pillars'),
       ]);
-      setItems(observations.items); setProposals(pending.items); setSummary(overview);
+      setItems(observations.items); setProposals(pending.items); setSummary(overview); setContext(currentContext); setPillars(allPillars);
     } catch (error) { toast.error(showError(error)); }
     finally { setLoading(false); }
   // Period is fixed for this mount; refresh on mutation.
@@ -118,6 +140,18 @@ export default function HealthPage() {
     } catch (error) { toast.error(showError(error)); }
     finally { setBusy(false); }
   }
+  function editContext() { setContextDraft(structuredClone(context?.data || emptyContext)); setContextOpen(true); retry.current = null; }
+  async function saveContext() {
+    try {
+      const payload = { action: 'context', context: contextDraft, expectedRevision: context?.revision || 0 };
+      const serialized = JSON.stringify(payload);
+      if (retry.current?.payload !== serialized) retry.current = { payload: serialized, key: crypto.randomUUID() };
+      setBusy(true);
+      await apiFetch('/api/health', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, idempotencyKey: retry.current.key }) });
+      toast.success('Contexto atualizado'); setContextOpen(false); retry.current = null; await load();
+    } catch (error) { toast.error(showError(error)); }
+    finally { setBusy(false); }
+  }
 
   return <div className="mx-auto w-full max-w-[1480px] space-y-8 px-4 pb-20 pt-5 sm:px-7 lg:px-10">
     <WorkspaceHeading eyebrow="CULTIVAR · SEU HISTÓRICO" title="Corpo & saúde" description="Registre o que aconteceu de verdade. Lacunas continuam lacunas; seus relatos não viram diagnóstico." actions={<Button onClick={openNew} className="gap-2"><Plus className="h-4 w-4" />Registrar observação</Button>}>
@@ -134,10 +168,28 @@ export default function HealthPage() {
         {loading ? <p className="text-sm text-muted-foreground">Carregando histórico…</p> : items.length === 0 ? <div className="rounded-xl border border-dashed border-border p-8 text-center"><HeartPulse className="mx-auto mb-3 h-8 w-8 text-primary" /><h3 className="font-semibold">O primeiro registro começa com você</h3><p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">Escolha algo que observou e informe quando aconteceu. Não existe uma meta para preencher esta tela.</p><Button variant="outline" className="mt-4" onClick={openNew}>Registrar observação</Button></div> : <div className="space-y-2">{items.map(item => { const Icon = icons[item.data.type] || Activity; return <article key={item.id} className="group flex min-w-0 items-center gap-3 rounded-xl border border-border/80 bg-background/50 p-3 transition-colors hover:border-primary/40 sm:p-4"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary"><Icon className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-x-2"><strong className="text-sm">{labels[item.data.type]}</strong><span className="text-xs text-muted-foreground">{displayDate(item.observedAt)}</span></div><p className="mt-0.5 truncate text-sm text-foreground/85">{details(item)}</p>{item.revision > 1 && <span className="text-xs text-muted-foreground">Corrigido · versão {item.revision}</span>}</div><button type="button" onClick={() => openCorrection(item)} className="shrink-0 rounded-lg px-3 py-2 text-xs font-medium text-primary hover:bg-primary/10" aria-label={`Corrigir ${labels[item.data.type]}`}>Corrigir <ChevronRight className="inline h-3.5 w-3.5" /></button></article>; })}</div>}
       </section>
       <div className="space-y-6">
-        <section className="rounded-2xl border border-border bg-card/60 p-5" aria-label="Revisões do Orion"><div className="flex items-center gap-2 text-primary"><ShieldCheck className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-[0.18em]">CONTROLE SEU</span></div><h2 className="mt-2 font-display text-2xl">Antes de registrar</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">O Órion pode preparar um registro. Só a sua aprovação nesta tela autoriza aplicar aquela proposta exata.</p>{proposals.length === 0 ? <p className="mt-5 rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">Nenhuma proposta esperando sua revisão.</p> : <div className="mt-4 space-y-3">{proposals.map(proposal => <div key={proposal.id} className="rounded-xl border border-border bg-background/60 p-4"><p className="text-xs uppercase tracking-wide text-primary">{proposal.input.operation === 'record' ? 'Novo relato' : 'Correção proposta'}</p><strong className="mt-1 block text-sm">{labels[proposal.input.observation.type]}</strong><p className="mt-1 text-sm text-foreground/85">{proposalDetails(proposal.input.observation)}</p><p className="mt-1 text-xs text-muted-foreground">Observado em {displayDate(proposal.input.observation.observedAt)} · {proposal.input.observation.timezone}</p>{proposal.input.operation === 'correct' && <p className="mt-2 text-xs text-muted-foreground">Alvo {proposal.input.observationId} · revisão {proposal.input.expectedRevision} · motivo: {proposal.input.reason}</p>}{proposal.input.observation.sourceRef && <p className="mt-1 text-xs text-muted-foreground">Fonte: {proposal.input.observation.sourceRef}</p>}<p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Hash {proposal.hash.slice(0, 16)}… · expira {displayDate(proposal.expiresAt)}</p>{proposal.approvedAt ? <p className="mt-3 flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" />Aprovada · aguardando aplicação</p> : <Button size="sm" className="mt-3 w-full" disabled={busy} onClick={() => approve(proposal)}>Aprovar esta proposta <ArrowRight className="ml-1 h-3.5 w-3.5" /></Button>}</div>)}</div>}</section>
-        <section className="rounded-2xl border border-border bg-card/60 p-5"><div className="flex items-center gap-2 text-primary"><Clock3 className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-[0.18em]">CUIDADO COM OS DADOS</span></div><h2 className="mt-2 font-display text-xl">Seu ritmo é contexto</h2><p className="mt-2 text-sm leading-relaxed text-muted-foreground">Horários de sono, peso e hábitos só entram com data informada. Uma tarefa ou evento futuro não é prova de que você fez algo.</p></section>
+        <section className="rounded-2xl border border-border bg-card/60 p-5" aria-label="Revisões do Orion">
+          <div className="flex items-center gap-2 text-primary"><ShieldCheck className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-[0.18em]">CONTROLE SEU</span></div>
+          <h2 className="mt-2 font-display text-2xl">Antes de registrar</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">O Órion pode preparar um registro. Só a sua aprovação nesta tela autoriza aplicar aquela proposta exata.</p>
+          {proposals.length === 0 ? <p className="mt-5 rounded-xl border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">Nenhuma proposta esperando sua revisão.</p> : <div className="mt-4 space-y-3">{proposals.map(proposal => <div key={proposal.id} className="rounded-xl border border-border bg-background/60 p-4">
+            <p className="mb-1 text-xs uppercase tracking-wide text-primary">{proposal.input.operation === 'context' ? 'Novo contexto' : proposal.input.operation === 'record' ? 'Novo relato' : 'Correção proposta'}</p>
+            <ProposalPreview proposal={proposal} />
+            <details className="mt-2 text-xs text-muted-foreground"><summary className="cursor-pointer">Ver dados completos da proposta</summary><pre className="mt-2 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-background p-2">{JSON.stringify(proposal.input, null, 2)}</pre></details>
+            <p className="mt-2 break-all font-mono text-[10px] text-muted-foreground">Hash {proposal.hash.slice(0, 16)}… · expira {displayDate(proposal.expiresAt)}</p>
+            {proposal.approvedAt ? <p className="mt-3 flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" />Aprovada · aguardando aplicação</p> : <Button size="sm" className="mt-3 w-full" disabled={busy} onClick={() => approve(proposal)}>Aprovar esta proposta <ArrowRight className="ml-1 h-3.5 w-3.5" /></Button>}
+          </div>)}</div>}
+        </section>
+        <section className="rounded-2xl border border-border bg-card/60 p-5" aria-label="Contexto de saúde">
+          <div className="flex items-center gap-2 text-primary"><Clock3 className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-[0.18em]">CONTEXTO DECLARADO</span></div>
+          <h2 className="mt-2 font-display text-xl">Seu ritmo é contexto</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Objetivos e preferências vêm de você. Ausência de informação continua desconhecida.</p>
+          <div className="mt-4 space-y-2 text-sm"><p><strong>Objetivos:</strong> {context?.data.objectives.join(' · ') || 'Ainda não informados'}</p><p><strong>Rotinas:</strong> {context?.data.routines.map(item => `${item.dayType}: ${item.description}`).join(' · ') || 'Ainda não informadas'}</p><p><strong>Pilares associados:</strong> {context?.data.healthPillarIds.length ? pillars.filter(item => context.data.healthPillarIds.includes(item.id)).map(item => item.name).join(' · ') : 'Nenhum'}</p></div>
+          <Button variant="outline" size="sm" className="mt-4" onClick={editContext}>Editar contexto</Button>
+        </section>
       </div>
     </div>
     <Dialog open={Boolean(editor)} onOpenChange={open => { if (!open) setEditor(null); }}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>{editor === 'new' ? 'Registrar observação' : 'Corrigir observação'}</DialogTitle><DialogDescription>Informe apenas o que você sabe. A correção conserva a versão anterior.</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label htmlFor="health-type">O que você observou?</Label><select id="health-type" value={type} disabled={editor !== 'new'} onChange={event => { setType(event.target.value); setValue(''); }} className="h-11 rounded-md border border-input bg-background px-3 text-sm">{types.map(entry => <option key={entry} value={entry}>{labels[entry]}</option>)}</select></div><div className="grid gap-2"><Label htmlFor="health-observed">Quando você observou?</Label><Input id="health-observed" type="datetime-local" value={observedAt} onChange={event => setObservedAt(event.target.value)} required /><p className="text-xs text-muted-foreground">Obrigatório inclusive para peso. Use a data real da observação.</p></div>{type === 'sleep' ? <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div className="grid gap-2"><Label htmlFor="health-start">Início do sono</Label><Input id="health-start" type="datetime-local" value={startedAt} onChange={event => setStartedAt(event.target.value)} /></div><div className="grid gap-2"><Label htmlFor="health-end">Fim do sono</Label><Input id="health-end" type="datetime-local" value={endedAt} onChange={event => setEndedAt(event.target.value)} /></div></div> : <div className="grid gap-2"><Label htmlFor="health-value">{type === 'water' ? 'Quantidade (ml)' : type === 'weight' ? 'Peso (kg)' : type === 'energy' || type === 'stress' ? 'Escala percebida (0–10)' : type === 'meal' ? 'Refeição relatada' : 'Movimento realizado'}</Label>{type === 'meal' || type === 'movement' ? <Textarea id="health-value" value={value} onChange={event => setValue(event.target.value)} maxLength={type === 'meal' ? 500 : 120} /> : <Input id="health-value" type="number" step={type === 'water' ? '1' : '0.1'} min="0" value={value} onChange={event => setValue(event.target.value)} required />}</div>}{editor && editor !== 'new' && <div className="grid gap-2"><Label htmlFor="health-reason">Motivo da correção</Label><Textarea id="health-reason" value={reason} onChange={event => setReason(event.target.value)} minLength={3} required /></div>}</div><DialogFooter><Button variant="outline" onClick={() => setEditor(null)}>Cancelar</Button><Button onClick={save} disabled={busy}>{busy ? 'Salvando…' : editor === 'new' ? 'Salvar registro' : 'Salvar correção'}</Button></DialogFooter></DialogContent></Dialog>
+    <Dialog open={contextOpen} onOpenChange={setContextOpen}><DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl"><DialogHeader><DialogTitle>Contexto de corpo & saúde</DialogTitle><DialogDescription>Somente o que você declarar será usado no resumo do Órion. Vincule pilares reais para incluir tarefas no brief diário.</DialogDescription></DialogHeader><div className="grid gap-4 py-2"><div className="grid gap-2"><Label htmlFor="health-profile">Perfil resumido</Label><Textarea id="health-profile" value={contextDraft.profile || ''} onChange={event => setContextDraft(current => ({ ...current, profile: event.target.value || null }))} maxLength={500} placeholder="Deixe vazio se ainda não quiser informar" /></div><div className="grid gap-2"><Label htmlFor="health-objectives">Objetivos · um por linha</Label><Textarea id="health-objectives" value={contextDraft.objectives.join('\n')} onChange={event => setContextDraft(current => ({ ...current, objectives: lines(event.target.value) }))} /></div><div className="grid gap-2"><Label htmlFor="health-preferences">Preferências · uma por linha</Label><Textarea id="health-preferences" value={contextDraft.preferences.join('\n')} onChange={event => setContextDraft(current => ({ ...current, preferences: lines(event.target.value) }))} /></div><div className="grid gap-2"><Label htmlFor="health-limitations">Limitações relatadas</Label><Textarea id="health-limitations" value={contextDraft.limitations || ''} onChange={event => setContextDraft(current => ({ ...current, limitations: event.target.value || null }))} placeholder="Vazio significa desconhecido, não ausência de limitação" /></div><div className="grid gap-2"><Label htmlFor="health-equipment">Acesso ou equipamento informado</Label><Textarea id="health-equipment" value={contextDraft.equipment || ''} onChange={event => setContextDraft(current => ({ ...current, equipment: event.target.value || null }))} /></div><fieldset className="space-y-2"><legend className="text-sm font-medium">Pilares cujas tarefas entram no resumo diário</legend>{pillars.length === 0 ? <p className="text-xs text-muted-foreground">Nenhum pilar cadastrado.</p> : pillars.map(pillar => <label key={pillar.id} className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"><input type="checkbox" checked={contextDraft.healthPillarIds.includes(pillar.id)} onChange={event => setContextDraft(current => ({ ...current, healthPillarIds: event.target.checked ? [...current.healthPillarIds, pillar.id] : current.healthPillarIds.filter(id => id !== pillar.id) }))} />{pillar.name}</label>)}</fieldset><fieldset className="grid gap-3"><legend className="text-sm font-medium">Rotina por tipo de dia</legend>{(['work', 'off', 'social'] as const).map(dayType => <div key={dayType} className="grid gap-1"><Label htmlFor={`routine-${dayType}`}>{dayType === 'work' ? 'Dia de trabalho' : dayType === 'off' ? 'Dia de folga' : 'Saída social'}</Label><Input id={`routine-${dayType}`} value={contextDraft.routines.find(item => item.dayType === dayType)?.description || ''} onChange={event => setContextDraft(current => ({ ...current, routines: [...current.routines.filter(item => item.dayType !== dayType), ...(event.target.value ? [{ dayType, description: event.target.value }] : [])] }))} /></div>)}</fieldset></div><DialogFooter><Button variant="outline" onClick={() => setContextOpen(false)}>Cancelar</Button><Button disabled={busy} onClick={saveContext}>{busy ? 'Salvando…' : 'Salvar contexto'}</Button></DialogFooter></DialogContent></Dialog>
   </div>;
 }

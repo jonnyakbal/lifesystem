@@ -1,7 +1,11 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { z } from 'zod';
 import { storage } from '@/lib/storage';
-import type { Indicator, Pillar } from '@/types';
-import { healthObservationSchema, proposalInputSchema, type HealthActor, type HealthLedger, type HealthObservation, type HealthObservationInput, type HealthProposal, type HealthProposalInput, type HealthReceipt } from './schemas';
+import type { Indicator, Pillar, StageConfig, Task } from '@/types';
+import { DEFAULT_STAGES } from '@/lib/default-stages';
+import { listGoogleCalendarEvents, type GoogleCalendarEvent } from '@/lib/google-calendar';
+import { clockLabel, freeIntervals } from '@/lib/planning-availability';
+import { healthContextSchema, healthObservationSchema, proposalInputSchema, type HealthActor, type HealthContext, type HealthContextData, type HealthLedger, type HealthObservation, type HealthObservationInput, type HealthProposal, type HealthProposalInput, type HealthReceipt } from './schemas';
 import { readHealthLedger, transactHealthLedger } from './store';
 
 function stable(value: unknown): unknown {
@@ -41,6 +45,32 @@ async function validateReferences(data: HealthObservationInput) {
     const indicator = await storage.getById<Indicator>('indicators', data.indicatorId);
     if (!indicator || (data.pillarId && indicator.pillarId !== data.pillarId)) throw new Error('Indicador inexistente ou fora do pilar informado.');
   }
+}
+async function validateContextReferences(data: HealthContextData) {
+  for (const id of data.healthPillarIds) if (!await storage.getById<Pillar>('pillars', id)) throw new Error('Pilar de saúde inexistente.');
+}
+function emptyContext(): HealthContext {
+  return { id: 'health-context', revision: 0, data: { profile: null, objectives: [], preferences: [], routines: [], limitations: null, equipment: null, healthPillarIds: [] }, reviewedAt: null, actor: null };
+}
+function writeContext(ledger: HealthLedger, data: HealthContextData, expectedRevision: number, actor: HealthActor): HealthContext {
+  const current = ledger.context || emptyContext();
+  if (current.revision !== expectedRevision) throw new Error('Conflito de revisão: releia o contexto.');
+  ledger.context = { id: 'health-context', revision: current.revision + 1, data, reviewedAt: new Date().toISOString(), actor: actor.id };
+  return ledger.context;
+}
+export async function saveHealthContext(raw: unknown, expectedRevision: number, idempotencyKey: string, actor: HealthActor) {
+  if (!actor.human) throw new Error('Aprovação humana autenticada necessária.');
+  const data = healthContextSchema.parse(raw);
+  if (idempotencyKey.length < 8 || idempotencyKey.length > 200) throw new Error('Chave de idempotência inválida.');
+  await validateContextReferences(data);
+  const payload = { data, expectedRevision };
+  return transactHealthLedger(ledger => {
+    const prior = receipt(ledger, actor, idempotencyKey, 'context', payload);
+    if (prior) return ledger.context || emptyContext();
+    const context = writeContext(ledger, data, expectedRevision, actor);
+    remember(ledger, actor, idempotencyKey, 'context', payload, context.id);
+    return context;
+  });
 }
 function createObservation(ledger: HealthLedger, data: HealthObservationInput, actor: HealthActor, idempotencyKey: string): HealthObservation {
   const entry: HealthObservation = { id: randomUUID(), revision: 1, data, observedAt: data.observedAt, recordedAt: new Date().toISOString(), actor: actor.id, origin: 'self_report', idempotencyKey, durationMinutes: duration(data), versions: [] };
@@ -86,7 +116,8 @@ export async function correctHealthObservation(id: string, expectedRevision: num
 }
 export async function proposeHealthChange(raw: unknown, actor: HealthActor): Promise<HealthProposal> {
   const input: HealthProposalInput = proposalInputSchema.parse(raw);
-  await validateReferences(input.observation);
+  if (input.operation === 'context') await validateContextReferences(input.context);
+  else await validateReferences(input.observation);
   const payload = { ...input, idempotencyKey: undefined };
   return transactHealthLedger(ledger => {
     const prior = receipt(ledger, actor, input.idempotencyKey, 'propose', payload);
@@ -97,6 +128,7 @@ export async function proposeHealthChange(raw: unknown, actor: HealthActor): Pro
       if (target.revision !== input.expectedRevision) throw new Error('Conflito de revisão: releia a observação.');
       if (target.data.type !== input.observation.type) throw new Error('Correção não pode trocar o tipo da observação.');
     }
+    if (input.operation === 'context' && (ledger.context?.revision || 0) !== input.expectedRevision) throw new Error('Conflito de revisão: releia o contexto.');
     const now = new Date();
     const proposal: HealthProposal = { id: randomUUID(), revision: 1, hash: healthFingerprint(payload), actor: actor.id, input, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() };
     ledger.proposals.push(proposal);
@@ -117,6 +149,7 @@ export async function approveHealthProposal(id: string, revision: number, hash: 
       const target = ledger.observations.find(item => item.id === input.observationId);
       if (!target || target.revision !== input.expectedRevision) throw new Error('Conflito de revisão: proposta desatualizada.');
     }
+    if (input.operation === 'context' && (ledger.context?.revision || 0) !== input.expectedRevision) throw new Error('Conflito de revisão: proposta desatualizada.');
     proposal.approvedAt = new Date().toISOString(); proposal.approvedBy = actor.id;
     return proposal;
   });
@@ -125,7 +158,7 @@ export async function applyHealthChange(id: string, idempotencyKey: string, acto
   if (idempotencyKey.length < 8 || idempotencyKey.length > 200) throw new Error('Chave de idempotência inválida.');
   return transactHealthLedger(ledger => {
     const prior = receipt(ledger, actor, idempotencyKey, 'apply', { id });
-    if (prior) return ledger.observations.find(item => item.id === prior.resultId)!;
+    if (prior) return prior.resultId === 'health-context' ? ledger.context! : ledger.observations.find(item => item.id === prior.resultId)!;
     const proposal = ledger.proposals.find(item => item.id === id);
     if (!proposal) throw new Error('Proposta não encontrada.');
     if (proposal.actor !== actor.id && !actor.human) throw new Error('Proposta pertence a outro ator.');
@@ -136,7 +169,9 @@ export async function applyHealthChange(id: string, idempotencyKey: string, acto
     const input = proposal.input;
     const entry = input.operation === 'record'
       ? createObservation(ledger, input.observation, actor, input.idempotencyKey)
-      : reviseObservation(ledger, input.observationId, input.expectedRevision, input.observation, input.reason, actor);
+      : input.operation === 'correct'
+        ? reviseObservation(ledger, input.observationId, input.expectedRevision, input.observation, input.reason, actor)
+        : writeContext(ledger, input.context, input.expectedRevision, actor);
     proposal.appliedAt = new Date().toISOString(); proposal.resultId = entry.id;
     remember(ledger, actor, idempotencyKey, 'apply', { id }, entry.id);
     return entry;
@@ -182,4 +217,43 @@ export async function getHealthSummary(from: string, to: string) {
   const average = (values: number[]) => values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
   return { from, to, counts, observations: observations.length, waterMl, sleepMinutes, averageEnergy: average(energy), averageStress: average(stress), averageWeightKg: average(weights), coverage: { observedDays: new Set(observations.map(item => localDate(item.observedAt, item.data.timezone))).size, missingMeansUnknown: true }, source: 'reported-observations' as const };
 }
-export async function getHealthContext() { return { profile: null, objectives: [], preferences: [], routines: [], limitations: null, equipment: null, reviewedAt: null, unknown: ['profile', 'objectives', 'preferences', 'routines', 'limitations', 'equipment'] }; }
+export async function getHealthContext() {
+  const context = (await readHealthLedger()).context || emptyContext();
+  const data = context.data;
+  const unknown = ['profile', 'limitations', 'equipment'].filter(key => data[key as 'profile' | 'limitations' | 'equipment'] === null);
+  if (data.objectives.length === 0) unknown.push('objectives');
+  if (data.preferences.length === 0) unknown.push('preferences');
+  if (data.routines.length === 0) unknown.push('routines');
+  if (data.healthPillarIds.length === 0) unknown.push('healthPillarIds');
+  return { ...context, unknown };
+}
+
+function localClock(value: string, timezone: string) {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(new Date(value));
+  const pick = (type: string) => Number(parts.find(part => part.type === type)?.value || 0);
+  return pick('hour') * 60 + pick('minute');
+}
+export async function getHealthDailyBrief(date: string, timezone: string, dependencies: { calendar?: (from: string, to: string) => Promise<GoogleCalendarEvent[]> } = {}) {
+  if (!z.iso.date().safeParse(date).success) throw new Error('Data inválida.');
+  try { new Intl.DateTimeFormat('en', { timeZone: timezone }); } catch { throw new Error('Fuso inválido.'); }
+  const context = await getHealthContext();
+  const [observations, summary, allTasks, configs, indicators, pending] = await Promise.all([
+    listHealthObservations({ from: date, to: date, limit: 100 }),
+    getHealthSummary(date, date),
+    storage.getAll<Task>('tasks'), storage.getAll<StageConfig>('stage-configs'),
+    storage.getAll<Indicator>('indicators'), listHealthProposals(),
+  ]);
+  const terminal = new Set((configs.find(item => item.scope === 'tasks')?.stages || DEFAULT_STAGES.tasks).filter(stage => stage.isTerminal).map(stage => stage.id));
+  const allowed = new Set(context.data.healthPillarIds);
+  const tasks = allowed.size ? allTasks.filter(task => task.pillarId && allowed.has(task.pillarId) && !terminal.has(task.status) && (task.dueDate === date || task.planning?.date === date)).map(task => ({ id: task.id, title: task.title, dueDate: task.dueDate || null, plannedStartAt: task.planning?.startAt || null, status: task.status })) : [];
+  const goals = indicators.filter(item => allowed.has(item.pillarId) && item.targetValue !== undefined).map(item => ({ id: item.id, pillarId: item.pillarId, name: item.name, targetValue: item.targetValue, unit: item.unit || null, frequency: item.frequency, source: 'configured-target' as const }));
+  const pendingConfirmations = pending.map(item => ({ id: item.id, operation: item.input.operation, expiresAt: item.expiresAt, approved: Boolean(item.approvedAt) }));
+  let calendar: { status: 'verified' | 'unavailable'; freeWindows: { start: string; end: string }[] | null; busyBlocks: number | null };
+  try {
+    const center = Date.parse(`${date}T00:00:00Z`);
+    const events = await (dependencies.calendar || listGoogleCalendarEvents)(new Date(center - 86_400_000).toISOString(), new Date(center + 2 * 86_400_000).toISOString());
+    const busy = events.filter(event => !event.allDay && event.busy !== false && localDate(event.start, timezone) <= date && localDate(event.end, timezone) >= date).map(event => ({ start: localDate(event.start, timezone) < date ? 0 : localClock(event.start, timezone), end: localDate(event.end, timezone) > date ? 1440 : localClock(event.end, timezone) })).filter(item => item.end > item.start);
+    calendar = { status: 'verified', freeWindows: freeIntervals(busy, 8 * 60, 20 * 60).map(item => ({ start: clockLabel(item.start), end: clockLabel(item.end) })), busyBlocks: busy.length };
+  } catch { calendar = { status: 'unavailable', freeWindows: null, busyBlocks: null }; }
+  return { date, timezone, context: { objectives: context.data.objectives, preferences: context.data.preferences, routines: context.data.routines, reviewedAt: context.reviewedAt, unknown: context.unknown }, observations, summary, goals, pendingConfirmations, tasks: { status: allowed.size ? 'configured' : 'unconfigured', items: tasks }, calendar };
+}

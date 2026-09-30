@@ -14,9 +14,20 @@ export const healthObservationSchema = z.discriminatedUnion('type', [
 ]);
 export type HealthObservationInput = z.infer<typeof healthObservationSchema>;
 export const healthTypeSchema = z.enum(['sleep', 'weight', 'water', 'meal', 'movement', 'energy', 'stress']);
+export const healthContextSchema = z.object({
+  profile: z.string().trim().min(1).max(500).nullable(),
+  objectives: z.array(z.string().trim().min(1).max(200)).max(10),
+  preferences: z.array(z.string().trim().min(1).max(200)).max(20),
+  routines: z.array(z.object({ dayType: z.enum(['work', 'off', 'social']), description: z.string().trim().min(1).max(500) }).strict()).max(9),
+  limitations: z.string().trim().min(1).max(500).nullable(),
+  equipment: z.string().trim().min(1).max(500).nullable(),
+  healthPillarIds: z.array(z.string().uuid()).max(10),
+}).strict();
+export type HealthContextData = z.infer<typeof healthContextSchema>;
 export const proposalInputSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('record'), observation: healthObservationSchema, idempotencyKey: z.string().min(8).max(200) }).strict(),
   z.object({ operation: z.literal('correct'), observationId: z.string().uuid(), expectedRevision: z.number().int().positive(), observation: healthObservationSchema, reason: z.string().trim().min(3).max(500), idempotencyKey: z.string().min(8).max(200) }).strict(),
+  z.object({ operation: z.literal('context'), context: healthContextSchema, expectedRevision: z.number().int().nonnegative(), idempotencyKey: z.string().min(8).max(200) }).strict(),
 ]);
 export type HealthProposalInput = z.infer<typeof proposalInputSchema>;
 
@@ -30,4 +41,5 @@ export interface HealthProposal {
   approvedAt?: string; approvedBy?: string; appliedAt?: string; resultId?: string;
 }
 export interface HealthReceipt { actor: string; key: string; operation: string; fingerprint: string; resultId: string; recordedAt: string }
-export interface HealthLedger { id: 'health-v1'; schemaVersion: 1; observations: HealthObservation[]; proposals: HealthProposal[]; receipts: HealthReceipt[] }
+export interface HealthContext { id: 'health-context'; revision: number; data: HealthContextData; reviewedAt: string | null; actor: string | null }
+export interface HealthLedger { id: 'health-v1'; schemaVersion: 1; context?: HealthContext; observations: HealthObservation[]; proposals: HealthProposal[]; receipts: HealthReceipt[] }

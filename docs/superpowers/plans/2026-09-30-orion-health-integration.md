@@ -44,7 +44,7 @@
 
 ## Phase 4 — action bridge (after Phase 1–3 validation)
 
+- [x] Add versioned context, real pillar bindings and a read-only daily brief with unavailable Calendar state.
 - [ ] Specify and test deduplicated task proposal/apply through the existing task domain.
 - [ ] Specify and test managed calendar block proposal/apply through `plan_task_block` with partial-failure recovery.
-- [ ] Add daily brief with scoped tasks and explicit unavailable calendar state.
 - [ ] Run full regression suite; publish only verified slices and report precise production evidence.

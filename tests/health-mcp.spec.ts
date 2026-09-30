@@ -15,7 +15,7 @@ test('health-only MCP discovers schema without crossing domains or approving its
   const { client, server } = await connect(['health:only', 'health:read', 'health:propose', 'health:apply'], 'orion-test');
   try {
     const names = (await client.listTools()).tools.map(item => item.name);
-    for (const name of ['get_health_capabilities', 'get_health_schemas', 'get_health_context', 'list_health_observations', 'get_health_summary', 'get_health_receipt', 'propose_health_change', 'apply_health_change', 'record_health_observation', 'correct_health_observation']) expect(names).toContain(name);
+    for (const name of ['get_health_capabilities', 'get_health_schemas', 'get_health_context', 'get_health_daily_brief', 'list_health_observations', 'get_health_summary', 'get_health_receipt', 'propose_health_change', 'apply_health_change', 'record_health_observation', 'correct_health_observation']) expect(names).toContain(name);
     for (const name of ['create_financial_entry', 'list_tasks', 'query_professional', 'approve_health_proposal']) expect(names).not.toContain(name);
     const capabilities = await client.callTool({ name: 'get_health_capabilities', arguments: {} });
     expect(capabilities.isError).toBeFalsy();
@@ -23,6 +23,7 @@ test('health-only MCP discovers schema without crossing domains or approving its
     const schema = await client.callTool({ name: 'get_health_schemas', arguments: {} });
     expect(schema.isError).toBeFalsy();
     expect(JSON.stringify(schema.content)).toContain('observedAt');
+    expect(JSON.stringify(schema.content)).toContain('healthPillarIds');
     const direct = await client.callTool({ name: 'record_health_observation', arguments: { proposalId: '00000000-0000-4000-8000-000000000000', idempotencyKey: 'unapproved-record-001' } });
     expect(direct.isError).toBeTruthy();
   } finally { await client.close(); await server.close(); }

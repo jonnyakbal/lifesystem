@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { storage } from '../src/lib/storage';
 import { getFinancialCategories, saveFinancialCategory, getFinancialDisplayEntries, getFinancialDisplayBudgets } from '../src/lib/financial-categories';
+import type { FinancialCategory } from '../src/lib/financial-categories';
 
 test('renomear categoria preserva histórico e não muda valores, status ou datas', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'ls-financial-category-'));
@@ -27,6 +28,16 @@ test('renomear categoria preserva histórico e não muda valores, status ou data
 });
 
 test('cadastros financeiros permitem abrir edição por nome', async ({ page }) => {
+  let category: FinancialCategory = { id: 'synthetic-services', name: 'Serviços', type: 'income', color: '#3b82f6', revision: 0, aliases: ['Serviços'], historicalTypes: ['income'], archived: false };
+  await page.route('**/api/financial-categories', async route => {
+    if (route.request().method() === 'POST') {
+      const input = route.request().postDataJSON() as { name: string; color: string; archived: boolean; expectedRevision: number };
+      if (input.expectedRevision !== category.revision) return route.fulfill({ status: 409, json: { error: 'Conflito de versão' } });
+      category = { ...category, name: input.name, color: input.color, archived: input.archived, revision: category.revision + 1, aliases: [...category.aliases, input.name] };
+      return route.fulfill({ json: category });
+    }
+    return route.fulfill({ json: [category] });
+  });
   await page.goto('/financeiro');
   await page.getByRole('button', { name: 'Cadastros', exact: true }).click();
   await page.getByRole('button', { name: 'Editar categoria Serviços', exact: true }).click();
