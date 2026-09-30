@@ -85,6 +85,7 @@ export interface TaskChecklistItem {
 }
 
 export interface TaskPlanning {
+  healthProposalId?: string;
   date: string | null;
   startAt?: string;
   endAt?: string;

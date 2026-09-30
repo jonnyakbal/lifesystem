@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { planningSchema } from '@/lib/task-planning';
 
 export const healthTimeSchema = z.string().refine(value => /T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value)), 'Informe data, hora e fuso reais.');
 const common = { observedAt: healthTimeSchema, timezone: z.string().min(1).max(80).refine(value => { try { new Intl.DateTimeFormat('en', { timeZone: value }); return true; } catch { return false; } }, 'Fuso inválido.'), sourceRef: z.string().min(1).max(120).optional(), pillarId: z.string().min(1).max(120).optional(), indicatorId: z.string().min(1).max(120).optional() };
@@ -28,6 +29,8 @@ export const proposalInputSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('record'), observation: healthObservationSchema, idempotencyKey: z.string().min(8).max(200) }).strict(),
   z.object({ operation: z.literal('correct'), observationId: z.string().uuid(), expectedRevision: z.number().int().positive(), observation: healthObservationSchema, reason: z.string().trim().min(3).max(500), idempotencyKey: z.string().min(8).max(200) }).strict(),
   z.object({ operation: z.literal('context'), context: healthContextSchema, expectedRevision: z.number().int().nonnegative(), idempotencyKey: z.string().min(8).max(200) }).strict(),
+  z.object({ operation: z.literal('task_create'), task: z.object({ title: z.string().trim().min(1).max(300), description: z.string().trim().max(2000).optional(), priority: z.enum(['normal', 'important', 'urgent']), pillarId: z.string().uuid(), dueDate: z.iso.date().optional() }).strict(), expectedContextRevision: z.number().int().positive(), idempotencyKey: z.string().min(8).max(200) }).strict(),
+  z.object({ operation: z.literal('task_plan'), taskId: z.string().uuid(), expectedTitle: z.string().trim().min(1).max(300), expectedUpdatedAt: z.string().min(1), expectedContextRevision: z.number().int().positive(), planning: planningSchema, idempotencyKey: z.string().min(8).max(200) }).strict(),
 ]);
 export type HealthProposalInput = z.infer<typeof proposalInputSchema>;
 

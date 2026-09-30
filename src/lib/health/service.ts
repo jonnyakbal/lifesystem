@@ -5,6 +5,7 @@ import type { Indicator, Pillar, StageConfig, Task } from '@/types';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { listGoogleCalendarEvents, type GoogleCalendarEvent } from '@/lib/google-calendar';
 import { clockLabel, freeIntervals } from '@/lib/planning-availability';
+import { saveTaskPlanning } from '@/lib/task-planning';
 import { healthContextSchema, healthObservationSchema, proposalInputSchema, type HealthActor, type HealthContext, type HealthContextData, type HealthLedger, type HealthObservation, type HealthObservationInput, type HealthProposal, type HealthProposalInput, type HealthReceipt } from './schemas';
 import { readHealthLedger, transactHealthLedger } from './store';
 
@@ -48,6 +49,39 @@ async function validateReferences(data: HealthObservationInput) {
 }
 async function validateContextReferences(data: HealthContextData) {
   for (const id of data.healthPillarIds) if (!await storage.getById<Pillar>('pillars', id)) throw new Error('Pilar de saúde inexistente.');
+}
+function requireHealthPillar(ledger: HealthLedger, pillarId: string, expectedRevision: number) {
+  if (!ledger.context || ledger.context.revision !== expectedRevision) throw new Error('Conflito de revisão: releia o contexto de saúde.');
+  if (!ledger.context.data.healthPillarIds.includes(pillarId)) throw new Error('Pilar fora do contexto de saúde autorizado.');
+}
+function sameTaskIntent(a: Task, title: string, pillarId: string, dueDate?: string) {
+  return a.pillarId === pillarId && a.title.trim().toLocaleLowerCase('pt-BR') === title.trim().toLocaleLowerCase('pt-BR') && (a.dueDate || undefined) === dueDate;
+}
+function samePlanning(task: Task, input: Extract<HealthProposalInput, { operation: 'task_plan' }>['planning']) {
+  const plan = task.planning;
+  return Boolean(plan && plan.date === input.date && plan.startAt === input.startAt && plan.endAt === input.endAt && plan.timeZone === input.timeZone && plan.syncToGoogle === input.syncToGoogle && task.dueDate === input.date);
+}
+async function assertHealthBlockAvailable(task: Task, input: Extract<HealthProposalInput, { operation: 'task_plan' }>['planning']) {
+  if (!input.startAt || !input.endAt) return;
+  const start = Date.parse(input.startAt), end = Date.parse(input.endAt);
+  const others = await storage.getAll<Task>('tasks');
+  if (others.some(other => other.id !== task.id && other.planning?.startAt && other.planning.endAt && Date.parse(other.planning.startAt) < end && Date.parse(other.planning.endAt) > start)) throw new Error('Conflito de horário com outra tarefa planejada.');
+  if (!input.syncToGoogle) return;
+  const events = await listGoogleCalendarEvents(input.startAt, input.endAt);
+  if (events.some(event => !event.allDay && event.busy !== false && event.id !== task.planning?.eventId && Date.parse(event.start) < end && Date.parse(event.end) > start)) throw new Error('Conflito de horário com evento ocupado no Google Agenda.');
+}
+async function validateTaskProposal(input: Extract<HealthProposalInput, { operation: 'task_create' | 'task_plan' }>) {
+  const context = (await readHealthLedger()).context;
+  if (!context || context.revision !== input.expectedContextRevision) throw new Error('Conflito de revisão: releia o contexto de saúde.');
+  if (input.operation === 'task_create') {
+    if (!context.data.healthPillarIds.includes(input.task.pillarId) || !await storage.getById<Pillar>('pillars', input.task.pillarId)) throw new Error('Pilar fora do contexto de saúde autorizado.');
+    if ((await storage.getAll<Task>('tasks')).some(task => sameTaskIntent(task, input.task.title, input.task.pillarId, input.task.dueDate))) throw new Error('Tarefa duplicada: já existe uma tarefa com este título, pilar e dia.');
+  } else {
+    const task = await storage.getById<Task>('tasks', input.taskId);
+    if (!task || !task.pillarId || !context.data.healthPillarIds.includes(task.pillarId)) throw new Error('Tarefa fora dos pilares de saúde autorizados.');
+    if (task.updatedAt !== input.expectedUpdatedAt || task.title !== input.expectedTitle) throw new Error('Conflito de revisão: releia a tarefa.');
+    if (task.planning?.eventId && !input.planning.syncToGoogle) throw new Error('Um bloco espelhado não pode ser desligado por esta proposta.');
+  }
 }
 function emptyContext(): HealthContext {
   return { id: 'health-context', revision: 0, data: { profile: null, objectives: [], preferences: [], routines: [], limitations: null, equipment: null, healthPillarIds: [] }, reviewedAt: null, actor: null };
@@ -116,12 +150,13 @@ export async function correctHealthObservation(id: string, expectedRevision: num
 }
 export async function proposeHealthChange(raw: unknown, actor: HealthActor): Promise<HealthProposal> {
   const input: HealthProposalInput = proposalInputSchema.parse(raw);
-  if (input.operation === 'context') await validateContextReferences(input.context);
-  else await validateReferences(input.observation);
   const payload = { ...input, idempotencyKey: undefined };
-  return transactHealthLedger(ledger => {
+  return transactHealthLedger(async ledger => {
     const prior = receipt(ledger, actor, input.idempotencyKey, 'propose', payload);
     if (prior) return ledger.proposals.find(item => item.id === prior.resultId)!;
+    if (input.operation === 'context') await validateContextReferences(input.context);
+    else if (input.operation === 'task_create' || input.operation === 'task_plan') await validateTaskProposal(input);
+    else await validateReferences(input.observation);
     if (input.operation === 'correct') {
       const target = ledger.observations.find(item => item.id === input.observationId);
       if (!target) throw new Error('Observação não encontrada.');
@@ -129,6 +164,16 @@ export async function proposeHealthChange(raw: unknown, actor: HealthActor): Pro
       if (target.data.type !== input.observation.type) throw new Error('Correção não pode trocar o tipo da observação.');
     }
     if (input.operation === 'context' && (ledger.context?.revision || 0) !== input.expectedRevision) throw new Error('Conflito de revisão: releia o contexto.');
+    if (input.operation === 'task_create') {
+      requireHealthPillar(ledger, input.task.pillarId, input.expectedContextRevision);
+      if ((await storage.getAll<Task>('tasks')).some(task => sameTaskIntent(task, input.task.title, input.task.pillarId, input.task.dueDate))) throw new Error('Tarefa duplicada: já existe uma tarefa com este título, pilar e dia.');
+    }
+    if (input.operation === 'task_plan') {
+      const task = await storage.getById<Task>('tasks', input.taskId);
+      if (!task?.pillarId) throw new Error('Tarefa sem pilar de saúde.');
+      requireHealthPillar(ledger, task.pillarId, input.expectedContextRevision);
+      if (task.updatedAt !== input.expectedUpdatedAt || task.title !== input.expectedTitle) throw new Error('Conflito de revisão: releia a tarefa.');
+    }
     const now = new Date();
     const proposal: HealthProposal = { id: randomUUID(), revision: 1, hash: healthFingerprint(payload), actor: actor.id, input, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString() };
     ledger.proposals.push(proposal);
@@ -138,7 +183,7 @@ export async function proposeHealthChange(raw: unknown, actor: HealthActor): Pro
 }
 export async function approveHealthProposal(id: string, revision: number, hash: string, actor: HealthActor) {
   if (!actor.human) throw new Error('Identidade humana autenticada necessária.');
-  return transactHealthLedger(ledger => {
+  return transactHealthLedger(async ledger => {
     const proposal = ledger.proposals.find(item => item.id === id);
     if (!proposal) throw new Error('Proposta não encontrada.');
     if (proposal.appliedAt) throw new Error('Proposta já aplicada.');
@@ -150,24 +195,64 @@ export async function approveHealthProposal(id: string, revision: number, hash: 
       if (!target || target.revision !== input.expectedRevision) throw new Error('Conflito de revisão: proposta desatualizada.');
     }
     if (input.operation === 'context' && (ledger.context?.revision || 0) !== input.expectedRevision) throw new Error('Conflito de revisão: proposta desatualizada.');
+    if (input.operation === 'task_create') requireHealthPillar(ledger, input.task.pillarId, input.expectedContextRevision);
+    if (input.operation === 'task_plan') {
+      const task = await storage.getById<Task>('tasks', input.taskId);
+      if (!task?.pillarId) throw new Error('Tarefa sem pilar de saúde.');
+      requireHealthPillar(ledger, task.pillarId, input.expectedContextRevision);
+      if (task.updatedAt !== input.expectedUpdatedAt || task.title !== input.expectedTitle) throw new Error('Conflito de revisão: proposta desatualizada.');
+    }
     proposal.approvedAt = new Date().toISOString(); proposal.approvedBy = actor.id;
     return proposal;
   });
 }
 export async function applyHealthChange(id: string, idempotencyKey: string, actor: HealthActor) {
   if (idempotencyKey.length < 8 || idempotencyKey.length > 200) throw new Error('Chave de idempotência inválida.');
-  return transactHealthLedger(ledger => {
+  return transactHealthLedger(async ledger => {
     const prior = receipt(ledger, actor, idempotencyKey, 'apply', { id });
-    if (prior) return prior.resultId === 'health-context' ? ledger.context! : ledger.observations.find(item => item.id === prior.resultId)!;
+    if (prior) {
+      const replay = prior.resultId === 'health-context' ? ledger.context : ledger.observations.find(item => item.id === prior.resultId) || await storage.getById<Task>('tasks', prior.resultId);
+      if (!replay) throw new Error('Recibo encontrado, mas resultado ausente.');
+      return replay;
+    }
     const proposal = ledger.proposals.find(item => item.id === id);
     if (!proposal) throw new Error('Proposta não encontrada.');
     if (proposal.actor !== actor.id && !actor.human) throw new Error('Proposta pertence a outro ator.');
     if (!proposal.approvedAt || !proposal.approvedBy) throw new Error('Proposta sem aprovação humana.');
-    if (Date.parse(proposal.expiresAt) <= Date.now()) throw new Error('Proposta expirada.');
+    const recoveringPlan = proposal.input.operation === 'task_plan' && (await storage.getById<Task>('tasks', proposal.input.taskId))?.planning?.healthProposalId === proposal.id;
+    const recoveringCreate = proposal.input.operation === 'task_create' && Boolean(await storage.getById<Task>('tasks', proposal.id));
+    if (Date.parse(proposal.expiresAt) <= Date.now() && !recoveringPlan && !recoveringCreate) throw new Error('Proposta expirada.');
     if (proposal.hash !== healthFingerprint({ ...proposal.input, idempotencyKey: undefined })) throw new Error('Payload da proposta alterado.');
     if (proposal.appliedAt) throw new Error('Proposta já aplicada; consulte o recibo original.');
     const input = proposal.input;
-    const entry = input.operation === 'record'
+    let entry: HealthObservation | HealthContext | Task;
+    if (input.operation === 'task_create') {
+      const existing = await storage.getById<Task>('tasks', proposal.id);
+      if (existing) {
+        if (!sameTaskIntent(existing, input.task.title, input.task.pillarId, input.task.dueDate) || existing.priority !== input.task.priority || (existing.description || undefined) !== input.task.description) throw new Error('Conflito de recuperação da tarefa.');
+        entry = existing;
+      } else {
+        requireHealthPillar(ledger, input.task.pillarId, input.expectedContextRevision);
+        if ((await storage.getAll<Task>('tasks')).some(task => sameTaskIntent(task, input.task.title, input.task.pillarId, input.task.dueDate))) throw new Error('Tarefa duplicada: já existe uma tarefa com este título, pilar e dia.');
+        entry = await storage.createOnce<Task>('tasks', proposal.id, { ...input.task, status: 'todo', sortOrder: 0, tags: [], checklist: [] });
+      }
+    } else if (input.operation === 'task_plan') {
+      const task = await storage.getById<Task>('tasks', input.taskId);
+      if (!task?.pillarId) throw new Error('Tarefa sem pilar de saúde.');
+      if (task.title !== input.expectedTitle) throw new Error('Conflito de revisão: título da tarefa mudou.');
+      const recovering = task.planning?.healthProposalId === proposal.id;
+      if (!recovering) {
+        requireHealthPillar(ledger, task.pillarId, input.expectedContextRevision);
+        if (task.updatedAt !== input.expectedUpdatedAt) throw new Error('Conflito de revisão: releia a tarefa.');
+      } else {
+        if (!samePlanning(task, input.planning)) throw new Error('Planejamento alterado após falha; revisão humana necessária.');
+        if (task.planning?.syncState !== 'synced') requireHealthPillar(ledger, task.pillarId, input.expectedContextRevision);
+      }
+      if (task.planning?.eventId && !input.planning.syncToGoogle) throw new Error('Um bloco espelhado não pode ser desligado por esta proposta.');
+      if (!(recovering && task.planning?.syncState === 'synced')) await assertHealthBlockAvailable(task, input.planning);
+      entry = recovering && task.planning?.syncState === 'synced' ? task : await saveTaskPlanning(task.id, input.planning, proposal.id);
+      if (input.planning.syncToGoogle && entry.planning?.syncState !== 'synced') throw new Error('Google indisponível: intenção salva, espelho pendente. Repita com a mesma chave.');
+    } else entry = input.operation === 'record'
       ? createObservation(ledger, input.observation, actor, input.idempotencyKey)
       : input.operation === 'correct'
         ? reviseObservation(ledger, input.observationId, input.expectedRevision, input.observation, input.reason, actor)

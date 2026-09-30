@@ -65,7 +65,24 @@ async function withCollectionLock<T>(collection: string, operation: () => Promis
   collectionLocks.set(collection, queued);
   await previous;
   try {
-    return await operation();
+    if (collection !== 'tasks') return await operation();
+    // Task actions can be written by the web app and MCP in separate workers.
+    // Keep the read/modify/rename sequence exclusive across those processes.
+    await ensureDataDir();
+    const fileLock = path.join(dataDir(), '.tasks.lock');
+    const deadline = Date.now() + 10_000;
+    while (true) {
+      try { await fs.mkdir(fileLock); break; }
+      catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        const stat = await fs.stat(fileLock).catch(() => null);
+        if (stat && Date.now() - stat.mtimeMs > 60_000) await fs.rm(fileLock, { recursive: true, force: true }).catch(() => undefined);
+        if (Date.now() >= deadline) throw new Error('Tarefas ocupadas; tente novamente com a mesma chave.');
+        await new Promise(resolve => setTimeout(resolve, 25 + Math.floor(Math.random() * 25)));
+      }
+    }
+    try { return await operation(); }
+    finally { await fs.rmdir(fileLock).catch(() => undefined); }
   } finally {
     release();
     if (collectionLocks.get(collection) === queued) collectionLocks.delete(collection);

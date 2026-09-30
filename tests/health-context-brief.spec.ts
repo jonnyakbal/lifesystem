@@ -50,7 +50,8 @@ test('explicit health context is versioned, approved and filters daily tasks by 
     await expect(getHealthDailyBrief('2026-02-30', 'America/Sao_Paulo', { calendar: async () => [] })).rejects.toThrow(/data/i);
     await expect(applyHealthChange(change.id, 'context-apply-001', agent)).rejects.toThrow(/aprova/i);
     await approveHealthProposal(change.id, change.revision, change.hash, human);
-    expect((await applyHealthChange(change.id, 'context-apply-001', agent)).revision).toBe(2);
+    const appliedContext = await applyHealthChange(change.id, 'context-apply-001', agent);
+    expect('revision' in appliedContext && appliedContext.revision).toBe(2);
     expect((await getHealthContext()).data.preferences).toContain('Treinar de manhã quando possível');
   } finally {
     if (prior === undefined) delete process.env.LIFESYSTEM_DATA_DIR; else process.env.LIFESYSTEM_DATA_DIR = prior;

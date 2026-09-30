@@ -40,14 +40,14 @@ export async function withTaskPlanningLock<T>(id: string, operation: () => Promi
   finally { release(); if (locks.get(id) === queued) locks.delete(id); }
 }
 
-export async function saveTaskPlanning(id: string, raw: unknown): Promise<Task> {
+export async function saveTaskPlanning(id: string, raw: unknown, healthProposalId?: string): Promise<Task> {
   const input = planningSchema.parse(raw);
   return withTaskPlanningLock(id, async () => {
     const task = await storage.getById<Task>('tasks', id);
     if (!task) throw new Error('Tarefa não encontrada.');
     if (task.planning?.eventId && !input.syncToGoogle) throw new Error('Remova o bloco espelhado antes de desligar o Google.');
     const planning: TaskPlanning = {
-      ...input, syncState: input.syncToGoogle ? 'pending' : 'local',
+      ...input, ...(healthProposalId ? { healthProposalId } : {}), syncState: input.syncToGoogle ? 'pending' : 'local',
       ...(input.syncToGoogle ? {
         calendarId: 'primary', eventId: task.planning?.eventId || randomBytes(16).toString('hex'),
         etag: task.planning?.etag, eventUrl: task.planning?.eventUrl, lastSyncedAt: task.planning?.lastSyncedAt,
