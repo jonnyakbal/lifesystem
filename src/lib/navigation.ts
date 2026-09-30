@@ -16,6 +16,7 @@ export const navigation = [
     { title: 'Editais', href: '/editais', icon: Award, description: 'Encontre oportunidades. Acompanhe cada etapa.' },
   ] },
   { label: 'Cultivar', icon: HeartPulse, prompt: 'Clareza também é uma forma de cuidado.', items: [
+    { title: 'Corpo & saúde', href: '/corpo', icon: HeartPulse, description: 'Registre o que viveu. Revise sem preencher lacunas.' },
     { title: 'Notas', href: '/notas', icon: NotebookText, description: 'Um lugar para pensar, conectar e criar.' },
     { title: 'Metas', href: '/indicadores', icon: BarChart3, description: 'Veja o progresso que se constrói aos poucos.' },
     { title: 'Financeiro', href: '/financeiro', icon: Wallet, description: 'Clareza para decidir os próximos passos.' },
@@ -46,6 +47,7 @@ const continuations: Record<string, [string, string]> = {
   '/content-hub': ['/conteudo', '/projetos'],
   '/notas': ['/content-hub', '/visao'],
   '/indicadores': ['/visao', '/diario'],
+  '/corpo': ['/hoje', '/indicadores'],
   '/financeiro': ['/planejar', '/indicadores'],
   '/diario': ['/hoje', '/visao'],
   '/editais': ['/projetos', '/profissional'],

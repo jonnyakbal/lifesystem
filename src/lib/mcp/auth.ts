@@ -87,6 +87,14 @@ const PLURAL_SCOPES: Record<string, string> = {
 
 export function canUseMcpTool(toolName: string, scopes: string[]): boolean {
   const professional = ['query_professional', 'get_professional_schemas', 'get_professional_receipt', 'get_professional_diagnostics', 'propose_professional_change', 'batch_professional_proposals', 'apply_professional_proposal', 'submit_professional_artifact', 'report_professional_execution'];
+  const healthActions: Record<string, 'read' | 'propose' | 'apply'> = {
+    get_health_capabilities: 'read', get_health_schemas: 'read', get_health_context: 'read',
+    list_health_observations: 'read', get_health_summary: 'read', get_health_receipt: 'read',
+    propose_health_change: 'propose', apply_health_change: 'apply',
+    record_health_observation: 'apply', correct_health_observation: 'apply',
+  };
+  if (scopes.includes('health:only') && !(toolName in healthActions)) return false;
+  if (toolName in healthActions) return !scopes.includes('professional:only') && (scopes.includes(`health:${healthActions[toolName]}`) || scopes.includes('health:*'));
   if (scopes.includes('professional:only') && !professional.includes(toolName)) return false;
   if (scopes.includes('*')) return true;
 
