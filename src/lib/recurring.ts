@@ -40,16 +40,16 @@ export function nextDueDate(current: string | undefined, freq: RecurringFrequenc
 // after a recurring task is marked done closes that gap: it creates the next
 // occurrence automatically, same title/project/pillar, due date advanced by
 // the task's own frequency. A no-op for non-recurring tasks.
-export async function spawnNextOccurrenceIfRecurring(task: RecurringTaskLike): Promise<void> {
+export async function spawnNextOccurrenceIfRecurring<T extends RecurringTaskLike>(task: T, initialStatus = 'todo'): Promise<T | undefined> {
   if (!task.recurring || !task.recurringFrequency) return;
-  await apiFetch('/api/tasks', {
+  return apiFetch<T>('/api/tasks', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       title: task.title,
       description: task.description,
       priority: task.priority,
-      status: 'todo',
+      status: initialStatus,
       projectId: task.projectId,
       pillarId: task.pillarId,
       dueDate: nextDueDate(task.dueDate, task.recurringFrequency),

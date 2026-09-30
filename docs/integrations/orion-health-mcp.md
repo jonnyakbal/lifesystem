@@ -31,3 +31,11 @@ Configure para o Órion uma credencial própria em `MCP_API_KEYS` com `health:on
 `get_health_daily_brief` usa a data local solicitada e o contexto explícito. Tarefas e metas de indicadores sem `pillarId` associado ficam fora; tarefas em estágios terminais também. Metas têm `source=configured-target` e não representam realização. Aprovações pendentes retornam apenas ID, operação, validade e estado, sem payload. Calendar retorna apenas contagem de blocos ocupados e janelas livres entre 08:00–20:00, sem títulos de eventos. Quando Google está desconectado ou a consulta falha, `calendar.status=unavailable` e `freeWindows=null`; nunca uma agenda aparentemente vazia. Eventos de dia inteiro não reservam horas, como em Planejar.
 
 **Limites atuais:** a ponte cria tarefas e planeja blocos de tarefas de pilares autorizados, mas não edita outros campos da tarefa, não remove blocos, não concede consentimento recorrente e não envia mensagens. O campo `taskCalendarBridge` em `get_health_capabilities` declara `approved-proposals`. Não atribua ao Órion permissão geral `tasks:write`, `tasks:plan` ou `calendar:write`: a credencial `health:only` só opera pelo circuito de revisão acima. Os testes do Google usam resposta simulada; não são uma chamada real à agenda.
+
+## Verificação segura da credencial
+
+Com `MCP_URL` e `MCP_API_KEY` já presentes no ambiente protegido, execute `MCP_SMOKE_PROFILE=health npm run mcp:smoke` (PowerShell: `$env:MCP_SMOKE_PROFILE='health'; npm run mcp:smoke`). Não cole a chave na linha de comando ou na conversa.
+
+O perfil exige catálogo exclusivo das 11 ferramentas acima, contrato 1.2, permissões de leitura/proposta/aplicação, aprovação somente pela sessão humana e os cinco tipos de proposta, incluindo `task_create` e `task_plan`. Faz apenas `get_health_capabilities` e `get_health_schemas`; não lê contexto, observações, tarefas ou finanças. Um catálogo vazio, permissões amplas ou uma versão antiga retornam falha. Erros remotos são omitidos dos logs.
+
+Passar esse smoke certifica descoberta e contrato daquela credencial. Não certifica transporte do Hermes, aprovação/aplicação em produção, nem sincronização real do Google. A ativação deve registrar essas evidências separadamente.

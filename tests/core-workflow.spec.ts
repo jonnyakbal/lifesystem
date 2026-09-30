@@ -42,8 +42,8 @@ test('mobile percorre captura, conversão, planejamento, conclusão e revisão',
     const scheduled = await (await request.get(`/api/tasks/${taskId}`)).json();
     expect(scheduled.dueDate).toBe(today);
     await page.goto('/hoje');
-    await expect(page.getByRole('button', { name: title, exact: true })).toBeVisible();
-    await page.getByRole('button', { name: title, exact: true }).click();
+    await expect(page.getByRole('button', { name: `Concluir tarefa ${title}`, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: `Concluir tarefa ${title}`, exact: true }).click();
     await expect(page.getByText('Tarefa concluída! 🎉', { exact: true })).toBeVisible();
     const saved = await (await request.get(`/api/tasks/${taskId}`)).json();
     expect(saved.status).toBe('done');

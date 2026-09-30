@@ -5,7 +5,7 @@
 // opening 5 separate kanbans/pages to piece it together. The ⌘K palette
 // already had a "hoje" quick action pointing nowhere real — this is what
 // it should have opened all along.
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -13,6 +13,9 @@ import {
   Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper, Repeat,
 } from 'lucide-react';
 import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import type { StageDef } from '@/types';
+import { DEFAULT_STAGES } from '@/lib/default-stages';
+import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,7 +26,7 @@ import { apiFetch, showError } from '@/lib/api';
 import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 
 interface Task {
-  id: string; title: string; status: 'todo' | 'doing' | 'review' | 'done';
+  id: string; title: string; status: string; completedAt?: string;
   priority: 'urgent' | 'important' | 'normal'; dueDate?: string;
   description?: string; projectId?: string; pillarId?: string; tags?: string[];
   recurring?: boolean; recurringFrequency?: RecurringFrequency;
@@ -44,6 +47,7 @@ const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
 const stagger = { animate: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } } };
 
 function fireConfetti() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden';
@@ -72,21 +76,28 @@ export default function HojePage() {
   const [content, setContent] = useState<ContentItem[]>([]);
   const [financial, setFinancial] = useState<FinancialEntry[]>([]);
   const [journal, setJournal] = useState<JournalEntry[]>([]);
+  const [configuredStages, setStages] = useState<StageDef[]>(DEFAULT_STAGES.tasks);
+  const stages = resolveTaskStages(configuredStages, tasks);
+  const pendingTaskIds = useRef(new Set<string>());
+  const previousStatuses = useRef(new Map<string, string>());
+  const recurringCreated = useRef(new Set<string>());
+  const [busyTasks, setBusyTasks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { loadAll(); }, []);
 
   async function loadAll() {
     try {
-      const [t, i, p, c, f, j] = await Promise.all([
+      const [t, i, p, c, f, j, stageConfig] = await Promise.all([
         apiFetch<Task[]>('/api/tasks'),
         apiFetch<Indicator[]>('/api/indicators'),
         apiFetch<Pillar[]>('/api/pillars'),
         apiFetch<ContentItem[]>('/api/content'),
         apiFetch<FinancialEntry[]>('/api/financial'),
         apiFetch<JournalEntry[]>('/api/journal'),
+        apiFetch<{ stages: StageDef[] }>('/api/stage-configs/tasks'),
       ]);
-      setTasks(t); setIndicators(i); setPillars(p); setContent(c); setFinancial(f); setJournal(j);
+      setStages(stageConfig.stages); setTasks(t); setIndicators(i); setPillars(p); setContent(c); setFinancial(f); setJournal(j);
     } catch (err) {
       toast.error(showError(err));
     } finally {
@@ -94,17 +105,45 @@ export default function HojePage() {
     }
   }
 
-  async function toggleTaskDone(task: Task) {
+  async function toggleTaskDone(task: Task, restoreStatus?: string) {
+    if (pendingTaskIds.current.has(task.id)) return;
+    pendingTaskIds.current.add(task.id);
+    setBusyTasks(new Set(pendingTaskIds.current));
+    const completed = isTaskCompleted(task, stages);
+    const nextStatus = restoreStatus || (completed
+      ? previousStatuses.current.get(task.id) || taskReopenStatus(stages)
+      : taskCompletionStatus(stages));
+    let newlyCompleted: Task | undefined;
     try {
-      const nextStatus = task.status === 'done' ? 'todo' : 'done';
-      await apiFetch(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
-      if (nextStatus === 'done') {
+      const updated = await apiFetch<Task>(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
+      setTasks(current => current.map(item => item.id === task.id ? updated : item));
+      if (!completed && !restoreStatus) {
+        previousStatuses.current.set(task.id, task.status);
         fireConfetti();
-        toast.success('Tarefa concluída! 🎉');
-        await spawnNextOccurrenceIfRecurring(task);
-      }
-      loadAll();
+        newlyCompleted = updated;
+      } else { toast.success('Tarefa reaberta'); }
     } catch (err) { toast.error(showError(err)); }
+    finally {
+      pendingTaskIds.current.delete(task.id);
+      setBusyTasks(new Set(pendingTaskIds.current));
+    }
+    if (newlyCompleted) {
+      const completedTask = newlyCompleted;
+      toast.success('Tarefa concluída! 🎉', {
+        duration: 10000, description: task.recurring ? 'A próxima ocorrência continua no planejamento.' : task.title,
+        action: { label: task.recurring ? 'Reabrir' : 'Desfazer', onClick: () => { void toggleTaskDone(completedTask, task.status); } },
+      });
+      if (!recurringCreated.current.has(task.id)) {
+        recurringCreated.current.add(task.id);
+        try {
+          const next = await spawnNextOccurrenceIfRecurring(task, taskReopenStatus(stages));
+          if (next) setTasks(current => current.some(item => item.id === next.id) ? current : [...current, next]);
+        } catch (err) {
+          recurringCreated.current.delete(task.id);
+          toast.error(`Tarefa concluída, mas a próxima ocorrência não foi criada: ${showError(err)}`);
+        }
+      }
+    }
   }
 
   async function incrementIndicator(indicator: Indicator, delta: number) {
@@ -117,8 +156,11 @@ export default function HojePage() {
   }
 
   const today = todayStr();
-  const todayTasks = tasks.filter(t => t.status !== 'done' && t.dueDate === today);
-  const overdueTasks = tasks.filter(t => t.status !== 'done' && t.dueDate && t.dueDate < today);
+  const todayTasks = tasks.filter(t => !isTaskCompleted(t, stages) && t.dueDate === today);
+  const overdueTasks = tasks.filter(t => !isTaskCompleted(t, stages) && t.dueDate && t.dueDate < today);
+  const completedToday = tasks.filter(task => isTaskCompleted(task, stages) && (
+    task.completedAt ? todayStr(new Date(task.completedAt)) === today : task.dueDate === today
+  )).sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
   // The persisted domain value is `daily`; accept the historical Portuguese
   // label too so older records keep appearing in the daily cockpit.
   const dailyIndicators = indicators.filter(i => i.frequency === 'daily' || i.frequency === 'Diário');
@@ -172,16 +214,15 @@ export default function HojePage() {
                 <CardContent className="space-y-1.5">
                   <AnimatePresence initial={false}>
                     {overdueTasks.map(task => (
-                      <motion.button
+                      <motion.div
                         key={task.id}
                         exit={{ opacity: 0, x: -10 }}
-                        onClick={() => toggleTaskDone(task)}
                         className="work-today-task"
                       >
-                        <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="flex-1 text-sm font-medium leading-relaxed">{task.title}</span>
+                        <Link href={`/tarefas?open=${encodeURIComponent(task.id)}`} className="flex-1 rounded-md py-2 text-sm font-medium leading-relaxed hover:underline focus-visible:ring-2 focus-visible:ring-primary">{task.title}</Link>
                         <span className="text-xs text-destructive">{new Date(task.dueDate! + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
-                      </motion.button>
+                        <Button variant="outline" className="min-h-11 shrink-0 gap-2" disabled={busyTasks.has(task.id)} aria-label={`Concluir tarefa ${task.title}`} onClick={() => toggleTaskDone(task)}><Circle className="h-4 w-4" />Concluir</Button>
+                      </motion.div>
                     ))}
                   </AnimatePresence>
                 </CardContent>
@@ -235,17 +276,16 @@ export default function HojePage() {
                     {todayTasks.map(task => {
                       const pc = priorityConfig[task.priority];
                       return (
-                        <motion.button
+                        <motion.div
                           key={task.id}
                           exit={{ opacity: 0, x: -10 }}
-                          onClick={() => toggleTaskDone(task)}
                           className={cn('work-today-task border-l-2', pc.border)}
                         >
-                          <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 text-sm font-medium leading-relaxed">{task.title}</span>
+                          <Link href={`/tarefas?open=${encodeURIComponent(task.id)}`} className="flex-1 rounded-md py-2 text-sm font-medium leading-relaxed hover:underline focus-visible:ring-2 focus-visible:ring-primary">{task.title}</Link>
                           {task.recurring && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" />}
                           {task.priority !== 'normal' && <span className={cn('text-xs', pc.color)}>{pc.label}</span>}
-                        </motion.button>
+                          <Button variant="outline" className="min-h-11 shrink-0 gap-2" disabled={busyTasks.has(task.id)} aria-label={`Concluir tarefa ${task.title}`} onClick={() => toggleTaskDone(task)}><Circle className="h-4 w-4" />Concluir</Button>
+                        </motion.div>
                       );
                     })}
                   </AnimatePresence>
@@ -314,6 +354,22 @@ export default function HojePage() {
           )}
         </div>
       )}
+      {!loading && <section aria-label="Concluídas hoje" className="mt-6">
+        <Card>
+          <CardHeader className="flex-row items-center justify-between gap-3">
+            <CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="h-4 w-4 text-money" />Concluídas hoje ({completedToday.length})</CardTitle>
+            <Link href="/tarefas?completed=1" className="text-xs text-primary hover:underline">Ver todas as concluídas</Link>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {completedToday.length === 0 && <p className="text-sm text-muted-foreground">Suas conclusões ficam aqui. Clique no título para abrir; use Concluir para finalizar.</p>}
+            {completedToday.map(task => <div key={task.id} className="work-today-task">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-money" />
+              <Link href={`/tarefas?open=${encodeURIComponent(task.id)}`} className="flex-1 py-2 text-sm font-medium hover:underline">{task.title}</Link>
+              <Button variant="outline" className="min-h-11 shrink-0" disabled={busyTasks.has(task.id)} aria-label={`Reabrir tarefa ${task.title}`} onClick={() => toggleTaskDone(task)}>Reabrir</Button>
+            </div>)}
+          </CardContent>
+        </Card>
+      </section>}
     </motion.div>
   );
 }

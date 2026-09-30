@@ -13,6 +13,8 @@ import {
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
   ArrowRight, Repeat, FileText, Wallet, Edit2
 } from 'lucide-react';
+import { DEFAULT_STAGES } from '@/lib/default-stages';
+import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -96,7 +98,7 @@ interface CalendarContentItem { id: string; title: string; channel: string; sche
 interface CalendarFinancialEntry { id: string; description?: string; category: string; amount: number; type: string; dueDate?: string; status?: string; }
 interface LinkedCapture { id: string; title?: string; content?: string; targetType?: string; targetId?: string; }
 type GroupBy = 'status' | 'priority' | 'project' | 'pillar';
-type SortBy = 'date' | 'title' | 'priority' | 'status' | 'dueDate';
+type SortBy = 'date' | 'title' | 'priority' | 'status' | 'dueDate' | 'completedAt';
 
 interface SavedView {
   id: string;
@@ -107,6 +109,7 @@ interface SavedView {
   search: string;
   filterOverdue: boolean;
   showDone: boolean;
+  onlyCompleted?: boolean;
   dense: boolean;
   filterPriority: string;
 }
@@ -128,8 +131,8 @@ function uid(prefix: string) {
   return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function isOverdue(task: Task) {
-  if (!task.dueDate || task.status === 'done') return false;
+function taskIsOverdue(task: Task, stages: StageDef[]) {
+  if (!task.dueDate || isTaskCompleted(task, stages)) return false;
   return task.dueDate < todayStr();
 }
 
@@ -138,6 +141,7 @@ function formatDateISO(d: Date) {
 }
 
 function fireConfetti() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const colors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6'];
   const container = document.createElement('div');
   container.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden';
@@ -186,17 +190,24 @@ export default function TasksPage() {
 
   // View state
   const [deletionTask, setDeletionTask] = useState<Task | null>(null);
-  const [view, setView] = useState<ViewMode>('kanban');
+  const [view, setView] = useState<ViewMode>(searchParams.get('completed') === '1' ? 'list' : 'kanban');
   const [search, setSearch] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
-  const [showDone, setShowDone] = useState(false);
+  const [showDone, setShowDone] = useState(searchParams.get('completed') === '1');
+  const [onlyCompleted, setOnlyCompleted] = useState(searchParams.get('completed') === '1');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterProject, setFilterProject] = useState('all');
   const [filterPillar, setFilterPillar] = useState('all');
   const [groupBy, setGroupBy] = useState<GroupBy>('status');
-  const [sortBy, setSortBy] = useState<SortBy>('date');
+  const [sortBy, setSortBy] = useState<SortBy>(searchParams.get('completed') === '1' ? 'completedAt' : 'date');
   const [dense, setDense] = useState(false);
-  const [stages, setStages] = useState<StageDef[]>([]);
+  const [configuredStages, setStages] = useState<StageDef[]>(DEFAULT_STAGES.tasks);
+  const stages = useMemo(() => resolveTaskStages(configuredStages, tasks), [configuredStages, tasks]);
+  const isOverdue = (task: Task) => taskIsOverdue(task, stages);
+  const pendingTaskIds = useRef(new Set<string>());
+  const previousStatuses = useRef(new Map<string, string>());
+  const recurringCreated = useRef(new Set<string>());
+  const [busyTasks, setBusyTasks] = useState<Set<string>>(new Set());
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
   const getStage = (id: string) => stages.find(s => s.id === id);
   const getStatusLabel = (id: string) => getStage(id)?.label || id;
@@ -326,6 +337,7 @@ export default function TasksPage() {
     setSearch(v.search);
     setFilterOverdue(v.filterOverdue);
     setShowDone(v.showDone);
+    setOnlyCompleted(v.onlyCompleted || false);
     setDense(v.dense);
     setFilterPriority(v.filterPriority);
   }
@@ -333,7 +345,7 @@ export default function TasksPage() {
   function saveCurrentView(name: string) {
     const v: SavedView = {
       id: `tv_${Date.now()}`, name, view, groupBy, sortBy, search,
-      filterOverdue, showDone, dense, filterPriority,
+      filterOverdue, showDone, onlyCompleted, dense, filterPriority,
     };
     const updated = [...savedViews, v];
     saveViews(updated);
@@ -496,28 +508,49 @@ export default function TasksPage() {
     }
   }
 
-  async function handleToggleDone(task: Task) {
+  async function handleToggleDone(task: Task, restoreStatus?: string) {
+    if (pendingTaskIds.current.has(task.id)) return;
+    pendingTaskIds.current.add(task.id); setBusyTasks(new Set(pendingTaskIds.current));
+    const completed = isTaskCompleted(task, stages);
+    const nextStatus = restoreStatus || (completed ? previousStatuses.current.get(task.id) || taskReopenStatus(stages) : taskCompletionStatus(stages));
+    let newlyCompleted: Task | undefined;
     try {
-      const nextStatus = task.status === 'done' ? 'todo' : 'done';
-      await apiFetch(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
-      if (nextStatus === 'done') {
+      const updated = await apiFetch<Task>(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
+      setTasks(current => current.map(item => item.id === task.id ? updated : item));
+      if (!completed && !restoreStatus) {
+        previousStatuses.current.set(task.id, task.status);
         fireConfetti();
-        toast.success('Tarefa concluída! 🎉');
-        await spawnNextOccurrenceIfRecurring(task);
+        newlyCompleted = updated;
+      } else { toast.success('Tarefa reaberta'); }
+    } catch (err) { toast.error(showError(err)); }
+    finally { pendingTaskIds.current.delete(task.id); setBusyTasks(new Set(pendingTaskIds.current)); }
+    if (newlyCompleted) {
+      const completedTask = newlyCompleted;
+      toast.success('Tarefa concluída! 🎉', {
+        duration: 10000, description: task.recurring ? 'A próxima ocorrência continua no planejamento.' : task.title,
+        action: { label: task.recurring ? 'Reabrir' : 'Desfazer', onClick: () => { void handleToggleDone(completedTask, task.status); } },
+      });
+      if (!recurringCreated.current.has(task.id)) {
+        recurringCreated.current.add(task.id);
+        try {
+          const next = await spawnNextOccurrenceIfRecurring(task, taskReopenStatus(stages));
+          if (next) setTasks(current => current.some(item => item.id === next.id) ? current : [...current, next]);
+        } catch (err) {
+          recurringCreated.current.delete(task.id);
+          toast.error(`Tarefa concluída, mas a próxima ocorrência não foi criada: ${showError(err)}`);
+        }
       }
-      loadTasks();
-    } catch (err) {
-      toast.error(showError(err));
     }
   }
 
   async function handleQuickStatus(taskId: string, status: Task['status']) {
+    if (pendingTaskIds.current.has(taskId)) return;
+    pendingTaskIds.current.add(taskId); setBusyTasks(new Set(pendingTaskIds.current));
     try {
-      await apiFetch(`/api/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
-      loadTasks();
-    } catch (err) {
-      toast.error(showError(err));
-    }
+      const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      setTasks(current => current.map(item => item.id === taskId ? updated : item));
+    } catch (err) { toast.error(showError(err)); }
+    finally { pendingTaskIds.current.delete(taskId); setBusyTasks(new Set(pendingTaskIds.current)); }
   }
 
   async function handleQuickAdd(status: Task['status']) {
@@ -548,8 +581,9 @@ export default function TasksPage() {
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(t => {
-      if (!showDone && t.status === 'done') return false;
-      if (filterOverdue && !isOverdue(t)) return false;
+      if (onlyCompleted && !isTaskCompleted(t, stages)) return false;
+      if (!showDone && !search.trim() && isTaskCompleted(t, stages)) return false;
+      if (filterOverdue && !taskIsOverdue(t, stages)) return false;
       if (filterPriority !== 'all' && t.priority !== filterPriority) return false;
       if (filterProject !== 'all' && t.projectId !== filterProject) return false;
       if (filterPillar !== 'all' && t.pillarId !== filterPillar) return false;
@@ -559,11 +593,12 @@ export default function TasksPage() {
       }
       return true;
     });
-  }, [tasks, showDone, filterOverdue, filterPriority, filterProject, filterPillar, search]);
+  }, [tasks, stages, onlyCompleted, showDone, filterOverdue, filterPriority, filterProject, filterPillar, search]);
 
   const sortedTasks = useMemo(() => {
     const arr = [...filteredTasks];
-    if (sortBy === 'title') arr.sort((a, b) => a.title.localeCompare(b.title));
+    if (sortBy === 'completedAt') arr.sort((a, b) => (b.completedAt || b.updatedAt || b.createdAt).localeCompare(a.completedAt || a.updatedAt || a.createdAt));
+    else if (sortBy === 'title') arr.sort((a, b) => a.title.localeCompare(b.title));
     else if (sortBy === 'priority') arr.sort((a, b) => { const order = { urgent: 0, important: 1, normal: 2 }; return order[a.priority] - order[b.priority]; });
     else if (sortBy === 'status') { const order = stages.map(s => s.id); arr.sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status)); }
     else if (sortBy === 'dueDate') arr.sort((a, b) => { if (!a.dueDate && !b.dueDate) return 0; if (!a.dueDate) return 1; if (!b.dueDate) return -1; return a.dueDate.localeCompare(b.dueDate); });
@@ -575,8 +610,9 @@ export default function TasksPage() {
 
   // Pipeline stats
   const pipelineStats = useMemo(() => {
-    return stages.map(s => ({ ...s, count: filteredTasks.filter(t => t.status === s.id).length }));
-  }, [filteredTasks, stages]);
+    return stages.map(s => ({ ...s, count: tasks.filter(t => t.status === s.id).length }));
+  }, [tasks, stages]);
+  const completedCount = tasks.filter(task => isTaskCompleted(task, stages)).length;
 
   // Active filters
   const activeFilters = useMemo(() => {
@@ -594,7 +630,7 @@ export default function TasksPage() {
     if (key === 'priority') setFilterPriority('all');
     if (key === 'project') setFilterProject('all');
     if (key === 'pillar') setFilterPillar('all');
-    if (key === 'done') setShowDone(false);
+    if (key === 'done') { setShowDone(false); setOnlyCompleted(false); }
   }
 
   function clearAllFilters() {
@@ -603,6 +639,7 @@ export default function TasksPage() {
     setFilterProject('all');
     setFilterPillar('all');
     setShowDone(false);
+    setOnlyCompleted(false);
     setSearch('');
   }
 
@@ -716,12 +753,12 @@ export default function TasksPage() {
                 <GripVertical className="hidden" aria-hidden="true" />
               )}
               {!bulkMode && (
-                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="work-check shrink-0" aria-label={task.status === 'done' ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
-                  {task.status === 'done' ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className={cn("h-4 w-4", isOverdue(task) ? 'text-destructive' : 'text-muted-foreground hover:text-foreground')} />}
+                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="work-check min-h-11 min-w-11 shrink-0" disabled={busyTasks.has(task.id)} title={isTaskCompleted(task, stages) ? "Reabrir tarefa" : "Concluir tarefa"} aria-label={isTaskCompleted(task, stages) ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
+                  {isTaskCompleted(task, stages) ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className={cn("h-4 w-4", isOverdue(task) ? 'text-destructive' : 'text-muted-foreground hover:text-foreground')} />}
                 </button>
               )}
               <div className="flex-1 min-w-0">
-                <button onClick={event => { event.stopPropagation(); if (bulkMode) toggleSelect(task.id); else openEdit(task); }} className={cn(dense ? 'text-xs' : 'text-sm', 'work-card-title text-left font-semibold leading-relaxed', task.status === 'done' && 'line-through text-muted-foreground')}>{task.title}</button>
+                <button onClick={event => { event.stopPropagation(); if (bulkMode) toggleSelect(task.id); else openEdit(task); }} className={cn(dense ? 'text-xs' : 'text-sm', 'work-card-title text-left font-semibold leading-relaxed', isTaskCompleted(task, stages) && 'line-through text-muted-foreground')}>{task.title}</button>
                 {!dense && task.professionalWorkId && <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground"><span>{task.workType === 'agent' ? 'Trabalho de agente' : task.workType === 'decision' ? 'Decisão' : task.workType === 'dependency' ? 'Dependência' : 'Tarefa humana'}{task.responsible ? ` · ${task.responsible}` : ''}</span><a href="/profissional" className="text-primary hover:underline" onClick={event => event.stopPropagation()}>Abrir briefing</a></p>}
                 {!dense && task.nextAction && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">Próximo passo: {task.nextAction}</p>}
                 {!dense && task.description && (
@@ -774,6 +811,7 @@ export default function TasksPage() {
                       <CalendarDays className="h-2.5 w-2.5" /> {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                     </Badge>
                   )}
+                  {isTaskCompleted(task, stages) && task.completedAt && <Badge variant="outline" className="text-xs text-money">Concluída {new Date(task.completedAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Badge>}
                   {task.recurring && (
                     <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
                       <Repeat className="h-2.5 w-2.5" /> {RECURRING_LABELS[task.recurringFrequency || 'daily']}
@@ -784,13 +822,13 @@ export default function TasksPage() {
               {!bulkMode && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="work-more shrink-0">
+                    <Button onClick={event => event.stopPropagation()} variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="work-more shrink-0">
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>
                     <DropdownMenuItem onClick={() => openEdit(task)}><Subtitles className="mr-2 h-4 w-4" /> Abrir</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleToggleDone(task)}><CheckCircle2 className="mr-2 h-4 w-4" /> {task.status === 'done' ? 'Reabrir' : 'Concluir'}</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleToggleDone(task)}><CheckCircle2 className="mr-2 h-4 w-4" /> {isTaskCompleted(task, stages) ? 'Reabrir' : 'Concluir'}</DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleDuplicate(task)}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>
                     <DropdownMenuSeparator />
                     {stages.filter(s => s.id !== task.status).map(s => (
@@ -937,7 +975,7 @@ export default function TasksPage() {
                       <div key={task.id} className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1"
                         style={{ backgroundColor: priorityConfig[task.priority]?.color?.replace('bg-', '') ? `var(--${priorityConfig[task.priority].color.replace('bg-', '')})` + '20' : undefined }}
                         onClick={() => openEdit(task)}>
-                        {task.status === 'done' ? <CheckCircle2 className="h-2 w-2 text-money shrink-0" /> : <Circle className="h-2 w-2 shrink-0" style={{ color: priorityConfig[task.priority]?.dot === 'bg-destructive' ? '#ef4444' : priorityConfig[task.priority]?.dot === 'bg-primary' ? '#8b5cf6' : '#64748b' }} />}
+                        {isTaskCompleted(task, stages) ? <CheckCircle2 className="h-2 w-2 text-money shrink-0" /> : <Circle className="h-2 w-2 shrink-0" style={{ color: priorityConfig[task.priority]?.dot === 'bg-destructive' ? '#ef4444' : priorityConfig[task.priority]?.dot === 'bg-primary' ? '#8b5cf6' : '#64748b' }} />}
                         {task.title}
                       </div>
                     ))}
@@ -979,14 +1017,16 @@ export default function TasksPage() {
         {/* Pipeline Stats */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
           {pipelineStats.map(s => (
-            <button key={s.id} onClick={() => { setShowDone(s.id === 'done' ? !showDone : showDone); }}
-              className={cn('flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
-                s.id === 'done' && showDone ? 'bg-money/10 border-money/30 text-money' : 'border-border/50 text-muted-foreground hover:bg-muted/50')}>
-              <div className={cn('h-2 w-2 rounded-full', s.dot)} />
-              {s.label}
-              <span className="font-mono-num">{s.count}</span>
-            </button>
+            <span key={s.id} className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 px-3 py-1.5 text-xs font-medium text-muted-foreground">
+              <span className={cn('h-2 w-2 rounded-full', s.dot)} />{s.label}<span className="font-mono-num">{s.count}</span>
+            </span>
           ))}
+        </div>
+        <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Situação das tarefas">
+          <Button size="sm" variant={!showDone ? 'default' : 'outline'} aria-pressed={!showDone} onClick={() => { setShowDone(false); setOnlyCompleted(false); }}>Em aberto</Button>
+          <Button size="sm" variant={onlyCompleted ? 'default' : 'outline'} aria-pressed={onlyCompleted} aria-label={`Mostrar concluídas (${completedCount})`} onClick={() => { setShowDone(true); setOnlyCompleted(true); setFilterOverdue(false); setFilterPriority('all'); setFilterProject('all'); setFilterPillar('all'); setSearch(''); setView('list'); setSortBy('completedAt'); }}>Concluídas ({completedCount})</Button>
+          <Button size="sm" variant={showDone && !onlyCompleted ? 'default' : 'outline'} aria-pressed={showDone && !onlyCompleted} onClick={() => { setShowDone(true); setOnlyCompleted(false); }}>Todas</Button>
+          <span className="text-xs text-muted-foreground">Clique no título para abrir. O círculo conclui ou reabre.{search.trim() ? ' A busca inclui concluídas.' : ''}</span>
         </div>
 
         {/* Filter Chips */}
@@ -1004,8 +1044,8 @@ export default function TasksPage() {
           {bulkMode ? (
             <>
               <Badge variant="secondary">{selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}</Badge>
-              <Button variant="outline" size="sm" onClick={() => handleBulkStatus('done')}><CheckCircle2 className="mr-1 h-4 w-4" /> Concluir</Button>
-              <Button variant="outline" size="sm" onClick={() => handleBulkStatus('todo')}><Circle className="mr-1 h-4 w-4" /> Reabrir</Button>
+              <Button variant="outline" size="sm" onClick={() => handleBulkStatus(taskCompletionStatus(stages))}><CheckCircle2 className="mr-1 h-4 w-4" /> Concluir</Button>
+              <Button variant="outline" size="sm" onClick={() => handleBulkStatus(taskReopenStatus(stages))}><Circle className="mr-1 h-4 w-4" /> Reabrir</Button>
               <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={selectedIds.size === 0}><Trash2 className="mr-1 h-4 w-4" /> Excluir ({selectedIds.size})</Button>
               <Button variant="ghost" size="sm" onClick={() => { setBulkMode(false); setSelectedIds(new Set()); }}><X className="mr-1 h-4 w-4" /> Cancelar</Button>
             </>
@@ -1043,6 +1083,7 @@ export default function TasksPage() {
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="date">Data de criação</SelectItem>
+                          <SelectItem value="completedAt">Conclusões recentes</SelectItem>
                           <SelectItem value="dueDate">Prazo</SelectItem>
                           <SelectItem value="title">Título</SelectItem>
                           <SelectItem value="priority">Prioridade</SelectItem>
