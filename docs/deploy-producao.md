@@ -32,6 +32,10 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 Jonny autorizou integrar a revisão de privacidade, MCP e ciclo mobile depois da validação local (`140 passed`, tipos/build aprovados, lint sem erros). A release usa push normal para `main`; não inclui reescrita do histórico nem migração de dados. A confirmação pública deve identificar o novo botão acessível “Salvar captura” e seus estados, sem criar registros reais. O recibo será registrado depois da observação da versão servida.
 
+O push `0adc054f44fdf5551795bc14eb604680f2d92eb3` foi confirmado em `origin/main`. Pelo navegador autenticado, o hPanel mostrou a execução `01a0efda-e942-71f3-aa65-eb77f99d315d` e estado **Falha na construção**. O backup terminou normalmente; a falha foi `TurbopackInternalError` no CSS de `@fontsource-variable/fraunces`, ao criar um processo Node que saiu antes da conexão. O site continuou servindo o componente de captura anterior.
+
+O build de produção passa a usar `next build --webpack`, alternativa documentada pelo Next.js 16. O desenvolvimento mantém seu bundler padrão. A dependência indireta do MCP `fast-uri` também foi atualizada de 3.1.6 para 3.1.8: auditoria npm voltou a zero vulnerabilidades e os 140 testes passaram novamente. Não atribuir a falha ao backup nem afirmar publicação apenas porque o GitHub recebeu o commit.
+
 ### Revisão de 29/09/2026
 
 **Test connection** no Hermes pessoal descobriu as ferramentas do servidor `lifesystem`. `/hermes` em produção mostrou heartbeat `hermes-heartbeat` recente, Online e chamadas `hermes-mcp` bem-sucedidas. Não foram criados lançamentos nem eventos nesta verificação.

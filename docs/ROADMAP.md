@@ -32,6 +32,8 @@ A integração/publicação desta revisão foi autorizada. O recibo de envio e a
 
 Verificação local final: **140 testes passaram** em servidor novo com dados sintéticos; tipos e build passaram; lint teve **0 erros e 125 avisos existentes**. A revisão independente encontrou duas lacunas de isolamento no QA, ambas corrigidas. O smoke de 18 rotas não certifica todas as interações nem acessibilidade integral.
 
+Na tentativa de publicação, `0adc054` passou na CI e falhou no Turbopack da Hostinger. O build passa a usar Webpack, foi removido um export inválido e sem uso na página inicial e `fast-uri` foi atualizado para 3.1.8. Verificação após a atualização: 140 testes passaram novamente; build Webpack e tipos passaram; auditoria npm sem vulnerabilidades. O recibo de produção permanece separado desses resultados locais.
+
 ## Prioridades reais
 
 | Ordem | Pendência | Critério de conclusão |

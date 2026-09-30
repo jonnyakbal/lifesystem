@@ -44,6 +44,10 @@ Logs privados fora do checkout: `C:/dev/jonny/lifesystem-readiness-tests-final-l
 
 Após revisar o resultado, Jonny autorizou avançar. As correções seguem para `main` e a integração nativa Hostinger. O envio ao GitHub e a confirmação da nova versão no site são registrados separadamente em `docs/deploy-producao.md`. A autorização não inclui reescrever o histórico público nem alterar dados reais.
 
+- `0adc054` enviado a `main`; CI GitHub concluída com sucesso. Hostinger falhou no processo de compilação CSS do Turbopack, conforme log autenticado.
+- Correção do build: `next build --webpack`; export `DashboardAnimatedNumber` sem uso removido de `page.tsx`, depois de o build reproduzir o erro de export não permitido. Novo build compilou em 11.3s, gerou 45 páginas e terminou com exit 0.
+- Correção de segurança: somente `fast-uri` 3.1.6 → 3.1.8 no lockfile; auditoria npm voltou a `found 0 vulnerabilities`. Suite depois da atualização: `140 passed (6.1m)`, exit 0. Lint: 0 erros, 125 avisos existentes.
+
 ## Decisões de execução
 
 - Manter o resultado local e revisável, sem commit/push/deploy nesta revisão. Custo: correções novas ainda não protegem o runtime público até integração e publicação.

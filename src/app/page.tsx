@@ -824,5 +824,3 @@ export default function HomePage() {
     </motion.div>
   );
 }
-
-export { AnimatedNumber as DashboardAnimatedNumber };
