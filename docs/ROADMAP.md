@@ -18,9 +18,9 @@ Atualização: 29/09/2026. Este arquivo concentra o backlog atual. Planos e aná
 
 Em 29/09, `/hermes` mostrou heartbeat `hermes-heartbeat` recente, estado Online, chamadas `hermes-mcp` e ausência de falhas recentes. **Test connection** no Hermes pessoal descobriu as ferramentas do servidor `lifesystem`. Nenhuma escrita financeira ou de Calendar foi feita nesta revisão.
 
-Isso comprova conectividade real. Não comprova sozinho o SHA `98ced9e`: o conector Hostinger respondeu `401`, e o teste do Hermes apresenta nomes de ferramentas. Recibo exato de build/schema permanece pendente.
+Posteriormente, o hPanel autenticado confirmou `77419ac` como **Concluído / Atual** e a aplicação pública exibiu o novo controle de captura. O código de proteção financeira foi publicado nesse build e testado localmente com falhas sintéticas; nenhuma escrita financeira foi feita em produção. Ver [recibo da release](deploy-producao.md).
 
-## Correções desta revisão local
+## Correções desta revisão
 
 - Captura rápida preserva texto em falhas, oferece botão por toque, bloqueia envios concorrentes e atualiza a fila.
 - Revisão semanal mostra erro recuperável e impede concluir uma revisão que não carregou.
@@ -28,7 +28,7 @@ Isso comprova conectividade real. Não comprova sozinho o SHA `98ced9e`: o conec
 - Auditoria Git cobre caminhos com conteúdo idêntico, sem ler ou imprimir valores.
 - Playwright de revisão usa diretório temporário, porta dedicada e credenciais sintéticas; não reutiliza servidor de desenvolvimento.
 
-A integração/publicação desta revisão foi autorizada. O recibo de envio e a evidência da versão no site ficam em [deploy de produção](deploy-producao.md); autorização ou push isolados não comprovam presença em produção.
+A revisão foi integrada e publicada no build `77419ac`; o recibo Hostinger e a evidência da versão no site estão em [deploy de produção](deploy-producao.md).
 
 Verificação local final: **140 testes passaram** em servidor novo com dados sintéticos; tipos e build passaram; lint teve **0 erros e 125 avisos existentes**. A revisão independente encontrou duas lacunas de isolamento no QA, ambas corrigidas. O smoke de 18 rotas não certifica todas as interações nem acessibilidade integral.
 
@@ -39,8 +39,7 @@ Na tentativa de publicação, `0adc054` passou na CI e falhou no Turbopack da Ho
 | Ordem | Pendência | Critério de conclusão |
 | --- | --- | --- |
 | P0 | Sanear histórico público e revisar documentação/imagens | [Auditoria de privacidade](privacidade-historico.md); autorizar reescrita após revisão da cópia preparada |
-| P1 | Confirmar build e contrato financeiro no runtime | Recibo Hostinger com SHA ou schema autenticado exigindo `idempotencyKey`; retry com dados sintéticos |
-| P1 | Integrar e publicar esta revisão | Suite, lint, tipos, build e revisão independente; fluxo nativo Hostinger |
+| P1 | Manter verificação após cada release | Comparar SHA, recibo Hostinger e comportamento público; CI separada do deploy |
 | P1 | Reduzir avisos de lint e revisar módulos secundários | Correção por fluxo; critérios mobile, claro/escuro e teclado em [direção visual](astral-redesign.md) |
 | P2 | Marca em login, metadados e PWA | Configuração coerente em todas as superfícies |
 | P2 | Restaurar backup em instalação isolada | Recuperar coleções e conferir integridade sem serviços externos |

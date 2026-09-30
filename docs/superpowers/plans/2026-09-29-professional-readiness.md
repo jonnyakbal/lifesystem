@@ -47,10 +47,12 @@ Após revisar o resultado, Jonny autorizou avançar. As correções seguem para 
 - `0adc054` enviado a `main`; CI GitHub concluída com sucesso. Hostinger falhou no processo de compilação CSS do Turbopack, conforme log autenticado.
 - Correção do build: `next build --webpack`; export `DashboardAnimatedNumber` sem uso removido de `page.tsx`, depois de o build reproduzir o erro de export não permitido. Novo build compilou em 11.3s, gerou 45 páginas e terminou com exit 0.
 - Correção de segurança: somente `fast-uri` 3.1.6 → 3.1.8 no lockfile; auditoria npm voltou a `found 0 vulnerabilities`. Suite depois da atualização: `140 passed (6.1m)`, exit 0. Lint: 0 erros, 125 avisos existentes.
+- `77419ac` enviado a `main` e confirmado no hPanel como Concluído/Atual. Controle novo de captura observado na aplicação; Google conectado e heartbeat Online. Dados reais preservados.
+- Candidata privada saneada atualizada para `610d663`, árvore idêntica a `77419ac`, auditoria dos 4 refs com zero caminhos de risco; bundle de 5 referências verificado. Histórico público não reescrito.
 
 ## Decisões de execução
 
-- Manter o resultado local e revisável, sem commit/push/deploy nesta revisão. Custo: correções novas ainda não protegem o runtime público até integração e publicação.
+- Na etapa inicial, manter o resultado local e revisável, sem commit/push/deploy. Essa decisão foi superada pela autorização posterior de integração; o recibo de publicação está registrado acima.
 - Preparar histórico em cópia descartável e manter backup privado; não reescrever refs públicos automaticamente. Custo: os caminhos antigos continuam acessíveis no GitHub até o saneamento autorizado.
 - Manter o modelo de processo único do armazenamento JSON. A prevenção de duplicação verificada não promete transação entre réplicas; esse limite continua documentado no roadmap.
 

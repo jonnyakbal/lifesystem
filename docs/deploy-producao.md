@@ -28,6 +28,16 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 ## Evidência confirmada
 
+### Release confirmada — 29/09/2026
+
+- Código de aplicação: `77419ac7ecc6647ff15254a32d6f76c502dbf207`, incluindo a revisão `0adc054`, atualização `fast-uri` e build Webpack.
+- CI GitHub concluída com sucesso: [run 36654991895](https://github.com/jonnyakbal/lifesystem/actions/runs/36654991895). A confirmação Hostinger abaixo é independente da CI.
+- No hPanel autenticado, a tabela de implantações mostrou `77419ac7` como **Concluído / Atual**. As tentativas `81c11c4`, `98ced9e` e `0adc054` apareceram como **Falha na construção**; o último log confirmou o problema no Turbopack.
+- A aplicação pública foi aberta novamente e apresentou o botão acessível **Salvar captura** e o campo **Texto da captura rápida**, ausentes antes dessa release. Não foi enviada captura nem criado lançamento/evento para validar.
+- Planejar voltou a mostrar **Google Agenda conectada**; `/hermes` mostrou **Online** e a identidade `hermes-heartbeat` após o deploy.
+- A exigência de chave e a proteção de retry financeiro fazem parte do código desse build; os casos de falha foram verificados com dados sintéticos. Não houve escrita financeira de teste no runtime público.
+- Evidências visuais são privadas, fora do checkout. Documentação posterior pode avançar `main` sem mudar o código de aplicação desta release.
+
 ### Publicação da revisão de confiabilidade — autorizada
 
 Jonny autorizou integrar a revisão de privacidade, MCP e ciclo mobile depois da validação local (`140 passed`, tipos/build aprovados, lint sem erros). A release usa push normal para `main`; não inclui reescrita do histórico nem migração de dados. A confirmação pública deve identificar o novo botão acessível “Salvar captura” e seus estados, sem criar registros reais. O recibo será registrado depois da observação da versão servida.
