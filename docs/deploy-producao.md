@@ -28,6 +28,16 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 ## Evidência confirmada
 
+### Recuperação de tarefas e descoberta Órion — 30/09/2026
+
+- Código de aplicação `99fa4ab43d12a0dd8567262650493c641a2908be`, enviado por push normal a `main`; integração nativa Hostinger manteve o canal de deploy.
+- Verificação local: **47 testes passaram (1,5 min)** em servidor com dados sintéticos, incluindo abertura sem concluir, Desfazer/reabertura, busca, etapas históricas/terminais personalizadas, recorrência lenta, planejamento, exclusão, smoke MCP e cinco telas em desktop/mobile. Tipos e build Webpack passaram; lint **0 erros e 96 avisos existentes**, sem avisos nos arquivos de código alterados.
+- Na sessão autenticada do Chrome, Hoje carregou `page-9571ad3c62f4eca9.js`, seção **Concluídas hoje**, botões explícitos **Concluir tarefa** e títulos como links para abrir detalhes. A consulta HTTP sem sessão redireciona ao login e não certifica essa tela.
+- O link **Ver todas as concluídas** abriu `/tarefas?completed=1` com o filtro ativo. Tarefas carregou `page-cdfb12cc90cdd7ec.js`; as 16 concluídas estavam acessíveis, com 16 controles de reabertura e 12 datas de conclusão disponíveis. Nenhuma tarefa real foi concluída, reaberta ou excluída nesta verificação; a tarefa acidental não foi escolhida por suposição.
+- O smoke de saúde validou localmente o contrato 1.2 e apenas descoberta de metadados. Não certifica a credencial de produção nem transporte Hermes/Órion/Sirius. Não houve alteração do Hermes, Arco CRM, Calendar ou credenciais.
+- O conector Hostinger permaneceu sem acesso autenticado (401); não foram consultados seus logs internos. Após Jonny informar a chave SSH disponível, foi confirmada somente a conexão com a hospedagem, sem substituir configurações de produção. A confirmação desta release veio das telas servidas.
+- Documentação posterior pode avançar `main` sem alterar o código de aplicação certificado acima. CI GitHub não foi consultada neste recibo e não substitui a evidência da aplicação pública.
+
 ### Release confirmada — 29/09/2026
 
 - Código de aplicação: `77419ac7ecc6647ff15254a32d6f76c502dbf207`, incluindo a revisão `0adc054`, atualização `fast-uri` e build Webpack.
