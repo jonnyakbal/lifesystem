@@ -5,7 +5,7 @@ test('o ciclo principal fica visível e os módulos complementares continuam ace
   const nav = page.getByRole('navigation', { name: 'Navegação principal' });
   await expect(nav.getByRole('link', { name: 'Planejar' })).toBeVisible();
   await expect(nav.getByRole('link', { name: 'Financeiro' })).toHaveCount(0);
-  await nav.getByRole('button', { name: 'Mais áreas' }).click();
+  await nav.getByRole('button', { name: 'Cultivar' }).click();
   await expect(nav.getByRole('link', { name: 'Financeiro' })).toBeVisible();
   await nav.getByRole('link', { name: 'Financeiro' }).click();
   await expect(page).toHaveURL(/\/financeiro$/);

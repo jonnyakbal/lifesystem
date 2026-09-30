@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Content } from '@/types';
+import { createContent } from '@/lib/content-domain';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -32,26 +33,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const item = await storage.create<Content>('content', {
-    title: body.title || 'Sem título',
-    body: body.body || '',
-    channel: body.channel || 'blog',
-    stage: body.stage || 'idea',
-    category: body.category || 'Geral',
-    format: body.format || '',
-    tags: body.tags || [],
-    status: body.status || 'draft',
-    pinned: body.pinned || false,
-    scheduledDate: body.scheduledDate,
-    scheduledTime: body.scheduledTime,
-    publishedUrl: body.publishedUrl,
-    responsible: body.responsible,
-    editorialLine: body.editorialLine,
-    checklist: body.checklist || [],
-    metrics: body.metrics,
-    linkedTaskIds: body.linkedTaskIds || [],
-    linkedProjectIds: body.linkedProjectIds || [],
-  });
-  return NextResponse.json(item, { status: 201 });
+  try { return NextResponse.json(await createContent(await request.json()), { status: 201 }); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Dados de conteúdo inválidos.' }, { status: 400 }); }
 }

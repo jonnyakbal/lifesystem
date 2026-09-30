@@ -12,6 +12,7 @@ import {
   CheckCircle2, Circle, AlertTriangle, Sparkles, FileText,
   Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper, Repeat,
 } from 'lucide-react';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -135,13 +136,14 @@ export default function HojePage() {
   };
 
   return (
-    <motion.div className="max-w-4xl p-4 sm:p-8" variants={stagger} initial="initial" animate="animate">
-      <motion.div className="mb-8" variants={fade}>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Hoje</h1>
-        <p className="text-muted-foreground">
-          {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </p>
-      </motion.div>
+    <motion.div className="work-page work-today p-4 sm:p-8" variants={stagger} initial="initial" animate="animate">
+      <WorkspaceHeading eyebrow={new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })} title="Hoje" description="Abra espaço para o que importa. Seu dia, com intenção." actions={<Link href="/planejar" className="work-action-link">Planejar meu dia <ArrowRight className="h-4 w-4" /></Link>}>
+        <div className="work-metrics">
+          <WorkspaceMetric label="Seu foco" value={todayTasks.length} detail="tarefas para hoje" tone="primary" />
+          <WorkspaceMetric label="Para retomar" value={overdueTasks.length} detail="tarefas aguardando um novo passo" tone={overdueTasks.length ? 'warning' : 'default'} />
+          <WorkspaceMetric label="Pequenas conquistas" value={`${dailyIndicators.filter(ind => (ind.currentValue || 0) >= (ind.targetValue || 1)).length}/${dailyIndicators.length}`} detail="metas diárias alcançadas" />
+        </div>
+      </WorkspaceHeading>
 
       {loading ? (
         <div className="space-y-4">
@@ -158,9 +160,9 @@ export default function HojePage() {
           </Card>
         </motion.div>
       ) : (
-        <div className="space-y-6">
+        <div className="work-today-grid">
           {overdueTasks.length > 0 && (
-            <motion.div variants={fade}>
+            <motion.div className="work-today-overdue" variants={fade}>
               <Card className="border-destructive/40 bg-destructive/5">
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base text-destructive">
@@ -174,11 +176,11 @@ export default function HojePage() {
                         key={task.id}
                         exit={{ opacity: 0, x: -10 }}
                         onClick={() => toggleTaskDone(task)}
-                        className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm hover:bg-muted/50"
+                        className="work-today-task"
                       >
                         <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="flex-1 truncate">{task.title}</span>
-                        <span className="text-xs text-destructive">{task.dueDate}</span>
+                        <span className="flex-1 text-sm font-medium leading-relaxed">{task.title}</span>
+                        <span className="text-xs text-destructive">{new Date(task.dueDate! + 'T12:00:00').toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span>
                       </motion.button>
                     ))}
                   </AnimatePresence>
@@ -188,27 +190,27 @@ export default function HojePage() {
           )}
 
           {dailyIndicators.length > 0 && (
-            <motion.div variants={fade}>
+            <motion.div className="work-today-habits" variants={fade}>
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
                     <Sparkles className="h-4 w-4 text-purple-500" /> Metas do dia
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="grid gap-2 sm:grid-cols-2">
+                <CardContent className="grid gap-3">
                   {dailyIndicators.map(ind => {
                     const pillar = pillars.find(p => p.id === ind.pillarId);
                     const done = (ind.currentValue || 0) >= (ind.targetValue || 1);
                     return (
-                      <div key={ind.id} className={cn('flex items-center gap-2 rounded-lg border px-3 py-2', done && 'border-money/40 bg-money/5')}>
+                      <div key={ind.id} className={cn('flex items-center gap-3 rounded-xl border border-border/50 bg-background/30 px-4 py-3', done && 'border-money/40 bg-money/5')}>
                         <span className="shrink-0">{pillar?.icon}</span>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-medium">{ind.name}</p>
-                          <p className="text-xs text-muted-foreground">{ind.currentValue || 0}{ind.targetValue ? ` / ${ind.targetValue}` : ''}</p>
+                          <p className="text-sm font-medium leading-relaxed">{ind.name}</p>
+                          <p className="mt-1 font-mono-num text-xs text-muted-foreground">{ind.currentValue || 0}{ind.targetValue ? ` / ${ind.targetValue}` : ''}</p><div className="mt-2 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${Math.min(100, (ind.currentValue || 0) / (ind.targetValue || 1) * 100)}%` }} /></div>
                         </div>
                         <div className="flex shrink-0 items-center gap-0.5">
-                          <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Diminuir ${ind.name}`} onClick={() => incrementIndicator(ind, -1)}><Minus className="h-3 w-3" /></Button>
-                          <Button variant="ghost" size="icon" className="h-6 w-6" aria-label={`Aumentar ${ind.name}`} onClick={() => incrementIndicator(ind, 1)}><Plus className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-11 w-11" aria-label={`Diminuir ${ind.name}`} onClick={() => incrementIndicator(ind, -1)}><Minus className="h-3 w-3" /></Button>
+                          <Button variant="ghost" size="icon" className="h-11 w-11" aria-label={`Aumentar ${ind.name}`} onClick={() => incrementIndicator(ind, 1)}><Plus className="h-3 w-3" /></Button>
                         </div>
                       </div>
                     );
@@ -221,7 +223,7 @@ export default function HojePage() {
           {/* Só renderiza com conteúdo — card "vazio" aqui é ruído, o estado
               "nada pendente" já é coberto pelo bloco Tudo em dia! acima. */}
           {todayTasks.length > 0 && (
-            <motion.div variants={fade}>
+            <motion.div className="work-today-focus" variants={fade}>
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -237,10 +239,10 @@ export default function HojePage() {
                           key={task.id}
                           exit={{ opacity: 0, x: -10 }}
                           onClick={() => toggleTaskDone(task)}
-                          className={cn('flex w-full items-center gap-2.5 rounded-md border-l-2 px-2 py-1.5 text-left text-sm hover:bg-muted/50', pc.border)}
+                          className={cn('work-today-task border-l-2', pc.border)}
                         >
                           <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                          <span className="flex-1 truncate">{task.title}</span>
+                          <span className="flex-1 text-sm font-medium leading-relaxed">{task.title}</span>
                           {task.recurring && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" />}
                           {task.priority !== 'normal' && <span className={cn('text-xs', pc.color)}>{pc.label}</span>}
                         </motion.button>
@@ -256,7 +258,7 @@ export default function HojePage() {
           )}
 
           {todayContent.length > 0 && (
-            <motion.div variants={fade}>
+            <motion.div className="work-today-extra" variants={fade}>
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -276,7 +278,7 @@ export default function HojePage() {
           )}
 
           {todayFinancial.length > 0 && (
-            <motion.div variants={fade}>
+            <motion.div className="work-today-extra" variants={fade}>
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="flex items-center gap-2 text-base">
@@ -298,7 +300,7 @@ export default function HojePage() {
           )}
 
           {!hasJournalToday && (
-            <motion.div variants={fade}>
+            <motion.div className="work-today-journal" variants={fade}>
               <Link href="/diario">
                 <Card className="border-dashed transition-colors hover:border-primary/40 hover:bg-muted/20">
                   <CardContent className="flex items-center gap-3 py-4">

@@ -21,12 +21,12 @@ import {
 import { apiFetch, showError } from '@/lib/api';
 import { cn, todayStr } from '@/lib/utils';
 import {
-  categories,
   recurringLabels,
   type Account,
   type FinancialEntry,
   type RecurringType,
 } from '@/lib/finance-model';
+import { useCategoryCatalog } from './use-category-catalog';
 import { effectiveFinancialDate } from '@/lib/financial-period';
 import { toast } from 'sonner';
 
@@ -47,6 +47,7 @@ export function EntryDialog({
   onClose,
   onSaved,
 }: Props) {
+  const { categories, catalog } = useCategoryCatalog();
   const today = todayStr();
   const [type, setType] = useState<FinancialEntry['type']>(
     entry?.type || 'expense_variable'
@@ -76,7 +77,8 @@ export function EntryDialog({
   const categoryOptions = [
     ...new Set([
       ...categories[type],
-      ...entries.filter((e) => e.type === type).map((e) => e.category),
+      ...entries.filter((e) => e.type === type && !catalog.some(item => item.archived && item.historicalTypes.includes(type) && (item.name === e.category || item.aliases.includes(e.category)))).map((e) => e.category),
+      ...(entry?.category && entry.type === type ? [entry.category] : []),
     ]),
   ];
   const chosenCategory =

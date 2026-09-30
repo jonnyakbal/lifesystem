@@ -7,6 +7,7 @@
 // Agent/MCP integration, included because Jonny wants to exercise the
 // Hermes models directly from here too.
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
 import { Bot, CheckCircle2, XCircle, Copy, Check, Send, Loader2, Activity, RefreshCw } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { WorkspaceHeading } from '@/components/workspace/workspace-heading';
 
 interface HermesStatus {
   mcpConfigured: boolean;
@@ -46,6 +48,7 @@ function timeAgo(dateStr: string) {
 
 export default function HermesPage() {
   const [status, setStatus] = useState<HermesStatus | null>(null);
+  const [statusError, setStatusError] = useState('');
   const [logs, setLogs] = useState<McpCallLog[]>([]);
   const [logsError, setLogsError] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -63,8 +66,8 @@ export default function HermesPage() {
       apiFetch<HermesStatus>('/api/hermes/status'),
       apiFetch<McpCallLog[]>('/api/hermes/logs'),
     ]);
-    if (s.status === 'fulfilled') setStatus(s.value);
-    else toast.error(showError(s.reason));
+    if (s.status === 'fulfilled') { setStatus(s.value); setStatusError(''); }
+    else setStatusError(showError(s.reason));
     if (l.status === 'fulfilled') { setLogs(l.value); setLogsError(false); }
     else setLogsError(true);
     setLoading(false);
@@ -86,7 +89,7 @@ export default function HermesPage() {
   }
 
   async function runTest() {
-    if (!prompt.trim()) return;
+    if (!prompt.trim() || testing || !status?.nousConfigured || statusError) return;
     setTesting(true);
     setTestResult(null);
     try {
@@ -104,13 +107,8 @@ export default function HermesPage() {
   }
 
   return (
-    <motion.div className="mx-auto max-w-5xl p-4 pb-24 lg:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div className="mb-8">
-        <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-tight">
-          <Bot className="h-7 w-7 text-primary" /> Hermes
-        </h1>
-        <p className="mt-2 text-muted-foreground">Veja se o agente está chegando ao LIFESYSTEM e quais ações executou.</p>
-      </div>
+    <motion.div className="work-page mx-auto max-w-6xl space-y-6 p-4 pb-24 lg:p-8" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <WorkspaceHeading eyebrow="Integrações" title="Hermes" description="Uma janela para a conexão: sinal do agente, ações recebidas e o que merece atenção." actions={<Button variant="outline" asChild><Link href="/profissional"><Bot className="h-4 w-4" />Área profissional</Link></Button>} />
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-24 w-full" />)}</div>
@@ -130,7 +128,7 @@ export default function HermesPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-3">
+              {statusError ? <div role="alert" className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4"><p className="font-medium">Não foi possível consultar a conexão.</p><p className="text-sm text-muted-foreground">{statusError} Use Atualizar para tentar novamente. O estado do agente permanece desconhecido.</p></div> : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-xl border bg-muted/20 p-3">
                   <span className="text-xs text-muted-foreground">Credencial</span>
                   <p className="mt-1 font-medium">{status?.mcpConfigured ? `${status.mcpKeyCount} configurada${status.mcpKeyCount !== 1 ? 's' : ''}` : 'Não configurada'}</p>
@@ -152,17 +150,17 @@ export default function HermesPage() {
                   <p className="mt-1 font-medium">{status?.auditAvailable === false ? 'Histórico indisponível' : status?.recentFailures ? `${status.recentFailures} falha${status.recentFailures !== 1 ? 's' : ''} em 20 chamadas` : status?.lastCallAt ? 'Sem falhas recentes' : 'Aguardando uso'}</p>
                   <p className="mt-1 text-xs text-muted-foreground">Revise as chamadas abaixo quando houver erro.</p>
                 </div>
-              </div>
+              </div>}
               <div className="grid gap-1.5">
                 <span className="text-xs text-muted-foreground">Endpoint para configurar no Hermes</span>
                 <div className="flex gap-2">
-                  <code className="flex-1 truncate rounded-md border bg-muted/40 px-3 py-2 text-xs">{mcpUrl}</code>
+                  <code className="min-w-0 flex-1 truncate rounded-md border bg-muted/40 px-3 py-2 text-xs">{mcpUrl}</code>
                   <Button variant="outline" size="icon" aria-label="Copiar endpoint MCP" onClick={copyUrl}>
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
               </div>
-              {!status?.mcpConfigured && <p className="text-xs text-muted-foreground">Configure uma chave com escopos em <code>MCP_API_KEYS</code> e use a mesma chave no Hermes. Para testes iniciais, <code>MCP_API_KEY</code> também funciona, mas dá acesso amplo.</p>}
+              {!statusError && !status?.mcpConfigured && <p className="text-xs text-muted-foreground">Configure uma chave com escopos em <code>MCP_API_KEYS</code> e use a mesma chave no Hermes. Para testes iniciais, <code>MCP_API_KEY</code> também funciona, mas dá acesso amplo.</p>}
               {status?.mcpConfigured && status.auditAvailable && !status.lastCallAt && <p className="text-xs text-muted-foreground">O servidor está configurado, mas ainda não há evidência de que o Hermes chamou uma ferramenta. Faça uma consulta pelo agente e atualize esta tela.</p>}
               {status?.lastCallClientId === 'legacy' && <p className="text-xs text-muted-foreground">A chave ampla não identifica qual cliente fez a chamada. Uma chave exclusiva com id Hermes permite confirmar o uso do agente.</p>}
             </CardContent>
@@ -181,18 +179,22 @@ export default function HermesPage() {
               ) : (
                 <div className="space-y-1.5">
                   {logs.map(log => (
-                    <div key={log.id} className="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm">
-                      {log.success ? <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-money" /> : <XCircle className="h-3.5 w-3.5 shrink-0 text-destructive" />}
-                      <code className="flex-1 truncate text-xs">{log.tool}</code>
-                      {log.clientId && <span className="max-w-28 truncate text-xs text-muted-foreground" title={`Chave ${log.clientId}`}>{log.clientId}</span>}
-                      {log.error && <span className="truncate text-xs text-destructive">{log.error}</span>}
-                      <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(log.createdAt)}</span>
-                    </div>
+                    <article key={log.id} className="space-y-2 rounded-xl border p-3 text-sm">
+                      <div className="flex items-center gap-2">
+                        {log.success ? <CheckCircle2 aria-label="Sucesso" className="h-4 w-4 shrink-0 text-money" /> : <XCircle aria-label="Falha" className="h-4 w-4 shrink-0 text-destructive" />}
+                        <code className="min-w-0 flex-1 break-all text-xs">{log.tool}</code>
+                        <time dateTime={log.createdAt} title={new Date(log.createdAt).toLocaleString('pt-BR')} className="shrink-0 text-xs text-muted-foreground">{timeAgo(log.createdAt)}</time>
+                      </div>
+                      {log.clientId && <p className="break-all text-xs text-muted-foreground">Cliente: {log.clientId}</p>}
+                      {log.error && <details><summary className="cursor-pointer text-xs text-destructive">Ver motivo da falha</summary><p className="mt-2 break-words text-xs text-muted-foreground">{log.error}</p></details>}
+                    </article>
                   ))}
                 </div>
               )}
             </CardContent>
           </Card>
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed p-5"><div className="min-w-0"><p className="text-sm font-medium">Do contexto à entrega</p><p className="mt-1 max-w-xl text-sm text-muted-foreground">Na área profissional, o Sirius prepara escopos para sua revisão. A ligação com o quadro do Hermes segue um contrato próprio; o MCP ativo não confirma essa ligação.</p></div><Button variant="outline" asChild><Link href="/profissional">Ver escopos e aprovações</Link></Button></div>
 
           {/* A model test is separate from the MCP connection. */}
           <details className="group rounded-xl border bg-card">
@@ -220,7 +222,7 @@ export default function HermesPage() {
                 placeholder="Escreva um prompt de teste..."
                 rows={3}
               />
-              <Button onClick={runTest} disabled={!prompt.trim() || testing || !status?.nousConfigured} className="gap-1.5">
+              <Button onClick={runTest} disabled={!prompt.trim() || testing || !status?.nousConfigured || !!statusError} className="gap-1.5">
                 {testing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Enviar
               </Button>
               {testResult && (

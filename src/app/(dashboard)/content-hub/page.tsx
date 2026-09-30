@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   Plus, Search, Rss, RefreshCw, ExternalLink, Star, Archive, ArchiveRestore, Bookmark,
-  ChevronLeft, ChevronRight, Loader2, AlertTriangle, Settings2, Trash2, Inbox, Check,
+  ChevronLeft, ChevronRight, Loader2, AlertTriangle, Settings2, Trash2, NotebookText,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -11,6 +12,7 @@ import { apiFetch, showError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -311,18 +313,9 @@ export default function ContentHubPage() {
   const erroredSources = sources.filter(s => s.fetchStatus === 'error');
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4 p-4 lg:p-8">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="font-display text-2xl font-bold tracking-tight">Fontes &amp; Refs</h1>
-          <p className="truncate text-sm text-muted-foreground">
-            {sources.length === 0
-              ? 'Tudo o que você lê, num lugar só'
-              : `${counts.unread} não ${counts.unread === 1 ? 'lido' : 'lidos'} · ${sources.length} ${sources.length === 1 ? 'fonte' : 'fontes'}`}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
+    <div className="work-page mx-auto w-full max-w-6xl p-4 lg:p-8">
+      <WorkspaceHeading eyebrow="Leituras que alimentam ideias" title="Fontes & Refs" description="Acompanhe suas fontes com calma. Leia, destaque o que importa e leve as melhores referências para sua biblioteca." actions={<>
+          <Link href="/notas" className="work-action-link"><NotebookText className="h-4 w-4" /> Notas</Link>
           {sources.length > 0 && (
             <Button
               variant="outline"
@@ -335,17 +328,22 @@ export default function ContentHubPage() {
             </Button>
           )}
           <Button onClick={() => setShowAdd(true)} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Fonte
+            <Plus className="h-4 w-4" /> Nova fonte
           </Button>
+      </>}>
+        <div className="work-metrics">
+          <WorkspaceMetric label="Para ler" value={items.filter(item => isUnread(item) && item.status !== 'archived').length} detail="Seu próximo encontro com uma ideia" tone="primary" />
+          <WorkspaceMetric label="Fontes" value={sources.length} detail="Perspectivas que você acompanha" />
+          <WorkspaceMetric label="Destaques" value={items.filter(item => item.importance === 'high' && item.status !== 'archived').length} detail="Referências que merecem voltar" />
         </div>
-      </div>
+      </WorkspaceHeading>
 
       {sources.length === 0 ? (
         <EmptyState onAdd={() => setShowAdd(true)} />
       ) : (
         <>
           {/* Source chips */}
-          <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:px-0 [scrollbar-width:none]">
+          <div className="mb-5 flex items-center gap-2 overflow-x-auto pb-1 [scrollbar-width:none]" aria-label="Filtrar por fonte">
             <SourceChip active={filterSource === 'all'} onClick={() => setFilterSource('all')} label="Todas" count={items.filter(i => i.status !== 'archived' && isUnread(i)).length} />
             {sources.map(source => (
               <SourceChip
@@ -361,7 +359,7 @@ export default function ContentHubPage() {
             <button
               onClick={() => setShowManage(true)}
               aria-label="Gerenciar fontes"
-              className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-border px-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
+              className="flex h-11 shrink-0 items-center gap-1.5 rounded-xl border border-dashed border-border px-3 text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
               <Settings2 className="h-3.5 w-3.5" /> Gerenciar
             </button>
@@ -370,7 +368,7 @@ export default function ContentHubPage() {
           {erroredSources.length > 0 && (
             <button
               onClick={() => setShowManage(true)}
-              className="flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-300"
+              className="mb-5 flex w-full items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-left text-xs text-amber-700 dark:text-amber-300"
             >
               <AlertTriangle className="h-4 w-4 shrink-0" />
               {erroredSources.length === 1
@@ -380,14 +378,15 @@ export default function ContentHubPage() {
           )}
 
           {/* Tabs + search */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-1 overflow-x-auto rounded-lg border bg-muted/30 p-0.5 [scrollbar-width:none]">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="work-view-switch overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Estado da leitura">
               {TABS.map(t => (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
+                  aria-pressed={tab === t.id}
                   className={cn(
-                    'flex shrink-0 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+                    'flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors',
                     tab === t.id ? 'bg-secondary font-medium text-foreground' : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
@@ -398,22 +397,24 @@ export default function ContentHubPage() {
             </div>
             <div className="relative sm:w-56">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="h-9 pl-9" />
+              <Input aria-label="Buscar referências" value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar uma referência..." className="h-11 pl-9" />
             </div>
           </div>
 
           {/* List */}
           {visible.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-border/60 px-4 py-14 text-center">
-              <p className="text-sm font-medium text-muted-foreground">
+            <div className="work-empty">
+              <Bookmark className="h-7 w-7 text-primary" />
+              <p className="font-display text-2xl">
                 {search ? 'Nada bate com essa busca.' : tab === 'unread' ? 'Tudo lido por aqui.' : tab === 'starred' ? 'Nenhum item com estrela.' : tab === 'archived' ? 'Arquivo vazio.' : 'Nenhum item ainda.'}
               </p>
+              {search || filterSource !== 'all' ? <Button variant="outline" size="sm" onClick={() => { setSearch(''); setFilterSource('all'); }}>Limpar filtros</Button> : null}
               {tab === 'unread' && !search && counts.all > 0 && (
                 <Button variant="link" size="sm" onClick={() => setTab('all')}>Ver todos os itens</Button>
               )}
             </div>
           ) : (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-3">
               {visible.map(item => (
                 <ItemRow
                   key={item.id}
@@ -462,13 +463,13 @@ export default function ContentHubPage() {
 
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="flex flex-col items-center gap-4 rounded-xl border border-dashed border-border/60 px-6 py-16 text-center">
+    <div className="work-empty">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/50">
         <Rss className="h-7 w-7 text-muted-foreground/60" />
       </div>
       <div>
-        <p className="text-sm font-medium">Nenhuma fonte ainda</p>
-        <p className="mx-auto mt-1 max-w-xs text-xs text-muted-foreground">
+        <p className="font-display text-2xl">Abra espaço para novas referências</p>
+        <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
           Cole o endereço de um site ou blog que você acompanha. O feed é encontrado sozinho.
         </p>
       </div>
@@ -483,8 +484,9 @@ function SourceChip({ label, count, active, warning, busy, onClick }: {
   return (
     <button
       onClick={onClick}
+      aria-pressed={active}
       className={cn(
-        'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors',
+        'flex h-11 shrink-0 items-center gap-1.5 rounded-xl border px-3 text-xs transition-colors',
         active ? 'border-primary/40 bg-primary/15 text-foreground' : 'border-border text-muted-foreground hover:text-foreground',
       )}
     >
@@ -504,12 +506,9 @@ function ItemRow({ item, sourceName, onOpen, onStar, onArchive }: {
   return (
     <li className="group relative">
       <div
-        role="button"
-        tabIndex={0}
         onClick={onOpen}
-        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}
         className={cn(
-          'flex cursor-pointer gap-3 rounded-xl border p-3 pr-3 transition-colors hover:bg-card/80 sm:p-4',
+          'work-item-card flex cursor-pointer gap-3 border p-4 transition-colors hover:border-primary/40 sm:gap-4 sm:p-5',
           unread ? 'border-border bg-card/60' : 'border-border/40 bg-transparent',
         )}
       >
@@ -519,21 +518,24 @@ function ItemRow({ item, sourceName, onOpen, onStar, onArchive }: {
             <span className="truncate font-medium">{sourceName}</span>
             <span aria-hidden>·</span>
             <span className="shrink-0">{timeAgo(item.publishedAt ?? item.fetchedAt)}</span>
-            {item.linkedCaptureId && <Inbox className="h-3 w-3 shrink-0 text-money" aria-label="No INBOX" />}
+            {item.linkedCaptureId && <Link href={`/notas?open=${encodeURIComponent(item.linkedCaptureId)}`} onClick={event => event.stopPropagation()} className="ml-auto inline-flex min-h-8 shrink-0 items-center gap-1 text-primary hover:underline" aria-label={`Abrir nota de ${item.title}`}><NotebookText className="h-3 w-3" /><span className="hidden sm:inline">Guardado</span></Link>}
           </div>
-          <h3 className={cn('mt-1 line-clamp-2 text-[15px] leading-snug', unread ? 'font-semibold' : 'font-medium text-muted-foreground')}>
-            {item.title}
+          <h3 className={cn('mt-2 font-display text-xl leading-snug sm:text-2xl', !unread && 'text-muted-foreground')}>
+            <button type="button" aria-label={`Ler ${item.title}`} onClick={event => { event.stopPropagation(); onOpen(); }} className="work-card-title line-clamp-2 w-full text-left focus-visible:outline-2 focus-visible:outline-primary">{item.title}</button>
           </h3>
           {item.excerpt && (
-            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground/80">{item.excerpt}</p>
+            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground/80">{item.excerpt}</p>
           )}
-          <div className="mt-2 flex items-center gap-1 sm:hidden" onClick={e => e.stopPropagation()}>
+          <div className="mt-3 flex items-center justify-between gap-1">
+            <span className="text-[11px] text-muted-foreground">{readMinutes(item.content || item.excerpt || '')} min de leitura</span>
+            <div className="flex items-center gap-1 sm:hidden" onClick={e => e.stopPropagation()}>
             <RowButton label={starred ? 'Tirar estrela' : 'Marcar com estrela'} onClick={onStar}>
               <Star className={cn('h-4 w-4', starred && 'fill-amber-400 text-amber-400')} />
             </RowButton>
             <RowButton label={archived ? 'Desarquivar' : 'Arquivar'} onClick={onArchive}>
               {archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
             </RowButton>
+            </div>
           </div>
         </div>
         {item.imageUrl && <Thumb src={item.imageUrl} />}
@@ -545,7 +547,7 @@ function ItemRow({ item, sourceName, onOpen, onStar, onArchive }: {
             {archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
           </RowButton>
         </div>
-        {starred && <Star className="absolute right-3 top-3 h-3.5 w-3.5 fill-amber-400 text-amber-400 group-hover:hidden" aria-hidden />}
+        {starred && <Star className="absolute right-3 top-3 h-3.5 w-3.5 fill-amber-400 text-amber-400 group-hover:hidden group-focus-within:hidden" aria-hidden />}
       </div>
     </li>
   );
@@ -557,8 +559,8 @@ function RowButton({ label, onClick, children }: { label: string; onClick: () =>
       type="button"
       aria-label={label}
       title={label}
-      onClick={onClick}
-      className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:h-8 sm:w-8"
+      onClick={event => { event.stopPropagation(); onClick(); }}
+      className="flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
     >
       {children}
     </button>
@@ -654,7 +656,7 @@ function Reader({ item, sourceName, position, loadingFull, hasPrev, hasNext, onS
               </div>
             </div>
 
-            <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
+            <div ref={bodyRef} className="flex-1 overflow-y-auto px-5 py-6 sm:px-8" data-lenis-prevent>
               <p className="text-xs text-muted-foreground">
                 {[sourceName, item.author, timeAgo(item.publishedAt ?? item.fetchedAt), `${readMinutes(item.content || '')} min de leitura`].filter(Boolean).join(' · ')}
               </p>
@@ -693,17 +695,15 @@ function Reader({ item, sourceName, position, loadingFull, hasPrev, hasNext, onS
               )}
             </div>
 
-            <div className="flex items-center gap-2 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <Button
-                variant={item.linkedCaptureId ? 'ghost' : 'outline'}
-                className="flex-1 gap-2 sm:flex-none"
-                disabled={Boolean(item.linkedCaptureId)}
+            <div className="flex flex-wrap items-center gap-2 border-t px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              {item.linkedCaptureId ? <Button asChild variant="outline" className="min-h-11 flex-1 gap-2 sm:flex-none"><Link href={`/notas?open=${encodeURIComponent(item.linkedCaptureId)}`}><NotebookText className="h-4 w-4" /> Abrir nota</Link></Button> : <Button
+                variant="outline"
+                className="min-h-11 flex-1 gap-2 sm:flex-none"
                 onClick={() => onClip(item)}
               >
-                {item.linkedCaptureId ? <Check className="h-4 w-4 text-money" /> : <Bookmark className="h-4 w-4" />}
-                {item.linkedCaptureId ? 'No INBOX' : 'Guardar no INBOX'}
-              </Button>
-              <Button asChild className="flex-1 gap-2 sm:ml-auto sm:flex-none">
+                <Bookmark className="h-4 w-4" /> Guardar no INBOX
+              </Button>}
+              <Button asChild className="min-h-11 flex-1 gap-2 sm:ml-auto sm:flex-none">
                 <a href={item.url} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-4 w-4" /> Abrir original
                 </a>
@@ -755,7 +755,7 @@ function AddSourceDialog({ open, onOpenChange, onAdded }: {
       <DialogContent className="max-sm:top-auto max-sm:bottom-0 max-sm:translate-y-0 max-sm:rounded-b-none">
         <form onSubmit={submit} className="grid gap-4">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Rss className="h-5 w-5 text-orange-400" /> Nova fonte</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><Rss className="h-5 w-5 text-primary" /> Nova fonte</DialogTitle>
             <DialogDescription>Cole o endereço do site, blog ou feed. Eu procuro o RSS.</DialogDescription>
           </DialogHeader>
           <div className="grid gap-1.5">
@@ -815,7 +815,7 @@ function ManageSourcesDialog({ open, onOpenChange, sources, items, refreshing, o
                   </Button>
                 </div>
                 {source.fetchStatus === 'error' && source.error && (
-                  <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-300">
+                  <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
                     <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {source.error}
                   </p>
                 )}

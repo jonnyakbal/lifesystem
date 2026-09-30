@@ -86,7 +86,12 @@ const PLURAL_SCOPES: Record<string, string> = {
 };
 
 export function canUseMcpTool(toolName: string, scopes: string[]): boolean {
+  const professional = ['query_professional', 'get_professional_schemas', 'get_professional_receipt', 'get_professional_diagnostics', 'propose_professional_change', 'batch_professional_proposals', 'apply_professional_proposal', 'submit_professional_artifact', 'report_professional_execution'];
+  if (scopes.includes('professional:only') && !professional.includes(toolName)) return false;
   if (scopes.includes('*')) return true;
+
+  const professionalActions: Record<string, string> = { query_professional: 'read', get_professional_schemas: 'read', get_professional_receipt: 'read', get_professional_diagnostics: 'read', propose_professional_change: 'propose', batch_professional_proposals: 'propose', apply_professional_proposal: 'apply', submit_professional_artifact: 'artifact', report_professional_execution: 'execution' };
+  if (professionalActions[toolName]) return scopes.includes(`professional:${professionalActions[toolName]}`);
 
   const actionScopes: Record<string, string[]> = {
     convert_capture: ['captures:convert', 'captures:write', 'captures:*'],

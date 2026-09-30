@@ -1,289 +1,90 @@
 'use client';
 
-// The fast, transient triage queue — separate from /notas (the permanent,
-// deep knowledge hub). Everything here has status:'inbox': dumped quickly
-// (Captura Rápida / ⌘K, or "Novo" below) and not yet looked at. Opening one
-// takes you to /notas?open=<id> to actually write/organize it — the moment
-// that page's autosave fires, the capture is promoted to a Note and
-// disappears from here. No editor lives in this file on purpose.
-import { useEffect, useState, useMemo } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import {
-  Plus, Trash2, Search, Inbox as InboxIcon, MoreHorizontal,
-  ArrowRight, ListChecks, CheckCircle2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import { ArrowRight, Inbox, ListChecks, MoreHorizontal, Plus, Search, Trash2, CheckCircle2 } from 'lucide-react';
+import { apiFetch, showError } from '@/lib/api';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { toast } from 'sonner';
-import { apiFetch, showError } from '@/lib/api';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { CaptureConversionDialog } from '@/components/capture-conversion-dialog';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { WeeklyReviewFlow } from '@/components/weekly-review-flow';
+import { toast } from 'sonner';
 
-interface Capture {
-  id: string;
-  content: string;
-  title?: string;
-  type: 'text' | 'link' | 'image' | 'audio';
-  status: string;
-  createdAt: string;
-}
-
-function getTitle(content: string): string {
-  const text = content.replace(/<[^>]*>/g, '').trim();
-  return text.split('\n')[0].slice(0, 80) || 'Sem título';
-}
-
-// Sticky-note look for the queue: each card gets a deterministic color +
-// slight rotation from its own id (hash, not Math.random() — has to be the
-// same on server and client render or React complains about a mismatch).
-const STICKY_COLORS = [
-  { bg: 'bg-yellow-100 dark:bg-yellow-950/40', border: 'border-yellow-300/50 dark:border-yellow-800/50' },
-  { bg: 'bg-pink-100 dark:bg-pink-950/40', border: 'border-pink-300/50 dark:border-pink-800/50' },
-  { bg: 'bg-blue-100 dark:bg-blue-950/40', border: 'border-blue-300/50 dark:border-blue-800/50' },
-  { bg: 'bg-green-100 dark:bg-green-950/40', border: 'border-green-300/50 dark:border-green-800/50' },
-  { bg: 'bg-orange-100 dark:bg-orange-950/40', border: 'border-orange-300/50 dark:border-orange-800/50' },
-  { bg: 'bg-purple-100 dark:bg-purple-950/40', border: 'border-purple-300/50 dark:border-purple-800/50' },
-];
-
-function hashId(id: string): number {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) { hash = ((hash << 5) - hash) + id.charCodeAt(i); hash |= 0; }
-  return Math.abs(hash);
-}
-
-function getStickyStyle(id: string) {
-  const h = hashId(id);
-  const color = STICKY_COLORS[h % STICKY_COLORS.length];
-  const rotation = (h % 5) - 2; // -2deg..2deg, subtle
-  return { color, rotation };
-}
-
-const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
-const stagger = { animate: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } } };
+interface Capture { id: string; content: string; title?: string; type: 'text' | 'link' | 'image' | 'audio'; status: string; createdAt: string; }
+const typeLabels = { text: 'Ideia', link: 'Referência', image: 'Imagem', audio: 'Áudio' };
+const captureTitle = (capture: Capture) => capture.title || capture.content.replace(/<[^>]*>/g, '').trim().split('\n')[0].slice(0, 100) || 'Sem título';
 
 export default function InboxPage() {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [converting, setConverting] = useState<Capture | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [quickTitle, setQuickTitle] = useState('');
+  const [adding, setAdding] = useState(false);
+  const saving = useRef(false);
   const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewDoneAt, setReviewDoneAt] = useState<string | null>(null);
-
-  useEffect(() => {
-    loadCaptures();
-    // A Revisão Semanal persiste a conclusão (weekly-review-flow.tsx). Com
-    // revisão feita há menos de 7 dias, o convite vira uma linha discreta —
-    // não precisa de botão gigante repetido todos os dias.
-    try {
-      queueMicrotask(() => setReviewDoneAt(localStorage.getItem('lifesystem-last-weekly-review')));
-    } catch { /* storage bloqueado — segue com banner completo */ }
+  const [reviewFresh, setReviewFresh] = useState(false);
+  const loadCaptures = useCallback(async () => {
+    setLoading(true); setLoadError('');
+    try { setCaptures(await apiFetch<Capture[]>('/api/captures')); }
+    catch (error) { setLoadError(showError(error)); }
+    finally { setLoading(false); }
   }, []);
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadCaptures();
+      refreshReview();
+    });
+  }, [loadCaptures]);
 
-  async function loadCaptures() {
+  function refreshReview() {
     try {
-      const data = await apiFetch<Capture[]>('/api/captures');
-      setCaptures(data);
-    } catch (err) {
-      toast.error(showError(err));
-    } finally {
-      setIsLoading(false);
-    }
+      const completed = localStorage.getItem('lifesystem-last-weekly-review');
+      const age = completed ? Date.now() - new Date(completed).getTime() : Infinity;
+      setReviewFresh(age >= 0 && age < 7 * 86400000);
+    } catch { /* A revisão também funciona sem armazenamento do navegador. */ }
   }
 
-  // Creates the capture then jumps straight into the Notas editor — same
-  // "open it = it becomes a note" rule applies to brand-new ones too, not
-  // just ones dumped elsewhere (⌘K).
-  async function handleQuickAdd() {
-    if (!quickTitle.trim()) return;
+  async function addCapture() {
+    if (!quickTitle.trim() || saving.current) return;
+    saving.current = true; setAdding(true);
     try {
-      const created = await apiFetch<Capture>('/api/captures', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: quickTitle, type: 'text' }),
-      });
-      setQuickTitle('');
-      setCaptures(current => [created, ...current]);
-    } catch (err) {
-      toast.error(showError(err));
-    }
+      const created = await apiFetch<Capture>('/api/captures', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: quickTitle.trim(), type: 'text', status: 'inbox' }) });
+      setCaptures(previous => [created, ...previous]); setQuickTitle(''); toast.success('Captura adicionada.');
+    } catch (error) { toast.error(showError(error)); }
+    finally { saving.current = false; setAdding(false); }
   }
-
-  async function handleDelete(id: string) {
-    try {
-      await apiFetch(`/api/captures/${id}`, { method: 'DELETE' });
-      loadCaptures();
-      toast.success('Excluída');
-    } catch (err) { toast.error(showError(err)); }
+  async function deleteCapture(id: string) {
+    try { await apiFetch(`/api/captures/${id}`, { method: 'DELETE' }); setCaptures(previous => previous.filter(capture => capture.id !== id)); toast.success('Captura excluída.'); }
+    catch (error) { toast.error(showError(error)); }
   }
+  const queue = captures.filter(capture => capture.status === 'inbox').sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const query = search.trim().toLocaleLowerCase('pt-BR');
+  const filtered = queue.filter(capture => `${capture.title || ''} ${capture.content.replace(/<[^>]*>/g, '')}`.toLocaleLowerCase('pt-BR').includes(query));
 
-
-
-  const queue = useMemo(() => captures.filter(c => c.status === 'inbox'), [captures]);
-
-  // Revisão feita há < 7 dias → banner discreto (ver useEffect acima).
-  const reviewAgeMs = reviewDoneAt ? Date.now() - new Date(reviewDoneAt).getTime() : Infinity;
-  const reviewDaysSince = Math.floor(reviewAgeMs / 86_400_000);
-  const reviewDoneFresh = reviewAgeMs < 7 * 86_400_000;
-
-  const filtered = useMemo(() => {
-    if (!search) return queue;
-    const q = search.toLowerCase();
-    return queue.filter(c => c.content.toLowerCase().includes(q));
-  }, [queue, search]);
-
-  return (
-    <motion.div className="p-4 lg:p-8 max-w-4xl" variants={stagger} initial="initial" animate="animate">
-      <CaptureConversionDialog key={converting?.id || "closed"} capture={converting} onClose={() => setConverting(null)} onConverted={loadCaptures} />
-      <motion.div className="mb-6" variants={fade}>
-        <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3">
-          <InboxIcon className="h-7 w-7 text-primary" /> INBOX
-        </h1>
-        <p className="text-muted-foreground">Capture agora. Escolha depois o melhor destino.</p>
-      </motion.div>
-
-      {reviewDoneFresh ? (
-        <motion.div variants={fade} className="mb-6">
-          <button
-            onClick={() => setReviewOpen(true)}
-            className="flex w-full items-center gap-2 rounded-lg border border-border/60 px-4 py-2 text-left text-xs text-muted-foreground transition-colors hover:border-primary/30 hover:text-foreground"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5 text-money" />
-            <span className="flex-1">Revisão Semanal em dia ({reviewDaysSince === 0 ? 'hoje' : `há ${reviewDaysSince}d`})</span>
-            <span className="opacity-60">Refazer</span>
-          </button>
-        </motion.div>
-      ) : (
-      <motion.div variants={fade} className="mb-6 max-w-xl">
-        <motion.button
-          onClick={() => setReviewOpen(true)}
-          className="group relative flex w-full items-center gap-3 overflow-hidden rounded-xl border border-primary/30 bg-gradient-to-r from-primary/20 via-primary/10 to-transparent px-5 py-4 text-left shadow-sm transition-shadow hover:shadow-lg hover:shadow-primary/10"
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-        >
-          <motion.div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20 text-primary"
-            animate={{ scale: [1, 1.12, 1] }}
-            transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <ListChecks className="h-5 w-5" />
-          </motion.div>
-          <div className="flex-1">
-            <p className="font-medium">Fazer Revisão Semanal</p>
-            <p className="text-xs text-muted-foreground">Processar o INBOX, revisar Metas, tarefas atrasadas e a Visão — 5 passos guiados</p>
-          </div>
-          <ArrowRight className="h-4 w-4 shrink-0 text-primary opacity-100" />
-        </motion.button>
-      </motion.div>
-      )}
-
-      <motion.div className="mb-6 flex max-w-xl gap-2" variants={fade}>
-        <Input
-          value={quickTitle}
-          onChange={e => setQuickTitle(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleQuickAdd()}
-          placeholder="Jogar uma ideia rápida aqui..."
-          className="h-10"
-        />
-        <Button onClick={handleQuickAdd} disabled={!quickTitle.trim()} className="gap-1.5 shrink-0">
-          <Plus className="h-4 w-4" /> Adicionar
-        </Button>
-      </motion.div>
-
-      {queue.length > 0 && (
-        <motion.div className="relative mb-6 max-w-xl" variants={fade}>
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar na fila..." className="pl-9 h-9" />
-        </motion.div>
-      )}
-
-      {isLoading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16 w-full" />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <motion.div
-              className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/50"
-              animate={{ y: [0, -5, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-            >
-              <InboxIcon className="h-8 w-8 text-muted-foreground" />
-            </motion.div>
-            <p className="mt-4 text-lg font-medium">INBOX vazia</p>
-            <p className="text-sm text-muted-foreground">Tudo processado — bom trabalho.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <motion.div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6" variants={stagger}>
-          <AnimatePresence initial={false}>
-            {filtered.map(capture => {
-              const { color, rotation } = getStickyStyle(capture.id);
-              return (
-                <motion.div
-                  key={capture.id}
-                  variants={fade}
-                  layout
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  style={{ rotate: `${rotation}deg` }}
-                  whileHover={{ rotate: 0, scale: 1.03 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                >
-                  <Card
-                    className={cn(
-                      'group relative min-h-[140px] cursor-pointer border shadow-md transition-shadow hover:shadow-xl',
-                      color.bg, color.border,
-                    )}
-                    onClick={() => setConverting(capture)}
-                  >
-                    <div className="absolute right-1.5 top-1.5 opacity-100">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" aria-label="Ações da captura" className="h-11 w-11 hover:bg-black/10 dark:hover:bg-white/10" onClick={e => e.stopPropagation()}>
-                            <MoreHorizontal className="h-3.5 w-3.5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={e => e.stopPropagation()}>
-                          <DropdownMenuItem onClick={() => setConverting(capture)}>
-                            <ArrowRight className="mr-2 h-4 w-4" /> Converter captura…
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <CardContent className="flex h-full flex-col p-4 pr-12">
-                      <p className="line-clamp-4 flex-1 text-sm font-medium text-foreground/90">
-                        {capture.title || getTitle(capture.content)}
-                      </p>
-                      <p className="mt-2 flex items-center gap-1 text-xs text-foreground/50">
-                        {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        <ArrowRight className="h-3 w-3 opacity-100" />
-                      </p>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        </motion.div>
-      )}
-
-      <Dialog open={reviewOpen} onOpenChange={(open) => { setReviewOpen(open); if (!open) loadCaptures(); }}>
-        <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
-          <WeeklyReviewFlow />
-        </DialogContent>
-      </Dialog>
-    </motion.div>
-  );
+  return <div className="work-page mx-auto max-w-[1400px] space-y-6 p-4 pb-24 lg:p-8">
+    <CaptureConversionDialog key={converting?.id || 'closed'} capture={converting} onClose={() => setConverting(null)} onConverted={loadCaptures} />
+    <WorkspaceHeading eyebrow="Capturar" title="Caixa de entrada" description="Tire da cabeça. Depois, escolha um destino: nota, tarefa, conteúdo, financeiro, evento ou projeto." actions={<Button variant="outline" asChild><Link href="/notas">Minha biblioteca<ArrowRight className="h-4 w-4" /></Link></Button>}>
+      <div className="flex flex-wrap gap-6"><WorkspaceMetric label="Para decidir" value={loading || loadError ? '—' : queue.length} detail="Ideias esperando um próximo passo" tone="primary" /><WorkspaceMetric label="Sua revisão" value={reviewFresh ? 'Em dia' : 'No seu ritmo'} detail="Um ritual curto para ajustar a direção" /></div>
+    </WorkspaceHeading>
+    <form onSubmit={event => { event.preventDefault(); void addCapture(); }} className="rounded-2xl border bg-card p-4 sm:p-5">
+      <label htmlFor="inbox-quick-capture" className="mb-3 block text-sm font-medium">O que não pode se perder?</label>
+      <div className="flex flex-wrap gap-2"><Input id="inbox-quick-capture" value={quickTitle} onChange={event => setQuickTitle(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void addCapture(); } }} disabled={adding} placeholder="Jogar uma ideia rápida aqui..." className="min-w-0 flex-1 basis-48" /><Button type="submit" disabled={!quickTitle.trim() || adding}><Plus className="h-4 w-4" />{adding ? 'Salvando…' : 'Adicionar'}</Button></div>
+    </form>
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="relative min-w-0 flex-1 basis-64"><Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Buscar na fila" value={search} onChange={event => setSearch(event.target.value)} placeholder="Buscar na fila..." className="pl-9" /></div>
+      <Button variant="ghost" onClick={() => setReviewOpen(true)}>{reviewFresh ? <CheckCircle2 className="h-4 w-4 text-money" /> : <ListChecks className="h-4 w-4 text-primary" />}{reviewFresh ? 'Revisão em dia' : 'Revisar a semana'}<ArrowRight className="h-4 w-4" /></Button>
+    </div>
+    {loading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{[0, 1, 2].map(index => <Skeleton key={index} className="h-48 rounded-2xl" />)}</div> : loadError ? <Card><CardContent className="space-y-3 py-8"><p role="alert" className="text-sm text-destructive">Não foi possível carregar a fila. {loadError}</p><Button variant="outline" onClick={loadCaptures}>Tentar novamente</Button></CardContent></Card> : filtered.length === 0 ? <div className="flex flex-col items-center rounded-2xl border border-dashed px-6 py-14 text-center"><Inbox className="mb-4 h-8 w-8 text-primary/60" /><h2 className="font-display text-2xl">{query ? 'Nenhuma captura encontrada' : 'Espaço para a próxima ideia'}</h2><p className="mt-3 max-w-sm text-sm leading-relaxed text-muted-foreground">{query ? 'Tente outro termo. Suas capturas continuam na fila.' : 'Nada esperando uma decisão. Use o campo acima para guardar algo antes de esquecer.'}</p>{query && <Button className="mt-5" variant="outline" onClick={() => setSearch('')}>Limpar busca</Button>}</div> : <div className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">{filtered.map(capture => <article key={capture.id} className="group flex min-w-0 flex-col rounded-2xl border bg-card p-5 transition-colors hover:border-primary/40">
+      <div className="mb-4 flex items-center justify-between gap-2"><span className="rounded-full bg-primary/8 px-2.5 py-1 text-xs text-primary">{typeLabels[capture.type] || 'Captura'}</span><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label={`Ações de ${captureTitle(capture)}`}><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => setConverting(capture)}>Converter captura…</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={() => deleteCapture(capture.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+      <button type="button" aria-label={`Converter ${captureTitle(capture)}`} onClick={() => setConverting(capture)} className="flex flex-1 flex-col text-left focus-visible:outline-2 focus-visible:outline-primary"><h2 className="work-card-title mb-3 break-words text-lg font-medium">{captureTitle(capture)}</h2><p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">{capture.content.replace(/<[^>]*>/g, '').trim()}</p><span className="mt-6 flex w-full flex-wrap items-center justify-between gap-3 border-t pt-4 text-xs text-muted-foreground"><span>{new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}</span><span className="flex min-h-7 items-center gap-2 text-primary">Escolher destino<ArrowRight className="h-3.5 w-3.5" /></span></span></button>
+    </article>)}</div>}
+    <Dialog open={reviewOpen} onOpenChange={open => { setReviewOpen(open); if (!open) { void loadCaptures(); refreshReview(); } }}><DialogContent className="max-h-[90dvh] max-w-3xl overflow-y-auto"><DialogTitle className="sr-only">Revisão Semanal</DialogTitle><WeeklyReviewFlow embedded /></DialogContent></Dialog>
+  </div>;
 }

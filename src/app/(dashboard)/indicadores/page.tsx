@@ -1,466 +1,201 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { BarChart3, TrendingUp, TrendingDown, Minus, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
+import { motion } from 'motion/react';
+import { BarChart3, TrendingUp, TrendingDown, Minus, Plus, Trash2, ArrowUpRight, Layers, BookOpen, Target, Edit2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { apiFetch, showError } from '@/lib/api';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { toast } from 'sonner';
-import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Pillar } from '@/types';
+import type { IndicatorFrequency, Pillar } from '@/types';
 
 interface Indicator {
-  id: string;
-  pillarId: string;
-  name: string;
-  type: 'count' | 'boolean' | 'scale' | 'currency' | 'percentage';
-  targetValue?: number;
-  currentValue?: number;
-  frequency: string;
-  history?: number[];
+  id: string; pillarId: string; name: string; type: 'count' | 'boolean' | 'scale' | 'currency' | 'percentage';
+  targetValue?: number; currentValue?: number; frequency: string; history?: number[];
 }
 
-const fade = {
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0 },
-};
+const types: [Indicator['type'], string][] = [['count', 'Contador'], ['boolean', 'Sim/Não'], ['scale', 'Escala (1-10)'], ['currency', 'Moeda'], ['percentage', 'Porcentagem']];
+const frequencies: { value: IndicatorFrequency; label: string }[] = [
+  { value: 'daily', label: 'Diário' },
+  { value: 'weekly', label: 'Semanal' },
+  { value: 'monthly', label: 'Mensal' },
+];
+const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
 
-const stagger = {
-  animate: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
-};
-
-function Sparkline({ data, className, color }: { data: number[]; className?: string; color?: string }) {
-  if (!data || data.length < 2) return null;
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
-  const range = max - min || 1;
-  const width = 100;
-  const height = 32;
-  const padding = 2;
-  const strokeColor = color || "var(--color-primary)";
-
-  const points = data.map((val, i) => {
-    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
-    const y = height - padding - ((val - min) / range) * (height - padding * 2);
-    return `${x},${y}`;
-  }).join(' ');
-
-  return (
-    <svg viewBox={`0 0 ${width} ${height}`} className={cn('w-full h-8', className)}>
-      <defs>
-        <linearGradient id="sparkline-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={strokeColor} stopOpacity="0.3" />
-          <stop offset="100%" stopColor={strokeColor} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <polyline
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        points={points}
-      />
-    </svg>
-  );
+function normalizeFrequency(value: string): IndicatorFrequency {
+  return frequencies.find(f => f.value === value || f.label === value)?.value || 'daily';
 }
 
-export default function IndicadoresPage() {
+function frequencyLabel(value: string) {
+  return frequencies.find(f => f.value === value || f.label === value)?.label || value;
+}
+
+function Sparkline({ data }: { data: number[] }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1), min = Math.min(...data, 0);
+  const points = data.map((value, i) => `${2 + (i / (data.length - 1)) * 116},${34 - ((value - min) / (max - min || 1)) * 30}`).join(' ');
+  return <svg viewBox="0 0 120 38" className="h-10 w-full text-primary" aria-hidden="true"><polyline fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" points={points} /></svg>;
+}
+
+function formatValue(value: number, type: Indicator['type']) {
+  if (type === 'boolean') return value > 0 ? 'Sim' : 'Não';
+  if (type === 'currency') return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+  return `${value.toLocaleString('pt-BR')}${type === 'percentage' ? '%' : ''}`;
+}
+
+function IndicatorFields({ prefix, pillars, name, setName, pillar, setPillar, type, setType, target, setTarget, frequency, setFrequency, value, setValue, disabled = false }: {
+  prefix: string; pillars: Pillar[]; name: string; setName: (v: string) => void; pillar: string; setPillar: (v: string) => void;
+  type: Indicator['type']; setType: (v: Indicator['type']) => void; target: string; setTarget: (v: string) => void;
+  frequency: IndicatorFrequency; setFrequency: (v: IndicatorFrequency) => void; value?: string; setValue?: (v: string) => void; disabled?: boolean;
+}) {
+  return <fieldset disabled={disabled} className="grid gap-4 py-4">
+    <div className="grid gap-2"><Label htmlFor={`${prefix}-name`}>Nome</Label><Input id={`${prefix}-name`} value={name} onChange={e => setName(e.target.value)} placeholder="Ex: Livros lidos" required /></div>
+    <div className="grid gap-2"><Label htmlFor={`${prefix}-pillar`}>Pilar</Label><Select value={pillar} onValueChange={setPillar}><SelectTrigger id={`${prefix}-pillar`} className="min-h-11"><SelectValue placeholder="Selecione um pilar" /></SelectTrigger><SelectContent>{pillars.map(p => <SelectItem key={p.id} value={p.id}>{p.icon} {p.name}</SelectItem>)}</SelectContent></Select></div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-2"><Label htmlFor={`${prefix}-type`}>Tipo</Label><Select value={type} onValueChange={v => setType(v as Indicator['type'])}><SelectTrigger id={`${prefix}-type`} className="min-h-11"><SelectValue /></SelectTrigger><SelectContent>{types.map(([key, label]) => <SelectItem key={key} value={key}>{label}</SelectItem>)}</SelectContent></Select></div>
+      <div className="grid gap-2"><Label htmlFor={`${prefix}-frequency`}>Frequência</Label><Select value={frequency} onValueChange={v => setFrequency(v as IndicatorFrequency)}><SelectTrigger id={`${prefix}-frequency`} className="min-h-11"><SelectValue /></SelectTrigger><SelectContent>{frequencies.map(f => <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>)}</SelectContent></Select></div>
+    </div>
+    <div className="grid gap-4 sm:grid-cols-2">
+      {setValue && <div className="grid gap-2"><Label htmlFor={`${prefix}-value`}>Valor atual</Label><Input id={`${prefix}-value`} type="number" step="any" value={value} onChange={e => setValue(e.target.value)} /></div>}
+      <div className="grid gap-2"><Label htmlFor={`${prefix}-target`}>Meta (opcional)</Label><Input id={`${prefix}-target`} type="number" step="any" value={target} onChange={e => setTarget(e.target.value)} placeholder="Ex: 12" /></div>
+    </div>
+  </fieldset>;
+}
+
+function IndicadoresWorkspace() {
+  const searchParams = useSearchParams();
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [pillars, setPillars] = useState<Pillar[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
   const [editingIndicator, setEditingIndicator] = useState<Indicator | null>(null);
-
   const [newName, setNewName] = useState('');
   const [newPillar, setNewPillar] = useState('');
   const [newType, setNewType] = useState<Indicator['type']>('count');
   const [newTarget, setNewTarget] = useState('');
-  const [newFrequency, setNewFrequency] = useState('Diário');
-
+  const [newFrequency, setNewFrequency] = useState<IndicatorFrequency>('daily');
   const [editName, setEditName] = useState('');
   const [editPillar, setEditPillar] = useState('');
   const [editType, setEditType] = useState<Indicator['type']>('count');
   const [editTarget, setEditTarget] = useState('');
-  const [editFrequency, setEditFrequency] = useState('Diário');
+  const [editFrequency, setEditFrequency] = useState<IndicatorFrequency>('daily');
   const [editValue, setEditValue] = useState('');
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/pillars').then(r => r.json()),
-      fetch('/api/indicators').then(r => r.json()),
-    ]).then(([pillarsData, indicatorsData]) => {
-      const sortedPillars = pillarsData.sort((a: Pillar, b: Pillar) => a.sortOrder - b.sortOrder);
-      setPillars(sortedPillars);
-      if (sortedPillars.length > 0) {
-        setNewPillar(sortedPillars[0].id);
-        setEditPillar(sortedPillars[0].id);
-      }
-      const normalized = indicatorsData.map((i: Indicator) => ({
-        ...i,
-        history: i.history || [],
-      }));
-      setIndicators(normalized);
-      setIsLoading(false);
-    });
+  const loadData = useCallback(async () => {
+    setLoadError(''); setIsLoading(true);
+    try {
+      const [pillarData, indicatorData] = await Promise.all([apiFetch<Pillar[]>('/api/pillars'), apiFetch<Indicator[]>('/api/indicators')]);
+      setPillars([...pillarData].sort((a, b) => a.sortOrder - b.sortOrder));
+      setIndicators(indicatorData.map(i => ({ ...i, history: i.history || [] })));
+    } catch (error) { setLoadError(showError(error)); }
+    finally { setIsLoading(false); }
   }, []);
+  useEffect(() => { queueMicrotask(() => { void loadData(); }); }, [loadData]);
 
-  async function loadIndicators() {
-    const res = await fetch('/api/indicators');
-    const data = await res.json();
-    const normalized = data.map((i: Indicator) => ({
-      ...i,
-      history: i.history || [],
-    }));
-    setIndicators(normalized);
+  async function refreshIndicators() {
+    try { setIndicators(await apiFetch<Indicator[]>('/api/indicators')); }
+    catch { toast.error('Alteração salva. Recarregue a página para atualizar as metas.'); }
   }
+
+  const activePillar = pillars.find(p => p.id === searchParams.get('pillar'));
+  const visiblePillars = activePillar ? [activePillar] : pillars;
+  const reached = indicators.filter(i => (i.targetValue || 0) > 0 && (i.currentValue || 0) >= (i.targetValue || 0)).length;
+  const covered = new Set(indicators.filter(i => pillars.some(p => p.id === i.pillarId)).map(i => i.pillarId)).size;
+  function openCreate(pillarId = activePillar?.id || pillars[0]?.id || '') { setNewPillar(pillarId); setIsDialogOpen(true); }
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!newName.trim()) return;
-    await fetch('/api/indicators', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: newName, pillarId: newPillar, type: newType,
-        targetValue: newTarget ? parseFloat(newTarget) : undefined,
-        currentValue: 0, frequency: newFrequency, history: [],
-      }),
-    });
-    setNewName(''); setNewTarget('');
-    setIsDialogOpen(false);
-    loadIndicators();
-    toast.success('Indicador criado!');
+    if (!newName.trim() || !newPillar || isMutating) return;
+    setIsMutating(true);
+    try {
+      await apiFetch('/api/indicators', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName.trim(), pillarId: newPillar, type: newType, targetValue: newTarget ? parseFloat(newTarget) : undefined, currentValue: 0, frequency: newFrequency, history: [] }) });
+      setNewName(''); setNewTarget(''); setIsDialogOpen(false); toast.success('Indicador criado!'); await refreshIndicators();
+    } catch (error) { toast.error(showError(error)); }
+    finally { setIsMutating(false); }
   }
 
   function openEdit(indicator: Indicator) {
-    setEditingIndicator(indicator);
-    setEditName(indicator.name);
-    setEditPillar(indicator.pillarId);
-    setEditType(indicator.type);
-    setEditTarget(indicator.targetValue?.toString() || '');
-    setEditFrequency(indicator.frequency);
-    setEditValue(indicator.currentValue?.toString() || '0');
-    setIsEditOpen(true);
+    setEditingIndicator(indicator); setEditName(indicator.name); setEditPillar(indicator.pillarId); setEditType(indicator.type);
+    setEditTarget(indicator.targetValue?.toString() || ''); setEditFrequency(normalizeFrequency(indicator.frequency)); setEditValue(indicator.currentValue?.toString() || '0'); setIsEditOpen(true);
   }
 
-  async function handleSaveEdit() {
-    if (!editingIndicator) return;
-    const newVal = parseFloat(editValue) || 0;
-    const history = [...(editingIndicator.history || []), newVal].slice(-12);
-    await fetch(`/api/indicators/${editingIndicator.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: editName, pillarId: editPillar, type: editType,
-        targetValue: editTarget ? parseFloat(editTarget) : undefined,
-        currentValue: newVal, frequency: editFrequency, history,
-      }),
-    });
-    setIsEditOpen(false);
-    loadIndicators();
-    toast.success('Indicador atualizado!');
+  async function handleSaveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingIndicator || !editName.trim() || isMutating) return;
+    setIsMutating(true);
+    const newValue = parseFloat(editValue) || 0;
+    try {
+      await apiFetch(`/api/indicators/${editingIndicator.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: editName.trim(), pillarId: editPillar, type: editType, targetValue: editTarget ? parseFloat(editTarget) : undefined, currentValue: newValue, frequency: editFrequency, history: [...(editingIndicator.history || []), newValue].slice(-12) }) });
+      setIsEditOpen(false); toast.success('Indicador atualizado!'); await refreshIndicators();
+    } catch (error) { toast.error(showError(error)); }
+    finally { setIsMutating(false); }
   }
 
   async function handleDelete(id: string) {
-    await fetch(`/api/indicators/${id}`, { method: 'DELETE' });
-    setIsEditOpen(false);
-    loadIndicators();
-    toast.success('Indicador excluído!');
+    if (isMutating) return;
+    setIsMutating(true);
+    try { await apiFetch(`/api/indicators/${id}`, { method: 'DELETE' }); setIsEditOpen(false); toast.success('Indicador excluído!'); await refreshIndicators(); }
+    catch (error) { toast.error(showError(error)); }
+    finally { setIsMutating(false); }
   }
 
   async function handleIncrement(indicator: Indicator, delta: number) {
-    const newVal = Math.max(0, (indicator.currentValue || 0) + delta);
-    const history = [...(indicator.history || []), newVal].slice(-12);
-    await fetch(`/api/indicators/${indicator.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentValue: newVal, history }),
-    });
-    loadIndicators();
+    if (isMutating) return;
+    setIsMutating(true);
+    const newValue = Math.max(0, (indicator.currentValue || 0) + delta);
+    try { await apiFetch(`/api/indicators/${indicator.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentValue: newValue, history: [...(indicator.history || []), newValue].slice(-12) }) }); await refreshIndicators(); }
+    catch (error) { toast.error(showError(error)); }
+    finally { setIsMutating(false); }
   }
 
-  return (
-    <motion.div
-      className="p-4 lg:p-8"
-      variants={stagger}
-      initial="initial"
-      animate="animate"
-    >
-      <motion.div className="mb-8 flex items-center justify-between" variants={fade}>
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Metas</h1>
-          <p className="text-muted-foreground">Métricas e metas pessoais por pilar</p>
-        </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" /> Nova Meta
-          </Button>
-          <DialogContent>
-            <form onSubmit={handleCreate}>
-              <DialogHeader>
-                <DialogTitle>Nova Meta</DialogTitle>
-                <DialogDescription>Crie uma nova métrica ou meta pra acompanhar.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
-                  <Label>Nome</Label>
-                  <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Litros de água" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Pilar</Label>
-                  <Select value={newPillar} onValueChange={setNewPillar}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {pillars.map(p => <SelectItem key={p.id} value={p.id}>{p.icon} {p.name}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Tipo</Label>
-                  <Select value={newType} onValueChange={(v) => setNewType(v as Indicator['type'])}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="count">Contador</SelectItem>
-                      <SelectItem value="boolean">Sim/Não</SelectItem>
-                      <SelectItem value="scale">Escala (1-10)</SelectItem>
-                      <SelectItem value="currency">Moeda</SelectItem>
-                      <SelectItem value="percentage">Porcentagem</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>Meta (opcional)</Label>
-                  <Input type="number" value={newTarget} onChange={(e) => setNewTarget(e.target.value)} placeholder="Ex: 8" />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Frequência</Label>
-                  <Select value={newFrequency} onValueChange={setNewFrequency}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Diário">Diário</SelectItem>
-                      <SelectItem value="Semanal">Semanal</SelectItem>
-                      <SelectItem value="Mensal">Mensal</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={!newName.trim()}>Criar</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </motion.div>
+  return <motion.div className="work-page work-goals p-4 lg:p-8" initial="initial" animate="animate">
+    <WorkspaceHeading eyebrow="Cultivar · progresso" title="Metas" description="Transforme a direção de cada pilar em pequenos sinais de avanço. Registre, acompanhe e ajuste o que importa." actions={<>
+      <Link className="work-action-link" href="/visao?tab=pilares"><Layers className="h-4 w-4" /> Pilares</Link>
+      <Button className="min-h-11" onClick={() => openCreate()} disabled={isLoading || !!loadError || pillars.length === 0}><Plus className="mr-2 h-4 w-4" /> Nova Meta</Button>
+    </>}><div className="work-metrics"><WorkspaceMetric label="Metas em acompanhamento" value={isLoading || loadError ? '—' : indicators.length} /><WorkspaceMetric label="Alvos atingidos" value={isLoading || loadError ? '—' : reached} tone="primary" detail="Metas com valor de referência" /><WorkspaceMetric label="Pilares com metas" value={isLoading || loadError ? '—' : `${covered}/${pillars.length}`} /></div></WorkspaceHeading>
 
-      <div className="space-y-8">
-        {isLoading ? (
-          pillars.length > 0 ? (
-            pillars.map((pillar) => (
-              <div key={pillar.id}>
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="text-xl">{pillar.icon}</span>
-                  <Skeleton className="h-5 w-40" />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 2 }).map((_, i) => (
-                    <Card key={i}><CardContent className="p-4">
-                      <Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-16 mb-2" /><Skeleton className="h-2 w-full" />
-                    </CardContent></Card>
-                  ))}
-                </div>
-              </div>
-            ))
-          ) : (
-            Array.from({ length: 3 }).map((_, i) => (
-              <div key={i}>
-                <div className="mb-4 flex items-center gap-2">
-                  <Skeleton className="h-6 w-6 rounded" />
-                  <Skeleton className="h-5 w-40" />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {Array.from({ length: 2 }).map((_, j) => (
-                    <Card key={j}><CardContent className="p-4">
-                      <Skeleton className="h-4 w-24 mb-2" /><Skeleton className="h-8 w-16 mb-2" /><Skeleton className="h-2 w-full" />
-                    </CardContent></Card>
-                  ))}
-                </div>
-              </div>
-            ))
-          )
-        ) : (
-          pillars.map((pillar) => {
-            const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id);
-            return (
-              <motion.div key={pillar.id} variants={fade}>
-                <div className="mb-4 flex items-center gap-2">
-                  <span className="text-xl">{pillar.icon}</span>
-                  <h2 className="font-display text-lg font-semibold">{pillar.name}</h2>
-                  <Badge variant="secondary" className="ml-1">{pillarIndicators.length}</Badge>
-                </div>
-                 {pillarIndicators.length === 0 ? (
-                   <Card className="border-dashed">
-                     <CardContent className="flex flex-col items-center justify-center py-8">
-                       <BarChart3 className="h-10 w-10 text-muted-foreground/30 empty-state-icon mb-2" />
-                       <p className="text-sm text-muted-foreground text-center">Nenhuma meta neste pilar</p>
-                       <p className="text-xs text-muted-foreground/50 text-center mt-1">Clique em &quot;Nova Meta&quot; para começar</p>
-                     </CardContent>
-                   </Card>
-                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    <AnimatePresence>
-                      {pillarIndicators.map((indicator) => {
-                        const progress = indicator.targetValue
-                          ? ((indicator.currentValue || 0) / indicator.targetValue) * 100
-                          : 0;
-                        const trend = progress >= 80 ? 'up' : progress >= 50 ? 'stable' : 'down';
-                        const trendColors = {
-                          up: 'hsl(162 80% 58%)',
-                          stable: 'hsl(262 90% 70%)',
-                          down: 'hsl(350 88% 64%)',
-                        };
-                        return (
-                          <motion.div
-                            key={indicator.id}
-                            layout
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                          >
-                            <Card className="group cursor-pointer indicator-card transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5" onClick={() => openEdit(indicator)}>
-                              <CardContent className="p-4">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium">{indicator.name}</span>
-                                  <div className="flex items-center gap-1">
-                                    {trend === 'up' && <TrendingUp className="h-4 w-4 text-money" />}
-                                    {trend === 'down' && <TrendingDown className="h-4 w-4 text-critical" />}
-                                    {trend === 'stable' && <Minus className="h-4 w-4 text-primary" />}
-                                    <Edit2 className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                                  </div>
-                                </div>
-                                <div className="mt-2 flex items-end justify-between">
-                                  <div className="text-2xl font-bold font-mono-num">
-                                    {indicator.currentValue || 0}
-                                    {indicator.targetValue && (
-                                      <span className="text-sm font-normal text-muted-foreground"> / {indicator.targetValue}</span
->
-                                    )}
-                                  </div>
-                                  <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleIncrement(indicator, -1)}>
-                                      <span className="text-lg leading-none">−</span>
-                                    </Button>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleIncrement(indicator, 1)}>
-                                      <Plus className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <Progress value={Math.min(progress, 100)} className="mt-2 h-2 indicator-progress-bar" />
-                                {indicator.history && indicator.history.length >= 2 && (
-                                  <div className="mt-2">
-                                    <Sparkline data={indicator.history} color={trendColors[trend]} />
-                                  </div>
-                                )}
-                                <div className="mt-2 flex items-center justify-between">
-                                  <Badge variant="outline" className="text-xs">{indicator.frequency}</Badge>
-                                  {indicator.targetValue && (
-                                    <span className={cn("text-xs font-medium", 
-                                      trend === 'up' ? "text-money" : 
-                                      trend === 'down' ? "text-critical" : 
-                                      "text-primary"
-                                    )}>{Math.round(progress)}%</span>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          </motion.div>
-                        );
-                      })}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })
-        )}
-      </div>
+    {!isLoading && !loadError && pillars.length > 0 && <nav aria-label="Filtrar metas por pilar" className="mb-6 flex flex-wrap gap-2"><Link href="/indicadores" className={cn('flex min-h-11 items-center rounded-full border px-4 text-sm transition-colors', !activePillar ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40')} aria-current={!activePillar ? 'page' : undefined}>Todos os pilares</Link>{pillars.map(p => <Link key={p.id} href={`/indicadores?pillar=${encodeURIComponent(p.id)}`} aria-current={activePillar?.id === p.id ? 'page' : undefined} className={cn('flex min-h-11 max-w-full items-center gap-2 rounded-full border px-4 text-sm transition-colors', activePillar?.id === p.id ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40')}><span aria-hidden="true">{p.icon}</span><span className="truncate">{p.name}</span></Link>)}</nav>}
 
-      {/* Edit Modal */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Editar Meta</DialogTitle>
-            <DialogDescription>Altere os dados e registre um novo valor</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid gap-2">
-              <Label>Nome</Label>
-              <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Pilar</Label>
-              <Select value={editPillar} onValueChange={setEditPillar}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {pillars.map(p => <SelectItem key={p.id} value={p.id}>{p.icon} {p.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Tipo</Label>
-              <Select value={editType} onValueChange={(v) => setEditType(v as Indicator['type'])}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="count">Contador</SelectItem>
-                  <SelectItem value="boolean">Sim/Não</SelectItem>
-                  <SelectItem value="scale">Escala (1-10)</SelectItem>
-                  <SelectItem value="currency">Moeda</SelectItem>
-                  <SelectItem value="percentage">Porcentagem</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Valor Atual</Label>
-              <Input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)} />
-            </div>
-            <div className="grid gap-2">
-              <Label>Meta</Label>
-              <Input type="number" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Opcional" />
-            </div>
-            <div className="grid gap-2">
-              <Label>Frequência</Label>
-              <Select value={editFrequency} onValueChange={setEditFrequency}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Diário">Diário</SelectItem>
-                  <SelectItem value="Semanal">Semanal</SelectItem>
-                  <SelectItem value="Mensal">Mensal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            {editingIndicator && (
-              <Button variant="destructive" onClick={() => handleDelete(editingIndicator.id)}>
-                <Trash2 className="mr-2 h-4 w-4" /> Excluir
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setIsEditOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSaveEdit}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </motion.div>
-  );
+    {loadError ? <div role="alert" className="work-empty"><BarChart3 className="h-8 w-8 text-muted-foreground" /><p>Não foi possível carregar suas metas.</p><span>{loadError}</span><Button variant="outline" className="min-h-11" onClick={() => void loadData()}>Tentar novamente</Button></div> : isLoading ? <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Carregando metas">{Array.from({ length: 6 }).map((_, i) => <Card key={i}><CardContent className="space-y-5 p-5"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-10 w-1/2" /><Skeleton className="h-2 w-full" /></CardContent></Card>)}</div> : pillars.length === 0 ? <div className="work-empty"><Layers className="h-8 w-8 text-primary" /><h2 className="font-display text-2xl">Dê uma direção às suas metas</h2><span>Organize as áreas da sua vida para vincular a primeira meta.</span><Link href="/visao?tab=pilares" className="work-action-link">Conhecer meus pilares <ArrowUpRight className="h-4 w-4" /></Link></div> : <div className="space-y-8">{visiblePillars.map(pillar => {
+      const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id);
+      return <motion.section key={pillar.id} variants={fade} aria-labelledby={`goals-${pillar.id}`}>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border bg-card text-xl" aria-hidden="true">{pillar.icon}</span><div><p className="mb-1 text-[10px] uppercase tracking-[.16em] text-muted-foreground">{pillarIndicators.length} {pillarIndicators.length === 1 ? 'meta' : 'metas'}</p><h2 id={`goals-${pillar.id}`} className="font-display text-2xl leading-tight">{pillar.name}</h2></div></div><Button variant="ghost" className="min-h-11 text-primary" aria-label={`Criar meta para ${pillar.name}`} onClick={() => openCreate(pillar.id)}><Plus className="mr-2 h-4 w-4" /> Criar meta</Button></div>
+        {pillarIndicators.length === 0 ? <div className="flex flex-col items-start gap-3 rounded-2xl border border-dashed bg-card/40 p-5 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-medium">Um pequeno avanço já conta.</p><p className="mt-1 text-sm text-muted-foreground">Escolha um hábito ou resultado para acompanhar neste pilar.</p></div><Button variant="outline" className="min-h-11 shrink-0" onClick={() => openCreate(pillar.id)}>Definir primeira meta <ArrowUpRight className="ml-2 h-4 w-4" /></Button></div> : <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{pillarIndicators.map(indicator => {
+          const value = indicator.currentValue || 0;
+          const hasTarget = (indicator.targetValue || 0) > 0;
+          const progress = hasTarget ? (value / indicator.targetValue!) * 100 : 0;
+          const history = indicator.history || [];
+          const change = history.length >= 2 ? history[history.length - 1] - history[history.length - 2] : null;
+          return <Card key={indicator.id} className="overflow-hidden rounded-2xl transition-colors hover:border-primary/40"><CardContent className="p-5">
+            <div className="flex items-start justify-between gap-3"><div className="min-w-0"><Badge variant="outline" className="mb-3 text-[10px] font-normal">{frequencyLabel(indicator.frequency)}</Badge><button className="flex min-h-11 w-full items-start gap-2 text-left text-base font-medium leading-snug hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:rounded" onClick={() => openEdit(indicator)} aria-label={`Editar meta ${indicator.name}`}><span className="break-words">{indicator.name}</span><Edit2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" /></button></div><Target className="mt-1 h-4 w-4 shrink-0 text-primary/60" aria-hidden="true" /></div>
+            <div className="mt-4 flex flex-wrap items-end justify-between gap-3"><div className="min-w-0"><p className="break-words font-display text-3xl tracking-tight">{formatValue(value, indicator.type)}</p><p className="mt-1 text-xs text-muted-foreground">{hasTarget ? `Alvo: ${formatValue(indicator.targetValue!, indicator.type)}` : 'Sem alvo definido'}</p></div><div className="flex gap-1 rounded-xl border bg-background/50 p-1"><Button variant="ghost" size="icon" className="h-10 w-10" disabled={isMutating || value <= 0} aria-label={`Diminuir ${indicator.name}`} onClick={() => void handleIncrement(indicator, -1)}><Minus className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-10 w-10" disabled={isMutating} aria-label={`Aumentar ${indicator.name}`} onClick={() => void handleIncrement(indicator, 1)}><Plus className="h-4 w-4" /></Button></div></div>
+            {hasTarget && <div className="mt-5"><div className="mb-2 flex items-center justify-between text-xs"><span className="text-muted-foreground">{progress >= 100 ? 'Meta atingida' : 'Avanço até o alvo'}</span><span className={cn('font-medium tabular-nums', progress >= 100 && 'text-money')}>{Math.round(progress)}%</span></div><Progress value={Math.min(100, Math.max(0, progress))} className="h-1.5" aria-label={`Progresso de ${indicator.name}`} /></div>}
+            {history.length >= 2 && <div className="mt-5 border-t pt-3"><Sparkline data={history} /><p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">{change! > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : change! < 0 ? <TrendingDown className="h-3.5 w-3.5" /> : <Minus className="h-3.5 w-3.5" />}{change! > 0 ? 'Valor aumentou' : change! < 0 ? 'Valor diminuiu' : 'Valor estável'} desde o último registro</p></div>}
+          </CardContent></Card>;
+        })}</div>}
+      </motion.section>;
+    })}</div>}
+
+    <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t pt-5"><p className="text-sm text-muted-foreground">Os números ganham contexto na reflexão.</p><Link href="/diario" className="work-action-link"><BookOpen className="h-4 w-4" /> Registrar no diário <ArrowUpRight className="h-3.5 w-3.5" /></Link></div>
+    <Dialog open={isDialogOpen} onOpenChange={open => { if (!isMutating) setIsDialogOpen(open); }}><DialogContent className="max-h-[85dvh] overflow-y-auto"><form onSubmit={handleCreate}><DialogHeader><DialogTitle>Nova Meta</DialogTitle><DialogDescription>Escolha um sinal de progresso e o pilar que ele fortalece.</DialogDescription></DialogHeader><IndicatorFields disabled={isMutating} prefix="new-goal" pillars={pillars} name={newName} setName={setNewName} pillar={newPillar} setPillar={setNewPillar} type={newType} setType={setNewType} target={newTarget} setTarget={setNewTarget} frequency={newFrequency} setFrequency={setNewFrequency} /><DialogFooter><Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} disabled={isMutating} className="min-h-11">Cancelar</Button><Button type="submit" disabled={!newName.trim() || !newPillar || isMutating} className="min-h-11">{isMutating ? 'Criando...' : 'Criar'}</Button></DialogFooter></form></DialogContent></Dialog>
+    <Dialog open={isEditOpen} onOpenChange={open => { if (!isMutating) setIsEditOpen(open); }}><DialogContent className="max-h-[85dvh] max-w-lg overflow-y-auto"><form onSubmit={handleSaveEdit}><DialogHeader><DialogTitle>Editar Meta</DialogTitle><DialogDescription>Atualize o valor ou ajuste a meta ao seu momento.</DialogDescription></DialogHeader><IndicatorFields disabled={isMutating} prefix="edit-goal" pillars={pillars} name={editName} setName={setEditName} pillar={editPillar} setPillar={setEditPillar} type={editType} setType={setEditType} target={editTarget} setTarget={setEditTarget} frequency={editFrequency} setFrequency={setEditFrequency} value={editValue} setValue={setEditValue} /><DialogFooter className="gap-2">{editingIndicator && <Button type="button" variant="ghost" className="min-h-11 text-destructive sm:mr-auto" disabled={isMutating} onClick={() => void handleDelete(editingIndicator.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}<Button type="button" variant="outline" className="min-h-11" disabled={isMutating} onClick={() => setIsEditOpen(false)}>Cancelar</Button><Button type="submit" className="min-h-11" disabled={isMutating || !editName.trim()}>{isMutating ? 'Salvando...' : 'Salvar'}</Button></DialogFooter></form></DialogContent></Dialog>
+  </motion.div>;
+}
+
+export default function IndicadoresPage() {
+  return <Suspense fallback={<div className="p-4 lg:p-8"><Skeleton className="h-48 w-full rounded-3xl" /></div>}><IndicadoresWorkspace /></Suspense>;
 }

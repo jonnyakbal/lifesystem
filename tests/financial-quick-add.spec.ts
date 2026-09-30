@@ -54,6 +54,9 @@ test('formulário móvel mantém detalhes opcionais recolhidos e campos acessív
 });
 
 test('navega por meses vazios e pela virada do ano', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.clock.install({ time: new Date('2026-12-15T12:00:00Z') });
   await page.route('**/api/financial', route => route.fulfill({ json: [] }));
@@ -73,6 +76,7 @@ test('navega por meses vazios e pela virada do ano', async ({ page }) => {
   await expect(page.getByText('Nenhum lançamento')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
   await page.screenshot({ path: 'screenshots/financial-future-month-mobile.png', fullPage: true });
+  expect(errors).toEqual([]);
 });
 
 test('despesa prevista de outro mês não soma como pagamento', async ({ page }) => {

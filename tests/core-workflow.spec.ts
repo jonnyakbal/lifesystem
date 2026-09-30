@@ -21,7 +21,7 @@ test('mobile percorre captura, conversão, planejamento, conclusão e revisão',
     captureId = (await (await created).json()).id;
     await page.keyboard.press('Escape');
     await page.reload();
-    await page.getByText(title, { exact: true }).click();
+    await page.getByRole('button', { name: `Converter ${title}`, exact: true }).click();
     await page.getByRole('dialog').getByLabel('Destino').selectOption('task');
     const converted = page.waitForResponse(response => response.url().endsWith(`/api/captures/${captureId}/convert`));
     await page.getByRole('button', { name: 'Converter captura', exact: true }).click();

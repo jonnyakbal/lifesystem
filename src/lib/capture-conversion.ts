@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { storage } from '@/lib/storage';
 import { financialEntrySchema } from '@/lib/financial-validation';
-import { createGoogleCalendarEvent } from '@/lib/google-calendar';
+import { createManagedMcpEventId, syncManagedMcpCalendarEvent } from '@/lib/google-calendar';
+import { createHash } from 'node:crypto';
 import type { Capture } from '@/types';
 
 export const captureConversionSchema = z.object({
@@ -15,13 +16,22 @@ export async function convertCapture(id: string, input: z.infer<typeof captureCo
   const capture = await storage.getById<Capture>('captures', id);
   if (!capture) throw new Error('Captura não encontrada');
   const { targetType, financial } = input;
+  if (capture.targetId && capture.targetType !== 'note') {
+    if (capture.targetType !== targetType) throw new Error('Esta captura já foi convertida para outro destino');
+    return { id: capture.targetId, targetType };
+  }
   if (targetType === 'financial' && !financial) throw new Error('Informe valor, categoria, tipo e data.');
   if (targetType === 'event' && !input.event) throw new Error('Informe início e fim do evento.');
   const title = capture.title?.trim() || capture.content.replace(/<[^>]*>/g, ' ').trim().split('\n')[0].slice(0, 300) || 'Sem título';
   const description = capture.content;
   if (targetType === 'event') {
-    const event = await createGoogleCalendarEvent({ title, description, ...input.event! });
-    return storage.convertCapture(id, 'event', 'google-events', { eventId: event.id, url: event.url, title, start: input.event!.start, end: input.event!.end }, event.id);
+    const eventId = createManagedMcpEventId('capture-conversion', id);
+    const payload = { title, description, ...input.event!, timeZone: input.event!.timeZone || 'America/Sao_Paulo' };
+    const fingerprint = createHash('sha256').update(JSON.stringify(payload)).digest('hex');
+    const intent = await storage.createOnce<{ id: string; fingerprint: string }>('capture-calendar-intents', `capture-${id}`, { fingerprint });
+    if (intent.fingerprint !== fingerprint) throw new Error('A conversão pendente usa outros horários ou conteúdo. Recupere a intenção original antes de alterar.');
+    const event = await syncManagedMcpCalendarEvent({ eventId, clientId: 'capture-conversion', ...payload });
+    return storage.convertCapture(id, 'event', 'google-events', { eventId: event.id, url: event.htmlLink, title, start: input.event!.start, end: input.event!.end }, event.id);
   }
   const destinations: Record<Exclude<typeof targetType, 'event'>, { collection: string; data: Record<string, unknown> }> = {
     note: { collection: 'captures', data: {} },

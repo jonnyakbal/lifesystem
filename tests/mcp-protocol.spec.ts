@@ -150,7 +150,7 @@ test('MCP financial tools share card validation and preserve bill installments',
 });
 
 test('MCP exposes bounded reads and delegates capture conversion and task planning to product engines', async () => {
-  const server = createLifesystemMcpServer(['tasks:read', 'tasks:plan', 'captures:convert']);
+  const server = createLifesystemMcpServer(['tasks:read', 'tasks:plan', 'tasks:write', 'captures:convert']);
   const client = new Client({ name: 'planning-actions-test', version: '1.0.0' });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   try {

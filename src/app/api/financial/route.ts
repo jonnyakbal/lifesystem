@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { FinancialEntry } from '@/types';
 import { financialEntrySchema } from '@/lib/financial-validation';
+import { getFinancialDisplayEntries } from '@/lib/financial-categories';
 
 export async function GET() {
-  const entries = await storage.getAll<FinancialEntry>('financial');
+  const entries = await getFinancialDisplayEntries();
   return NextResponse.json(entries);
 }
 
@@ -13,6 +14,7 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: 'Dados financeiros inválidos.', details: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
   const entry = await storage.create<FinancialEntry>('financial', {
+    projectId: body.projectId,
     type: body.type,
     category: body.category,
     description: body.description,

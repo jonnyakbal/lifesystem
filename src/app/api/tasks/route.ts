@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
     const tasks = await Promise.all(
       parsed.data.map((task) =>
         storage.create<Task>('tasks', {
+          workType: task.workType, responsible: task.responsible, nextAction: task.nextAction,
           title: task.title || 'Sem título',
           description: task.description,
           priority: task.priority || 'normal',
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
   const parsed = taskPayloadSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos' }, { status: 400 });
   const task = await storage.create<Task>('tasks', {
+    workType: parsed.data.workType, responsible: parsed.data.responsible, nextAction: parsed.data.nextAction,
     title: parsed.data.title || 'Sem título',
     description: parsed.data.description,
     priority: parsed.data.priority || 'normal',

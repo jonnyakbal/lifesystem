@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Content } from '@/types';
+import { updateContent } from '@/lib/content-domain';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const body = await request.json();
-  const updated = await storage.update<Content>('content', id, body);
+  const { expectedUpdatedAt, ...body } = await request.json();
+  let updated;
+  try { updated = await updateContent(id, body, expectedUpdatedAt); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Conteúdo inválido.' }, { status: 409 }); }
   if (!updated) {
     return NextResponse.json({ error: 'Conteúdo não encontrado' }, { status: 404 });
   }

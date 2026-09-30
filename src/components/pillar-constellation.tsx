@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
+import { cn } from '@/lib/utils';
 
 export interface ConstellationPillar {
   id: string;
@@ -15,6 +16,7 @@ export interface ConstellationPillar {
 interface PillarConstellationProps {
   pillars: ConstellationPillar[];
   onSelect?: (id: string) => void;
+  selectedId?: string | null;
 }
 
 // Fixed layout — 6 points loosely tracing a hexagon/dipper shape rather than a
@@ -38,19 +40,20 @@ const BACKDROP_STARS = [
   { x: 15, y: 140, r: 0.9 }, { x: 750, y: 120, r: 1 },
 ];
 
-export function PillarConstellation({ pillars, onSelect }: PillarConstellationProps) {
+export function PillarConstellation({ pillars, onSelect, selectedId }: PillarConstellationProps) {
+  const reducedMotion = useReducedMotion();
   const points = pillars.slice(0, 6).map((p, i) => ({ ...p, ...POSITIONS[i] }));
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl border border-border/50 bg-gradient-to-b from-card/60 to-background/40 py-3">
-      <svg viewBox="0 0 800 160" className="w-full h-[120px] sm:h-[140px]" preserveAspectRatio="xMidYMid meet">
+      <svg viewBox="0 0 800 160" className="w-full h-[100px] sm:h-[140px]" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
         {BACKDROP_STARS.map((s, i) => (
           <motion.circle
             key={i}
             cx={s.x} cy={s.y} r={s.r}
             fill="currentColor"
             className="text-muted-foreground/40"
-            animate={{ opacity: [0.15, 0.6, 0.15] }}
+            animate={reducedMotion ? { opacity: 0.35 } : { opacity: [0.15, 0.6, 0.15] }}
             transition={{ duration: 3 + (i % 4), repeat: Infinity, delay: (i * 0.4) % 3, ease: 'easeInOut' }}
           />
         ))}
@@ -64,7 +67,7 @@ export function PillarConstellation({ pillars, onSelect }: PillarConstellationPr
               x1={p.x} y1={p.y} x2={next.x} y2={next.y}
               stroke="url(#constellation-gradient)"
               strokeWidth={1}
-              initial={{ pathLength: 0, opacity: 0 }}
+              initial={reducedMotion ? false : { pathLength: 0, opacity: 0 }}
               animate={{ pathLength: 1, opacity: 0.5 }}
               transition={{ duration: 1.2, delay: i * 0.15, ease: 'easeOut' }}
             />
@@ -73,8 +76,8 @@ export function PillarConstellation({ pillars, onSelect }: PillarConstellationPr
 
         <defs>
           <linearGradient id="constellation-gradient" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#a78bfa" stopOpacity="0.7" />
-            <stop offset="100%" stopColor="#a78bfa" stopOpacity="0.2" />
+            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.7" />
+            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.2" />
           </linearGradient>
           {points.map(p => (
             <radialGradient key={`glow-${p.id}`} id={`glow-${p.id}`}>
@@ -87,16 +90,12 @@ export function PillarConstellation({ pillars, onSelect }: PillarConstellationPr
         {points.map((p, i) => {
           const radius = 3 + (p.strength / 100) * 4;
           return (
-            <g
-              key={p.id}
-              className={onSelect ? 'cursor-pointer' : undefined}
-              onClick={() => onSelect?.(p.id)}
-            >
+            <g key={p.id}>
               <circle cx={p.x} cy={p.y} r={radius * 4} fill={`url(#glow-${p.id})`} />
               <motion.circle
                 cx={p.x} cy={p.y} r={radius}
                 fill={p.colorHex}
-                animate={{ opacity: [0.7, 1, 0.7], scale: [1, 1.12, 1] }}
+                animate={reducedMotion ? { opacity: 1 } : { opacity: [0.7, 1, 0.7], scale: [1, 1.12, 1] }}
                 transition={{ duration: 2.4, repeat: Infinity, delay: i * 0.3, ease: 'easeInOut' }}
               />
             </g>
@@ -104,15 +103,8 @@ export function PillarConstellation({ pillars, onSelect }: PillarConstellationPr
         })}
       </svg>
 
-      <div className="pointer-events-none absolute inset-0 grid grid-cols-6 px-2 sm:px-4">
-        {points.map(p => (
-          <div key={`label-${p.id}`} className="flex flex-col items-center justify-end pb-1">
-            <span className="text-xs sm:text-xs text-muted-foreground/70 text-center leading-tight">
-              {p.icon}
-              <span className="hidden sm:inline"> {p.name.split(' ')[0].split('/')[0]}</span>
-            </span>
-          </div>
-        ))}
+      <div className="flex flex-wrap justify-center gap-2 px-3" aria-label="Escolher pilar na constelação">
+        {pillars.map(p => onSelect ? <button key={`label-${p.id}`} aria-label={`Ir para ${p.name}`} aria-pressed={selectedId === p.id} onClick={() => onSelect(p.id)} className={cn('flex min-h-11 max-w-full items-center gap-2 rounded-xl border px-3 py-2 text-left text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', selectedId === p.id ? 'border-primary/30 bg-primary/10 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50')}><span aria-hidden="true">{p.icon}</span><span className="break-words">{p.name}</span></button> : <span key={`label-${p.id}`} className="flex items-center gap-2 text-xs text-muted-foreground"><span aria-hidden="true">{p.icon}</span>{p.name}</span>)}
       </div>
     </div>
   );

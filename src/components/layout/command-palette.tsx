@@ -7,9 +7,11 @@ import { useRouter } from 'next/navigation';
 import {
   Inbox, Target, Layers, FolderKanban, CheckSquare,
   BarChart3, Wallet, BookOpen, FileText, Plus, ArrowRight, Command,
-  Zap, Calendar, TrendingUp, Loader2, ListChecks, NotebookText, Wand2, ScrollText, Bot, Award
+  Zap, Calendar, TrendingUp, Loader2, NotebookText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { navigation } from '@/lib/navigation';
+import { workspaceConfig } from '@/lib/workspace-config';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 
@@ -103,7 +105,7 @@ const ENTITY_CONFIG: Record<string, {
     label: 'Diário',
     color: 'text-emerald-500',
     icon: BookOpen,
-    getHref: () => '/diario',
+    getHref: (item) => item.entryDate ? `/diario?date=${encodeURIComponent(String(item.entryDate))}` : '/diario',
     getTitle: (item) => {
       const date = item.entryDate as string;
       if (date) {
@@ -162,7 +164,7 @@ const ENTITY_CONFIG: Record<string, {
     label: 'Pilares',
     color: 'text-indigo-500',
     icon: Layers,
-    getHref: () => '/visao?tab=pilares',
+    getHref: () => '/pilares',
     getTitle: (item) => (item.name as string) || 'Sem nome',
     getSubtitle: (item) => (item.currentStatus as string) || 'Pilar',
   },
@@ -171,7 +173,7 @@ const ENTITY_CONFIG: Record<string, {
     label: 'Metas',
     color: 'text-fuchsia-500',
     icon: BarChart3,
-    getHref: () => '/indicadores',
+    getHref: (item) => item.pillarId ? `/indicadores?pillar=${encodeURIComponent(String(item.pillarId))}` : '/indicadores',
     getTitle: (item) => (item.name as string) || 'Sem nome',
     getSubtitle: (item) => {
       const current = item.currentValue as number;
@@ -206,26 +208,14 @@ export function CommandPalette() {
   const cacheRef = useRef<Map<string, SearchResult[]>>(new Map());
 
   const commands: CommandItem[] = [
-    { id: 'inbox', label: 'Ir para INBOX', icon: Inbox, shortcut: '⌘I', action: () => router.push('/inbox'), category: 'Navegação' },
-    { id: 'planejar', label: 'Ir para Planejar', icon: Wand2, shortcut: undefined, action: () => router.push('/planejar'), category: 'Navegação' },
-    { id: 'notas', label: 'Ir para Notas', icon: NotebookText, shortcut: undefined, action: () => router.push('/notas'), category: 'Navegação' },
-    { id: 'visao', label: 'Ir para Visão', icon: Target, shortcut: undefined, action: () => router.push('/visao'), category: 'Navegação' },
-    { id: 'pilares', label: 'Ir para Pilares', icon: Layers, shortcut: undefined, action: () => router.push('/visao?tab=pilares'), category: 'Navegação' },
-    { id: 'projetos', label: 'Ir para Projetos', icon: FolderKanban, shortcut: '⌘J', action: () => router.push('/projetos'), category: 'Navegação' },
-    { id: 'tarefas', label: 'Ir para Tarefas', icon: CheckSquare, shortcut: undefined, action: () => router.push('/tarefas'), category: 'Navegação' },
-    { id: 'conteudo', label: 'Ir para Conteúdo', icon: FileText, shortcut: undefined, action: () => router.push('/conteudo'), category: 'Navegação' },
-    { id: 'indicadores', label: 'Ir para Metas', icon: BarChart3, shortcut: '⌘D', action: () => router.push('/indicadores'), category: 'Navegação' },
-    { id: 'financeiro', label: 'Ir para Financeiro', icon: Wallet, shortcut: undefined, action: () => router.push('/financeiro'), category: 'Navegação' },
-    { id: 'diario', label: 'Ir para Diário', icon: BookOpen, shortcut: undefined, action: () => router.push('/diario'), category: 'Navegação' },
-    { id: 'diario-bordo', label: 'Ir para Diário de Bordo', icon: ScrollText, shortcut: '⌘B', action: () => router.push('/diario-bordo'), category: 'Navegação' },
-    { id: 'hermes', label: 'Ir para Hermes', icon: Bot, shortcut: '⌘⇧H', action: () => router.push('/hermes'), category: 'Navegação' },
-    { id: 'editais', label: 'Ir para Editais', icon: Award, shortcut: '⌘E', action: () => router.push('/editais'), category: 'Navegação' },
-    { id: 'dashboard', label: 'Ir para Dashboard', icon: Zap, shortcut: undefined, action: () => router.push('/'), category: 'Navegação' },
-    { id: 'hoje-nav', label: 'Ir para Hoje', icon: Calendar, shortcut: '⌘G', action: () => router.push('/hoje'), category: 'Navegação' },
-    { id: 'revisao-nav', label: 'Ir para Revisão Semanal', icon: ListChecks, shortcut: undefined, action: () => router.push('/revisao'), category: 'Navegação' },
+    ...navigation.flatMap(group => group.items)
+      .filter(item => !workspaceConfig.hiddenModules.includes(item.href))
+      .map(item => ({ id: `nav-${item.href}`, label: `Ir para ${item.title}`, icon: item.icon,
+        shortcut: ({ '/inbox': '⌘I', '/hoje': '⌘G', '/projetos': '⌘J', '/indicadores': '⌘D', '/diario-bordo': '⌘B', '/editais': '⌘E', '/hermes': '⌘⇧H' } as Record<string, string>)[item.href],
+        action: () => router.push(item.href), category: 'Navegação' })),
     { id: 'nova-tarefa', label: 'Criar nova tarefa', icon: Plus, action: () => { router.push('/tarefas'); }, category: 'Ações Rápidas' },
     { id: 'nova-captura', label: 'Criar nova captura', icon: Plus, action: () => { router.push('/inbox'); }, category: 'Ações Rápidas' },
-    { id: 'nova-nota', label: 'Criar nova nota', icon: Plus, action: () => { router.push('/conteudo'); }, category: 'Ações Rápidas' },
+    { id: 'nova-nota', label: 'Criar nova nota', icon: Plus, action: () => { router.push('/notas'); }, category: 'Ações Rápidas' },
     { id: 'nova-entrada-diario', label: 'Escrever no diário', icon: Plus, action: () => { router.push('/diario'); }, category: 'Ações Rápidas' },
     { id: 'hoje', label: 'Ir para hoje', icon: Calendar, action: () => { router.push('/hoje'); }, category: 'Atalhos' },
     { id: 'tarefas-atrasadas', label: 'Ver tarefas atrasadas', icon: TrendingUp, action: () => { router.push('/hoje'); }, category: 'Atalhos' },

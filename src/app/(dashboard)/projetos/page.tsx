@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { motion, AnimatePresence } from 'motion/react';
-import { Plus, FolderKanban, ExternalLink, MoreHorizontal, Trash2, GripVertical, X, Link as LinkIcon, Edit2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { Plus, FolderKanban, ExternalLink, Trash2, X, Link as LinkIcon, Edit2 } from 'lucide-react';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { Search, LayoutGrid, Layers, ArrowUpRight, Orbit } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -21,10 +22,6 @@ import {
 } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 interface Project {
   id: string;
@@ -40,11 +37,6 @@ interface Project {
 interface LinkedContent { id: string; title?: string; linkedProjectIds?: string[] }
 interface LinkedCapture { id: string; title?: string; content?: string; targetType?: string; targetId?: string }
 
-const fade = {
-  initial: { opacity: 0, y: 14 },
-  animate: { opacity: 1, y: 0 },
-};
-
 const stagger = {
   animate: { transition: { staggerChildren: 0.05, delayChildren: 0.05 } },
 };
@@ -52,6 +44,9 @@ const stagger = {
 export default function ProjectsPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [search, setSearch] = useState('');
+  const [activeStage, setActiveStage] = useState('all');
+  const [viewMode, setViewMode] = useState<'gallery' | 'board'>('gallery');
   const [projects, setProjects] = useState<Project[]>([]);
   const [linkedContent, setLinkedContent] = useState<LinkedContent[]>([]);
   const [linkedCaptures, setLinkedCaptures] = useState<LinkedCapture[]>([]);
@@ -278,20 +273,33 @@ export default function ProjectsPage() {
     setDraggedId(null);
   }
 
+  const visibleProjects = projects.filter(project => (activeStage === 'all' || project.status === activeStage) && `${project.name} ${project.description} ${project.tags.join(' ')}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
+
+  function projectCard(project: Project, index: number) {
+    return <article key={project.id} draggable onDragStart={event => handleDragStart(event, project.id)} onDragEnd={handleDragEnd} className={cn('work-project-card', draggedId === project.id && 'opacity-50')}>
+      <div className="work-project-art" aria-hidden="true">
+        {project.coverUrl ? <img src={project.coverUrl} alt="" loading="lazy" /> : <div className={cn('work-project-orbits bg-gradient-to-br', project.coverColor)}><span /><span /><i /><Orbit className="h-8 w-8" /></div>}
+        <span className="work-project-index">{String(index + 1).padStart(2, '0')}</span>
+        <span className="work-project-status"><span className={cn('h-1.5 w-1.5 rounded-full', getStage(project.status)?.dot)} />{getStatusLabel(project.status)}</span>
+      </div>
+      <div className="p-5">
+        <button aria-label={`Abrir projeto ${project.name}`} onClick={() => { if (!dragClickRef.current) openEdit(project); }} className="work-project-title"><span>{project.name}</span><ArrowUpRight className="h-5 w-5 shrink-0 text-primary" /></button>
+        <p className="mt-3 min-h-10 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{project.description || 'Um novo espaço para construir o que vem a seguir.'}</p>
+        <div className="mt-4 flex min-h-6 flex-wrap gap-1.5">{project.tags.slice(0, 3).map(tag => <Badge key={tag} variant="secondary" className="text-[11px] font-normal">{tag}</Badge>)}{project.tags.length > 3 && <span className="text-xs text-muted-foreground">+{project.tags.length - 3}</span>}</div>
+        {project.links.length > 0 && <div className="mt-5 flex flex-wrap gap-3 border-t border-border/50 pt-4">{project.links.slice(0, 2).map(link => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="flex min-h-8 items-center gap-1.5 text-xs text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" />{link.label}</a>)}</div>}
+      </div>
+    </article>;
+  }
+
   return (
     <motion.div
-      className="p-4 lg:p-8"
+      className="work-page work-projects p-4 lg:p-8"
       variants={stagger}
       initial="initial"
       animate="animate"
     >
-      <motion.div className="mb-8 flex items-center justify-between" variants={fade}>
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight">Projetos</h1>
-          <p className="text-muted-foreground">{projects.length} projetos no sistema</p>
-        </div>
-        <div className="flex items-center gap-2">
-        <Button variant="outline" size="sm" onClick={() => setStageDialogOpen(true)} title="Editar etapas">
+      <WorkspaceHeading eyebrow="Seu universo em construção" title="Projetos" description="Cada projeto é uma possibilidade. Encontre seu próximo movimento." actions={<>
+        <Button variant="outline" size="sm" onClick={() => setStageDialogOpen(true)} title="Editar etapas" aria-label="Editar etapas">
           <Edit2 className="h-4 w-4" />
         </Button>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -332,124 +340,21 @@ export default function ProjectsPage() {
             </form>
           </DialogContent>
         </Dialog>
+      </>}>
+        <div className="work-metrics">
+          <WorkspaceMetric label="Constelação" value={projects.length} detail="projetos no seu espaço" />
+          <WorkspaceMetric label="Ativos" value={projects.filter(project => project.status === 'active').length} tone="primary" detail="projetos em operação" />
+          <WorkspaceMetric label="Em desenvolvimento" value={projects.filter(project => project.status === 'development').length} detail="possibilidades tomando forma" />
         </div>
-      </motion.div>
+      </WorkspaceHeading>
+      <div className="work-project-controls">
+        <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Buscar projetos" placeholder="Encontre um projeto…" value={search} onChange={event => setSearch(event.target.value)} className="h-11 pl-10" /></div>
+        <div className="work-view-switch" aria-label="Visualização de projetos"><Button variant={viewMode === 'gallery' ? 'secondary' : 'ghost'} aria-pressed={viewMode === 'gallery'} onClick={() => setViewMode('gallery')}><LayoutGrid className="mr-2 h-4 w-4" />Galeria</Button><Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} aria-pressed={viewMode === 'board'} onClick={() => setViewMode('board')}><Layers className="mr-2 h-4 w-4" />Quadro</Button></div>
+      </div>
+      <nav aria-label="Etapas dos projetos" className="work-stage-tabs"><button aria-pressed={activeStage === 'all'} onClick={() => setActiveStage('all')}>Todos <span>{projects.length}</span></button>{stages.map(stage => <button key={stage.id} aria-label={stage.label} aria-pressed={activeStage === stage.id} onClick={() => setActiveStage(stage.id)}><i className={stage.dot} />{stage.label}<span>{projects.filter(project => project.status === stage.id).length}</span></button>)}</nav>
 
-      {isLoading ? (
-        <div className="grid gap-4 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="rounded-lg border border-border bg-muted/30 p-4">
-              <div className="mb-4 flex items-center gap-2">
-                <Skeleton className="h-2 w-2 rounded-full" />
-                <Skeleton className="h-4 w-20" />
-              </div>
-              <div className="space-y-3">
-                {Array.from({ length: 2 }).map((_, j) => (
-                  <Card key={j}><CardContent className="p-4"><Skeleton className="h-4 w-3/4 mb-2" /><Skeleton className="h-3 w-full" /></CardContent></Card>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <motion.div className="grid gap-4 lg:grid-cols-4" variants={stagger}>
-          {stages.map((stage) => {
-            const status = stage.id;
-            const columnProjects = projects.filter(p => p.status === status);
-            return (
-              <motion.div
-                key={status}
-                variants={fade}
-                className="rounded-lg border border-border bg-muted/30 p-4"
-                onDragOver={handleDragOver}
-                onDrop={(e) => handleDrop(e, status)}
-              >
-                <div className="mb-4 flex items-center gap-2">
-                  <div className={cn('h-2 w-2 rounded-full', stage.dot)} />
-                  <h3 className="font-medium text-sm">{getStatusLabel(status)}</h3>
-                  <Badge variant="secondary" className="ml-auto">{columnProjects.length}</Badge>
-                </div>
-                <div className="space-y-3 min-h-[100px]">
-                  <AnimatePresence>
-                    {columnProjects.map((project) => (
-                       <motion.div
-                         key={project.id}
-                         initial={{ opacity: 0, scale: 0.95 }}
-                         animate={{ opacity: 1, scale: 1 }}
-                         exit={{ opacity: 0, scale: 0.95 }}
-                         transition={{ type: 'spring', stiffness: 500, damping: 35 }}
-                       >
-                        <Card
-                           draggable
-                           onDragStart={(e) => handleDragStart(e, project.id)}
-                           onDragEnd={handleDragEnd}
-                           className={cn(
-                             'group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing overflow-hidden project-card',
-                             draggedId === project.id && 'opacity-50 scale-95'
-                           )}
-                           onClick={() => {
-                             if (dragClickRef.current) {
-                               dragClickRef.current = false;
-                               return;
-                             }
-                             openEdit(project);
-                           }}
-                         >
-                          {/* Cover Image */}
-                          {project.coverUrl ? (
-                            <div className="relative h-28 overflow-hidden">
-                              <img
-                                src={project.coverUrl}
-                                alt=""
-                                className="w-full h-full object-cover"
-                              />
-                              <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                            </div>
-                          ) : (
-                            <div className={cn(
-                              'h-28 bg-gradient-to-br',
-                              project.coverColor || 'from-primary/20 to-primary/5'
-                            )} />
-                          )}
-                          <CardContent className="p-4 -mt-6 relative">
-                            <div className="flex items-start justify-between">
-                              <h4 className="font-medium">{project.name}</h4>
-                              <GripVertical className="h-4 w-4 text-muted-foreground/50 opacity-0 group-hover:opacity-100 shrink-0" />
-                            </div>
-                            <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{project.description}</p>
-                            {project.tags.length > 0 && (
-                              <div className="mt-3 flex flex-wrap gap-1">
-                                {project.tags.slice(0, 3).map((tech) => (
-                                  <Badge key={tech} variant="outline" className="text-xs">{tech}</Badge>
-                                ))}
-                                {project.tags.length > 3 && (
-                                  <Badge variant="secondary" className="text-xs">+{project.tags.length - 3}</Badge>
-                                )}
-                              </div>
-                            )}
-                            {project.links.length > 0 && (
-                              <div className="mt-3 flex gap-2">
-                                {project.links.slice(0, 2).map((link) => (
-                                  <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer"
-                                    className="flex items-center gap-1 text-xs text-primary hover:underline"
-                                    onClick={(e) => e.stopPropagation()}
-                                  >
-                                    <ExternalLink className="h-3 w-3" /> {link.label}
-                                  </a>
-                                ))}
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
-                  </AnimatePresence>
-                </div>
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      )}
+      {isLoading ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map(index => <Skeleton key={index} className="h-80 rounded-2xl" />)}</div> : viewMode === 'gallery' ? <motion.div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3" variants={stagger}>{visibleProjects.map(projectCard)}</motion.div> : <div className="work-board">{stages.map(stage => <section key={stage.id} className="work-board-column" onDragOver={handleDragOver} onDrop={event => handleDrop(event, stage.id)}><div className="mb-4 flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', stage.dot)} /><h2 className="text-sm font-semibold">{stage.label}</h2><Badge variant="secondary" className="ml-auto">{visibleProjects.filter(project => project.status === stage.id).length}</Badge></div><div className="work-board-lane space-y-4">{visibleProjects.filter(project => project.status === stage.id).map(projectCard)}</div></section>)}</div>}
+      {!isLoading && visibleProjects.length === 0 && <div className="work-empty"><FolderKanban className="h-7 w-7 text-primary" /><p>Nenhum projeto nesta seleção</p><span>Experimente outra busca ou escolha uma etapa diferente.</span><Button variant="outline" onClick={() => { setSearch(''); setActiveStage('all'); }}>Limpar filtros</Button></div>}
 
       {/* Edit Modal */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>

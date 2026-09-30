@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { motion } from 'motion/react';
-import { Plus, Award, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal, Radar, CheckSquare, Square } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Plus, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal, Radar, CheckSquare, Square, Search, List, Columns3, ArrowRight, FolderKanban } from 'lucide-react';
+import { addDays, cn, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { StageConfigDialog } from '@/components/stage-config-dialog';
-import { runStageTrigger } from '@/lib/edital-triggers';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import type { Edital, EditalSettings, StageDef } from '@/types';
 
 interface Pillar { id: string; name: string; icon: string; }
@@ -82,6 +83,10 @@ export default function EditaisPage() {
   const [adicionando, setAdicionando] = useState(false);
   const [settings, setSettings] = useState<EditalSettings | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [search, setSearch] = useState('');
+  const [view, setView] = useState<'list' | 'board'>('list');
+  const [filterStage, setFilterStage] = useState('all');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadAll();
@@ -125,7 +130,7 @@ export default function EditaisPage() {
   }
 
   async function handleSave() {
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
     const payload = {
       title: title.trim(),
       orgao: orgao || undefined,
@@ -136,6 +141,7 @@ export default function EditaisPage() {
       pillarId: pillarId || undefined,
       notes: notes || undefined,
     };
+    setSaving(true);
     try {
       if (editing) {
         const stageChanged = editStage !== editing.stage;
@@ -145,7 +151,6 @@ export default function EditaisPage() {
         if (stageChanged) {
           const stageDef = stages.find(s => s.id === editStage);
           if (stageDef?.trigger) {
-            await runStageTrigger(stageDef.trigger, { ...editing, ...payload, stage: editStage });
             toast.success(stageDef.trigger.action === 'create_project' ? 'Projeto criado a partir do edital!' : 'Tarefa de lembrete criada!');
           }
         }
@@ -161,6 +166,8 @@ export default function EditaisPage() {
       loadAll();
     } catch (err) {
       toast.error(showError(err));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -182,7 +189,6 @@ export default function EditaisPage() {
       });
       const stageDef = stages.find(s => s.id === newStage);
       if (stageDef?.trigger) {
-        await runStageTrigger(stageDef.trigger, { ...edital, stage: newStage });
         toast.success(stageDef.trigger.action === 'create_project' ? 'Projeto criado a partir do edital!' : 'Tarefa de lembrete criada!');
       }
       loadAll();
@@ -234,7 +240,19 @@ export default function EditaisPage() {
     setCandidatos(null);
     setErrosBusca([]);
     setSelecionados(new Set());
-    const fontes = (settings?.fontes || []).slice(0, 6);
+    let activeSettings = settings;
+    if (!activeSettings) {
+      try {
+        activeSettings = await apiFetch<EditalSettings>('/api/edital-settings');
+        setSettings(activeSettings);
+      } catch (err) {
+        toast.error(showError(err));
+        setBuscando(false);
+        setBuscaOpen(false);
+        return;
+      }
+    }
+    const fontes = activeSettings.fontes.slice(0, 6);
     if (fontes.length === 0) {
       toast.error('Cadastre pelo menos uma fonte no cockpit.');
       setBuscando(false);
@@ -376,16 +394,43 @@ export default function EditaisPage() {
     }
   }
 
-  return (
-    <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
-      <motion.div variants={fade} className="mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 font-display text-3xl font-bold tracking-tight">
-            <Award className="h-7 w-7 text-primary" /> Editais Culturais
-          </h1>
-          <p className="text-muted-foreground">Radar de oportunidades — descubra, analise, inscreva-se.</p>
+  const knownStages = useMemo(() => new Set(stages.map(stage => stage.id)), [stages]);
+  const hasUnmapped = editais.some(edital => !knownStages.has(edital.stage));
+  const displayStages: (StageDef & { unmapped?: boolean })[] = hasUnmapped ? [...stages, { id: '__unmapped', label: 'Etapa anterior', dot: 'bg-muted-foreground', color: 'text-muted-foreground', unmapped: true }] : stages;
+  const filtered = useMemo(() => {
+    const query = search.trim().toLocaleLowerCase('pt-BR');
+    return editais.filter(edital => (filterStage === 'all' || (filterStage === '__unmapped' ? !knownStages.has(edital.stage) : edital.stage === filterStage)) && (!query || `${edital.title} ${edital.orgao ?? ''} ${edital.description ?? ''}`.toLocaleLowerCase('pt-BR').includes(query)));
+  }, [editais, search, filterStage, knownStages]);
+  const today = todayStr();
+  const closingSoon = editais.filter(edital => edital.prazoInscricao && edital.prazoInscricao >= today && edital.prazoInscricao <= addDays(today, 14) && !stages.find(stage => stage.id === edital.stage)?.isTerminal).length;
+
+  function renderEditalCard(edital: Edital) {
+    const stage = stages.find(stage => stage.id === edital.stage);
+    const pillar = pillarOf(edital.pillarId);
+    const deadline = edital.prazoInscricao;
+    const overdue = Boolean(deadline && deadline < today && !stage?.isTerminal);
+    const soon = Boolean(deadline && deadline >= today && deadline <= addDays(today, 14) && !stage?.isTerminal);
+    return <Card key={edital.id} draggable={view === 'board'} onDragStart={event => { setDraggedId(edital.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', edital.id); }} onDragEnd={() => setDraggedId(null)} onClick={() => openEdit(edital)} className={cn('work-item-card group cursor-pointer transition-colors hover:border-primary/40', draggedId === edital.id && 'opacity-50')}>
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5"><span className={cn('h-1.5 w-1.5 rounded-full', stage?.dot ?? 'bg-muted-foreground')} />{stage?.label ?? 'Etapa anterior'}</span>
+          {pillar && <span className="truncate">{pillar.icon} {pillar.name}</span>}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <h3 className="font-display text-xl leading-snug"><button type="button" aria-label={`Abrir edital ${edital.title}`} onClick={event => { event.stopPropagation(); openEdit(edital); }} className="work-card-title line-clamp-2 w-full text-left focus-visible:outline-2 focus-visible:outline-primary">{edital.title}</button></h3>
+        {edital.orgao && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Landmark className="h-3.5 w-3.5 shrink-0" />{edital.orgao}</p>}
+        {edital.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{edital.description}</p>}
+        <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
+          {formatMoney(edital.valor) && <Badge variant="secondary" className="text-xs">{formatMoney(edital.valor)}</Badge>}
+          {deadline && <span className={cn('inline-flex items-center gap-1.5 text-xs', overdue ? 'text-destructive' : soon ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}><Calendar className="h-3.5 w-3.5" />{new Date(deadline + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}{overdue ? ' · Encerrado' : soon ? ' · Em breve' : ''}</span>}
+          {edital.projectId && <Link href={`/projetos?open=${encodeURIComponent(edital.projectId)}`} onClick={event => event.stopPropagation()} className="ml-auto inline-flex min-h-8 items-center gap-1 text-xs text-primary hover:underline"><FolderKanban className="h-3.5 w-3.5" /> Projeto <ArrowRight className="h-3 w-3" /></Link>}
+        </div>
+      </CardContent>
+    </Card>;
+  }
+
+  return (
+    <motion.div className="work-page p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
+      <WorkspaceHeading eyebrow="Oportunidades em movimento" title="Editais Culturais" description="Encontre oportunidades que combinam com sua trajetória. Acompanhe os prazos e transforme uma boa inscrição no seu próximo projeto." actions={<>
           <Button variant="outline" size="icon" onClick={openCockpit} title="Cockpit da automação" aria-label="Cockpit da automação">
             <SlidersHorizontal className="h-4 w-4" />
           </Button>
@@ -401,8 +446,20 @@ export default function EditaisPage() {
           <Button onClick={openCreate} className="gap-1.5">
             <Plus className="h-4 w-4" /> Novo edital
           </Button>
+      </>}>
+        <div className="work-metrics">
+          <WorkspaceMetric label="No radar" value={isLoading ? '—' : editais.length} detail="Oportunidades em todas as etapas" tone="primary" />
+          <WorkspaceMetric label="Nos próximos 14 dias" value={isLoading ? '—' : closingSoon} detail="Inscrições abertas perto do prazo" tone={closingSoon ? 'warning' : 'default'} />
+          <WorkspaceMetric label="Viraram projetos" value={isLoading ? '—' : editais.filter(edital => edital.projectId).length} detail="Da oportunidade para a realização" />
         </div>
-      </motion.div>
+      </WorkspaceHeading>
+
+      <div className="work-project-controls">
+        <div className="relative min-w-0 flex-1 sm:max-w-sm"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Filtrar editais" placeholder="Filtrar por edital ou instituição..." value={search} onChange={event => setSearch(event.target.value)} className="h-11 pl-9" /></div>
+        <div className="work-view-switch" role="group" aria-label="Visualização dos editais"><Button size="sm" variant={view === 'list' ? 'secondary' : 'ghost'} aria-label="Visualização: Lista" aria-pressed={view === 'list'} onClick={() => setView('list')} className="gap-1.5"><List className="h-4 w-4" />Lista</Button><Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} aria-label="Visualização: Quadro" aria-pressed={view === 'board'} onClick={() => setView('board')} className="gap-1.5"><Columns3 className="h-4 w-4" />Quadro</Button></div>
+        <Link href="/projetos" className="ml-auto inline-flex min-h-11 items-center gap-1.5 text-xs text-muted-foreground hover:text-primary">Projetos <ArrowRight className="h-3.5 w-3.5" /></Link>
+      </div>
+      {editais.length > 0 && <div className="work-stage-tabs" aria-label="Filtrar editais por etapa"><button aria-pressed={filterStage === 'all'} onClick={() => setFilterStage('all')}>Todos <span>{editais.length}</span></button>{displayStages.map(stage => <button key={stage.id} aria-pressed={filterStage === stage.id} onClick={() => setFilterStage(stage.id)}><i className={stage.dot} />{stage.label}<span>{editais.filter(edital => stage.unmapped ? !knownStages.has(edital.stage) : edital.stage === stage.id).length}</span></button>)}</div>}
 
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-64 w-full" />)}</div>
@@ -416,8 +473,8 @@ export default function EditaisPage() {
                 <Radar className="h-8 w-8 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-lg font-medium">Nenhum edital no radar</p>
-                <p className="text-sm text-muted-foreground">Deixe o robô varrer as fontes do seu cockpit, ou cadastre um manualmente.</p>
+                <p className="font-display text-2xl">Seu próximo projeto começa aqui</p>
+                <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">Cadastre uma oportunidade ou busque nas fontes que você acompanha. Organize cada passo da inscrição em um lugar só.</p>
               </div>
               <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
                 <Button onClick={buscarEditais} className="gap-1.5">
@@ -430,15 +487,16 @@ export default function EditaisPage() {
             </CardContent>
           </Card>
         </motion.div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {stages.map(stage => (
+      ) : filtered.length === 0 ? <div className="work-empty"><Search className="h-7 w-7 text-muted-foreground" /><h2 className="font-display text-2xl">Nenhum edital encontrado</h2><span>Tente outra busca ou explore todas as etapas.</span><Button variant="outline" onClick={() => { setSearch(''); setFilterStage('all'); }}>Limpar filtros</Button></div> : view === 'list' ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(renderEditalCard)}</div> : (
+        <div className="work-board" aria-label="Quadro de editais">
+          {displayStages.filter(stage => filterStage === 'all' || filterStage === stage.id).map(stage => (
             <div
               key={stage.id}
-              className="space-y-3"
-              onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }}
+              className="work-board-column"
+              onDragOver={(e) => { if (!stage.unmapped) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } }}
               onDrop={(e) => {
                 e.preventDefault();
+                if (stage.unmapped) return;
                 const id = e.dataTransfer.getData('text/plain');
                 const edital = editais.find(x => x.id === id);
                 if (edital) moveEdital(edital, stage.id);
@@ -448,37 +506,12 @@ export default function EditaisPage() {
               <div className="flex items-center gap-2 px-1">
                 <span className={cn('h-2 w-2 rounded-full', stage.dot)} />
                 <h3 className="text-sm font-medium">{stage.label}</h3>
-                <Badge variant="outline" className="ml-auto text-xs">{editais.filter(e => e.stage === stage.id).length}</Badge>
+                <Badge variant="outline" className="ml-auto text-xs">{filtered.filter(e => stage.unmapped ? !knownStages.has(e.stage) : e.stage === stage.id).length}</Badge>
               </div>
-              <div className="space-y-2">
-                {editais.filter(e => e.stage === stage.id).map(edital => (
-                  <Card
-                    key={edital.id}
-                    draggable
-                    onDragStart={(e) => { setDraggedId(edital.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', edital.id); }}
-                    onDragEnd={() => setDraggedId(null)}
-                    onClick={() => openEdit(edital)}
-                    className={cn('cursor-pointer transition-opacity hover:shadow-md', draggedId === edital.id && 'opacity-50')}
-                  >
-                    <CardContent className="space-y-2 p-3">
-                      <p className="text-sm font-medium leading-tight">{edital.title}</p>
-                      {edital.orgao && (
-                        <p className="flex items-center gap-1 text-xs text-muted-foreground"><Landmark className="h-3 w-3" /> {edital.orgao}</p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {formatMoney(edital.valor) && <Badge variant="secondary" className="text-xs">{formatMoney(edital.valor)}</Badge>}
-                        {edital.prazoInscricao && (
-                          <Badge variant="outline" className="gap-1 text-xs">
-                            <Calendar className="h-3 w-3" /> {new Date(edital.prazoInscricao + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                          </Badge>
-                        )}
-                        {pillarOf(edital.pillarId) && <span className="text-xs">{pillarOf(edital.pillarId)!.icon}</span>}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {editais.filter(e => e.stage === stage.id).length === 0 && (
-                  <p className="rounded-lg border border-dashed py-6 text-center text-xs text-muted-foreground">Solte aqui</p>
+              <div className="work-board-lane space-y-3" data-lenis-prevent>
+                {filtered.filter(e => stage.unmapped ? !knownStages.has(e.stage) : e.stage === stage.id).map(renderEditalCard)}
+                {filtered.filter(e => stage.unmapped ? !knownStages.has(e.stage) : e.stage === stage.id).length === 0 && (
+                  <p className="rounded-lg border border-dashed py-6 text-center text-xs text-muted-foreground">Nenhum edital nesta etapa</p>
                 )}
               </div>
             </div>
@@ -487,79 +520,80 @@ export default function EditaisPage() {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="flex max-h-[90vh] max-w-lg flex-col overflow-hidden">
+        <DialogContent className="flex max-h-[90dvh] max-w-lg flex-col overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle>{editing ? 'Editar Edital' : 'Novo Edital'}</DialogTitle>
             <DialogDescription>{editing ? 'Altere os detalhes do edital' : 'Adicione uma oportunidade ao radar'}</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 space-y-4 overflow-y-auto py-2">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto py-2" data-lenis-prevent>
             <div className="grid gap-2">
-              <Label>Título</Label>
-              <Input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nome do edital" autoFocus />
+              <Label htmlFor="edital-title">Título</Label>
+              <Input id="edital-title" aria-label="Título do edital" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Nome do edital" autoFocus />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label>Órgão/Instituição</Label>
-                <Input value={orgao} onChange={(e) => setOrgao(e.target.value)} placeholder="Ex: Prefeitura, Ministério" />
+                <Label htmlFor="edital-institution">Órgão/Instituição</Label>
+                <Input id="edital-institution" value={orgao} onChange={(e) => setOrgao(e.target.value)} placeholder="Ex: Prefeitura, Ministério" />
               </div>
               <div className="grid gap-2">
-                <Label>Valor (R$)</Label>
-                <Input type="number" value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0" />
+                <Label htmlFor="edital-value">Valor (R$)</Label>
+                <Input id="edital-value" type="number" min={0} value={valor} onChange={(e) => setValor(e.target.value)} placeholder="0" />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="grid gap-2">
-                <Label>Prazo de inscrição</Label>
-                <Input type="date" value={prazoInscricao} onChange={(e) => setPrazoInscricao(e.target.value)} />
+                <Label htmlFor="edital-deadline">Prazo de inscrição</Label>
+                <Input id="edital-deadline" type="date" value={prazoInscricao} onChange={(e) => setPrazoInscricao(e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label>Pilar</Label>
-                <Select value={pillarId} onValueChange={setPillarId}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                <Select value={pillarId || 'none'} onValueChange={value => setPillarId(value === 'none' ? '' : value)}>
+                  <SelectTrigger aria-label="Pilar do edital"><SelectValue placeholder="Nenhum" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
+                    <SelectItem value="none">Nenhum</SelectItem>
                     {pillars.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.icon} {p.name}</span></SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Link do edital</Label>
+              <Label htmlFor="edital-url">Link do edital</Label>
               <div className="flex gap-2">
-                <Input value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." />
+                <Input id="edital-url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://..." inputMode="url" />
                 {link && (
                   <Button variant="outline" size="icon" asChild>
-                    <a href={link} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-4 w-4" /></a>
+                    <a href={link} target="_blank" rel="noopener noreferrer" aria-label="Abrir link do edital"><ExternalLink className="h-4 w-4" /></a>
                   </Button>
                 )}
               </div>
             </div>
             <div className="grid gap-2">
-              <Label>Descrição</Label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Do que se trata..." />
+              <Label htmlFor="edital-description">Descrição</Label>
+              <Textarea id="edital-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} placeholder="Do que se trata..." />
             </div>
             <div className="grid gap-2">
-              <Label>Notas</Label>
-              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Anotações livres..." />
+              <Label htmlFor="edital-notes">Notas</Label>
+              <Textarea id="edital-notes" value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Anotações livres..." />
             </div>
             {editing && (
               <div className="grid gap-2">
                 <Label>Etapa</Label>
                 <Select value={editStage} onValueChange={setEditStage}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger aria-label="Etapa do edital"><SelectValue /></SelectTrigger>
                   <SelectContent>
+                    {!knownStages.has(editStage) && editStage && <SelectItem value={editStage}>Etapa anterior</SelectItem>}
                     {stages.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Também dá pra arrastar o card entre colunas no quadro.</p>
+                <p className="text-xs text-muted-foreground">Escolha uma etapa aqui ou arraste o cartão na visualização de quadro.</p>
               </div>
             )}
           </div>
           <DialogFooter className="shrink-0 gap-2 border-t pt-4">
-            {editing && <Button variant="destructive" onClick={() => handleDelete(editing.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!title.trim()}>
-              {editing ? 'Salvar' : 'Adicionar'}
+            {editing && <Button variant="destructive" disabled={saving} onClick={() => handleDelete(editing.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
+            <Button variant="outline" disabled={saving} onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!title.trim() || saving}>
+              {saving ? 'Salvando...' : editing ? 'Salvar' : 'Adicionar'}
             </Button>
           </DialogFooter>
         </DialogContent>

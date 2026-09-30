@@ -73,6 +73,16 @@ async function withCollectionLock<T>(collection: string, operation: () => Promis
 }
 
 export const storage = {
+  // A ledger transaction is committed by one atomic file rename. The callback
+  // must not recursively acquire the same collection lock.
+  async transact<T, R>(collection: string, operation: (items: T[]) => Promise<R> | R): Promise<R> {
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const result = await operation(items);
+      await writeCollection(collection, items);
+      return result;
+    });
+  },
   // Destination IDs are stable so retrying after a failed source write is safe.
   async convertCapture(id: string, targetType: string, collection: string, data: Record<string, unknown>, targetIdOverride?: string) {
     return withCollectionLock('captures', async () => {
@@ -148,6 +158,16 @@ export const storage = {
       items[index] = { ...items[index], ...data, id, updatedAt: now } as T;
       await writeCollection(collection, items);
       return items[index];
+    });
+  },
+
+  async updateChecked<T extends { id: string; updatedAt?: string }>(collection: string, id: string, data: Partial<T>, expectedUpdatedAt?: string): Promise<T | null> {
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const current = items.find(item => item.id === id); if (!current) return null;
+      if (expectedUpdatedAt && current.updatedAt !== expectedUpdatedAt) throw new Error('Conflito de versão. Releia o registro antes de alterar.');
+      const next = { ...current, ...data, id, updatedAt: new Date().toISOString() } as T;
+      items[items.indexOf(current)] = next; await writeCollection(collection, items); return next;
     });
   },
 

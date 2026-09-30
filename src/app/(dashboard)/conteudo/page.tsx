@@ -10,6 +10,7 @@ import {
   LayoutGrid, Rows3, ChevronDown, Bookmark, Copy, EyeOff, Filter, GripVertical,
   Play, Pause, CheckSquare, Square, Star, Flame, Edit2
 } from 'lucide-react';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -132,7 +133,7 @@ const EDITORIAL_LINES = [
 const DEFAULT_VIEW: SavedView = {
   id: 'default',
   name: 'Padrão',
-  view: 'kanban',
+  view: 'grid',
   channel: 'blog',
   filterStage: 'all',
   filterCategory: 'all',
@@ -154,6 +155,7 @@ const stagger = { animate: { transition: { staggerChildren: 0.04, delayChildren:
 function timeAgo(date: string) {
   const now = new Date();
   const d = new Date(date);
+  if (!Number.isFinite(d.getTime())) return 'Sem data';
   const diff = now.getTime() - d.getTime();
   const mins = Math.floor(diff / 60000);
   if (mins < 1) return 'agora';
@@ -201,7 +203,7 @@ function getChannelData(channelId: ContentChannel) {
 }
 
 function getStageData(stageId: ContentStage) {
-  return STAGES.find(s => s.id === stageId)!;
+  return STAGES.find(s => s.id === stageId) || STAGES[0];
 }
 
 // ─── Filter Chip Component ────────────────────────────────────────────────────
@@ -234,7 +236,7 @@ export default function ConteudoPage() {
   const getStageLabel = (id: string) => statusLabels[id] || STAGES.find(s => s.id === id)?.label || id;
 
   // View state
-  const [view, setView] = useState<ViewMode>('kanban');
+  const [view, setView] = useState<ViewMode>('grid');
   const [activeChannel, setActiveChannel] = useState<ContentChannel | 'all'>('all');
   const [filterStage, setFilterStage] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -588,22 +590,22 @@ export default function ConteudoPage() {
       <motion.div key={item.id} layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
         <Card
           className={cn(
-            'group cursor-pointer hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 transition-all',
+            'work-item-card work-content-card group cursor-pointer hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 transition-all',
             borderClass,
             item.pinned && 'ring-1 ring-primary/30'
           )}
           style={lineColor ? { borderLeftColor: lineColor } : undefined}
           onClick={() => openEdit(item)}
         >
-          <CardContent className={cn('p-3', dense && 'p-2')}>
+          <CardContent className={cn('p-5', dense && 'p-2')}>
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 {item.pinned && <Pin className="h-2.5 w-2.5 text-primary shrink-0" />}
-                <h4 className={cn('font-medium leading-snug truncate', dense ? 'text-xs' : 'text-sm')}>{item.title}</h4>
+                <button onClick={event => { event.stopPropagation(); openEdit(item); }} className={cn('work-card-title text-left font-semibold leading-relaxed', dense ? 'text-xs' : 'text-base')}>{item.title}</button>
               </div>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-5 w-5 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" aria-label={`Mais ações para ${item.title}`} className="work-more shrink-0" onClick={(e) => e.stopPropagation()}>
                     <MoreHorizontal className="h-3 w-3" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -645,7 +647,8 @@ export default function ConteudoPage() {
               </div>
             )}
 
-            <div className="flex flex-wrap items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="secondary" className="text-xs">{getStageLabel(item.stage)}</Badge>
               <Badge variant="outline" className={cn('gap-0.5', dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                 <ChIcon className={cn('h-2 w-2', ch.color)} /> {item.category}
               </Badge>
@@ -682,7 +685,7 @@ export default function ConteudoPage() {
             )}
 
             <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-2.5 w-2.5" /> {timeAgo(item.updatedAt)}
+              <Clock className="h-2.5 w-2.5" /> {timeAgo(item.updatedAt || item.createdAt)}
             </div>
           </CardContent>
         </Card>
@@ -695,18 +698,18 @@ export default function ConteudoPage() {
   function renderKanban() {
     if (groupBy === 'stage') {
       return (
-        <div className="flex gap-4 overflow-x-auto pb-4 max-sm:snap-x max-sm:snap-mandatory">
+        <div className="work-board">
           <LayoutGroup id="content-kanban">
             {STAGES.map(stage => {
               const stageItems = sorted.filter(i => i.stage === stage.id);
               return (
-                <div key={stage.id} className="flex flex-col min-w-[260px] max-sm:min-w-[80vw]">
+                <div key={stage.id} className="work-board-column">
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <div className={cn('h-2.5 w-2.5 rounded-full', stage.dot)} />
                     <h3 className="text-sm font-medium">{getStageLabel(stage.id)}</h3>
                     <Badge variant="secondary" className="ml-auto text-xs">{stageItems.length}</Badge>
                   </div>
-                  <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
+                  <div className="work-board-lane space-y-3">
                     <AnimatePresence>
                       {stageItems.map(item => renderCard(item))}
                     </AnimatePresence>
@@ -727,18 +730,18 @@ export default function ConteudoPage() {
 
     // Grouped kanban by other axis
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4 max-sm:snap-x max-sm:snap-mandatory">
+      <div className="work-board">
         <LayoutGroup id="content-kanban-grouped">
           {grouped.groupKeys.map(key => {
             const groupItems = grouped.groups.get(key) || [];
             return (
-              <div key={key} className="flex flex-col min-w-[260px] max-sm:min-w-[80vw]">
+              <div key={key} className="work-board-column">
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <div className={cn('h-2.5 w-2.5 rounded-full', getGroupColor(key))} style={groupBy === 'line' ? { backgroundColor: getLineColor(key) } : undefined} />
                   <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
                   <Badge variant="secondary" className="ml-auto text-xs">{groupItems.length}</Badge>
                 </div>
-                <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
+                <div className="work-board-lane space-y-3">
                   <AnimatePresence>
                     {groupItems.map(item => renderCard(item))}
                   </AnimatePresence>
@@ -784,7 +787,7 @@ export default function ConteudoPage() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             {item.pinned && <Pin className="h-2.5 w-2.5 text-primary shrink-0" />}
-                            <span className="text-sm font-medium truncate">{item.title}</span>
+                            <button type="button" className="work-card-title text-left text-sm font-medium" onClick={event => { event.stopPropagation(); openEdit(item); }}>{item.title}</button>
                           </div>
                         </div>
                         <Badge variant="outline" className="text-xs px-1.5 py-0 gap-0.5 shrink-0">
@@ -796,7 +799,7 @@ export default function ConteudoPage() {
                             {new Date(item.scheduledDate + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </span>
                         )}
-                        <span className="text-xs text-muted-foreground shrink-0">{timeAgo(item.updatedAt)}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{timeAgo(item.updatedAt || item.createdAt)}</span>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" onClick={(e) => e.stopPropagation()}>
@@ -889,7 +892,7 @@ export default function ConteudoPage() {
 
   function renderGrid() {
     return (
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3">
         <AnimatePresence>
           {sorted.map(item => renderCard(item))}
         </AnimatePresence>
@@ -900,15 +903,16 @@ export default function ConteudoPage() {
   // ─── Main Render ──────────────────────────────────────────────────────────
 
   return (
-    <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
+    <motion.div className="work-page work-content p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       {/* Header */}
       <motion.div className="mb-6" variants={fade}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight">Conteúdo</h1>
-            <p className="text-muted-foreground">{sorted.length} conteúdos · {items.filter(i => i.stage === 'published').length} publicados</p>
+        <WorkspaceHeading eyebrow="Estúdio editorial" title="Conteúdo" description="Um lugar para suas ideias ganharem forma. Crie, organize e acompanhe cada publicação.">
+          <div className="work-metrics">
+            <WorkspaceMetric label="Biblioteca" value={items.length} detail="conteúdos em todos os canais" />
+            <WorkspaceMetric label="Em criação" value={items.filter(item => !['published', 'archived'].includes(item.stage)).length} tone="primary" detail="ideias e peças em produção" />
+            <WorkspaceMetric label="Publicados" value={items.filter(item => item.stage === 'published').length} detail="peças que chegaram ao mundo" />
           </div>
-        </div>
+        </WorkspaceHeading>
 
         {/* Channel Tabs */}
         <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
@@ -977,7 +981,7 @@ export default function ConteudoPage() {
 
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative flex-1 lg:w-64">
+          <div className="relative min-w-0 flex-1 basis-full lg:basis-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conteúdo..." className="pl-9 h-9" />
           </div>

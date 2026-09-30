@@ -8,7 +8,7 @@ import { WeeklyReviewFlow } from '@/components/weekly-review-flow';
 
 export default function RevisaoPage() {
   return (
-    <div className="max-w-3xl p-4 lg:p-8">
+    <div className="mx-auto max-w-5xl p-4 pb-24 lg:p-8">
       <WeeklyReviewFlow />
     </div>
   );

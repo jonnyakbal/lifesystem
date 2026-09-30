@@ -14,10 +14,10 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, type MotionProps } from 'motion/react';
 import {
   Plus, Trash2, FileText, Search, X, ChevronLeft, PanelRight, Square, Maximize2,
-  CheckSquare, FolderKanban, ArrowRight, Check, Settings2, NotebookText,
-  MoreHorizontal, Copy, Type,
+  ArrowRight, Check, Settings2, NotebookText,
+  MoreHorizontal, Copy, Type, Inbox, Rss, Network, LayoutGrid, List,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, escapeHtml } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,7 @@ import { CaptureConversionDialog } from '@/components/capture-conversion-dialog'
 import { NotionEditor } from '@/components/notion-editor';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import { CategoryEditorDialog, type WikiCollectionItem } from '@/components/category-editor-dialog';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -47,6 +48,24 @@ interface Capture {
   coverUrl?: string;
 }
 
+interface NoteDraft {
+  title: string;
+  content: string;
+  category: string;
+  coverUrl: string;
+  linkedCaptureIds: string[];
+}
+
+interface NoteEditorSession {
+  token: number;
+  captureId: string | null;
+  captureStatus: string;
+  latestDraft: NoteDraft;
+  savedDraftKey: string | null;
+  saving: boolean;
+  queued: boolean;
+}
+
 const COVER_COLORS = [
   'from-purple-500/30 to-blue-500/10',
   'from-blue-500/30 to-cyan-500/10',
@@ -58,6 +77,8 @@ const COVER_COLORS = [
   'from-indigo-500/30 to-purple-500/10',
 ];
 
+const TITLE_ENTITIES: Record<string, string> = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#039;': "'" };
+
 function getCoverColor(id: string): string {
   let hash = 0;
   for (let i = 0; i < id.length; i++) { hash = ((hash << 5) - hash) + id.charCodeAt(i); hash |= 0; }
@@ -65,19 +86,18 @@ function getCoverColor(id: string): string {
 }
 
 function getTitle(content: string): string {
-  const text = content.replace(/<[^>]*>/g, '').trim();
-  const firstLine = text.split('\n')[0].slice(0, 60);
+  const heading = content.match(/^\s*<h2(?:\s[^>]*)?>([\s\S]*?)<\/h2>/i)?.[1];
+  const text = (heading ?? content.replace(/<\/(?:p|div|h[1-6])>/gi, '\n')).replace(/<[^>]*>/g, '').trim();
+  const firstLine = text.split('\n')[0].replace(/&(amp|lt|gt|quot|#039);/g, entity => TITLE_ENTITIES[entity] ?? entity);
   return firstLine || 'Nova página';
 }
 
 function stripLeadingTitle(content: string): string {
-  return content.replace(/^\s*<h2>[\s\S]*?<\/h2>\s*\n?/, '');
+  return content.replace(/^\s*<h2(?:\s[^>]*)?>[\s\S]*?<\/h2>\s*\n?/i, '');
 }
 
 function getPreview(content: string): string {
-  const text = content.replace(/<[^>]*>/g, '').trim();
-  const lines = text.split('\n').slice(1, 4);
-  return lines.join(' ').slice(0, 120);
+  return stripLeadingTitle(content).replace(/<\/(?:p|div|li|h[1-6])>|<br\s*\/?>/gi, ' ').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
 }
 
 const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
@@ -109,11 +129,11 @@ const LAYOUT_CONFIG: Record<EditorLayout, {
   motionProps: Pick<MotionProps, 'initial' | 'animate' | 'exit'>;
 }> = {
   corner: {
-    panelClassName: 'fixed right-0 top-0 z-[101] h-screen w-full max-w-3xl bg-background border-l border-border flex flex-col',
+    panelClassName: 'fixed right-0 top-0 z-[101] h-dvh w-full max-w-3xl bg-background border-l border-border shadow-2xl flex flex-col',
     motionProps: { initial: { x: '100%', opacity: 0 }, animate: { x: 0, opacity: 1 }, exit: { x: '100%', opacity: 0 } },
   },
   center: {
-    panelClassName: 'fixed left-1/2 top-1/2 z-[101] h-[85vh] w-full max-w-3xl bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden',
+    panelClassName: 'fixed left-1/2 top-1/2 z-[101] h-[90dvh] w-[calc(100%_-_2rem)] max-w-3xl bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden',
     motionProps: {
       initial: { x: '-50%', y: '-50%', opacity: 0, scale: 0.96 },
       animate: { x: '-50%', y: '-50%', opacity: 1, scale: 1 },
@@ -152,18 +172,22 @@ export default function NotasPage() {
   const editorOpenedAtRef = useRef(0);
   const skipNextAutosaveRef = useRef(false);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const editingCaptureIdRef = useRef<string | null>(null);
-  const editingCaptureStatusRef = useRef<string>('noted');
+  const editorSessionRef = useRef<NoteEditorSession | null>(null);
+  const editorSessionSequenceRef = useRef(0);
+  const autosaveQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => { loadCaptures(); loadCategories(); }, []);
 
   useEffect(() => {
-    const stored = localStorage.getItem(EDITOR_LAYOUT_KEY) as EditorLayout | null;
-    const storedFont = localStorage.getItem(NOTE_FONT_KEY) as NoteFont | null;
-    queueMicrotask(() => {
-      if (stored && LAYOUT_CONFIG[stored]) setEditorLayoutState(stored);
-      if (storedFont && NOTE_FONT_OPTIONS.some(f => f.id === storedFont)) setNoteFontState(storedFont);
-    });
+    try {
+      const stored = localStorage.getItem(EDITOR_LAYOUT_KEY) as EditorLayout | null;
+      const storedFont = localStorage.getItem(NOTE_FONT_KEY) as NoteFont | null;
+      queueMicrotask(() => {
+        if (stored && LAYOUT_CONFIG[stored]) setEditorLayoutState(stored);
+        if (storedFont && NOTE_FONT_OPTIONS.some(f => f.id === storedFont)) setNoteFontState(storedFont);
+      });
+    } catch { /* Keep the default editor layout and font when storage is blocked. */ }
   }, []);
 
   // Deep-link support: the Inbox page (and ⌘K) send you here with
@@ -182,12 +206,12 @@ export default function NotasPage() {
 
   function setEditorLayout(mode: EditorLayout) {
     setEditorLayoutState(mode);
-    localStorage.setItem(EDITOR_LAYOUT_KEY, mode);
+    try { localStorage.setItem(EDITOR_LAYOUT_KEY, mode); } catch { /* Keep the choice for this session. */ }
   }
 
   function setNoteFont(font: NoteFont) {
     setNoteFontState(font);
-    localStorage.setItem(NOTE_FONT_KEY, font);
+    try { localStorage.setItem(NOTE_FONT_KEY, font); } catch { /* Keep the choice for this session. */ }
   }
 
   async function loadCaptures() {
@@ -211,9 +235,10 @@ export default function NotasPage() {
   }
 
   function openCreateNew() {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const initialDraft: NoteDraft = { title: '', content: '', category: categories[0]?.id || 'ideias', coverUrl: '', linkedCaptureIds: [] };
+    beginEditorSession(null, initialDraft);
     setEditingCapture(null);
-    editingCaptureIdRef.current = null;
-    editingCaptureStatusRef.current = 'noted';
     setEditorTitle('');
     setEditorContent('');
     setEditorCategory(categories[0]?.id || 'ideias');
@@ -226,9 +251,10 @@ export default function NotasPage() {
   }
 
   function openEdit(capture: Capture) {
+    previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const initialDraft: NoteDraft = { title: getTitle(capture.content), content: stripLeadingTitle(capture.content), category: capture.category || categories[0]?.id || 'ideias', coverUrl: capture.coverUrl || '', linkedCaptureIds: [...(capture.linkedCaptureIds || [])] };
+    beginEditorSession(capture, initialDraft);
     setEditingCapture(capture);
-    editingCaptureIdRef.current = capture.id;
-    editingCaptureStatusRef.current = capture.status;
     setEditorTitle(getTitle(capture.content));
     setEditorContent(stripLeadingTitle(capture.content));
     setEditorCategory(capture.category || categories[0]?.id || 'ideias');
@@ -240,12 +266,37 @@ export default function NotasPage() {
     setEditorOpen(true);
   }
 
+  function beginEditorSession(capture: Capture | null, initialDraft: NoteDraft) {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    autosaveTimerRef.current = null;
+    const previous = editorSessionRef.current;
+    if (previous) void autoSave(previous);
+    editorSessionRef.current = {
+      token: ++editorSessionSequenceRef.current,
+      captureId: capture?.id || null,
+      captureStatus: capture?.status || 'noted',
+      latestDraft: initialDraft,
+      savedDraftKey: capture ? JSON.stringify(initialDraft) : null,
+      saving: false,
+      queued: false,
+    };
+  }
+
+  function isCurrentSession(session: NoteEditorSession) {
+    return editorSessionRef.current?.token === session.token;
+  }
+
   function closeEditor() {
+    const session = editorSessionRef.current;
+    if (session) session.latestDraft = { title: editorTitle, content: editorContent, category: editorCategory, coverUrl: editorCoverUrl, linkedCaptureIds: [...editorLinkedCaptureIds] };
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
-      autoSave();
+      autosaveTimerRef.current = null;
     }
+    if (session) void autoSave(session);
+    editorSessionRef.current = null;
     setEditorOpen(false);
+    if (previousFocusRef.current?.isConnected) previousFocusRef.current.focus();
     loadCaptures();
   }
 
@@ -257,47 +308,73 @@ export default function NotasPage() {
   // Autosave promotes 'inbox' -> 'noted' the moment it saves — that IS the
   // "processing" step, no extra button. Never demotes an already-'organized'
   // (converted to Task/Project) capture back to 'noted'.
-  async function autoSave() {
-    if (!editorContent.trim()) return;
-    const fullContent = editorTitle ? `<h2>${editorTitle}</h2>\n${editorContent}` : editorContent;
-    const nextStatus = editingCaptureStatusRef.current === 'organized' ? 'organized' : 'noted';
-
-    setSaveStatus('saving');
+  async function autoSave(session = editorSessionRef.current) {
+    if (!session) return;
+    session.queued = true;
+    if (session.saving) return;
+    if ((!session.latestDraft.title.trim() && !session.latestDraft.content.trim()) || JSON.stringify(session.latestDraft) === session.savedDraftKey) {
+      session.queued = false;
+      return;
+    }
+    session.saving = true;
+    if (isCurrentSession(session)) setSaveStatus('saving');
     try {
-      if (editingCaptureIdRef.current) {
-        await apiFetch(`/api/captures/${editingCaptureIdRef.current}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: fullContent, category: editorCategory, coverUrl: editorCoverUrl, linkedCaptureIds: editorLinkedCaptureIds, status: nextStatus }),
-        });
-        editingCaptureStatusRef.current = nextStatus;
-      } else {
-        const created = await apiFetch<Capture>('/api/captures', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ content: fullContent, type: 'text', category: editorCategory, coverUrl: editorCoverUrl, status: 'noted' }),
-        });
-        editingCaptureIdRef.current = created.id;
-        editingCaptureStatusRef.current = 'noted';
-        setEditingCapture(created);
-      }
-      setSaveStatus('saved');
-      loadCaptures();
+      // Reserve the whole session drain before another editor can write.
+      // A reopened note must follow this session's final pending change.
+      const write = autosaveQueueRef.current.then(async () => {
+        while (session.queued) {
+          session.queued = false;
+          const draft = session.latestDraft;
+          const draftKey = JSON.stringify(draft);
+          if ((!draft.title.trim() && !draft.content.trim()) || draftKey === session.savedDraftKey) continue;
+          const content = draft.title ? `<h2>${escapeHtml(draft.title)}</h2>\n${draft.content}` : draft.content;
+          const nextStatus = session.captureStatus === 'organized' ? 'organized' : 'noted';
+          if (session.captureId) {
+            await apiFetch(`/api/captures/${session.captureId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content, category: draft.category, coverUrl: draft.coverUrl, linkedCaptureIds: draft.linkedCaptureIds, status: nextStatus }),
+            });
+          } else {
+            const created = await apiFetch<Capture>('/api/captures', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ content, type: 'text', category: draft.category, coverUrl: draft.coverUrl, status: nextStatus }),
+            });
+            session.captureId = created.id;
+            if (isCurrentSession(session)) setEditingCapture(created);
+          }
+          session.captureStatus = nextStatus;
+          session.savedDraftKey = draftKey;
+        }
+      });
+      autosaveQueueRef.current = write.then(() => {}, () => {});
+      await write;
+      if (isCurrentSession(session)) setSaveStatus(JSON.stringify(session.latestDraft) === session.savedDraftKey ? 'saved' : 'idle');
+      void loadCaptures();
     } catch (err) {
-      setSaveStatus('idle');
+      session.queued = false;
+      if (isCurrentSession(session)) setSaveStatus('idle');
       toast.error(showError(err));
+    } finally {
+      session.saving = false;
     }
   }
 
   useEffect(() => {
-    if (!editorOpen) return;
+    const session = editorSessionRef.current;
+    if (!editorOpen || !session) return;
+    session.latestDraft = { title: editorTitle, content: editorContent, category: editorCategory, coverUrl: editorCoverUrl, linkedCaptureIds: [...editorLinkedCaptureIds] };
     if (skipNextAutosaveRef.current) {
       skipNextAutosaveRef.current = false;
       return;
     }
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
-    autosaveTimerRef.current = setTimeout(() => { autoSave(); }, 900);
-    return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+    autosaveTimerRef.current = setTimeout(() => { autosaveTimerRef.current = null; void autoSave(session); }, 900);
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorTitle, editorContent, editorCategory, editorCoverUrl, editorLinkedCaptureIds, editorOpen]);
 
@@ -352,7 +429,7 @@ export default function NotasPage() {
   const filtered = useMemo(() => {
     return notes.filter(c => {
       if (activeCategory !== 'all' && c.category !== activeCategory) return false;
-      if (search) return c.content.toLowerCase().includes(search.toLowerCase());
+      if (search.trim()) return c.content.toLowerCase().includes(search.trim().toLowerCase());
       return true;
     });
   }, [notes, activeCategory, search]);
@@ -373,42 +450,42 @@ export default function NotasPage() {
   }
 
   return (
-    <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
+    <motion.div className="work-page p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       <CaptureConversionDialog key={converting?.id || "closed"} capture={converting} onClose={() => setConverting(null)} onConverted={loadCaptures} />
-      {/* Header */}
-      <motion.div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between" variants={fade}>
-        <div>
-          <h1 className="font-display text-3xl font-bold tracking-tight flex items-center gap-3">
-            <NotebookText className="h-7 w-7 text-primary" /> Notas
-          </h1>
-          <p className="text-muted-foreground">Sua base de conhecimento permanente</p>
+      <WorkspaceHeading eyebrow="Sua biblioteca viva" title="Notas" description="Dê espaço às ideias que merecem ficar. Reúna referências, desenvolva pensamentos e conecte o conhecimento ao que você está construindo." actions={<>
+        <NextLink href="/inbox" className="work-action-link"><Inbox className="h-4 w-4" /> INBOX</NextLink>
+        <Button onClick={openCreateNew} className="gap-2"><Plus className="h-4 w-4" /> Nova nota</Button>
+      </>}>
+        <div className="work-metrics">
+          <WorkspaceMetric label="Na biblioteca" value={isLoading ? '—' : notes.length} detail="Ideias que já ganharam um lugar" tone="primary" />
+          <WorkspaceMetric label="Coleções" value={sortedCategories.length} detail="Temas para encontrar o que importa" />
+          <WorkspaceMetric label="Notas conectadas" value={isLoading ? '—' : notes.filter(note => note.linkedCaptureIds?.length || note.targetId).length} detail="Conhecimento que conversa entre si" />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-full flex-1 sm:min-w-0 lg:w-48 lg:flex-none">
+      </WorkspaceHeading>
+      <motion.div className="work-project-controls" variants={fade}>
+          <div className="relative min-w-0 flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar notas..." className="pl-9 h-9" />
+            <Input aria-label="Buscar notas" value={search} onChange={e => setSearch(e.target.value)} placeholder="Encontrar uma ideia..." className="pl-9 h-11" />
           </div>
-          <div className="flex items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5">
-            <Button variant={view === 'gallery' ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setView('gallery')}>
-              <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1" /><rect x="9" y="1" width="6" height="6" rx="1" /><rect x="1" y="9" width="6" height="6" rx="1" /><rect x="9" y="9" width="6" height="6" rx="1" /></svg>
+          <div className="work-view-switch" role="group" aria-label="Visualização das notas">
+            <Button aria-label="Visualização: Galeria" aria-pressed={view === 'gallery'} variant={view === 'gallery' ? 'secondary' : 'ghost'} size="sm" className="gap-1.5" onClick={() => setView('gallery')}>
+              <LayoutGrid className="h-4 w-4" /><span className="hidden sm:inline">Galeria</span>
             </Button>
-            <Button variant={view === 'list' ? 'secondary' : 'ghost'} size="sm" className="h-7 px-2 text-xs" onClick={() => setView('list')}>
-              <svg className="h-3 w-3" viewBox="0 0 16 16" fill="currentColor"><rect x="1" y="2" width="14" height="2.5" rx="1" /><rect x="1" y="6.75" width="14" height="2.5" rx="1" /><rect x="1" y="11.5" width="14" height="2.5" rx="1" /></svg>
+            <Button aria-label="Visualização: Lista" aria-pressed={view === 'list'} variant={view === 'list' ? 'secondary' : 'ghost'} size="sm" className="gap-1.5" onClick={() => setView('list')}>
+              <List className="h-4 w-4" /><span className="hidden sm:inline">Lista</span>
             </Button>
           </div>
-          <Button variant="outline" size="sm" onClick={() => setCategoryEditorOpen(true)} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setCategoryEditorOpen(true)} className="min-h-11 gap-1.5">
             <Settings2 className="h-3.5 w-3.5" /> Categorias
           </Button>
-          <Button size="sm" onClick={openCreateNew} className="gap-1.5">
-            <Plus className="h-4 w-4" /> Nova nota
-          </Button>
-        </div>
+          <NextLink href="/content-hub" className="ml-auto inline-flex min-h-11 items-center gap-1.5 text-xs text-muted-foreground hover:text-primary"><Rss className="h-3.5 w-3.5" /> Fontes & Refs <ArrowRight className="h-3 w-3" /></NextLink>
       </motion.div>
 
       {/* Category Tabs */}
-      <motion.div className="flex flex-wrap gap-1.5 mb-6" variants={fade}>
+      <motion.div className="work-stage-tabs" variants={fade} aria-label="Categorias de notas">
         <button
           onClick={() => setActiveCategory('all')}
+          aria-pressed={activeCategory === 'all'}
           className={cn('flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all border',
             activeCategory === 'all' ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50')}
         >
@@ -421,6 +498,7 @@ export default function NotasPage() {
             <button
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
+              aria-pressed={isActive}
               className={cn('flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all border',
                 isActive ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50')}
             >
@@ -456,28 +534,27 @@ export default function NotasPage() {
             >
               <NotebookText className="h-8 w-8 text-muted-foreground" />
             </motion.div>
-            <p className="mt-4 text-lg font-medium">Nenhuma nota ainda</p>
-            <p className="text-sm text-muted-foreground mb-4">Notas vêm do INBOX processado, ou crie uma direto aqui</p>
-            <Button onClick={openCreateNew} className="gap-1.5">
-              <Plus className="h-4 w-4" /> Criar Primeira Nota
-            </Button>
+            <p className="mt-4 font-display text-2xl">{notes.length === 0 ? 'Um lugar para suas ideias' : 'Nenhuma nota encontrada'}</p>
+            <p className="mb-5 mt-2 max-w-sm text-center text-sm leading-relaxed text-muted-foreground">{notes.length === 0 ? 'Escreva uma ideia aqui ou desenvolva uma captura do INBOX. Aos poucos, sua biblioteca ganha forma.' : 'Tente outra busca ou explore todas as categorias.'}</p>
+            {notes.length === 0 ? <div className="flex flex-wrap justify-center gap-2"><Button onClick={openCreateNew} className="gap-1.5"><Plus className="h-4 w-4" /> Criar primeira nota</Button><Button asChild variant="outline"><NextLink href="/inbox">Explorar INBOX <ArrowRight className="ml-2 h-4 w-4" /></NextLink></Button></div> : <Button variant="outline" onClick={() => { setSearch(''); setActiveCategory('all'); }}>Limpar filtros</Button>}
           </CardContent>
         </Card>
       ) : view === 'gallery' ? (
-        <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" variants={stagger}>
+        <motion.div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" variants={stagger}>
           <AnimatePresence>
-            <motion.div variants={fade} layout>
-              <Card
-                className="group cursor-pointer border-dashed border-2 hover:border-primary/50 hover:bg-muted/30 transition-all min-h-[200px] flex items-center justify-center"
+            <motion.div variants={fade} layout className="hidden sm:block">
+              <button
+                type="button"
+                className="group flex min-h-[260px] w-full items-center justify-center rounded-2xl border border-dashed border-border bg-card/20 transition-colors hover:border-primary/50 hover:bg-card/60 focus-visible:outline-2 focus-visible:outline-primary"
                 onClick={openCreateNew}
               >
-                <CardContent className="flex flex-col items-center justify-center py-8">
+                <span className="flex flex-col items-center justify-center py-8">
                   <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
                     <Plus className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <span className="text-sm text-muted-foreground">Nova nota</span>
-                </CardContent>
-              </Card>
+                </span>
+              </button>
             </motion.div>
 
             {filtered.map(capture => {
@@ -489,10 +566,10 @@ export default function NotasPage() {
               return (
                 <motion.div key={capture.id} variants={fade} layout exit={{ opacity: 0, scale: 0.95 }}>
                   <Card
-                    className="group cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:border-primary/50 transition-all overflow-hidden min-h-[200px]"
+                    className="work-item-card group cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:border-primary/50 transition-all overflow-hidden min-h-[260px]"
                     onClick={() => openEdit(capture)}
                   >
-                    <div className={cn('h-24 w-full bg-gradient-to-br relative', coverClass)}>
+                    <div className={cn('h-28 w-full bg-gradient-to-br relative', coverClass)}>
                       {capture.coverUrl ? (
                         <img src={capture.coverUrl} alt="" className="w-full h-full object-cover" />
                       ) : (
@@ -500,10 +577,10 @@ export default function NotasPage() {
                           {cat?.icon || '📝'}
                         </div>
                       )}
-                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-2 right-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 bg-background/80 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
+                            <Button aria-label={`Opções da nota ${title}`} variant="ghost" size="icon" className="h-10 w-10 bg-background/80 backdrop-blur-sm" onClick={e => e.stopPropagation()}>
                               <MoreHorizontal className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -528,7 +605,7 @@ export default function NotasPage() {
                       </div>
                     </div>
 
-                    <CardContent className="p-4">
+                    <CardContent className="p-5">
                       <div className="flex items-center gap-1.5 mb-1.5">
                         {cat && (
                           <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1" style={{ borderColor: cat.color + '40', color: cat.color }}>
@@ -536,7 +613,7 @@ export default function NotasPage() {
                           </Badge>
                         )}
                       </div>
-                      <h3 className="font-medium text-sm leading-snug line-clamp-2 mb-1">{title}</h3>
+                      <h3 className="mb-2 font-display text-xl leading-snug"><button type="button" aria-label={`Abrir nota ${title}`} className="work-card-title line-clamp-2 w-full text-left focus-visible:outline-2 focus-visible:outline-primary" onClick={event => { event.stopPropagation(); openEdit(capture); }}>{title}</button></h3>
                       {preview && <p className="text-xs text-muted-foreground line-clamp-3">{preview}</p>}
                       {capture.targetId && (
                         <NextLink
@@ -547,8 +624,9 @@ export default function NotasPage() {
                           <ArrowRight className="h-3 w-3" /> Virou {capture.targetType === 'project' ? 'projeto' : 'tarefa'}
                         </NextLink>
                       )}
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="mt-4 flex items-center justify-between gap-2 border-t border-border/50 pt-3 text-[11px] text-muted-foreground">
                         {new Date(capture.createdAt).toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })}
+                        {!!capture.linkedCaptureIds?.length && <span className="inline-flex items-center gap-1 text-primary"><Network className="h-3 w-3" /> {capture.linkedCaptureIds.length}</span>}
                       </p>
                     </CardContent>
                   </Card>
@@ -565,13 +643,13 @@ export default function NotasPage() {
               const cat = getCategory(capture.category);
               return (
                 <motion.div key={capture.id} variants={fade} layout exit={{ opacity: 0, x: -20 }}>
-                  <Card className="group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => openEdit(capture)}>
+                  <Card className="work-item-card group cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => openEdit(capture)}>
                     <CardContent className="flex items-center gap-3 p-3">
                       <div className="h-8 w-8 rounded-lg bg-gradient-to-br shrink-0 flex items-center justify-center text-base" style={{ background: `linear-gradient(135deg, ${cat?.color || '#64748b'}30, ${cat?.color || '#64748b'}10)` }}>
                         {cat?.icon || <FileText className="h-4 w-4 text-muted-foreground" />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{title}</p>
+                        <button type="button" aria-label={`Abrir nota ${title}`} className="min-h-8 w-full truncate text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary" onClick={event => { event.stopPropagation(); openEdit(capture); }}>{title}</button>
                         <p className="text-xs text-muted-foreground">
                           {cat?.name} · {new Date(capture.createdAt).toLocaleDateString('pt-BR')}
                           {capture.targetId && (
@@ -590,7 +668,7 @@ export default function NotasPage() {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100" onClick={e => e.stopPropagation()}>
+                            <Button aria-label={`Opções da nota ${title}`} variant="ghost" size="icon" className="h-11 w-11 opacity-100 sm:opacity-60 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100" onClick={e => e.stopPropagation()}>
                             <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -644,10 +722,22 @@ export default function NotasPage() {
               {...LAYOUT_CONFIG[editorLayout].motionProps}
               transition={{ type: 'spring', stiffness: 400, damping: 35 }}
               className={LAYOUT_CONFIG[editorLayout].panelClassName}
+              role="dialog"
+              aria-label={editingCapture ? 'Editar nota' : 'Nova nota'}
+              aria-modal="true"
+              onKeyDown={event => {
+                if (event.key === 'Escape') { event.stopPropagation(); closeEditor(); }
+                if (event.key !== 'Tab') return;
+                const focusable = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('button:not([disabled]), a[href], input:not([disabled]), textarea:not([disabled]), [tabindex="0"], [contenteditable="true"]')).filter(element => element.getClientRects().length > 0);
+                const first = focusable[0];
+                const last = focusable[focusable.length - 1];
+                if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+                if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+              }}
             >
               <div className="flex flex-wrap items-center justify-between gap-y-2 px-4 py-3 border-b border-border shrink-0">
                 <div className="flex items-center gap-3">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={closeEditor}>
+                  <Button aria-label="Fechar nota" variant="ghost" size="icon" className="h-11 w-11" onClick={closeEditor}>
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <span className="text-sm text-muted-foreground">
@@ -659,8 +749,10 @@ export default function NotasPage() {
                         key={opt.id}
                         type="button"
                         title={opt.label}
+                        aria-label={`Editor: ${opt.label}`}
+                        aria-pressed={editorLayout === opt.id}
                         onClick={() => setEditorLayout(opt.id)}
-                        className={cn('flex h-6 w-6 items-center justify-center rounded transition-colors',
+                        className={cn('flex h-10 w-10 items-center justify-center rounded transition-colors',
                           editorLayout === opt.id ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:bg-muted hover:text-foreground')}
                       >
                         <opt.icon className="h-3.5 w-3.5" />
@@ -669,12 +761,14 @@ export default function NotasPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="flex gap-1">
+                  <div className="flex max-w-full flex-wrap gap-1">
                     {sortedCategories.map(cat => (
                       <button
                         key={cat.id}
+                        aria-label={`Categoria: ${cat.name}`}
+                        aria-pressed={editorCategory === cat.id}
                         onClick={() => setEditorCategory(cat.id)}
-                        className={cn('flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-all border',
+                        className={cn('flex min-h-10 items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium transition-all border',
                           editorCategory === cat.id ? 'border-current shadow-sm' : 'border-transparent text-muted-foreground hover:bg-muted/50')}
                         style={editorCategory === cat.id ? { color: cat.color, borderColor: cat.color, backgroundColor: cat.color + '15' } : undefined}
                       >
@@ -685,7 +779,7 @@ export default function NotasPage() {
                   </div>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" title="Fonte da nota">
+                      <Button aria-label="Fonte da nota" variant="ghost" size="icon" className="h-10 w-10 shrink-0" title="Fonte da nota">
                         <Type className="h-3.5 w-3.5" />
                       </Button>
                     </DropdownMenuTrigger>
@@ -698,7 +792,7 @@ export default function NotasPage() {
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 w-16 justify-end">
+                  <span aria-live="polite" className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0 w-16 justify-end">
                     {saveStatus === 'saving' && <>Salvando...</>}
                     {saveStatus === 'saved' && <><Check className="h-3 w-3 text-money" /> Salvo</>}
                   </span>
@@ -713,14 +807,15 @@ export default function NotasPage() {
                   long notes. */}
               <div className="flex-1 overflow-y-auto" data-lenis-prevent>
                 <div className="relative h-40 bg-gradient-to-br from-muted/30 to-muted/10">
-                  {editingCapture?.coverUrl || editorCoverUrl ? (
+                  {editorCoverUrl ? (
                     <div className="relative w-full h-full">
-                      <img src={editorCoverUrl || editingCapture?.coverUrl} alt="" className="w-full h-full object-cover" />
+                      <img src={editorCoverUrl} alt="" className="w-full h-full object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
                       <button
                         type="button"
+                        aria-label="Remover capa"
                         onClick={() => setEditorCoverUrl('')}
-                        className="absolute top-3 right-3 h-7 w-7 rounded-full bg-background/80 flex items-center justify-center hover:bg-background transition-colors"
+                        className="absolute top-3 right-3 h-11 w-11 rounded-full bg-background/80 flex items-center justify-center hover:bg-background transition-colors"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -759,9 +854,10 @@ export default function NotasPage() {
                     </label>
                   )}
                 </div>
-                <div className="p-8 max-w-2xl mx-auto" style={{ fontFamily: NOTE_FONT_OPTIONS.find(f => f.id === noteFont)?.family }}>
+                <div className="p-5 sm:p-8 max-w-2xl mx-auto" style={{ fontFamily: NOTE_FONT_OPTIONS.find(f => f.id === noteFont)?.family }}>
                   <input
                     value={editorTitle}
+                    aria-label="Título da nota"
                     onChange={e => setEditorTitle(e.target.value)}
                     placeholder="Sem título"
                     className="w-full text-3xl font-bold bg-transparent outline-none placeholder:text-muted-foreground/40 mb-6"

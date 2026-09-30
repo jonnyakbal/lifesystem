@@ -1,9 +1,9 @@
 /* Astral identity: electric cyan is the action color; violet carries the
    cosmic accent. Warm colors stay reserved for financial and warning states. */
 .dark {
-  --color-background: #0b1017;
+  --color-background: #0b101b;
   --color-foreground: #edf0f4;
-  --color-card: #121a24;
+  --color-card: #141d2c;
   --color-card-foreground: #edf0f4;
   --color-popover: #17212e;
   --color-popover-foreground: #edf0f4;
@@ -15,7 +15,7 @@
   --color-muted-foreground: #9aaabc;
   --color-accent: #153548;
   --color-accent-foreground: #c8f5ff;
-  --color-border: #263846;
+  --color-border: #29384d;
   --color-input: #344957;
   --color-ring: #63d9f2;
 }
@@ -46,14 +46,20 @@
 .workspace-brand strong { display: block; font-size: 13px; font-weight: 650; letter-spacing: .07em; }
 .workspace-brand small { display: block; color: var(--color-muted-foreground); font-size: 10px; margin-top: 4px; }
 .workspace-search { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--color-border); border-radius: 9px; color: var(--color-muted-foreground); font-size: 11px; background: var(--color-card); }
+.workspace-search > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-search:hover { border-color: var(--color-primary); color: var(--color-foreground); }
-.workspace-search kbd { font-size: 9px; margin-left: auto; opacity: .6; }
+.workspace-search kbd { font-size: 9px; margin-left: auto; opacity: .6; white-space: nowrap; }
 .workspace-navigation { flex: 1; overflow-y: auto; overflow-x: hidden; padding-top: 22px; scrollbar-width: thin; }
-.workspace-nav-group { margin-bottom: 21px; }
+.workspace-nav-group { margin-bottom: 12px; }
 .workspace-nav-group > p { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--color-muted-foreground); margin: 0 12px 9px; }
-.workspace-nav-link { display: flex; align-items: center; gap: 11px; position: relative; padding: 10px 12px; min-height: 40px; margin: 2px 0; border-radius: 8px; color: var(--color-muted-foreground); font-size: 12px; transition: color .15s, background .15s; }
+.workspace-nav-link { display: flex; align-items: center; gap: 11px; position: relative; padding: 10px 12px; min-height: 44px; margin: 2px 0; border-radius: 8px; color: var(--color-muted-foreground); font-size: 12px; transition: color .15s, background .15s, transform .15s; }
 .workspace-nav-link svg { flex-shrink: 0; }
 .workspace-nav-link:hover { color: var(--color-foreground); background: var(--color-muted); }
+.workspace-nav-link:focus-visible, .workspace-mobile-dock :focus-visible, .work-heading-paths a:focus-visible { outline: 2px solid var(--color-ring); outline-offset: 2px; }
+.workspace-nav-disclosure { color: var(--color-foreground); font-weight: 600; }
+.workspace-nav-disclosure[aria-expanded="true"] { color: var(--color-primary); }
+.workspace-nav-children { margin: 3px 0 3px 19px; padding-left: 7px; border-left: 1px solid color-mix(in srgb, var(--color-primary) 25%, var(--color-border)); }
+.workspace-nav-children.is-compact { margin-left: 0; padding-left: 0; border-left: 0; }
 .workspace-nav-link[aria-current="page"] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 9%, transparent); }
 .workspace-nav-dot { margin-left: auto; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
 .workspace-nav-link.is-compact { justify-content: center; padding: 11px 0; }
@@ -63,15 +69,19 @@
 .workspace-sidebar-footer { border-top: 1px solid var(--color-border); padding-top: 14px; }
 .workspace-capture { width: 100%; gap: 9px; border-radius: 10px; font-size: 12px; }
 .workspace-utilities { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; color: var(--color-muted-foreground); }
-.workspace-topbar { height: 62px; align-items: center; padding: 0 32px; border-bottom: 1px solid var(--color-border); }
+.workspace-topbar { height: 62px; align-items: center; gap: 14px; padding: 0 32px; border-bottom: 1px solid var(--color-border); }
+.workspace-topbar-phrase { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-mobile-header { position: fixed; inset: 0 0 auto; z-index: 40; height: 64px; padding: 8px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--color-border); background: var(--color-background); }
 .workspace-mobile-dock { position: fixed; bottom: 0; inset-inline: 0; z-index: 45; display: flex; min-height: 72px; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--color-border); background: var(--color-background); }
-.workspace-mobile-dock > a, .workspace-mobile-dock > button { display: flex; flex: 1; flex-direction: column; gap: 5px; align-items: center; justify-content: center; min-width: 0; min-height: 48px; border-radius: 12px; color: var(--color-muted-foreground); font-size: 10px; }
+.workspace-mobile-dock > a, .workspace-mobile-dock > button { display: flex; flex: 1; flex-direction: column; gap: 5px; align-items: center; justify-content: center; min-width: 0; min-height: 48px; border-radius: 12px; color: var(--color-muted-foreground); font-size: 10px; transition: color .18s, background .18s, transform .18s; }
+.workspace-mobile-dock > a:active, .workspace-mobile-dock > button:active { transform: scale(.94); }
 .workspace-mobile-dock [aria-current="page"] { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 8%, transparent); }
 .workspace-mobile-sheet { background: var(--color-background); }
 .workspace-mobile-sheet .workspace-sidebar-inner { padding-top: 30px; }
 .workspace-skip-link { position: fixed; top: 10px; left: 10px; z-index: 100; padding: 12px 20px; background: var(--color-primary); color: var(--color-primary-foreground); border-radius: 8px; transform: translateY(-200%); }
 .workspace-skip-link:focus { transform: translateY(0); }
+@media (max-width: 1150px) { .workspace-topbar-phrase { display: none; } }
+@media (max-width: 360px) { .workspace-mobile-dock { padding-inline: 3px; } .workspace-mobile-dock > a, .workspace-mobile-dock > button { font-size: 9px; } }
 @media (min-width: 1024px) {
   .workspace-main { margin-left: var(--workspace-sidebar-width); padding-top: 0; padding-bottom: 32px; transition: margin-left .2s ease; }
   .workspace-mobile-header, .workspace-mobile-dock { display: none; }

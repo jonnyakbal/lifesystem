@@ -101,6 +101,12 @@ export interface TaskPlanning {
 }
 
 export interface Task extends BaseEntity {
+  professionalProjectionFingerprint?: string;
+  workType?: 'human' | 'agent' | 'decision' | 'dependency';
+  responsible?: string;
+  nextAction?: string;
+  professionalWorkId?: string;
+  professionalProjectionVersion?: number;
   planning?: TaskPlanning;
   title: string;
   description?: string;
@@ -137,6 +143,12 @@ export interface ContentMetrics {
 }
 
 export interface Content extends BaseEntity {
+  professionalProjectionFingerprint?: string;
+  professionalProjectionVersion?: number;
+  brandId?: 'arco-labs' | 'arcopass' | 'atelie-studio' | 'freelance';
+  audience?: string;
+  objective?: string;
+  cta?: string;
   title: string;
   body: string;
   channel: ContentChannel;
@@ -198,6 +210,7 @@ export interface StageConfig extends BaseEntity {
 
 // Editais Culturais — grants/opportunities Jonny pursues recurringly.
 export interface Edital extends BaseEntity {
+  projectId?: string;
   title: string;
   orgao?: string;
   description?: string;
@@ -248,6 +261,7 @@ export interface IndicatorRecord extends BaseEntity {
 export type FinancialType = 'income' | 'expense_fixed' | 'expense_variable';
 
 export interface FinancialEntry extends BaseEntity {
+  projectId?: string;
   type: FinancialType;
   category: string;
   description?: string;

@@ -3,6 +3,9 @@ import { z } from 'zod';
 const dateOnly = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Data inválida');
 
 export const taskPayloadSchema = z.object({
+  workType: z.enum(['human', 'agent', 'decision', 'dependency']).optional(),
+  responsible: z.string().max(500).optional(),
+  nextAction: z.string().max(10000).optional(),
   title: z.string().trim().max(300).optional(),
   description: z.string().max(10000).optional(),
   priority: z.enum(['urgent', 'important', 'normal']).optional(),

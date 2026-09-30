@@ -22,6 +22,10 @@ import type { Task } from '@/types';
 import { summarizeFinancialMonth, type FinancialPeriodEntry } from '@/lib/financial-period';
 import { adoptTaskCalendarEventAction, convertCaptureAction, convertCaptureActionSchema, planTaskBlockAction, removeTaskBlockAction, taskPlanningActionSchema } from './actions';
 import { idempotencyKeySchema, runMcpIdempotent } from './receipts';
+import { registerProfessionalTools } from './professional';
+import { contentPayloadSchema, validateContentBinding, updateContent } from '@/lib/content-domain';
+import { getFinancialDisplayEntries, getFinancialDisplayBudgets } from '@/lib/financial-categories';
+import { updateEdital } from '@/lib/edital-service';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -54,6 +58,7 @@ interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRa
   allowCreate?: boolean;
   allowDelete?: boolean;
   idempotentCreate?: boolean;
+  performUpdate?: (fields: Record<string, unknown>, id: string, expectedUpdatedAt?: string) => Promise<unknown>;
 }
 
 function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRawShape>(
@@ -86,7 +91,8 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         const value = input?.[key as string];
         if (value !== undefined && value !== '') filters[key as string] = value;
       }
-      const items = Object.keys(filters).length > 0
+      const display = collection === 'financial' ? await getFinancialDisplayEntries() : collection === 'budgets' ? await getFinancialDisplayBudgets() : null;
+      const items = display ? display.filter(item => Object.entries(filters).every(([key, value]) => (item as unknown as Record<string, unknown>)[key] === value)) : Object.keys(filters).length > 0
         ? await storage.query(collection, filters)
         : await storage.getAll(collection);
       const limit = input?.limit || 50;
@@ -112,7 +118,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
           : `Cria um novo item em ${plural} no LIFESYSTEM.`,
         inputSchema: config.idempotentCreate
           ? { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.describe('OBRIGATÓRIA. Gere uma chave única para esta intenção de criação e reutilize a mesma chave somente em tentativas repetidas da mesma solicitação.') }
-          : createShapeConcrete,
+          : { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.optional().describe('Use uma chave estável para esta intenção. Repetições com a mesma chave recuperam o mesmo ID.') },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logged(`create_${entity}`, async (rawInput: any) => {
@@ -120,9 +126,10 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
           const { idempotencyKey, ...fields } = rawInput as { idempotencyKey?: string } & z.infer<z.ZodObject<TCreate>>;
           const input = fields as z.infer<z.ZodObject<TCreate>>;
           const payload = buildCreatePayload(input);
+          if (collection === 'content') await validateContentBinding(payload);
           const create = () => storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
-          if (config.idempotentCreate) {
-            if (!idempotencyKey) return errorResult('idempotencyKey é obrigatória para criar lançamentos financeiros. Reutilize a mesma chave somente ao repetir a mesma solicitação.');
+          if (config.idempotentCreate || idempotencyKey) {
+            if (!idempotencyKey) return errorResult('idempotencyKey é obrigatória para esta criação. Reutilize a mesma chave somente ao repetir a mesma solicitação.');
             const identity = createHash('sha256').update(JSON.stringify([clientId || 'legacy', `create_${entity}`, idempotencyKey])).digest('hex');
             const createStable = () => storage.createOnce(collection, `mcp-${identity}`, config.validateCreate ? config.validateCreate(payload) : payload);
             const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, createStable);
@@ -141,15 +148,15 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
     {
       title: `Atualizar ${entity}`,
       description: `Atualiza campos de um item existente em ${plural} pelo id.`,
-      inputSchema: { id: z.string().describe('ID do item'), ...updateShapeConcrete },
+      inputSchema: { id: z.string().describe('ID do item'), expectedUpdatedAt: z.string().optional().describe('Versão updatedAt observada; evita sobrescrever alteração concorrente.'), ...updateShapeConcrete },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     logged(`update_${entity}`, async (rawInput: any) => {
       try {
-        const { id, ...fields } = rawInput as { id: string } & Record<string, unknown>;
+        const { id, expectedUpdatedAt, ...fields } = rawInput as { id: string; expectedUpdatedAt?: string } & Record<string, unknown>;
         const cleaned = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined));
         const payload = config.validateUpdate ? await config.validateUpdate(cleaned, id) : cleaned;
-        const updated = await storage.update(collection, id, payload);
+        const updated = config.performUpdate ? await config.performUpdate(payload, id, expectedUpdatedAt) : await storage.updateChecked(collection, id, payload, expectedUpdatedAt);
         if (!updated) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
         return textResult(updated);
       } catch (err) {
@@ -178,6 +185,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
 }
 
 export function registerAllTools(server: McpServer, scopes: string[] = ['*'], clientId?: string) {
+  registerProfessionalTools(server, scopes, clientId);
   // Tasks — mirrors src/app/api/tasks/route.ts POST body.
   registerCrudTools(server, {
     entity: 'task',
@@ -185,6 +193,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     plural: 'tasks',
     listFilters: ['status', 'pillarId', 'projectId'],
     createShape: {
+      workType: z.enum(['human', 'agent', 'decision', 'dependency']).optional(),
+      responsible: z.string().max(500).optional(), nextAction: z.string().max(10000).optional(),
       title: z.string().describe('Título da tarefa'),
       description: z.string().optional(),
       priority: z.enum(['urgent', 'important', 'normal']).optional().describe('Padrão: normal'),
@@ -195,6 +205,8 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       tags: z.array(z.string()).optional(),
     },
     updateShape: {
+      workType: z.enum(['human', 'agent', 'decision', 'dependency']).optional(),
+      responsible: z.string().max(500).optional(), nextAction: z.string().max(10000).optional(),
       title: z.string().optional(),
       description: z.string().optional(),
       priority: z.enum(['urgent', 'important', 'normal']).optional(),
@@ -205,6 +217,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       tags: z.array(z.string()).optional(),
     },
     buildCreatePayload: (input) => ({
+      ...input,
       title: input.title || 'Sem título',
       description: input.description,
       priority: input.priority || 'normal',
@@ -224,7 +237,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     description: 'Converte uma captura do INBOX de forma idempotente em nota, tarefa, conteúdo, lançamento financeiro, evento, projeto ou edital.',
     inputSchema: convertCaptureActionSchema.shape,
   }, logged('convert_capture', async (input: unknown) => {
-    try { return textResult(await convertCaptureAction(input)); }
+    try { return textResult(await convertCaptureAction(input, scopes)); }
     catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível converter a captura.'); }
   }, clientId));
 
@@ -261,30 +274,12 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     collection: 'content',
     plural: 'content',
     listFilters: ['status', 'stage', 'channel'],
-    createShape: {
-      title: z.string().describe('Título do conteúdo'),
-      body: z.string().optional(),
-      channel: z.enum(['blog', 'youtube', 'instagram', 'tiktok']).optional().describe('Padrão: blog'),
-      stage: z.enum(['idea', 'draft', 'review', 'scheduled', 'published', 'archived']).optional().describe('Padrão: idea'),
-      category: z.string().optional(),
-      format: z.string().optional(),
-      tags: z.array(z.string()).optional(),
-      scheduledDate: z.string().optional().describe('Formato YYYY-MM-DD'),
-      scheduledTime: z.string().optional(),
-    },
-    updateShape: {
-      title: z.string().optional(),
-      body: z.string().optional(),
-      channel: z.enum(['blog', 'youtube', 'instagram', 'tiktok']).optional(),
-      stage: z.enum(['idea', 'draft', 'review', 'scheduled', 'published', 'archived']).optional(),
-      category: z.string().optional(),
-      format: z.string().optional(),
-      tags: z.array(z.string()).optional(),
-      scheduledDate: z.string().optional(),
-      scheduledTime: z.string().optional(),
-      publishedUrl: z.string().optional(),
-    },
+    createShape: contentPayloadSchema.shape,
+    updateShape: contentPayloadSchema.shape,
+    performUpdate: (fields, id, version) => updateContent(id, fields, version),
+    validateCreate: payload => contentPayloadSchema.parse(payload),
     buildCreatePayload: (input) => ({
+      ...input,
       title: input.title || 'Sem título',
       body: input.body || '',
       channel: input.channel || 'blog',
@@ -292,13 +287,13 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       category: input.category || 'Geral',
       format: input.format || '',
       tags: input.tags || [],
-      status: 'draft',
-      pinned: false,
+      status: input.status || 'draft',
+      pinned: input.pinned || false,
       scheduledDate: input.scheduledDate,
       scheduledTime: input.scheduledTime,
-      checklist: [],
-      linkedTaskIds: [],
-      linkedProjectIds: [],
+      checklist: input.checklist || [],
+      linkedTaskIds: input.linkedTaskIds || [],
+      linkedProjectIds: input.linkedProjectIds || [],
     }),
   }, scopes, clientId);
 
@@ -491,6 +486,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       stage: input.stage || 'radar',
       notes: input.notes,
     }),
+    performUpdate: (fields, id, version) => updateEdital(id, fields, version, action => canUseMcpTool(action === 'create_project' ? 'create_project' : 'create_task', scopes)),
   }, scopes, clientId);
 
   // Financial control — the web UI exposes these as separate collections;
@@ -500,6 +496,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     entity: 'financial_entry', collection: 'financial', plural: 'financial_entries',
     listFilters: ['type', 'category', 'status', 'accountId', 'cardId'],
     createShape: {
+      projectId: z.string().max(100).optional().describe('Vínculo explícito com projeto; não inferir pela categoria.'),
       type: z.enum(['income', 'expense_fixed', 'expense_variable']).describe('Tipo do lançamento'),
       category: z.string().describe('Categoria financeira'),
       description: z.string().optional(), amount: z.number().positive(), date: z.string().describe('Data do registro, YYYY-MM-DD. Não substitua pelo vencimento ou pelo pagamento.'),
@@ -510,6 +507,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       paidDate: z.string().optional().describe('Pagamento YYYY-MM-DD; use somente quando status=paid. Define o mês realizado.'),
     },
     updateShape: {
+      projectId: z.string().max(100).optional().describe('Vínculo explícito com projeto; não inferir pela categoria.'),
       type: z.enum(['income', 'expense_fixed', 'expense_variable']).optional(), category: z.string().optional(), description: z.string().optional(), amount: z.number().positive().optional(), date: z.string().optional().describe('Data original do registro YYYY-MM-DD.'),
       recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
       status: z.enum(['pending', 'paid', 'overdue']).optional().describe('paid entra no realizado; pending/overdue entram no previsto.'),

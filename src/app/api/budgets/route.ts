@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Budget } from '@/types';
+import { getFinancialDisplayBudgets } from '@/lib/financial-categories';
 import { budgetSchema } from '@/lib/financial-validation';
 
 export async function GET() {
-  const budgets = await storage.getAll<Budget>('budgets');
+  const budgets = await getFinancialDisplayBudgets();
   return NextResponse.json(budgets);
 }
 

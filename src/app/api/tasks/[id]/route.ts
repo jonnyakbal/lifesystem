@@ -3,6 +3,7 @@ import { storage } from '@/lib/storage';
 import { Task } from '@/types';
 import { readJson } from '@/lib/validation';
 import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
+import { deletePlannedTask } from '@/lib/task-planning';
 
 export async function GET(
   _request: NextRequest,
@@ -40,12 +41,15 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   let deleted: boolean;
-  try { deleted = await storage.delete<Task>('tasks', id); }
+  try {
+    const body = await request.json().catch(() => ({}));
+    deleted = await deletePlannedTask(id, body?.removeGoogleEvent === true);
+  }
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível excluir a tarefa.' }, { status: 409 }); }
   if (!deleted) {
     return NextResponse.json({ error: 'Tarefa não encontrada' }, { status: 404 });

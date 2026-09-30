@@ -11,8 +11,8 @@ import {
   type Payee,
   accountTypeConfig,
   cardBrandColors,
-  categories,
-  categoryColors,
+  categories as defaultCategories,
+  categoryColors as defaultCategoryColors,
 } from '@/lib/finance-model';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -29,7 +29,10 @@ import {
   Receipt,
   Lock,
 } from 'lucide-react';
+import type { FinancialCategory } from '@/lib/financial-categories';
+import { FinancialCategoryDialog } from '@/components/financial/category-dialog';
 import { EntryDialog } from '@/components/financial/entry-dialog';
+import { WorkspaceContinuations } from '@/components/workspace/workspace-continuations';
 import {
   FinanceOverview,
   FinanceSummary,
@@ -96,6 +99,7 @@ export default function FinanceiroPage() {
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [payees, setPayees] = useState<Payee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [clientReady, setClientReady] = useState(false);
 
   // View state
   const [activeTab, setActiveTab] = useState<
@@ -181,8 +185,13 @@ export default function FinanceiroPage() {
   >('expense_variable');
 
   useEffect(() => {
-    loadAll();
+    queueMicrotask(() => { setClientReady(true); void loadAll(); });
   }, []);
+
+  const [categoryCatalog, setCategoryCatalog] = useState<FinancialCategory[]>([]);
+  const [editingCategory, setEditingCategory] = useState<FinancialCategory | null | undefined>(undefined);
+  const categories = useMemo(() => categoryCatalog.length ? Object.fromEntries(Object.keys(defaultCategories).map(type => [type, categoryCatalog.filter(item => item.type === type && !item.archived).map(item => item.name)])) as typeof defaultCategories : defaultCategories, [categoryCatalog]);
+  const categoryColors = useMemo(() => ({ ...defaultCategoryColors, ...Object.fromEntries(categoryCatalog.map(item => [item.name, item.color])) }), [categoryCatalog]);
 
   async function loadAll() {
     setLoadError('');
@@ -195,6 +204,7 @@ export default function FinanceiroPage() {
         goalsData,
         payeesData,
         billsData,
+        categoriesData,
       ] = await Promise.all([
         apiFetch<FinancialEntry[]>('/api/financial'),
         apiFetch<Account[]>('/api/accounts'),
@@ -203,6 +213,7 @@ export default function FinanceiroPage() {
         apiFetch<FinancialGoal[]>('/api/financial-goals'),
         apiFetch<Payee[]>('/api/payees'),
         apiFetch<Bill[]>('/api/bills'),
+        apiFetch<FinancialCategory[]>('/api/financial-categories'),
       ]);
       setEntries(
         entriesData.map((entry) => {
@@ -222,6 +233,7 @@ export default function FinanceiroPage() {
       setGoals(goalsData);
       setPayees(payeesData);
       setBills(billsData);
+      setCategoryCatalog(categoriesData);
     } catch (err) {
       setLoadError(showError(err));
     } finally {
@@ -682,6 +694,10 @@ export default function FinanceiroPage() {
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
+  // The initial month follows the browser's clock/time zone. A stable shell
+  // avoids mismatched server text when the server is in a different month.
+  if (!clientReady) return <div className="mx-auto max-w-[1600px] space-y-6 p-4 pb-12 sm:p-6 lg:p-8" role="status" aria-label="Carregando Financeiro"><h1 className="sr-only">Financeiro</h1><Skeleton className="h-32 rounded-2xl" /><Skeleton className="h-60 rounded-2xl" /></div>;
+
   return (
     <motion.div
       className="mx-auto max-w-[1600px] p-4 pb-12 sm:p-6 lg:p-8"
@@ -702,6 +718,7 @@ export default function FinanceiroPage() {
             <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
               Clareza sobre o que passou. Espaço para o que vem.
             </p>
+            <WorkspaceContinuations />
           </div>
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/30 p-2">
             <Select
@@ -1509,7 +1526,9 @@ export default function FinanceiroPage() {
               <h2 className="text-2xl font-bold font-display">
                 Gestão de Cadastros
               </h2>
+              <Button variant="outline" onClick={() => setEditingCategory(null)}><Plus className="mr-2 h-4 w-4" />Nova categoria</Button>
             </div>
+            {categoryCatalog.some(item => item.archived) && <details className="mb-5 rounded-xl border p-4"><summary className="cursor-pointer text-sm font-medium">Categorias arquivadas</summary><div className="mt-3 flex flex-wrap gap-2">{categoryCatalog.filter(item => item.archived).map(item => <Button key={item.id} variant="outline" onClick={() => setEditingCategory(item)}>{item.name} · editar ou reativar</Button>)}</div></details>}
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Categories by Type */}
               {(['income', 'expense_fixed', 'expense_variable'] as const).map(
@@ -1557,9 +1576,9 @@ export default function FinanceiroPage() {
                                       categoryColors[cat] || '#64748b',
                                   }}
                                 />
-                                <span className="text-sm font-medium flex-1">
-                                  {cat}
-                                </span>
+                                <button className="flex-1 text-left text-sm font-medium text-foreground hover:text-primary min-h-11" aria-label={`Editar categoria ${cat}`} disabled={!categoryCatalog.some(item => item.name === cat && item.historicalTypes.includes(type))} onClick={() => { const category = categoryCatalog.find(item => item.name === cat && item.historicalTypes.includes(type)); if (category) setEditingCategory(category); }}>
+                                  {cat}<span className="ml-2 text-xs font-normal text-muted-foreground">Editar</span>
+                                </button>
                                 <span className="text-right text-xs text-muted-foreground">
                                   Realizado R${' '}
                                   {(type === 'income'
@@ -1632,6 +1651,8 @@ export default function FinanceiroPage() {
           </motion.div>
         )}
       </AnimatePresence>
+        {editingCategory !== undefined && <FinancialCategoryDialog category={editingCategory || undefined} onClose={() => setEditingCategory(undefined)} onSaved={loadAll} />}
+
 
       {/* ─── Account Dialog ─────────────────────────────────────────────────── */}
       <Dialog open={isAccountDialogOpen} onOpenChange={setIsAccountDialogOpen}>

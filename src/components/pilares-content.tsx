@@ -7,11 +7,11 @@
 import { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
-import { Layers, Edit2, Target, Trash2, Flame, Calendar, ChevronDown, ArrowRight, Sparkles } from 'lucide-react';
+import { Layers, Edit2, Target, Trash2, Flame, BookOpen, ChevronDown, ArrowRight, Sparkles, ArrowUpRight } from 'lucide-react';
 import { PillarConstellation } from '@/components/pillar-constellation';
 import { cn, todayStr } from '@/lib/utils';
 import { apiFetch } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -23,6 +23,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 
 interface Pillar {
   id: string;
@@ -64,7 +65,7 @@ const colorMap: Record<string, string> = {
   critical: '#ef4444',
   qty: '#3b82f6',
   money: '#22c55e',
-  primary: '#a78bfa',
+  primary: '#36c8d8',
 };
 
 const fade = {
@@ -83,7 +84,7 @@ function ProgressRing({ value, color, size = 48 }: { value: number; color: strin
   const strokeColor = colorMap[color] || '#a78bfa';
 
   return (
-    <svg width={size} height={size} className="transform -rotate-90">
+    <svg width={size} height={size} className="transform -rotate-90" aria-hidden="true">
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -113,6 +114,8 @@ export function PilaresContent() {
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingPillar, setEditingPillar] = useState<Pillar | null>(null);
   const [editName, setEditName] = useState('');
@@ -127,6 +130,7 @@ export function PilaresContent() {
   const colorOptions = ['stellar', 'critical', 'qty', 'money', 'primary'];
 
   async function loadPillars() {
+    setLoadError('');
     try {
       const [pillarsData, journalData, indicatorsData] = await Promise.all([
         apiFetch<Pillar[]>('/api/pillars'),
@@ -144,12 +148,13 @@ export function PilaresContent() {
           });
         }
         const newData = await apiFetch<Pillar[]>('/api/pillars');
-        setPillars(newData);
+        setPillars([...newData].sort((a, b) => a.sortOrder - b.sortOrder));
       } else {
-        setPillars(pillarsData);
+        setPillars([...pillarsData].sort((a, b) => a.sortOrder - b.sortOrder));
       }
     } catch (err) {
       toast.error('Erro ao carregar pilares');
+      setLoadError('Não foi possível abrir seus pilares. Tente novamente.');
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -187,9 +192,9 @@ export function PilaresContent() {
   const pillarProgress = useMemo(() => {
     const map: Record<string, number> = {};
     for (const pillar of pillars) {
-      const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id && i.targetValue);
+      const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id && (i.targetValue || 0) > 0);
       if (pillarIndicators.length === 0) { map[pillar.id] = 0; continue; }
-      const avgPct = pillarIndicators.reduce((sum, i) => sum + Math.min(100, ((i.currentValue || 0) / (i.targetValue || 1)) * 100), 0) / pillarIndicators.length;
+      const avgPct = pillarIndicators.reduce((sum, i) => sum + Math.max(0, Math.min(100, ((i.currentValue || 0) / (i.targetValue || 1)) * 100)), 0) / pillarIndicators.length;
       map[pillar.id] = Math.round(avgPct);
     }
     return map;
@@ -207,7 +212,8 @@ export function PilaresContent() {
   }
 
   async function handleSave() {
-    if (!editingPillar) return;
+    if (!editingPillar || isSaving || !editName.trim()) return;
+    setIsSaving(true);
     try {
       await apiFetch(`/api/pillars/${editingPillar.id}`, {
         method: 'PATCH',
@@ -222,10 +228,12 @@ export function PilaresContent() {
     } catch (err) {
       toast.error('Erro ao salvar pilar');
       console.error(err);
-    }
+    } finally { setIsSaving(false); }
   }
 
   async function handleDelete(id: string) {
+    if (isSaving) return;
+    setIsSaving(true);
     try {
       await apiFetch(`/api/pillars/${id}`, { method: 'DELETE' });
       setIsEditorOpen(false);
@@ -234,7 +242,7 @@ export function PilaresContent() {
     } catch (err) {
       toast.error('Erro ao excluir pilar');
       console.error(err);
-    }
+    } finally { setIsSaving(false); }
   }
 
   return (
@@ -243,16 +251,15 @@ export function PilaresContent() {
       initial="initial"
       animate="animate"
     >
-      <motion.div className="mb-6" variants={fade}>
-        <h1 className="font-display text-3xl font-bold tracking-tight">Pilares</h1>
-        <p className="text-muted-foreground">
-          As 6 áreas fundamentais da sua vida — sua constelação pessoal, guiada pelos povos das estrelas.
-        </p>
-      </motion.div>
+      <WorkspaceHeading eyebrow="Cultivar · equilíbrio" title="Pilares" description="As áreas que sustentam sua vida. Conecte sua visão às metas e use o diário para perceber o que precisa de cuidado." actions={<><Link href="/diario" className="work-action-link"><BookOpen className="h-4 w-4" /> Fazer check-in</Link><Link href="/indicadores" className="work-action-link"><Target className="h-4 w-4" /> Metas <ArrowUpRight className="h-3.5 w-3.5" /></Link></>}><div className="work-metrics"><WorkspaceMetric label="Áreas da vida" value={isLoading || loadError ? '—' : pillars.length} /><WorkspaceMetric label="Metas conectadas" value={isLoading || loadError ? '—' : indicators.length} tone="primary" /><WorkspaceMetric label="Check-ins hoje" value={isLoading || loadError ? '—' : Object.keys(journalEntries.find(e => e.entryDate === todayStr())?.pillarChecks || {}).length} detail="Avaliações no diário de hoje" /></div></WorkspaceHeading>
+
+      {loadError && <div role="alert" className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-critical/30 bg-critical/5 p-4"><p className="text-sm">{loadError}</p><Button variant="outline" className="min-h-11" onClick={() => { setIsLoading(true); void loadPillars(); }}>Tentar novamente</Button></div>}
 
       {!isLoading && pillars.length > 0 && (
-        <motion.div className="mb-8" variants={fade}>
+        <motion.div className="mb-8 overflow-hidden rounded-2xl border bg-card/40 p-3 sm:p-5" variants={fade}>
+          <div className="mb-2 flex items-center gap-2 px-2 text-xs font-medium text-muted-foreground"><Layers className="h-3.5 w-3.5" /> Sua constelação</div>
           <PillarConstellation
+            selectedId={expandedPillarId}
             pillars={pillars.map(p => ({
               id: p.id,
               name: p.name,
@@ -262,17 +269,17 @@ export function PilaresContent() {
             }))}
             onSelect={(id) => {
               setExpandedPillarId(id);
-              document.getElementById(`pillar-card-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              document.getElementById(`pillar-card-${id}`)?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'center' });
             }}
           />
-          <p className="mt-2 text-center text-xs text-muted-foreground/60">
-            Cada estrela é um Pilar — quanto mais fraca a luz, mais esse lado da constelação está pedindo atenção.
+          <p className="mx-auto mt-2 max-w-xl text-center text-xs leading-relaxed text-muted-foreground">
+            A luz reflete suas metas com alvo definido. O check-in no diário traz o contexto de como cada área está hoje.
           </p>
         </motion.div>
       )}
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Carregando pilares">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
               <CardHeader>
@@ -290,7 +297,7 @@ export function PilaresContent() {
           ))}
         </div>
       ) : (
-        <motion.div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" variants={stagger}>
+        <motion.div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" variants={stagger}>
           {pillars.map((pillar) => {
             const pillarIndicators = indicators.filter(i => i.pillarId === pillar.id);
             const progress = pillarProgress[pillar.id] || 0;
@@ -300,20 +307,16 @@ export function PilaresContent() {
               <motion.div
                 key={pillar.id}
                 variants={fade}
-                whileHover={expandedPillarId !== pillar.id ? { y: -4, scale: 1.01 } : undefined}
                 transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               >
                 <Card id={`pillar-card-${pillar.id}`} className={cn(
-                  "group relative h-full scroll-mt-24 transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5",
+                  "group relative h-full min-w-0 scroll-mt-24 rounded-2xl transition-colors hover:border-primary/40",
                   expandedPillarId === pillar.id && "border-primary/50 shadow-md shadow-primary/5"
                 )}>
-                  <div
-                    className="cursor-pointer select-none"
-                    onClick={() => setExpandedPillarId(expandedPillarId === pillar.id ? null : pillar.id)}
-                  >
+                  <div>
                     <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <h2 className="min-w-0"><button className="flex min-h-11 min-w-0 items-center gap-3 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label={`Detalhes de ${pillar.name}`} aria-expanded={expandedPillarId === pillar.id} aria-controls={`pillar-details-${pillar.id}`} onClick={() => setExpandedPillarId(expandedPillarId === pillar.id ? null : pillar.id)}>
                           <motion.span
                             className="text-2xl"
                             whileHover={{ scale: 1.2, rotate: -8 }}
@@ -321,10 +324,11 @@ export function PilaresContent() {
                           >
                             {pillar.icon}
                           </motion.span>
-                          <CardTitle className="text-lg">{pillar.name}</CardTitle>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {pillarIndicators.length > 0 && (
+                          <span className="font-display text-xl font-medium leading-tight">{pillar.name}</span>
+                          <ChevronDown className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', expandedPillarId === pillar.id && 'rotate-180')} aria-hidden="true" />
+                        </button></h2>
+                        <div className="flex shrink-0 items-center gap-1">
+                          {pillarIndicators.some(i => (i.targetValue || 0) > 0) && (
                             <div className="relative">
                               <ProgressRing value={progress} color={pillar.color} size={40} />
                               <span className="absolute inset-0 flex items-center justify-center text-xs font-bold">
@@ -332,19 +336,13 @@ export function PilaresContent() {
                               </span>
                             </div>
                           )}
-                          <motion.div
-                            animate={{ rotate: expandedPillarId === pillar.id ? 180 : 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="text-muted-foreground"
-                          >
-                            <ChevronDown className="h-4 w-4" />
-                          </motion.div>
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                                className="h-11 w-11"
+                                aria-label={`Editar pilar ${pillar.name}`}
                                 onClick={(e) => { e.stopPropagation(); openEdit(pillar); }}
                               >
                                 <Edit2 className="h-4 w-4 text-muted-foreground" />
@@ -357,7 +355,7 @@ export function PilaresContent() {
                       <CardDescription>{pillar.description}</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-4 mb-3">
+                      <div className="flex flex-wrap items-center gap-2 mb-3">
                         {streak > 0 && (
                           <Badge variant="secondary" className="gap-1 text-xs">
                             <Flame className="h-3 w-3 text-orange-500" />
@@ -390,12 +388,14 @@ export function PilaresContent() {
                           <p className="mt-1 text-sm">{pillar.currentStatus}</p>
                         </div>
                       )}
+                      {!pillar.target && !pillar.currentStatus && <p className="text-sm leading-relaxed text-muted-foreground">Defina sua direção para esta área e acompanhe um pequeno avanço.</p>}
                     </CardContent>
                   </div>
 
                   <AnimatePresence initial={false}>
                     {expandedPillarId === pillar.id && (
                       <motion.div
+                        id={`pillar-details-${pillar.id}`}
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
@@ -403,17 +403,17 @@ export function PilaresContent() {
                         className="overflow-hidden"
                       >
                         <div className="px-6 pb-6 pt-0">
-                          <div className="flex items-center justify-between border-t pt-3 mb-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t pt-3 mb-2">
                             <span className="text-xs font-medium text-muted-foreground">Metas deste pilar</span>
-                            <Link href="/indicadores" className="flex items-center gap-1 text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-                              Ver todas <ArrowRight className="h-3 w-3" />
+                            <Link href={`/indicadores?pillar=${encodeURIComponent(pillar.id)}`} aria-label={`Ver metas de ${pillar.name}`} className="flex min-h-11 items-center gap-1 text-xs text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
+                              Ver metas <ArrowRight className="h-3 w-3" />
                             </Link>
                           </div>
                           <div className="space-y-1.5">
                             {indicators.filter(i => i.pillarId === pillar.id).map(ind => {
-                              const pct = ind.targetValue ? Math.min(100, Math.round(((ind.currentValue || 0) / ind.targetValue) * 100)) : 0;
+                              const pct = ind.targetValue ? Math.max(0, Math.min(100, Math.round(((ind.currentValue || 0) / ind.targetValue) * 100))) : 0;
                               return (
-                                <div key={ind.id} className="rounded-md px-2 py-1.5">
+                                <div key={ind.id} className="rounded-lg bg-muted/20 px-3 py-2.5">
                                   <div className="flex items-center justify-between text-sm">
                                     <span className="truncate">{ind.name}</span>
                                     <span className="shrink-0 text-xs text-muted-foreground">{ind.currentValue || 0}{ind.targetValue ? `/${ind.targetValue}` : ''}</span>
@@ -427,9 +427,7 @@ export function PilaresContent() {
                               );
                             })}
                             {indicators.filter(i => i.pillarId === pillar.id).length === 0 && (
-                              <p className="text-xs text-muted-foreground text-center py-3">
-                                Nenhuma meta vinculada a este pilar ainda.
-                              </p>
+                              <div className="rounded-xl border border-dashed px-3 py-4"><p className="text-xs leading-relaxed text-muted-foreground">Que pequeno avanço fortaleceria esta área?</p><Link href={`/indicadores?pillar=${encodeURIComponent(pillar.id)}`} className="mt-2 inline-flex min-h-11 items-center gap-1 text-xs font-medium text-primary">Definir uma meta <ArrowUpRight className="h-3.5 w-3.5" /></Link></div>
                             )}
                           </div>
                         </div>
@@ -444,8 +442,8 @@ export function PilaresContent() {
       )}
 
       {/* Edit Modal */}
-      <Dialog open={isEditorOpen} onOpenChange={setIsEditorOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <Dialog open={isEditorOpen} onOpenChange={open => { if (!isSaving) setIsEditorOpen(open); }}>
+        <DialogContent className="max-w-lg max-h-[85dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Pilar</DialogTitle>
             <DialogDescription>Altere as informações do pilar</DialogDescription>
@@ -458,9 +456,11 @@ export function PilaresContent() {
                 {emojiOptions.map(emoji => (
                   <button
                     key={emoji}
+                    aria-label={`Ícone ${emoji}`}
+                    aria-pressed={editIcon === emoji}
                     onClick={() => setEditIcon(emoji)}
                     className={cn(
-                      'flex h-10 w-10 items-center justify-center rounded-lg border-2 text-xl transition-all',
+                      'flex h-11 w-11 items-center justify-center rounded-xl border-2 text-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       editIcon === emoji ? 'border-primary bg-primary/10 scale-110' : 'border-border hover:border-muted-foreground/50'
                     )}
                   >
@@ -471,13 +471,13 @@ export function PilaresContent() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Nome</Label>
-              <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome do pilar" />
+              <Label htmlFor="pillar-name">Nome</Label>
+              <Input id="pillar-name" value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome do pilar" />
             </div>
 
             <div className="grid gap-2">
-              <Label>Descrição</Label>
-              <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Descreva o pilar" rows={2} />
+              <Label htmlFor="pillar-description">Descrição</Label>
+              <Textarea id="pillar-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Descreva o pilar" rows={2} />
             </div>
 
             <div className="grid gap-2">
@@ -486,9 +486,11 @@ export function PilaresContent() {
                 {colorOptions.map(color => (
                   <button
                     key={color}
+                    aria-label={`Cor ${color}`}
+                    aria-pressed={editColor === color}
                     onClick={() => setEditColor(color)}
                     className={cn(
-                      'h-8 w-8 rounded-full border-2 transition-all',
+                      'h-11 w-11 rounded-full border-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                       editColor === color ? 'border-white scale-110' : 'border-transparent',
                       color === 'stellar' && 'bg-stellar',
                       color === 'critical' && 'bg-critical',
@@ -502,24 +504,24 @@ export function PilaresContent() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Situação Atual</Label>
-              <Textarea value={editCurrentStatus} onChange={(e) => setEditCurrentStatus(e.target.value)} placeholder="Como está este pilar agora?" rows={2} />
+              <Label htmlFor="pillar-status">Situação Atual</Label>
+              <Textarea id="pillar-status" value={editCurrentStatus} onChange={(e) => setEditCurrentStatus(e.target.value)} placeholder="Como está este pilar agora?" rows={2} />
             </div>
 
             <div className="grid gap-2">
-              <Label>Meta do Ano (BHAG)</Label>
-              <Textarea value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Qual é o grande objetivo deste pilar até o fim do ano?" rows={2} />
+              <Label htmlFor="pillar-target">Meta do Ano (BHAG)</Label>
+              <Textarea id="pillar-target" value={editTarget} onChange={(e) => setEditTarget(e.target.value)} placeholder="Qual é o grande objetivo deste pilar até o fim do ano?" rows={2} />
             </div>
           </div>
 
           <DialogFooter className="gap-2">
             {editingPillar && (
-              <Button variant="destructive" onClick={() => handleDelete(editingPillar.id)}>
+              <Button variant="ghost" className="min-h-11 text-destructive sm:mr-auto" disabled={isSaving} onClick={() => handleDelete(editingPillar.id)}>
                 <Trash2 className="mr-2 h-4 w-4" /> Excluir
               </Button>
             )}
-            <Button variant="outline" onClick={() => setIsEditorOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!editName.trim()}>Salvar</Button>
+            <Button variant="outline" className="min-h-11" disabled={isSaving} onClick={() => setIsEditorOpen(false)}>Cancelar</Button>
+            <Button className="min-h-11" onClick={handleSave} disabled={isSaving || !editName.trim()}>{isSaving ? 'Salvando...' : 'Salvar'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

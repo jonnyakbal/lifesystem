@@ -26,6 +26,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { BRANDS } from '@/lib/professional/schemas';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,6 +44,10 @@ interface ContentItem {
   scheduledDate?: string;
   scheduledTime?: string;
   publishedUrl?: string;
+  brandId?: string;
+  audience?: string;
+  objective?: string;
+  cta?: string;
   responsible?: string;
   editorialLine?: string;
   checklist?: { id: string; text: string; done: boolean }[];
@@ -368,6 +373,10 @@ function ContentEditorPanel({
   const [scheduledDate, setScheduledDate] = useState(editingItem?.scheduledDate || '');
   const [scheduledTime, setScheduledTime] = useState(editingItem?.scheduledTime || '');
   const [publishedUrl, setPublishedUrl] = useState(editingItem?.publishedUrl || '');
+  const [brandId, setBrandId] = useState(editingItem?.brandId || '');
+  const [audience, setAudience] = useState(editingItem?.audience || '');
+  const [objective, setObjective] = useState(editingItem?.objective || '');
+  const [cta, setCta] = useState(editingItem?.cta || '');
   const [responsible, setResponsible] = useState(editingItem?.responsible || '');
   const [editorialLine, setEditorialLine] = useState(editingItem?.editorialLine || '');
   const [checklist, setChecklist] = useState<{ id: string; text: string; done: boolean }[]>(editingItem?.checklist?.map(item => ({ ...item })) || []);
@@ -440,6 +449,8 @@ function ContentEditorPanel({
         scheduledDate: scheduledDate || undefined,
         scheduledTime: scheduledTime || undefined,
         publishedUrl: publishedUrl || undefined,
+        brandId: brandId || undefined,
+        audience: audience || undefined, objective: objective || undefined, cta: cta || undefined,
         responsible: responsible || undefined,
         editorialLine: editorialLine || undefined,
         checklist,
@@ -469,13 +480,16 @@ function ContentEditorPanel({
     }
   }
 
+  const saveLatest = useRef(handleSave);
+  useEffect(() => { saveLatest.current = handleSave; });
+
   // Keyboard shortcuts
   useEffect(() => {
     if (!open) return;
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault();
-        handleSave();
+        void saveLatest.current();
       }
       if (e.key === 'Escape' && !slashOpen) {
         onClose();
@@ -496,7 +510,7 @@ function ContentEditorPanel({
 
   const ch = CHANNELS[channel];
   const ChIcon = ch.icon;
-  const st = STAGES[stage];
+  const st = STAGES[stage] || STAGES.idea;
 
   if (!open) return null;
   if (typeof document === 'undefined') return null;
@@ -712,6 +726,7 @@ function ContentEditorPanel({
                   </div>
                 </div>
 
+                <details className="mb-6 rounded-xl border p-3"><summary className="cursor-pointer text-xs font-medium">Marca, público e intenção</summary><div className="mt-4 space-y-3"><Label htmlFor="content-brand">Marca profissional</Label><select id="content-brand" className="h-11 w-full rounded-lg border bg-background px-3 text-xs" value={brandId} onChange={event => setBrandId(event.target.value)}><option value="">Sem associação profissional</option>{BRANDS.map(brand => <option key={brand.id} value={brand.id}>{brand.name} {brand.handle}</option>)}</select><Label htmlFor="content-audience">Público</Label><Input id="content-audience" value={audience} onChange={event => setAudience(event.target.value)} /><Label htmlFor="content-objective">Objetivo</Label><Input id="content-objective" value={objective} onChange={event => setObjective(event.target.value)} /><Label htmlFor="content-cta">CTA</Label><Input id="content-cta" value={cta} onChange={event => setCta(event.target.value)} /></div></details>
                 {/* Checklist */}
                 <div className="mb-6">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">Checklist de Produção</Label>

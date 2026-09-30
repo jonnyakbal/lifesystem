@@ -8,12 +8,14 @@ const routes = [
 
 for (const width of [390, 1440]) {
   test(`rotas principais carregam sem erro de execução em ${width}px`, async ({ page }) => {
+    test.setTimeout(120_000);
     await page.setViewportSize({ width, height: 900 });
     for (const route of routes) {
       const errors: string[] = [];
       const listener = (error: Error) => errors.push(error.message);
       page.on('pageerror', listener);
       const response = await page.goto(route, { waitUntil: 'domcontentloaded' });
+      await expect(page).toHaveURL(route === '/pilares' ? /\/visao\?tab=pilares$/ : new RegExp(`${route}$`));
       await expect(page.locator('main').first()).toBeVisible();
       expect(response?.status(), route).toBeLessThan(400);
       expect(errors, route).toEqual([]);

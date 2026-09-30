@@ -95,6 +95,21 @@ export async function removeTaskPlanning(id: string, removeGoogleEvent: boolean)
   });
 }
 
+// Serialize deletion with moves/syncs so a new mirror cannot appear mid-delete.
+export async function deletePlannedTask(id: string, removeGoogleEvent: boolean): Promise<boolean> {
+  return withTaskPlanningLock(id, async () => {
+    const task = await storage.getById<Task>('tasks', id);
+    if (!task) return false;
+    if (task.planning?.eventId) {
+      if (!removeGoogleEvent) throw new Error('Confirme a exclusão da tarefa e de seu evento espelhado.');
+      await deleteManagedTaskEvent(id, task.planning.eventId, task.planning.etag);
+      // Clear only after Google acknowledges removal; a failed local write is retryable (404).
+      await storage.update<Task>('tasks', id, { planning: undefined });
+    }
+    return storage.delete<Task>('tasks', id);
+  });
+}
+
 export async function adoptTaskGoogleEvent(id: string): Promise<Task> {
   return withTaskPlanningLock(id, async () => {
     const task = await storage.getById<Task>('tasks', id);

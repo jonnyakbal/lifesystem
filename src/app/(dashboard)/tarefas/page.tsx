@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
+import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { TaskDeleteDialog } from '@/components/task-delete-dialog';
 import { PlanningWorkspace } from '@/components/planning-workspace';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
@@ -47,6 +49,10 @@ import {
 interface TaskChecklistItem { id: string; text: string; done: boolean; }
 
 interface Task {
+  workType?: 'human' | 'agent' | 'decision' | 'dependency';
+  responsible?: string;
+  nextAction?: string;
+  professionalWorkId?: string;
   id: string;
   title: string;
   description?: string;
@@ -179,6 +185,7 @@ export default function TasksPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   // View state
+  const [deletionTask, setDeletionTask] = useState<Task | null>(null);
   const [view, setView] = useState<ViewMode>('kanban');
   const [search, setSearch] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
@@ -403,35 +410,22 @@ export default function TasksPage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    try {
-      const task = tasks.find(t => t.id === id);
-      await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
-      setIsDialogOpen(false);
-      loadTasks();
-      toast('Tarefa excluída', {
-        action: {
-          label: 'Desfazer',
-          onClick: async () => {
-            if (task) {
-              try {
-                await apiFetch('/api/tasks', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ ...task, id: undefined, createdAt: undefined, updatedAt: undefined, completedAt: undefined, checklist: task.checklist?.map(c => ({ ...c, id: uid('ck') })) || [] }),
-                });
-                loadTasks();
-                toast.success('Tarefa restaurada!');
-              } catch (err) {
-                toast.error(showError(err));
-              }
-            }
-          },
-        },
-      });
-    } catch (err) {
-      toast.error(showError(err));
-    }
+  function handleDelete(id: string) {
+    const task = tasks.find(item => item.id === id);
+    if (task) setDeletionTask(task);
+  }
+
+  function taskDeleted(task: Task) {
+    setIsDialogOpen(false); void loadTasks();
+    toast('Tarefa excluída', task.planning?.eventId ? {} : {
+      action: { label: 'Desfazer', onClick: async () => {
+        try {
+          const restored = { title: task.title, description: task.description, status: task.status, priority: task.priority, dueDate: task.dueDate, projectId: task.projectId, pillarId: task.pillarId, tags: task.tags, recurring: task.recurring, recurringFrequency: task.recurringFrequency, sortOrder: task.sortOrder };
+          await apiFetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...restored, checklist: task.checklist?.map(c => ({ ...c, id: uid('ck') })) || [] }) });
+          void loadTasks(); toast.success('Tarefa restaurada!');
+        } catch (error) { toast.error(showError(error)); }
+      } },
+    });
   }
 
   async function handleBulkDelete() {
@@ -578,7 +572,6 @@ export default function TasksPage() {
   }, [filteredTasks, sortBy, stages]);
 
   const overdueCount = tasks.filter(isOverdue).length;
-  const urgentCount = tasks.filter(t => t.priority === 'urgent' && t.status !== 'done').length;
 
   // Pipeline stats
   const pipelineStats = useMemo(() => {
@@ -705,7 +698,7 @@ export default function TasksPage() {
             else openEdit(task);
           }}
           className={cn(
-            'group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing border-l-3',
+            'work-item-card group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing border-l-3',
             draggedId === task.id && 'opacity-50 scale-95',
             isOverdue(task) && 'border-destructive/50',
             priorityConfig[task.priority].borderColor,
@@ -713,24 +706,24 @@ export default function TasksPage() {
             bulkMode && 'cursor-pointer'
           )}
         >
-          <CardContent className={cn('p-3', dense && 'p-2')}>
+          <CardContent className={cn('p-4', dense && 'p-2')}>
             <div className="flex items-start gap-2">
               {bulkMode ? (
                 <button className="mt-0.5 shrink-0" aria-label={isSelected ? `Desmarcar ${task.title}` : `Selecionar ${task.title}`}>
                   {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                 </button>
               ) : (
-                <GripVertical className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50 opacity-0 group-hover:opacity-100" />
+                <GripVertical className="hidden" aria-hidden="true" />
               )}
               {!bulkMode && (
-                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="mt-0.5 shrink-0" aria-label={task.status === 'done' ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
+                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="work-check shrink-0" aria-label={task.status === 'done' ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
                   {task.status === 'done' ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className={cn("h-4 w-4", isOverdue(task) ? 'text-destructive' : 'text-muted-foreground hover:text-foreground')} />}
                 </button>
               )}
               <div className="flex-1 min-w-0">
-                <p className={cn(dense ? 'text-xs' : 'text-sm', 'font-medium leading-snug', task.status === 'done' && 'line-through text-muted-foreground')}>
-                  {task.title}
-                </p>
+                <button onClick={event => { event.stopPropagation(); if (bulkMode) toggleSelect(task.id); else openEdit(task); }} className={cn(dense ? 'text-xs' : 'text-sm', 'work-card-title text-left font-semibold leading-relaxed', task.status === 'done' && 'line-through text-muted-foreground')}>{task.title}</button>
+                {!dense && task.professionalWorkId && <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground"><span>{task.workType === 'agent' ? 'Trabalho de agente' : task.workType === 'decision' ? 'Decisão' : task.workType === 'dependency' ? 'Dependência' : 'Tarefa humana'}{task.responsible ? ` · ${task.responsible}` : ''}</span><a href="/profissional" className="text-primary hover:underline" onClick={event => event.stopPropagation()}>Abrir briefing</a></p>}
+                {!dense && task.nextAction && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">Próximo passo: {task.nextAction}</p>}
                 {!dense && task.description && (
                   <p className="mt-1 text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
                     <Subtitles className="h-3 w-3" /> {task.description.slice(0, 40)}
@@ -744,9 +737,9 @@ export default function TasksPage() {
                   </div>
                 )}
                 <div className={cn('flex flex-wrap items-center gap-1', dense ? 'mt-1' : 'mt-2')}>
-                  <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', priorityConfig[task.priority].textColor)}>
+                  {task.priority !== 'normal' && <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', priorityConfig[task.priority].textColor)}>
                     {priorityConfig[task.priority].label}
-                  </Badge>
+                  </Badge>}
                   {(task.tags ?? []).slice(0, dense ? 0 : 2).map(tag => (
                     <Badge key={tag} variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                       <Tag className="mr-1 h-2.5 w-2.5" /> {tag}
@@ -768,7 +761,7 @@ export default function TasksPage() {
                       </Badge>
                     ) : null;
                   })()}
-                  {!dense && task.pillarId && (() => {
+                  {!dense && !task.projectId && task.pillarId && (() => {
                     const pil = pillars.find(p => p.id === task.pillarId);
                     return pil ? (
                       <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-border bg-muted/30">
@@ -791,7 +784,7 @@ export default function TasksPage() {
               {!bulkMode && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="h-8 w-8 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 shrink-0">
+                    <Button variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="work-more shrink-0">
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -822,7 +815,7 @@ export default function TasksPage() {
   function renderColumn(status: string, taskList: Task[]) {
     const cfg = getStage(status);
     return (
-      <div key={status} className="flex flex-col min-w-[280px] max-sm:min-w-[85vw] max-sm:snap-start" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
+      <div key={status} className="work-board-column" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
         <div className="flex items-center gap-2 mb-3 px-1">
           <div className={cn('h-2.5 w-2.5 rounded-full', cfg?.dot || 'bg-muted-foreground')} />
           <h3 className="text-sm font-medium">{getStatusLabel(status)}</h3>
@@ -831,7 +824,7 @@ export default function TasksPage() {
             <Button variant="ghost" size="sm" className="h-5 text-xs px-1.5" onClick={() => selectAll(status)}>Todos</Button>
           )}
         </div>
-        <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[200px]">
+        <div className="work-board-lane space-y-3">
           <AnimatePresence>{taskList.map(renderTaskCard)}</AnimatePresence>
           {taskList.length === 0 && quickAddStatus !== status && (
             <div className="flex items-center justify-center h-24 text-xs text-muted-foreground/50">Solte aqui</div>
@@ -863,7 +856,7 @@ export default function TasksPage() {
   function renderKanban() {
     if (groupBy === 'status') {
       return (
-        <div className="flex gap-4 overflow-x-auto overscroll-x-contain pb-4 max-sm:snap-x max-sm:snap-mandatory" aria-label="Quadro de tarefas por etapa">
+        <div className="work-board" aria-label="Quadro de tarefas por etapa">
           <LayoutGroup id="task-kanban">
             {stages.map(s => renderColumn(s.id, sortedTasks.filter(t => t.status === s.id)))}
           </LayoutGroup>
@@ -871,18 +864,18 @@ export default function TasksPage() {
       );
     }
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4 max-sm:snap-x max-sm:snap-mandatory">
+      <div className="work-board">
         <LayoutGroup id="task-kanban-grouped">
           {grouped.groupKeys.map(key => {
             const items = grouped.groups.get(key) || [];
             return (
-              <div key={key} className="flex flex-col min-w-[260px] max-sm:min-w-[80vw]">
+              <div key={key} className="work-board-column">
                 <div className="flex items-center gap-2 mb-3 px-1">
                   <div className={cn('h-2.5 w-2.5 rounded-full', getGroupDot(key))} />
                   <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
                   <Badge variant="secondary" className="ml-auto text-xs">{items.length}</Badge>
                 </div>
-                <div className="space-y-2 flex-1 rounded-lg border border-border/50 bg-muted/20 p-2 min-h-[300px]">
+                <div className="work-board-lane space-y-3">
                   <AnimatePresence>{items.map(renderTaskCard)}</AnimatePresence>
                   {items.length === 0 && <div className="flex flex-col items-center justify-center py-8 text-muted-foreground"><p className="text-xs">Nenhum item</p></div>}
                 </div>
@@ -972,19 +965,16 @@ export default function TasksPage() {
   // ─── Main Render ──────────────────────────────────────────────────────────
 
   return (
-    <motion.div className="p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
+    <motion.div className="work-page work-tasks p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       {/* Header */}
       <motion.div className="mb-6" variants={fade}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-4">
-          <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight">Tarefas</h1>
-            <p className="text-muted-foreground">
-              {filteredTasks.length} tarefas
-              {overdueCount > 0 && <> · <span className="text-destructive">{overdueCount} atrasadas</span></>}
-              {urgentCount > 0 && <> · <span className="text-orange-500">{urgentCount} urgentes</span></>}
-            </p>
+        <WorkspaceHeading eyebrow="Seu espaço de execução" title="Tarefas" description="Do que precisa acontecer ao que já está em movimento. Um passo de cada vez.">
+          <div className="work-metrics">
+            <WorkspaceMetric label="No seu radar" value={filteredTasks.length} detail="tarefas nesta visualização" />
+            <WorkspaceMetric label="Em movimento" value={tasks.filter(task => task.status === 'doing').length} tone="primary" detail="tarefas em execução" />
+            <WorkspaceMetric label="Pedem atenção" value={overdueCount} tone={overdueCount ? 'warning' : 'default'} detail="tarefas com prazo vencido" />
           </div>
-        </div>
+        </WorkspaceHeading>
 
         {/* Pipeline Stats */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
@@ -1031,7 +1021,7 @@ export default function TasksPage() {
               {/* Filters Panel */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-9 gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /> Filtros</Button>
+                  <Button variant="outline" size="sm" aria-label="Filtros" className="work-filter h-9 gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /><span>Filtros</span></Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-64" align="end">
                   <div className="space-y-4">
@@ -1338,7 +1328,7 @@ export default function TasksPage() {
             )}
           </div>
           <DialogFooter className="shrink-0 gap-2 border-t pt-4">
-            {editingTask && <Button variant="destructive" onClick={() => { handleDelete(editingTask.id); setIsDialogOpen(false); }}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
+            {editingTask && <Button variant="destructive" onClick={() => handleDelete(editingTask.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!newTitle.trim()}>{editingTask ? 'Salvar' : 'Criar'}</Button>
           </DialogFooter>
@@ -1352,6 +1342,7 @@ export default function TasksPage() {
         countUsage={(stageId) => tasks.filter(t => t.status === stageId).length}
         onSaved={setStages}
       />
+      {deletionTask && <TaskDeleteDialog task={deletionTask} onClose={() => setDeletionTask(null)} onDeleted={() => taskDeleted(deletionTask)} />}
     </motion.div>
   );
 }
