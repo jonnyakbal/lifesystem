@@ -47,4 +47,11 @@
 - [x] Add versioned context, real pillar bindings and a read-only daily brief with unavailable Calendar state.
 - [x] Specify and test deduplicated task proposal/apply through the existing task domain.
 - [x] Specify and test managed calendar block proposal/apply through `plan_task_block` with partial-failure recovery (mock Google; no live write).
-- [ ] Run full regression suite; publish only verified slices and report precise production evidence.
+- [x] Run full regression suite; publish only verified slices and report precise production evidence.
+
+## Delivery evidence — 2026-09-30
+
+- `e109cd5` reached `origin/main` through the repository's Hostinger deployment path.
+- The public `/corpo` page served `page-12da02efc6fc5748.js` after deployment. That fetched asset contains the new “Reservar bloco para” approval preview; the prior public page served `page-00ab50c61e737917.js`.
+- Local verification for that commit: Playwright 215 passed, TypeScript passed, ESLint passed (96 existing warnings in unrelated files), and Next Webpack production build passed.
+- The public asset verifies the UI release, not an authenticated production MCP transaction. Live Órion use still requires a dedicated `health:only` credential and an end-to-end authorized smoke test. No Hermes, Arco CRM, production configuration or live Google Calendar data was changed for this phase.
