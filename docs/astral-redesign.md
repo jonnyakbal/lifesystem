@@ -28,8 +28,10 @@ Ocultar um destino é uma preferência de apresentação. Não revoga permissõe
 - Gráficos com informações disponíveis também em texto.
 - Contraste nos dois temas, foco visível e respeito a movimento reduzido.
 
-## Trabalho pendente
+## Estado e trabalho pendente — 29/09/2026
 
-Revisar individualmente início, hoje, tarefas, planejamento, projetos, conteúdo, editais, notas, metas, financeiro, diário, visão, pilares, revisão, diário de bordo, Hermes e login. A nova base não substitui essa revisão. Validar visualmente os fluxos móveis e desktop antes de publicar a reformulação.
+Os smoke tests abrangem 18 rotas em desktop e mobile. O ciclo principal recebeu regressões de captura, planejamento, conclusão, revisão e recuperação de falhas. Screenshots sem erros de execução não equivalem a uma auditoria completa de contraste, teclado e acessibilidade.
+
+Continuar claro/escuro, teclado virtual, movimento reduzido e formulários secundários. O [roadmap](ROADMAP.md) concentra prioridades; marca em login/metadados permanece pendente.
 
 Para abertura do projeto: revisar dados de exemplo, instruções de instalação, configuração de identidade, contribuição e documentação dos módulos. Não publicar dados reais ou credenciais como exemplos.

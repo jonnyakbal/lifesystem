@@ -49,6 +49,7 @@ const STEPS = ['Capturas', 'Metas', 'Tarefas', 'Visão', 'Concluído'];
 export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [converting, setConverting] = useState<Capture | null>(null);
   const [indicators, setIndicators] = useState<Indicator[]>([]);
@@ -63,6 +64,8 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
   }, []);
 
   async function loadAll() {
+    setLoading(true);
+    setLoadError('');
     try {
       const [c, i, p, t, v] = await Promise.all([
         apiFetch<Capture[]>('/api/captures'),
@@ -73,7 +76,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
       ]);
       setCaptures(c); setIndicators(i); setPillars(p); setTasks(t); setVision(v);
     } catch (err) {
-      toast.error(showError(err));
+      setLoadError(showError(err));
     } finally {
       setLoading(false);
     }
@@ -142,6 +145,12 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
+      ) : loadError ? (
+        <Card><CardContent className="space-y-3 pt-6">
+          <p role="alert" className="text-sm text-destructive">{loadError}</p>
+          <p className="text-sm text-muted-foreground">Não foi possível carregar sua revisão. Seus dados foram preservados.</p>
+          <Button onClick={loadAll}>Tentar novamente</Button>
+        </CardContent></Card>
       ) : (
         <AnimatePresence mode="wait">
           <motion.div key={step} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }} transition={{ duration: 0.2 }}>
@@ -284,7 +293,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void }) {
         </AnimatePresence>
       )}
 
-      {!loading && step < 4 && (
+      {!loading && !loadError && step < 4 && (
         <div className="mt-6 flex items-center justify-between">
           <Button variant="outline" disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))} className="gap-1.5">
             <ArrowLeft className="h-4 w-4" /> Voltar

@@ -170,7 +170,7 @@ O LIFESYSTEM concentra a conexão OAuth e cifra o token no diretório de dados. 
 **Para conectar o Hermes Agent:**
 1. Configure o MCP do Hermes em `https://lifesystem.oj0nny.com/api/mcp` com a chave `hermes-mcp`.
 2. Configure o endpoint OpenAI compatível em `https://lifesystem.oj0nny.com/api/ai/v1` com a chave `hermes-ai`. Ela só possui `ai:invoke` e não acessa ferramentas.
-3. Faça o Hermes enviar `POST /api/hermes/heartbeat` a cada cinco minutos com a chave `hermes-mcp`, status, versão e ferramentas detectadas.
+3. Faça o Hermes enviar `POST /api/hermes/heartbeat` a cada cinco minutos com uma chave exclusiva `hermes-heartbeat`, limitada a `agent:heartbeat`, status, versão e ferramentas detectadas. O job script-only não chama o modelo; veja [deploy-producao](docs/deploy-producao.md).
 4. Execute `npm run mcp:smoke` na própria VPS com a URL e chave reais do Hermes. O teste faz handshake e uma leitura permitida sem imprimir dados.
 5. Confirme no `/hermes` a chamada MCP e o heartbeat nomeado. Configuração, atividade e saúde da VPS são sinais distintos.
 
@@ -209,13 +209,11 @@ npm run test:report
 
 **Cobertura atual:** APIs de tarefas, capturas e projetos; validação financeira e autorização/confiabilidade MCP; planejamento e Google Calendar; segurança de APIs; smoke tests e auditoria visual das rotas desktop/mobile. O GitHub Actions executa `npx tsc --noEmit`, `npm run build` e `npm test` em pushes e pull requests para `main`.
 
-## Roadmap próximo
+## Roadmap e qualidade
 
-- [ ] Sistema de IA (classificação de capturas, review semanal)
-- [ ] Página de detalhe de projeto
-- [ ] Subtarefas
-- [ ] Gráficos de indicadores
-- [x] Rate limiting no login e MCP
+O [roadmap atual](docs/ROADMAP.md) separa implementação, evidência em produção e pendências reais. Análises e planos datados são registros históricos.
+
+Para revisar sem dados pessoais nem reutilizar um servidor aberto: `npx playwright test --config playwright.readiness.config.ts`. A [auditoria de privacidade](docs/privacidade-historico.md) precisa ser concluída antes da divulgação à comunidade.
 
 ## Licença
 

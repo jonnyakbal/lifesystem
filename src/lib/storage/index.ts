@@ -124,6 +124,20 @@ export const storage = {
     });
   },
 
+  // Stable identity survives failure of a separate receipt write or a process restart.
+  async createOnce<T extends { id: string }>(collection: string, id: string, data: Omit<T, 'id' | 'createdAt' | 'updatedAt'>): Promise<T> {
+    return withCollectionLock(collection, async () => {
+      const items = await readCollection<T>(collection);
+      const existing = items.find(item => item.id === id);
+      if (existing) return existing;
+      const now = new Date().toISOString();
+      const item = { ...data, id, createdAt: now, updatedAt: now } as unknown as T;
+      items.push(item);
+      await writeCollection(collection, items);
+      return item;
+    });
+  },
+
   async update<T extends { id: string }>(collection: string, id: string, data: Partial<T>): Promise<T | null> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { apiFetch, showError } from '@/lib/api';
 
 interface CommandItem {
   id: string;
@@ -194,6 +195,9 @@ export function CommandPalette() {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [quickCapture, setQuickCapture] = useState('');
+  const [captureBusy, setCaptureBusy] = useState(false);
+  const [captureError, setCaptureError] = useState('');
+  const captureLock = useRef(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
@@ -338,15 +342,26 @@ export function CommandPalette() {
   const totalItems = allItems.length + filteredCommands.length;
 
   async function handleQuickCapture() {
-    if (!quickCapture.trim()) return;
-    const type = quickCapture.match(/^https?:\/\//) ? 'link' : 'text';
-    await fetch('/api/captures', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: quickCapture, type }),
-    });
-    setQuickCapture('');
-    toast.success('Captura salva!');
+    const content = quickCapture.trim();
+    if (!content || captureLock.current) return;
+    captureLock.current = true;
+    setCaptureBusy(true);
+    setCaptureError('');
+    try {
+      await apiFetch('/api/captures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, type: /^https?:\/\//.test(content) ? 'link' : 'text' }),
+      });
+      setQuickCapture('');
+      cacheRef.current.clear();
+      toast.success('Captura salva!');
+    } catch (error) {
+      setCaptureError(showError(error));
+    } finally {
+      captureLock.current = false;
+      setCaptureBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -480,9 +495,11 @@ export function CommandPalette() {
                   <Zap className="h-4 w-4 text-primary shrink-0" />
                   <input
                     value={quickCapture}
-                    onChange={(e) => setQuickCapture(e.target.value)}
+                    disabled={captureBusy}
+                    aria-label="Texto da captura rápida"
+                    onChange={(e) => { setQuickCapture(e.target.value); setCaptureError(''); }}
                     placeholder="Captura rápida (Enter para salvar)..."
-                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                    className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && quickCapture.trim()) {
                         e.preventDefault();
@@ -491,12 +508,12 @@ export function CommandPalette() {
                       }
                     }}
                   />
-                  {quickCapture.trim() && (
-                    <kbd className="rounded border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-xs text-primary">
-                      ↵
-                    </kbd>
-                  )}
+                  <button type="button" aria-label="Salvar captura" disabled={captureBusy || !quickCapture.trim()}
+                    onClick={handleQuickCapture} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/5 text-primary disabled:opacity-40 focus-visible:outline-2 focus-visible:outline-primary">
+                    {captureBusy ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                  </button>
                 </div>
+                {captureError && <p role="alert" className="mt-2 text-sm text-destructive">{captureError}</p>}
               </div>
 
               <div className="max-h-80 overflow-y-auto p-2">

@@ -225,6 +225,35 @@ test('financial idempotency key replays one created entry', async () => {
   }
 });
 
+test('finance retry recovers a saved entry after receipt persistence fails', async () => {
+  const server = createLifesystemMcpServer(['financial:write']);
+  const client = new Client({ name: 'receipt-recovery-test', version: '1.0.0' });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const originalCreate = storage.create;
+  const key = 'receipt-failure-recovery-2044';
+  const args = { type: 'expense_variable', category: 'Synthetic receipt recovery', amount: 17, date: '2044-01-01', idempotencyKey: key };
+  try {
+    await server.connect(serverTransport);
+    await client.connect(clientTransport);
+    storage.create = async (collection, data) => {
+      if (collection === 'mcp-receipts') throw new Error('synthetic receipt disk failure');
+      return originalCreate(collection, data);
+    };
+    const first = await client.callTool({ name: 'create_financial_entry', arguments: args });
+    expect(first.isError).toBe(true);
+    storage.create = originalCreate;
+    const recovered = await client.callTool({ name: 'create_financial_entry', arguments: args });
+    expect(recovered.isError).toBeFalsy();
+    const records = (await storage.getAll<{ id: string; category: string }>('financial')).filter(item => item.category === args.category);
+    expect(records).toHaveLength(1);
+    expect(JSON.parse((recovered.content as { text: string }[])[0].text).id).toBe(records[0].id);
+  } finally {
+    storage.create = originalCreate;
+    await client.close();
+    await server.close();
+  }
+});
+
 test('financial entry creation requires a stable idempotency key', async () => {
   const server = createLifesystemMcpServer(['financial:write'], 'hermes-finance-required-key');
   const client = new Client({ name: 'financial-required-key-test', version: '1.0.0' });

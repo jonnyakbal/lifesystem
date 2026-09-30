@@ -28,6 +28,16 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 ## Evidência confirmada
 
+### Publicação da revisão de confiabilidade — autorizada
+
+Jonny autorizou integrar a revisão de privacidade, MCP e ciclo mobile depois da validação local (`140 passed`, tipos/build aprovados, lint sem erros). A release usa push normal para `main`; não inclui reescrita do histórico nem migração de dados. A confirmação pública deve identificar o novo botão acessível “Salvar captura” e seus estados, sem criar registros reais. O recibo será registrado depois da observação da versão servida.
+
+### Revisão de 29/09/2026
+
+**Test connection** no Hermes pessoal descobriu as ferramentas do servidor `lifesystem`. `/hermes` em produção mostrou heartbeat `hermes-heartbeat` recente, Online e chamadas `hermes-mcp` bem-sucedidas. Não foram criados lançamentos nem eventos nesta verificação.
+
+Checkout e `origin/main` estavam em `98ced9e` no início. O conector Hostinger retornou `401`: recibo do build indisponível. O teste Hermes mostra nomes, não schemas; a exigência `idempotencyKey` no runtime ainda não foi certificada. Correções desta revisão permanecem locais até integração/publicação.
+
 O commit `9cdac5120742d0b1dc8058a3879c985cf23d18a7` foi confirmado em `origin/main`. Após o push, o Planejar público foi recarregado e mostrou o novo componente de agenda integrada, “Atualizar agenda” e os intervalos livres entre 08:00 e 20:00. Isso confirma a funcionalidade na aplicação pública. O estado interno e os logs de build da Hostinger não foram inspecionados nesta sessão.
 
 ### Verificação mais recente — 28/09/2026

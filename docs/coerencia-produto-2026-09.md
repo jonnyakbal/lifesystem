@@ -1,5 +1,7 @@
 # LIFESYSTEM — coerência de produto e confiabilidade
 
+> Análise histórica de 25/09/2026. Os diagnósticos abaixo descrevem aquela versão. Planejar, blocos, capacidade e controle Hermes já avançaram; consulte o [roadmap atual](ROADMAP.md) e a [auditoria do histórico](privacidade-historico.md).
+
 ## Objetivo
 
 Uma pessoa deve conseguir passar por **capturar → decidir → planejar → executar → revisar** sem descobrir em qual dos muitos módulos uma ação se esconde. O visual astral é uma assinatura discreta. A informação, o tempo e a ação principal têm prioridade.

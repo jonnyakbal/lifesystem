@@ -9,6 +9,7 @@
 // instead of 24 near-identical hand-written blocks. Pillars are the one
 // exception — they're a fixed set of 6, so only list/update are registered.
 import { z } from 'zod';
+import { createHash } from 'node:crypto';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { todayStr } from '@/lib/utils';
 import { storage } from '@/lib/storage';
@@ -122,7 +123,9 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
           const create = () => storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
           if (config.idempotentCreate) {
             if (!idempotencyKey) return errorResult('idempotencyKey é obrigatória para criar lançamentos financeiros. Reutilize a mesma chave somente ao repetir a mesma solicitação.');
-            const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, create);
+            const identity = createHash('sha256').update(JSON.stringify([clientId || 'legacy', `create_${entity}`, idempotencyKey])).digest('hex');
+            const createStable = () => storage.createOnce(collection, `mcp-${identity}`, config.validateCreate ? config.validateCreate(payload) : payload);
+            const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, createStable);
             return textResult({ ...outcome.result, replayed: outcome.replayed });
           }
           return textResult(await create());

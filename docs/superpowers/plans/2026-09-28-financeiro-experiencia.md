@@ -38,6 +38,8 @@ Orçamentos são mensais, com tipo de despesa explícito. Atraso derivado do ven
 
 ## Entrega local e verificações — 29/09/2026
 
+> Atualização: reformulação integrada em `81c11c4`, seguida da exigência de chave financeira MCP em `98ced9e`. O texto abaixo registra a validação original. O [roadmap](../../ROADMAP.md) distingue integração/publicação e evidências atuais; este plano não é um recibo de build.
+
 Implementados panorama, filtros interativos a partir dos indicadores e categorias, gráficos/tabela, insights determinísticos, edição/pagamento com data explícita, ajuste exato de saldo e diálogos Radix. Corrigidos payload de desfazer, tipo de orçamento, seleção de cartão/mês da fatura, limites dos dias de fatura, remoção de vencimento via API/MCP e agregação em centavos. Sem alteração de registros existentes, push ou deploy.
 
 Evidências executadas:
