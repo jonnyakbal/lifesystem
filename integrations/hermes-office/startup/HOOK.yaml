@@ -1,0 +1,4 @@
+name: jonny-office-chat
+description: Inicia a conversa do escritorio no gateway pessoal.
+events:
+  - gateway:startup

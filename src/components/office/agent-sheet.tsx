@@ -70,7 +70,11 @@ export function AgentSheet({
         <div className={styles.run}>
           <strong>
             Atendimento pelo{" "}
-            {presence.run.channel === "whatsapp" ? "WhatsApp" : "Telegram"}
+            {presence.run.channel === "office"
+              ? "Escritório"
+              : presence.run.channel === "whatsapp"
+                ? "WhatsApp"
+                : "Telegram"}
           </strong>
           <span>
             Recebido {new Date(presence.run.acceptedAt).toLocaleString("pt-BR")}

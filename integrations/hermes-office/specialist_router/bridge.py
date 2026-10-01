@@ -23,6 +23,12 @@ class Bridge:
         self.pending = {}
         self.transcriber=transcriber
         self.office = OfficePublisher.from_env(home)
+        self.office_task = None
+
+    def start_office(self, **kwargs):
+        if self.office.enabled and self.office_task is None:
+            from .office_commands import OfficeCommands
+            self.office_task = self.ctx.spawn_task(OfficeCommands(self).run(), name='specialist:office-chat')
 
     @staticmethod
     def voice_event(event):
@@ -157,4 +163,5 @@ def register(ctx):
     from hermes_constants import get_hermes_home
     bridge = Bridge(ctx, get_hermes_home())
     ctx.register_hook('pre_gateway_dispatch', bridge.hook)
+    ctx.register_hook('jonny_office_start', bridge.start_office)
     bridge.office.start(ctx)

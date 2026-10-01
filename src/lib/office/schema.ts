@@ -71,8 +71,8 @@ export type Catalog = z.infer<typeof catalogSchema>;
 export const runSchema = z
   .object({
     runId: id,
-    agentId: z.enum(["vega", "sirius", "orion", "astro", "cosmo"]),
-    channel: z.enum(["whatsapp", "telegram"]),
+    agentId: z.enum(agentIds),
+    channel: z.enum(["whatsapp", "telegram", "office"]),
     status: z.enum([
       "accepted",
       "running",
@@ -147,6 +147,7 @@ export type ReceivedEvent = OfficeEvent & { receivedAt: string };
 export type Snapshot = Extract<ReceivedEvent, { kind: "snapshot" }>;
 export type StoredCatalog = Extract<ReceivedEvent, { kind: "catalog.updated" }>;
 export interface OfficeData {
+  chats?: ChatJob[];
   session: { id: string; bootId: string } | null;
   retired: string[];
   snapshot: Snapshot | null;
@@ -155,6 +156,18 @@ export interface OfficeData {
   seen: number[];
   highest: number;
   catalogSequence: number;
+}
+export interface ChatJob {
+  id: string;
+  clientId: string;
+  agentId: AgentId;
+  text: string;
+  response: string | null;
+  status:
+    "queued" | "claimed" | "running" | "completed" | "failed" | "interrupted";
+  createdAt: string;
+  updatedAt: string;
+  claimSession?: string;
 }
 export const emptyOffice = (): OfficeData => ({
   session: null,

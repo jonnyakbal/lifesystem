@@ -151,7 +151,8 @@ class OfficePublisher:
 
     def snapshot(self):
         with self.lock:
-            return {'monitored':AGENTS, 'runs':[dict(r) for r in self.runs.values()], 'catalogRevision':self.catalog['revision'] if self.catalog else None, 'gap':self.gap}
+            monitored=AGENTS+(['hermes'] if any(r['agentId']=='hermes' for r in self.runs.values()) else [])
+            return {'monitored':monitored, 'runs':[dict(r) for r in self.runs.values()], 'catalogRevision':self.catalog['revision'] if self.catalog else None, 'gap':self.gap}
 
     def pending_events(self):
         with self.lock, closing(self.connect()) as db:
