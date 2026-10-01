@@ -53,3 +53,5 @@ next-env.d.ts
 /data/runtime/
 /data/backups/
 /data/google-calendar.json
+# Isolated office UI fixtures; never commit local test state.
+.office-test-data/

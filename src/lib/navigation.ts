@@ -27,6 +27,7 @@ export const navigation = [
     { title: 'Revisão', href: '/revisao', icon: History, description: 'Reconheça o progresso. Ajuste a direção.' },
     { title: 'Diário de bordo', href: '/diario-bordo', icon: ScrollText, description: 'Decisões e aprendizados que ficam.' },
     { title: 'Hermes', href: '/hermes', icon: Bot, description: 'Seu assistente, conectado ao seu contexto.' },
+    { title: 'Escritório', href: '/escritorio', icon: Bot, description: 'Seu time, suas fontes e o trabalho em andamento.' },
   ] },
 ];
 

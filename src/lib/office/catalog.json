@@ -1,0 +1,453 @@
+{
+  "revision": "office-local-20260930-v1",
+  "provenance": "local",
+  "profiles": [
+    {
+      "id": "hermes",
+      "name": "Hermes",
+      "role": "Coordenação",
+      "summary": "É a porta de entrada do seu time. Mantém o atendimento geral e ajuda você a escolher o especialista adequado.",
+      "principles": [
+        {
+          "text": "Preserva a identidade de cada especialista e o contexto separado.",
+          "sourceId": "role"
+        }
+      ],
+      "sources": [
+        {
+          "id": "role",
+          "title": "Papel e princípios",
+          "kind": "instruction",
+          "reference": "hermes/runtime/specialists/specialist_router/bridge.py",
+          "summary": "Resumo da configuração local; consulte a revisão implantada para confirmar equivalência.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "lifesystem",
+          "title": "Dados do LifeSystem",
+          "kind": "connector",
+          "reference": "lifesystem:mcp:hermes",
+          "summary": "Conexão geral com LifeSystem. Gateway vivo não comprova consulta de dados ou atividade do atendimento.",
+          "revision": null,
+          "verifiedAt": null
+        }
+      ],
+      "actions": [
+        {
+          "title": "Escolher um especialista",
+          "description": "Diga o nome do agente no início da mensagem.",
+          "dependency": "Roteador pessoal",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "server",
+          "example": "Sirius, me ajuda a escolher as prioridades de hoje.",
+          "checkedAt": null
+        },
+        {
+          "title": "Consultar o atendimento",
+          "description": "Mostra qual perfil está selecionado no canal.",
+          "dependency": "Comando /agentes",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "server",
+          "example": "/agentes",
+          "checkedAt": null
+        },
+        {
+          "title": "Interromper o pedido",
+          "description": "Solicita interrupção pelo canal de atendimento.",
+          "dependency": "Comando /stop",
+          "availability": "configured",
+          "approval": "explicit",
+          "enforcement": "server",
+          "example": "/stop",
+          "checkedAt": null
+        }
+      ]
+    },
+    {
+      "id": "vega",
+      "name": "Vega",
+      "role": "Finanças",
+      "summary": "Ajuda a entender seu caixa, compromissos e dívidas, com clareza e sem julgamento. Separa o que já aconteceu do que ainda está previsto.",
+      "principles": [
+        {
+          "text": "Valor previsto não é saldo disponível; contas compartilhadas precisam separar cada pessoa.",
+          "sourceId": "role"
+        }
+      ],
+      "sources": [
+        {
+          "id": "role",
+          "title": "Papel e princípios",
+          "kind": "instruction",
+          "reference": "hermes/profiles/vega/SOUL.md",
+          "summary": "Resumo da configuração local; consulte a revisão implantada para confirmar equivalência.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "skill",
+          "title": "vega-financeiro",
+          "kind": "skill",
+          "reference": "hermes/skills/vega-financeiro/SKILL.md",
+          "summary": "Guia específico deste domínio. A presença na configuração não comprova uso nesta conversa.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "lifesystem",
+          "title": "Dados do LifeSystem",
+          "kind": "connector",
+          "reference": "lifesystem:mcp:vega",
+          "summary": "Lançamentos, compromissos e orçamento pessoais. Não equivale a sincronização com o banco.",
+          "revision": null,
+          "verifiedAt": null
+        }
+      ],
+      "actions": [
+        {
+          "title": "Revisar compromissos",
+          "description": "Consulta registros disponíveis e identifica próximos vencimentos.",
+          "dependency": "MCP financeiro LifeSystem",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Vega, consulte meus próximos vencimentos e separe pago de previsto.",
+          "checkedAt": null
+        },
+        {
+          "title": "Preparar um lançamento",
+          "description": "Organiza valor, data e categoria para você conferir antes de gravar.",
+          "dependency": "Ferramenta financeira de escrita e campos confirmados",
+          "availability": "configured",
+          "approval": "explicit",
+          "enforcement": "instructions",
+          "example": "Vega, prepare um lançamento de despesa para eu revisar.",
+          "checkedAt": null
+        },
+        {
+          "title": "Planejar o caixa",
+          "description": "Explica cenários com os dados disponíveis, sem prometer rentabilidade.",
+          "dependency": "Registros financeiros e contexto confirmado",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Vega, diferencie meu caixa de hoje do que espero receber.",
+          "checkedAt": null
+        }
+      ]
+    },
+    {
+      "id": "sirius",
+      "name": "Sirius",
+      "role": "Projetos e produtividade",
+      "summary": "Transforma objetivos em próximos passos, projetos e entregas. Cuida de produtividade, comercial e desenvolvimento, considerando o contexto antes de sugerir prioridades.",
+      "principles": [
+        {
+          "text": "Propõe ações com evidência de conclusão; não inventa prazos nem duplica o CRM no LifeSystem.",
+          "sourceId": "role"
+        }
+      ],
+      "sources": [
+        {
+          "id": "role",
+          "title": "Papel e princípios",
+          "kind": "instruction",
+          "reference": "hermes/profiles/sirius/SOUL.md",
+          "summary": "Resumo da configuração local; consulte a revisão implantada para confirmar equivalência.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "skill",
+          "title": "sirius-profissional",
+          "kind": "skill",
+          "reference": "hermes/skills/sirius-profissional/SKILL.md",
+          "summary": "Guia específico deste domínio. A presença na configuração não comprova uso nesta conversa.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "arco",
+          "title": "Contexto Arco",
+          "kind": "briefing",
+          "reference": "hermes/briefings/cosmo-arco-conteudo.md",
+          "summary": "Contexto curado de Arco Labs, ArcoPass e Ateliê Studio. Conteúdo Dona Maria fica fora deste escopo.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "lifesystem",
+          "title": "Dados do LifeSystem",
+          "kind": "connector",
+          "reference": "lifesystem:mcp:sirius",
+          "summary": "Projetos e tarefas pessoais. Arco Leads continua sendo a fonte comercial e depende da própria integração.",
+          "revision": null,
+          "verifiedAt": null
+        }
+      ],
+      "actions": [
+        {
+          "title": "Priorizar projetos",
+          "description": "Consulta tarefas e projetos disponíveis e sugere até três próximos passos.",
+          "dependency": "MCP de projetos e tarefas LifeSystem",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Sirius, consulte meus projetos e proponha três próximos passos.",
+          "checkedAt": null
+        },
+        {
+          "title": "Preparar tarefas",
+          "description": "Monta uma proposta de tarefas com objetivo e critério de conclusão para revisar.",
+          "dependency": "Ferramentas de tarefas e aprovação dos campos",
+          "availability": "configured",
+          "approval": "explicit",
+          "enforcement": "instructions",
+          "example": "Sirius, prepare as tarefas para avançar este projeto e me mostre antes de salvar.",
+          "checkedAt": null
+        },
+        {
+          "title": "Atuar no Arco Leads",
+          "description": "A escrita no CRM depende de conector, permissões e teste de integração.",
+          "dependency": "MCP Arco Leads",
+          "availability": "pending",
+          "approval": "explicit",
+          "enforcement": "instructions",
+          "example": "Sirius, prepare um rascunho de abordagem comercial sem enviar nem registrar no CRM.",
+          "checkedAt": null
+        }
+      ]
+    },
+    {
+      "id": "orion",
+      "name": "Órion",
+      "role": "Corpo e saúde",
+      "summary": "Apoia sua constância com sono, alimentação, água, movimento e disposição. Faz check-ins curtos e propõe passos compatíveis com sua rotina.",
+      "principles": [
+        {
+          "text": "Cobrança gentil, sem culpa; não diagnostica nem inventa observações de saúde.",
+          "sourceId": "role"
+        }
+      ],
+      "sources": [
+        {
+          "id": "role",
+          "title": "Papel e princípios",
+          "kind": "instruction",
+          "reference": "hermes/profiles/orion/SOUL.md",
+          "summary": "Resumo da configuração local; consulte a revisão implantada para confirmar equivalência.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "skill",
+          "title": "orion-corpo-saude",
+          "kind": "skill",
+          "reference": "hermes/skills/orion-corpo-saude/SKILL.md",
+          "summary": "Guia específico deste domínio. A presença na configuração não comprova uso nesta conversa.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "lifesystem",
+          "title": "Dados do LifeSystem",
+          "kind": "connector",
+          "reference": "lifesystem:mcp:orion",
+          "summary": "Organização disponível ao perfil. Registros de saúde exigem credencial e integração próprias, ainda a verificar.",
+          "revision": null,
+          "verifiedAt": null
+        }
+      ],
+      "actions": [
+        {
+          "title": "Fazer um check-in",
+          "description": "Ajuda a perceber como está a rotina e escolher um próximo cuidado.",
+          "dependency": "Conversa e contexto fornecido por você",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Órion, vamos fazer um check-in curto de sono, refeições e disposição.",
+          "checkedAt": null
+        },
+        {
+          "title": "Organizar uma rotina",
+          "description": "Prepara uma proposta de hábitos compatíveis com horários conhecidos.",
+          "dependency": "Contexto da rotina e agenda quando disponível",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Órion, me ajude a organizar uma rotina realista para esta semana.",
+          "checkedAt": null
+        },
+        {
+          "title": "Registrar dados de saúde",
+          "description": "Exige ativar e verificar a credencial própria das ferramentas de saúde.",
+          "dependency": "MCP de saúde LifeSystem e autorização dedicada",
+          "availability": "pending",
+          "approval": "explicit",
+          "enforcement": "server",
+          "example": "Órion, prepare este registro de saúde para eu confirmar.",
+          "checkedAt": null
+        }
+      ]
+    },
+    {
+      "id": "astro",
+      "name": "Astro",
+      "role": "Mente e aprendizado",
+      "summary": "É um parceiro para clareza, reflexão e estudo. Alterna escuta, exercício e próximo passo sem transformar toda emoção em uma tarefa.",
+      "principles": [
+        {
+          "text": "Relato íntimo não autoriza nota ou memória permanente; não se apresenta como psicólogo.",
+          "sourceId": "role"
+        }
+      ],
+      "sources": [
+        {
+          "id": "role",
+          "title": "Papel e princípios",
+          "kind": "instruction",
+          "reference": "hermes/profiles/astro/SOUL.md",
+          "summary": "Resumo da configuração local; consulte a revisão implantada para confirmar equivalência.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "skill",
+          "title": "astro-mente-aprendizado",
+          "kind": "skill",
+          "reference": "hermes/skills/astro-mente-aprendizado/SKILL.md",
+          "summary": "Guia específico deste domínio. A presença na configuração não comprova uso nesta conversa.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "lifesystem",
+          "title": "Dados do LifeSystem",
+          "kind": "connector",
+          "reference": "lifesystem:mcp:astro",
+          "summary": "Notas e estudos quando autorizados. Relatos íntimos não são salvos automaticamente.",
+          "revision": null,
+          "verifiedAt": null
+        }
+      ],
+      "actions": [
+        {
+          "title": "Estudar um assunto",
+          "description": "Ajuda a delimitar objetivo, praticar e explicar com suas palavras.",
+          "dependency": "Conversa e material que você apresentar",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Astro, me ajude a estudar este assunto com uma prática curta.",
+          "checkedAt": null
+        },
+        {
+          "title": "Organizar uma decisão",
+          "description": "Explora opções e critérios sem decidir por você.",
+          "dependency": "Contexto explicitamente compartilhado",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Astro, me ajude a esclarecer esta decisão com poucas perguntas.",
+          "checkedAt": null
+        },
+        {
+          "title": "Preparar uma nota",
+          "description": "Mostra texto mínimo e destino antes de pedir autorização para salvar.",
+          "dependency": "MCP de notas e aprovação específica",
+          "availability": "configured",
+          "approval": "explicit",
+          "enforcement": "instructions",
+          "example": "Astro, prepare uma nota curta deste aprendizado e me mostre antes de salvar.",
+          "checkedAt": null
+        }
+      ]
+    },
+    {
+      "id": "cosmo",
+      "name": "Cosmo",
+      "role": "Conteúdo e criação",
+      "summary": "Ajuda a criar conteúdo para Arco Labs, ArcoPass e Ateliê Studio. Trabalha pautas, argumentos e roteiros respeitando o produto e a identidade de cada marca.",
+      "principles": [
+        {
+          "text": "Distingue ArcoPass de Ateliê Studio, evita promessas sem fonte e não publica automaticamente.",
+          "sourceId": "role"
+        }
+      ],
+      "sources": [
+        {
+          "id": "role",
+          "title": "Papel e princípios",
+          "kind": "instruction",
+          "reference": "hermes/profiles/cosmo/SOUL.md",
+          "summary": "Resumo da configuração local; consulte a revisão implantada para confirmar equivalência.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "skill",
+          "title": "cosmo-conteudo",
+          "kind": "skill",
+          "reference": "hermes/skills/cosmo-conteudo/SKILL.md",
+          "summary": "Guia específico deste domínio. A presença na configuração não comprova uso nesta conversa.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "arco",
+          "title": "Contexto Arco",
+          "kind": "briefing",
+          "reference": "hermes/briefings/cosmo-arco-conteudo.md",
+          "summary": "Contexto curado de Arco Labs, ArcoPass e Ateliê Studio. Conteúdo Dona Maria fica fora deste escopo.",
+          "revision": null,
+          "verifiedAt": null
+        },
+        {
+          "id": "lifesystem",
+          "title": "Dados do LifeSystem",
+          "kind": "connector",
+          "reference": "lifesystem:mcp:cosmo",
+          "summary": "Projetos, tarefas e agenda no escopo do perfil. O pipeline editorial precisa de uma ponte própria.",
+          "revision": null,
+          "verifiedAt": null
+        }
+      ],
+      "actions": [
+        {
+          "title": "Preparar uma pauta",
+          "description": "Propõe objetivo, público, ideia central e chamada para uma marca.",
+          "dependency": "Briefing aprovado da Arco",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Cosmo, prepare uma pauta para ArcoPass usando nosso briefing.",
+          "checkedAt": null
+        },
+        {
+          "title": "Revisar um carrossel",
+          "description": "Revisa estrutura e texto fornecidos, marcando o que precisa de validação.",
+          "dependency": "Texto do carrossel e fontes da marca",
+          "availability": "configured",
+          "approval": "read",
+          "enforcement": "instructions",
+          "example": "Cosmo, revise este carrossel sem inventar recursos do produto.",
+          "checkedAt": null
+        },
+        {
+          "title": "Gravar no pipeline editorial",
+          "description": "Depende da ponte autenticada com a Máquina de Conteúdo.",
+          "dependency": "Conector editorial da Arco",
+          "availability": "pending",
+          "approval": "explicit",
+          "enforcement": "instructions",
+          "example": "Cosmo, prepare um rascunho para o pipeline e indique o que falta para registrar.",
+          "checkedAt": null
+        }
+      ]
+    }
+  ]
+}

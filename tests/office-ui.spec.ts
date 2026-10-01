@@ -1,0 +1,129 @@
+import { test, expect } from "@playwright/test";
+test("office renders 3D, authenticates presence and explains every agent", async ({
+  page,
+  context,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  const login = await page.request.post("/api/login", {
+    data: { user: "office-test", password: "office-ui-test-only" },
+  });
+  expect(login.ok()).toBeTruthy();
+  const cookies = await page.request.storageState();
+  await context.addCookies(cookies.cookies);
+  await page.setViewportSize({ width: 1500, height: 1050 });
+  await page.goto("/escritorio");
+  await expect(
+    page.getByRole("heading", { name: /Um lugar para/ }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Ficha de Hermes")).toBeVisible();
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
+  expect(
+    (await page.getByRole("heading", { name: /Um lugar para/ }).boundingBox())!
+      .x,
+  ).toBeGreaterThanOrEqual(248);
+  // The roster is a labeled div; select by label to avoid duplicate scene buttons.
+  await page
+    .getByLabel("Selecionar agente", { exact: true })
+    .getByRole("button", { name: /Sirius/ })
+    .click();
+  await expect(page.getByLabel("Ficha de Sirius")).toBeVisible();
+  await expect(
+    page.getByText("Integração pendente", { exact: true }),
+  ).toBeVisible();
+  await page.screenshot({
+    path: "test-results/office-desktop.png",
+    fullPage: true,
+  });
+  await page.getByRole("button", { name: "Lista", exact: true }).click();
+  await expect(page.locator("canvas")).toHaveCount(0);
+  for (const name of ["Vega", "Órion", "Astro", "Cosmo"]) {
+    await page
+      .getByLabel("Selecionar agente", { exact: true })
+      .getByRole("button", { name: new RegExp(name) })
+      .click();
+    await expect(page.getByLabel(`Ficha de ${name}`)).toBeVisible();
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({
+    path: "test-results/office-mobile.png",
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBeTruthy();
+  expect(errors).toEqual([]);
+});
+
+test("office receives actual API events and renders running then available without LLM calls", async ({
+  page,
+  context,
+}) => {
+  const login = await page.request.post("/api/login", {
+    data: { user: "office-test", password: "office-ui-test-only" },
+  });
+  expect(login.ok()).toBeTruthy();
+  await context.addCookies((await page.request.storageState()).cookies);
+  const headers = {
+    authorization: "Bearer office-test-token-only-12345678901234567890",
+  };
+  const registration = await page.request.post("/api/hermes/office/sessions", {
+    headers,
+    data: { bootId: crypto.randomUUID() },
+  });
+  expect(registration.ok()).toBeTruthy();
+  const { id } = await registration.json();
+  const publish = (sequence: number, runs: unknown[]) =>
+    page.request.post("/api/hermes/office/events", {
+      headers,
+      data: [
+        {
+          schemaVersion: 1,
+          sessionId: id,
+          sequence,
+          kind: "snapshot",
+          emittedAt: new Date().toISOString(),
+          payload: {
+            monitored: ["vega", "sirius", "orion", "astro", "cosmo"],
+            runs,
+            catalogRevision: null,
+            gap: false,
+          },
+        },
+      ],
+    });
+  expect(
+    (
+      await publish(1, [
+        {
+          runId: "ui-run",
+          agentId: "cosmo",
+          channel: "whatsapp",
+          status: "running",
+          acceptedAt: new Date().toISOString(),
+          startedAt: new Date().toISOString(),
+        },
+      ])
+    ).ok(),
+  ).toBeTruthy();
+  await page.goto("/escritorio");
+  await page.getByRole("button", { name: "Lista", exact: true }).click();
+  await expect(
+    page
+      .getByLabel("Selecionar agente", { exact: true })
+      .getByRole("button", { name: /Cosmo/ }),
+  ).toContainText("Trabalhando");
+  expect((await publish(2, [])).ok()).toBeTruthy();
+  await expect(
+    page
+      .getByLabel("Selecionar agente", { exact: true })
+      .getByRole("button", { name: /Cosmo/ }),
+  ).toContainText("Disponível", { timeout: 12000 });
+  await expect(
+    page
+      .getByLabel("Selecionar agente", { exact: true })
+      .getByRole("button", { name: /Hermes/ }),
+  ).toContainText("Atividade não monitorada");
+});

@@ -9,6 +9,8 @@ import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 // it's called by external agents with no browser session, so the cookie
 // gate below doesn't apply to it.
 const PUBLIC_PATHS = ['/login', '/privacidade', '/termos', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions', '/api/ai/v1/models', '/api/hermes/heartbeat'];
+// Exact routes only; each validates its dedicated publisher token.
+const OFFICE_PUBLISH_PATHS = ['/api/hermes/office/events', '/api/hermes/office/sessions'];
 
 export async function proxy(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
@@ -42,7 +44,7 @@ export async function proxy(request: NextRequest) {
       }
     }
   }
-  if (PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+  if (OFFICE_PUBLISH_PATHS.includes(pathname) || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next();
   }
 

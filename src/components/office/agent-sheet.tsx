@@ -1,0 +1,183 @@
+"use client";
+import { useState } from "react";
+import type { Profile } from "@/lib/office/schema";
+import { stateLabels, type AgentPresence } from "@/lib/office/view";
+import styles from "./office.module.css";
+export const colors: Record<string, string> = {
+  hermes: "#e2d5bd",
+  vega: "#d8ac64",
+  sirius: "#8dbdcd",
+  orion: "#99b99a",
+  astro: "#b5a0cd",
+  cosmo: "#df967b",
+};
+const availability = {
+  verified: "Verificada",
+  configured: "Configurada · falta validar",
+  pending: "Integração pendente",
+  unavailable: "Indisponível",
+};
+const kind = {
+  instruction: "Instruções",
+  skill: "Skill",
+  briefing: "Briefing",
+  connector: "Conector",
+  memory: "Preferências",
+};
+export function AgentSheet({
+  profile,
+  presence,
+  current,
+  asOf,
+}: {
+  profile: Profile;
+  presence: AgentPresence;
+  current: boolean;
+  asOf: number;
+}) {
+  const [copied, setCopied] = useState("");
+  async function copy(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(text);
+    } catch {
+      setCopied("error");
+    }
+  }
+  return (
+    <aside className={styles.sheet} aria-label={`Ficha de ${profile.name}`}>
+      <div className={styles.profileTop}>
+        <span
+          className={styles.avatar}
+          style={{ background: colors[profile.id] }}
+          aria-hidden="true"
+        >
+          {profile.name[0]}
+        </span>
+        <div>
+          <p className={styles.eyebrow}>{profile.role}</p>
+          <h2>{profile.name}</h2>
+        </div>
+        <span className={styles.status}>{stateLabels[presence.state]}</span>
+      </div>
+      <p className={styles.summary}>{profile.summary}</p>
+      <p className={styles.provenance}>
+        {current
+          ? "Fontes recebidas da instalação conectada."
+          : "Referência local · implantação ainda não confirmada."}
+      </p>
+      {presence.run && (
+        <div className={styles.run}>
+          <strong>
+            Atendimento pelo{" "}
+            {presence.run.channel === "whatsapp" ? "WhatsApp" : "Telegram"}
+          </strong>
+          <span>
+            Recebido {new Date(presence.run.acceptedAt).toLocaleString("pt-BR")}
+          </span>
+          {presence.run.startedAt && (
+            <span>
+              Iniciado{" "}
+              {new Date(presence.run.startedAt).toLocaleTimeString("pt-BR")}
+            </span>
+          )}
+          <span>{presence.queued} pedido(s) na fila</span>
+        </div>
+      )}
+      <details open>
+        <summary>Como eu trabalho</summary>
+        {profile.principles.map((rule) => (
+          <div className={styles.principle} key={rule.text}>
+            <p>{rule.text}</p>
+            <a href={`#source-${profile.id}-${rule.sourceId}`}>
+              Fonte:{" "}
+              {profile.sources.find((s) => s.id === rule.sourceId)?.title}
+            </a>
+          </div>
+        ))}
+      </details>
+      <details open>
+        <summary>
+          Skills e fontes <span>{profile.sources.length}</span>
+        </summary>
+        <div className={styles.sources}>
+          {profile.sources.map((source) => (
+            <article id={`source-${profile.id}-${source.id}`} key={source.id}>
+              <span className={styles.kind}>{kind[source.kind]}</span>
+              <h3>{source.title}</h3>
+              <p>{source.summary}</p>
+              <details>
+                <summary>Ver origem</summary>
+                <code>{source.reference}</code>
+                <p>
+                  {source.revision
+                    ? `Revisão: ${source.revision}`
+                    : "Revisão da implantação não confirmada."}
+                </p>
+                <p>
+                  {source.verifiedAt
+                    ? `Verificada em ${new Date(source.verifiedAt).toLocaleString("pt-BR")}`
+                    : "Sem verificação recente."}
+                </p>
+              </details>
+              {source.kind === "skill" && (
+                <small>Uso nesta conversa não monitorado.</small>
+              )}
+            </article>
+          ))}
+        </div>
+      </details>
+      <details open>
+        <summary>
+          O que posso fazer <span>{profile.actions.length}</span>
+        </summary>
+        <div className={styles.actions}>
+          {profile.actions.map((action) => {
+            const stale =
+              action.availability === "verified" &&
+              (!current ||
+                !action.checkedAt ||
+                asOf - Date.parse(action.checkedAt) > 86400000);
+            return (
+              <article key={action.title}>
+                <h3>{action.title}</h3>
+                <p>{action.description}</p>
+                <span className={styles.actionState}>
+                  {stale
+                    ? "Verificação desatualizada"
+                    : availability[action.availability]}
+                </span>
+                <p className={styles.dependency}>
+                  Precisa de: {action.dependency}
+                </p>
+                <small>
+                  {action.approval === "read"
+                    ? "Consulta dentro do escopo permitido."
+                    : action.approval === "forbidden"
+                      ? "Ação não permitida."
+                      : "Requer seu pedido ou aprovação dos dados exatos."}{" "}
+                  {action.enforcement === "instructions"
+                    ? "Regra nas instruções do agente."
+                    : action.enforcement === "server"
+                      ? "Exige validação do mecanismo de autorização."
+                      : ""}
+                </small>
+                <blockquote>{action.example}</blockquote>
+                <button onClick={() => copy(action.example)}>
+                  {copied === action.example
+                    ? "Pedido copiado ✓"
+                    : "Copiar pedido"}
+                </button>
+              </article>
+            );
+          })}
+        </div>
+        <p className={styles.footnote} role="status">
+          {copied === "error"
+            ? "Não foi possível copiar. Selecione o texto do pedido."
+            : "Copiar prepara o texto. Não envia nem executa uma ação."}
+        </p>
+      </details>
+    </aside>
+  );
+}

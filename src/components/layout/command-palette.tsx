@@ -18,7 +18,7 @@ import { apiFetch, showError } from '@/lib/api';
 interface CommandItem {
   id: string;
   label: string;
-  icon: React.ElementType;
+  icon: import('lucide-react').LucideIcon;
   shortcut?: string;
   action: () => void;
   category: string;
@@ -28,7 +28,7 @@ interface SearchResult {
   id: string;
   title: string;
   subtitle: string;
-  icon: React.ElementType;
+  icon: import('lucide-react').LucideIcon;
   href: string;
   entity: string;
   entityLabel: string;
@@ -39,7 +39,7 @@ const ENTITY_CONFIG: Record<string, {
   endpoint: string;
   label: string;
   color: string;
-  icon: React.ElementType;
+  icon: import('lucide-react').LucideIcon;
   getHref: (item: Record<string, unknown>) => string;
   getTitle: (item: Record<string, unknown>) => string;
   getSubtitle: (item: Record<string, unknown>) => string;

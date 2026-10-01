@@ -1,0 +1,607 @@
+.office {
+  --ink: #283c37;
+  --muted: #65736b;
+  --line: #d9ded3;
+  --paper: #f6f4ec;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 24px;
+  padding: 32px;
+  max-width: 1660px;
+  margin: 0 auto;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.office button,
+.office a {
+  touch-action: manipulation;
+}
+.office button {
+  cursor: pointer;
+}
+.office button:focus-visible,
+.office a:focus-visible,
+.office summary:focus-visible {
+  outline: 3px solid #487d75;
+  outline-offset: 4px;
+}
+.heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 30px;
+}
+.eyebrow {
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  letter-spacing: 1.7px;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+  color: var(--muted);
+}
+.heading h1 {
+  font-family: "Fraunces Variable", Georgia, serif;
+  font-size: clamp(30px, 3.1vw, 49px);
+  line-height: 1.13;
+  letter-spacing: -1.6px;
+  font-weight: 450;
+  margin: 0 0 15px;
+}
+.heading h1 em {
+  font-style: italic;
+  color: #708579;
+}
+.heading p:last-child {
+  color: var(--muted);
+  max-width: 570px;
+}
+.connectionLink {
+  align-self: flex-start;
+  border-bottom: 1px solid #a6b2a6;
+  padding: 5px 0;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.toolbar {
+  display: flex;
+  gap: 22px;
+  align-items: center;
+  border-block: 1px solid var(--line);
+  padding: 18px 0;
+  margin-bottom: 22px;
+}
+.live {
+  display: grid;
+  grid-template-columns: 9px 1fr;
+  gap: 2px 10px;
+}
+.live strong {
+  font-size: 12px;
+}
+.live small {
+  grid-column: 2;
+  color: var(--muted);
+  font-size: 10px;
+}
+.dot,
+.dotLive {
+  height: 7px;
+  width: 7px;
+  border-radius: 50%;
+  background: #a99d7e;
+  margin-top: 6px;
+}
+.dotLive {
+  background: #4c896c;
+  box-shadow: 0 0 0 4px #4c896c15;
+}
+.numbers {
+  display: flex;
+  gap: 22px;
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+}
+.numbers b {
+  font-size: 20px;
+  color: var(--ink);
+  margin-right: 5px;
+  font-weight: 500;
+}
+.toggles {
+  display: flex;
+  background: #e5e8df;
+  padding: 4px;
+  border-radius: 9px;
+  gap: 3px;
+}
+.toggles button {
+  font-size: 11px;
+  padding: 7px 11px;
+  border-radius: 6px;
+}
+.toggles button[aria-pressed="true"] {
+  background: #fffdf7;
+  box-shadow: 0 1px 3px #23362712;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+  align-items: start;
+}
+.stage {
+  min-width: 0;
+}
+.canvasWrap {
+  height: 530px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #ded8c9;
+  isolation: isolate;
+}
+.canvasWrap canvas {
+  touch-action: none;
+}
+.sceneCaption {
+  position: absolute;
+  z-index: 1;
+  top: 24px;
+  left: 25px;
+  pointer-events: none;
+}
+.sceneCaption span {
+  font: 9px monospace;
+  letter-spacing: 2px;
+  color: #627467;
+}
+.sceneCaption strong {
+  display: block;
+  margin-top: 8px;
+  font-family: "Fraunces Variable", Georgia, serif;
+  font-weight: 400;
+  font-size: 25px;
+  line-height: 1.2;
+}
+.sceneLoading {
+  display: grid;
+  place-content: center;
+  height: 100%;
+  color: var(--muted);
+}
+.reframe {
+  position: absolute;
+  right: 15px;
+  bottom: 15px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  background: #faf8efdb;
+  font-size: 11px;
+  z-index: 2;
+}
+.sceneHelp {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  color: #58685b;
+  font-size: 10px;
+  pointer-events: none;
+}
+.sceneLabel {
+  display: grid;
+  grid-template-columns: 6px auto;
+  align-items: center;
+  gap: 1px 6px;
+  background: #f6f4ebe8;
+  padding: 5px 9px;
+  border: 1px solid #ffffffa8;
+  border-radius: 6px;
+  box-shadow: 0 3px 10px #2c3a3020;
+  font-size: 11px;
+  color: #283c37;
+  white-space: nowrap;
+}
+.sceneLabel > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.sceneLabel small {
+  grid-column: 2;
+  font-size: 8px;
+  color: #65736b;
+}
+.sceneSelected {
+  outline: 2px solid #466554;
+  outline-offset: 2px;
+}
+.roster {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+  margin: 16px 0 30px;
+}
+.roster button {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 12px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-width: 0;
+  transition: background 0.15s;
+}
+.roster button[aria-pressed="true"] {
+  background: #e4e9dd;
+  border-color: #9eae98;
+}
+.roster strong {
+  display: block;
+  font-size: 12px;
+}
+.roster small {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+}
+.roster em {
+  display: block;
+  font-size: 9px;
+  color: #76816d;
+  font-style: normal;
+  margin-top: 3px;
+}
+.miniAvatar {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  height: 36px;
+  border-radius: 10px 10px 13px 13px;
+  color: #334139;
+  font-family: Georgia, serif;
+  font-size: 19px;
+}
+.sheet {
+  background: #fffdf8;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  padding: 22px;
+  max-height: 980px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.profileTop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.avatar {
+  width: 46px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  font:
+    30px Georgia,
+    serif;
+  border-radius: 14px;
+}
+.profileTop .eyebrow {
+  font-size: 8px;
+  letter-spacing: 1px;
+  margin: 0;
+}
+.profileTop h2 {
+  font:
+    30px "Fraunces Variable",
+    Georgia,
+    serif;
+  margin: 0;
+}
+.status {
+  font-size: 9px;
+  background: #eef0e8;
+  padding: 4px 8px;
+  border-radius: 20px;
+  margin-top: 4px;
+}
+.summary {
+  font-size: 12px;
+  color: #596a5f;
+  margin: 18px 0 8px;
+}
+.provenance {
+  font-size: 10px;
+  color: #8b795b;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+.sheet > details {
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+}
+.sheet summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sheet summary > span {
+  float: right;
+  font: 10px monospace;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.principle {
+  margin-top: 10px;
+  font-size: 11px;
+  line-height: 1.65;
+}
+.principle a {
+  font-size: 9px;
+  color: #7b8273;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.sources,
+.actions {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+.sources article,
+.actions article {
+  background: #f4f5ed;
+  border-radius: 8px;
+  padding: 12px;
+}
+.sources h3,
+.actions h3 {
+  font-size: 12px;
+  font-weight: 600;
+  margin: 3px 0 6px;
+}
+.sources p,
+.actions p {
+  font-size: 11px;
+  color: #657064;
+  line-height: 1.6;
+}
+.kind {
+  font: 8px monospace;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #7d826b;
+}
+.sources details {
+  margin-top: 8px;
+}
+.sources details summary {
+  font-size: 10px;
+  font-weight: 400;
+  text-decoration: underline;
+}
+.sources code {
+  display: block;
+  overflow-wrap: anywhere;
+  font: 9px monospace;
+  margin-top: 8px;
+}
+.sources small,
+.actions small {
+  display: block;
+  font-size: 9px;
+  color: #7a806f;
+  margin-top: 9px;
+}
+.actionState {
+  display: inline-block;
+  background: #e4e8db;
+  color: #6a715b;
+  border-radius: 4px;
+  padding: 3px 6px;
+  font-size: 9px;
+  margin: 6px 0;
+}
+.actions .dependency {
+  font-size: 10px;
+}
+.actions blockquote {
+  font:
+    italic 11px Georgia,
+    serif;
+  margin: 12px 0;
+  border-left: 2px solid #cbd1be;
+  padding-left: 9px;
+  color: #5e705d;
+}
+.actions button {
+  font-size: 10px;
+  color: #3c6051;
+  border-bottom: 1px solid #a8b69f;
+  padding: 3px 0;
+}
+.footnote {
+  font-size: 9px;
+  color: #7d8374;
+  margin-top: 12px;
+}
+.run {
+  display: grid;
+  gap: 3px;
+  font-size: 10px;
+  background: #eaf0e2;
+  padding: 10px;
+  border-radius: 7px;
+}
+.activity {
+  border-top: 1px solid var(--line);
+  padding-top: 20px;
+}
+.activity h2 {
+  font:
+    25px "Fraunces Variable",
+    Georgia,
+    serif;
+}
+.activity ol {
+  list-style: none;
+  padding: 0;
+  margin-top: 15px;
+}
+.activity li {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+}
+.activity li > span {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-top: 6px;
+}
+.activity li strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.activity li small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+.empty {
+  color: var(--muted);
+  font-size: 12px;
+  max-width: 500px;
+  padding: 18px 0;
+}
+.notice {
+  font-size: 12px;
+  background: #eee6d5;
+  border-radius: 7px;
+  padding: 12px;
+  margin: 0 0 14px;
+}
+.notice a {
+  text-decoration: underline;
+}
+.listIntro {
+  padding: 50px 25px;
+  background: #e6e9df;
+  border-radius: 15px;
+}
+.listIntro h2 {
+  font:
+    35px "Fraunces Variable",
+    Georgia,
+    serif;
+  line-height: 1.2;
+  margin-bottom: 15px;
+}
+.listIntro p:last-child {
+  max-width: 400px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 30px;
+  padding-top: 14px;
+  font-size: 10px;
+  color: var(--muted);
+}
+@media (min-width: 1550px) {
+  .canvasWrap {
+    height: 630px;
+  }
+}
+@media (max-width: 1150px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 14px;
+  }
+  .office {
+    padding: 22px;
+  }
+  .canvasWrap {
+    height: 440px;
+  }
+  .roster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .numbers {
+    display: none;
+  }
+  .toggles {
+    margin-left: auto;
+  }
+  .sceneCaption strong {
+    font-size: 20px;
+  }
+  .sceneHelp {
+    display: none;
+  }
+}
+@media (max-width: 800px) {
+  .office {
+    padding: 18px;
+    border-radius: 15px;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .heading {
+    display: block;
+  }
+  .heading h1 {
+    font-size: 34px;
+  }
+  .connectionLink {
+    display: inline-block;
+    margin-top: 14px;
+  }
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .toggles {
+    margin-left: 0;
+  }
+  .canvasWrap {
+    height: 430px;
+  }
+  .roster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .roster button {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .roster small {
+    font-size: 8px;
+  }
+  .sheet {
+    max-height: none;
+  }
+  .footer {
+    display: block;
+  }
+  .footer span {
+    display: block;
+    margin-top: 5px;
+  }
+  .sceneCaption strong {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .office * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
