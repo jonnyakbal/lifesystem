@@ -134,11 +134,12 @@
   min-width: 0;
 }
 .canvasWrap {
-  height: 530px;
+  height: 710px;
   position: relative;
   overflow: hidden;
   border-radius: 16px;
-  background: #ded8c9;
+  background: #060e18;
+  border: 1px solid #354854;
   isolation: isolate;
 }
 .canvasWrap canvas {
@@ -147,22 +148,192 @@
 .sceneCaption {
   position: absolute;
   z-index: 1;
-  top: 24px;
-  left: 25px;
+  top: 25px;
+  left: 24px;
   pointer-events: none;
 }
 .sceneCaption span {
   font: 9px monospace;
   letter-spacing: 2px;
-  color: #627467;
+  color: #8faab8;
 }
 .sceneCaption strong {
   display: block;
   margin-top: 8px;
-  font-family: "Fraunces Variable", Georgia, serif;
-  font-weight: 400;
-  font-size: 25px;
+  font-family: var(--font-mono, monospace);
+  font-weight: 500;
+  font-size: 23px;
+  letter-spacing: -1px;
+  color: #edf3f3;
   line-height: 1.2;
+}
+.sceneCaption small {
+  display: block;
+  color: #6e8d9b;
+  font: 9px monospace;
+  letter-spacing: 1px;
+  margin-top: 8px;
+}
+.sceneControls {
+  position: absolute;
+  right: 18px;
+  top: 20px;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  max-width: 270px;
+}
+.sceneControls button,
+.crewControls button {
+  border: 1px solid #405a69;
+  background: #11212ddd;
+  color: #c8d9df;
+  border-radius: 5px;
+  padding: 9px 11px;
+  font: 10px var(--font-mono, monospace);
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.sceneControls button:hover,
+.crewControls button:hover {
+  background: #293e4c;
+  border-color: #8fb8c7;
+}
+.sceneControls button[aria-pressed="true"],
+.crewControls button[aria-pressed="true"] {
+  background: #34535f;
+  color: #fff;
+  border-color: #92bdc7;
+}
+.interactionDeck {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  padding: 38px 22px 15px;
+  background: linear-gradient(transparent, #08131dea 30%);
+  pointer-events: none;
+}
+.interactionDeck button {
+  pointer-events: auto;
+}
+.expandedCrew {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.expandedCrew button {
+  font: 10px monospace;
+  padding: 8px 12px;
+  border: 1px solid #405a69;
+  border-radius: 5px;
+  background: #122330e8;
+  color: #c4d4dc;
+}
+.expandedCrew button[aria-pressed="true"] {
+  background: #34535f;
+  color: white;
+}
+.comms {
+  max-width: 560px;
+  min-height: 52px;
+  margin-bottom: 12px;
+}
+.comms > span {
+  font: 8px monospace;
+  letter-spacing: 1.8px;
+  color: #8ab7c6;
+}
+.comms p {
+  font-size: 12px;
+  color: #d0dee1;
+  line-height: 1.6;
+  margin: 5px 0 0;
+}
+.crewControls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+.crewControls button:first-child {
+  color: #0e1b23;
+  background: #c1d3d5;
+  border-color: #c1d3d5;
+}
+.sceneFoot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 15px;
+  color: #9aaeb9;
+  font: 8px monospace;
+  line-height: 1.5;
+}
+.expanded {
+  position: fixed !important;
+  inset: 18px !important;
+  width: auto !important;
+  height: auto !important;
+  z-index: 90 !important;
+  border-radius: 12px;
+  box-shadow: 0 0 0 30px #050d15ed;
+}
+.expanded .sceneControls {
+  max-width: none;
+}
+@media (max-width: 1100px) {
+  .sceneControls {
+    top: 105px;
+    left: 22px;
+    right: 22px;
+    justify-content: flex-start;
+    max-width: none;
+  }
+  .expanded .sceneControls {
+    top: 100px;
+  }
+}
+@media (max-width: 600px) {
+  .canvasWrap {
+    height: 650px !important;
+  }
+  .expanded {
+    inset: 5px !important;
+    height: auto !important;
+  }
+  .sceneCaption {
+    left: 16px;
+    top: 18px;
+  }
+  .sceneCaption span {
+    font-size: 7px;
+  }
+  .sceneControls {
+    left: 14px;
+    right: 14px;
+    top: 99px;
+    gap: 4px;
+  }
+  .sceneControls button,
+  .crewControls button {
+    padding: 8px;
+    font-size: 9px;
+  }
+  .interactionDeck {
+    padding: 25px 14px 12px;
+  }
+  .sceneFoot {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .comms p {
+    font-size: 11px;
+  }
 }
 .sceneLoading {
   display: grid;

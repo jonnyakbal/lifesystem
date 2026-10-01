@@ -1,4 +1,133 @@
 import { test, expect } from "@playwright/test";
+test("scientific station remains explorable with reduced motion on desktop and mobile", async ({
+  page,
+  context,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.request.post("/api/login", {
+    data: { user: "office-test", password: "office-ui-test-only" },
+  });
+  await context.addCookies((await page.request.storageState()).cookies);
+  await page.setViewportSize({ width: 1550, height: 1120 });
+  await page.goto("/escritorio");
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
+  await page.getByRole("button", { name: "Visão geral", exact: true }).click();
+  await page.waitForTimeout(700);
+  await page
+    .getByLabel("Escritório dos agentes", { exact: true })
+    .screenshot({ path: "test-results/orbital-overview.png" });
+  await page
+    .getByRole("button", { name: "Reunir equipe", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Ampliar estação", exact: true })
+    .click();
+  await page.waitForTimeout(700);
+  await page.screenshot({ path: "test-results/orbital-expanded.png" });
+  await page.keyboard.press("Escape");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator("canvas").scrollIntoViewIfNeeded();
+  await page.waitForTimeout(700);
+  await page.screenshot({
+    path: "test-results/orbital-mobile.png",
+    fullPage: true,
+  });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBeTruthy();
+  await page
+    .getByRole("button", { name: "Voltar às estações", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Reunir equipe", exact: true }),
+  ).toBeVisible();
+  expect(errors).toEqual([]);
+});
+test("orbital station offers crew interactions without sending commands to agents", async ({
+  page,
+  context,
+}) => {
+  const writes: string[] = [];
+  page.on("request", (req) => {
+    if (req.method() === "POST" && !req.url().endsWith("/api/login"))
+      writes.push(req.url());
+  });
+  await page.request.post("/api/login", {
+    data: { user: "office-test", password: "office-ui-test-only" },
+  });
+  await context.addCookies((await page.request.storageState()).cookies);
+  await page.goto("/escritorio");
+  await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
+  await page
+    .getByRole("button", { name: "Reunir equipe", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Voltar às estações", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Animação de ambientação · não executa tarefas", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Selecionar agente", { exact: true })
+    .getByRole("button", { name: /Cosmo/ })
+    .click();
+  await page
+    .getByRole("button", { name: "Cumprimentar Cosmo", exact: true })
+    .click();
+  await expect(
+    page.getByRole("status").filter({ hasText: "Cosmo" }),
+  ).toContainText("ideia");
+  await page
+    .getByRole("button", { name: "Pausar animações", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Retomar animações", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Ampliar estação", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Sair da visão ampliada", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("dialog", { name: "Estação Jonny ampliada" }),
+  ).toHaveAttribute("aria-modal", "true");
+  await expect(
+    page.getByRole("button", { name: "Visão geral", exact: true }),
+  ).toBeFocused();
+  await page.keyboard.press("Shift+Tab");
+  await expect(
+    page.getByRole("button", { name: "Mudar órbita", exact: true }),
+  ).toBeFocused();
+  await page
+    .getByRole("button", { name: "Focalizar Astro", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Cumprimentar Astro", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("button", { name: "Ampliar estação", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Ampliar estação", exact: true })
+    .click();
+  await page
+    .locator("canvas")
+    .evaluate((canvas) => canvas.dispatchEvent(new Event("webglcontextlost")));
+  await expect(page.locator("canvas")).toHaveCount(0);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => document.body.style.overflow)).not.toBe(
+    "hidden",
+  );
+  expect(writes).toEqual([]);
+});
 test("office renders 3D, authenticates presence and explains every agent", async ({
   page,
   context,

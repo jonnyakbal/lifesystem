@@ -1,12 +1,13 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Component, useEffect, useState, type ReactNode } from "react";
+import { Component, useEffect, useRef, useState, type ReactNode } from "react";
 import { catalogSchema, emptyOffice, type AgentId } from "@/lib/office/schema";
 import localCatalog from "@/lib/office/catalog.json";
 import { projectOffice, stateLabels, type OfficeView } from "@/lib/office/view";
 import { AgentSheet, colors } from "./agent-sheet";
 import styles from "./office.module.css";
+import { crew } from "./orbital-model";
 const Scene = dynamic(() => import("./scene"), {
   ssr: false,
   loading: () => (
@@ -57,6 +58,76 @@ export default function Office() {
   const [motion, setMotion] = useState(false);
   const [error, setError] = useState("");
   const [reset, setReset] = useState(0);
+  const [meeting, setMeeting] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [greeting, setGreeting] = useState(0);
+  const [focus, setFocus] = useState(0);
+  const [tour, setTour] = useState(false);
+  const [alternate, setAlternate] = useState(false);
+  const [line, setLine] = useState("");
+  const [inView, setInView] = useState(true);
+  const canvasWrap = useRef<HTMLDivElement>(null);
+  function selectAgent(id: AgentId) {
+    setSelected(id);
+    setFocus((v) => v + 1);
+    setLine("");
+    setTour(false);
+  }
+  function sceneFailure() {
+    setScene(false);
+    setExpanded(false);
+  }
+  useEffect(() => {
+    const element = canvasWrap.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) =>
+      setInView(entry.isIntersecting),
+    );
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [scene, visible]);
+  useEffect(() => {
+    if (!expanded || !scene || !visible) return;
+    const previous = document.body.style.overflow;
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    document.body.style.overflow = "hidden";
+    canvasWrap.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setExpanded(false);
+      if (event.key === "Tab") {
+        const buttons =
+          canvasWrap.current?.querySelectorAll<HTMLButtonElement>("button");
+        if (!buttons?.length) return;
+        const first = buttons[0],
+          last = buttons[buttons.length - 1];
+        if (
+          event.shiftKey &&
+          (document.activeElement === first ||
+            !canvasWrap.current?.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          last.focus();
+        } else if (
+          !event.shiftKey &&
+          (document.activeElement === last ||
+            !canvasWrap.current?.contains(document.activeElement))
+        ) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", close);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", close);
+      if (previousFocus?.isConnected) previousFocus.focus();
+    };
+  }, [expanded, scene, visible]);
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setMotion(!media.matches);
@@ -206,34 +277,125 @@ export default function Office() {
       <div className={styles.layout}>
         <section className={styles.stage} aria-label="Escritório dos agentes">
           {scene && visible ? (
-            <div className={styles.canvasWrap}>
+            <div
+              ref={canvasWrap}
+              role={expanded ? "dialog" : undefined}
+              aria-modal={expanded ? true : undefined}
+              aria-label={expanded ? "Estação Jonny ampliada" : undefined}
+              className={`${styles.canvasWrap} ${expanded ? styles.expanded : ""}`}
+            >
               <div className={styles.sceneCaption}>
-                <span>ESCRITÓRIO PESSOAL</span>
-                <strong>
-                  Seis presenças.
-                  <br />
-                  Um time seu.
-                </strong>
+                <span>HERMES / ORBITAL RESEARCH STATION</span>
+                <strong>Estação Jonny</strong>
+                <small>
+                  SETOR {alternate ? "02 / ÓRBITA ÂMBAR" : "01 / ÓRBITA BOREAL"}{" "}
+                  · 06 UNIDADES
+                </small>
               </div>
-              <SceneBoundary key={reset} onFailure={() => setScene(false)}>
+              <div
+                className={styles.sceneControls}
+                aria-label="Controles da estação"
+              >
+                <button
+                  onClick={() => {
+                    setFocus(0);
+                    setReset((v) => v + 1);
+                    setTour(false);
+                  }}
+                >
+                  Visão geral
+                </button>
+                <button
+                  aria-pressed={tour}
+                  onClick={() => {
+                    setTour((v) => !v);
+                    setFocus(0);
+                  }}
+                >
+                  Passeio orbital
+                </button>
+                <button onClick={() => setPaused((v) => !v)}>
+                  {paused ? "Retomar animações" : "Pausar animações"}
+                </button>
+                <button onClick={() => setExpanded((v) => !v)}>
+                  {expanded ? "Sair da visão ampliada" : "Ampliar estação"}
+                </button>
+              </div>
+              <SceneBoundary onFailure={sceneFailure}>
                 <Scene
-                  key={reset}
+                  reset={reset}
                   agents={view.agents}
                   selected={selected}
-                  onSelect={setSelected}
-                  animate={motion && visible}
-                  onFailure={() => setScene(false)}
+                  onSelect={selectAgent}
+                  animate={motion && visible && inView && !paused}
+                  meeting={meeting}
+                  greeting={greeting}
+                  focus={focus}
+                  tour={tour}
+                  alternate={alternate}
+                  onOrbit={() => setAlternate((v) => !v)}
+                  onFailure={sceneFailure}
                 />
               </SceneBoundary>
-              <button
-                className={styles.reframe}
-                onClick={() => setReset((v) => v + 1)}
-              >
-                Reenquadrar ↺
-              </button>
-              <span className={styles.sceneHelp}>
-                Arraste para explorar · role para aproximar
-              </span>
+              <div className={styles.interactionDeck}>
+                {expanded && (
+                  <div
+                    className={styles.expandedCrew}
+                    aria-label="Tripulação da estação"
+                  >
+                    {crew.map((c) => (
+                      <button
+                        key={c.id}
+                        aria-pressed={selected === c.id}
+                        onClick={() => selectAgent(c.id)}
+                        style={{
+                          borderColor: selected === c.id ? c.accent : undefined,
+                        }}
+                      >
+                        Focalizar {c.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className={styles.comms} role="status">
+                  <span>
+                    {line ? "TRANSMISSÃO / PERSONALIDADE" : "EXPLORAÇÃO LIVRE"}
+                  </span>
+                  <p>
+                    {line ||
+                      "Selecione um robô para aproximar. Toque no holograma central para mudar a órbita."}
+                  </p>
+                </div>
+                <div className={styles.crewControls}>
+                  <button
+                    aria-pressed={meeting}
+                    onClick={() => {
+                      setMeeting((v) => !v);
+                      setFocus(0);
+                      setLine("");
+                    }}
+                  >
+                    {meeting ? "Voltar às estações" : "Reunir equipe"}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGreeting((v) => v + 1);
+                      setLine(
+                        `${profile.name}: ${crew.find((c) => c.id === selected)?.line}`,
+                      );
+                    }}
+                  >
+                    Cumprimentar {profile.name}
+                  </button>
+                  <button onClick={() => setAlternate((v) => !v)}>
+                    Mudar órbita
+                  </button>
+                </div>
+                <div className={styles.sceneFoot}>
+                  <span>Animação de ambientação · não executa tarefas</span>
+                  <span>Arraste para explorar · role para aproximar</span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className={styles.listIntro}>
@@ -256,7 +418,7 @@ export default function Office() {
                 <button
                   key={p.id}
                   aria-pressed={selected === p.id}
-                  onClick={() => setSelected(p.id)}
+                  onClick={() => selectAgent(p.id)}
                 >
                   <span
                     className={styles.miniAvatar}
