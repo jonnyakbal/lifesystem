@@ -7,6 +7,8 @@
 - LIFESYSTEM continua sendo o nome público; marca e módulos devem ser personalizáveis.
 - Desktop amplia as visões e a densidade útil sem mudar o significado das ações.
 
+As referências de produto recebidas em 30/09 estão analisadas em [direção de produto](product-reference-direction.md). A proposta prioriza listas estruturadas, cabeçalhos compactos, relações por registro e agentes no contexto; os itens futuros não devem ser tratados como funcionalidades entregues.
+
 ## Base implementada
 
 - Navegação agrupada com barra inferior móvel, menu completo e área segura.
