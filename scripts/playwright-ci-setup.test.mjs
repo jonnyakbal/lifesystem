@@ -5,6 +5,16 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import setup from './playwright-ci-setup.mjs';
+import { runnerEnvironment } from './playwright-runner-env.cjs';
+
+test('runner keeps the browser installation cache while application storage stays isolated', () => {
+  const serverEnvironment = { XDG_CACHE_HOME: '/synthetic/application-cache', LIFESYSTEM_DATA_DIR: '/synthetic/data', AUTH_USER: 'office-test' };
+  const runner = { XDG_CACHE_HOME: '/synthetic/browser-install-cache', ...runnerEnvironment(serverEnvironment) };
+  assert.equal(runner.XDG_CACHE_HOME, '/synthetic/browser-install-cache');
+  assert.equal(serverEnvironment.XDG_CACHE_HOME, '/synthetic/application-cache');
+  assert.equal(runner.LIFESYSTEM_DATA_DIR, '/synthetic/data');
+  assert.equal(runner.AUTH_USER, 'office-test');
+});
 
 async function fixture({ open = false, denyLogin = false } = {}, check) {
   const directory = await mkdtemp(join(tmpdir(), 'lifesystem-ci-setup-test-'));

@@ -3,6 +3,7 @@ import { mkdirSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import base from './playwright.config';
+import { runnerEnvironment } from './scripts/playwright-runner-env.cjs';
 
 // A runner creates this once; its child workers inherit it when loading config.
 // External application data, uploads and credentials are never reused.
@@ -32,7 +33,7 @@ const isolatedEnv = {
   XDG_CACHE_HOME: join(runDir, 'cache'),
   TZ: 'America/Sao_Paulo',
 };
-Object.assign(process.env, isolatedEnv);
+Object.assign(process.env, runnerEnvironment(isolatedEnv));
 
 export default defineConfig({
   ...base,

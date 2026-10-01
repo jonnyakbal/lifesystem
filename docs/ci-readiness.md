@@ -63,3 +63,9 @@ de CI e o checkout isolado. Uma lista de testes ou um build bem-sucedido não
 equivale a uma suíte completa aprovada. Antes de publicar, registre o comando,
 contagens e eventuais falhas da execução real; a aprovação remota do workflow
 precisa ser conferida no GitHub depois do push.
+
+## Correção do cache do navegador no runner Linux
+
+O run GitHub 36914635779 compilou, verificou tipos/lint e passou nos 184 testes de domínio, mas 168 testes de interface falharam antes da abertura do navegador: o executável era procurado em `/tmp/lifesystem-ci-*/cache/ms-playwright`, diferente da pasta usada na instalação. Isso não foi falha de autenticação ou deploy.
+
+`runnerEnvironment` mantém o `XDG_CACHE_HOME` original do runner, portanto instalação e workers resolvem o mesmo Chromium. O servidor da aplicação continua recebendo o cache e os dados isolados da execução. O teste de regressão cobre a separação e a preservação de armazenamento/autenticação sintéticos; nenhuma variável de produção é carregada. A suíte completa no GitHub deve ser repetida antes de declarar a CI remota aprovada.

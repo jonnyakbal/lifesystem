@@ -1,5 +1,17 @@
 # Deploy de produção
 
+## Recibo de produtividade e confiabilidade — 01/10/2026
+
+Código de aplicação `8328c67270527c7e424f464a7c25110e9c2d6846`, integrado sobre o Escritório `117ed3c` sem substituir o trabalho em andamento. Push normal confirmado em `origin/main`. A tabela autenticada de implantações da Hostinger mostrou esse SHA como **Concluído / Atual**, após a construção iniciada em 01/10 às 16:29:19.
+
+Na aplicação pública autenticada, Carga apresentou **Jornada de trabalho**, **Configurar capacidade**, esforço explícito, tarefas sem estimativa e comparação com jornada bruta. O painel de configuração expôs início, fim, dias e fuso. Nova Tarefa apresentou **Estrutura e esforço**, tarefa principal, dependências e minutos. Os painéis foram fechados/cancelados sem salvar, criar ou concluir tarefas. Não houve escrita financeira, evento Google de teste ou alteração de Hermes/Arco CRM.
+
+Validação local final no servidor de produção isolado: **352 passed (8.7m)**, zero retries; tipos, lint global com zero avisos e build Webpack passaram. Três testes do setup de autenticação passaram. Auditoria npm: zero vulnerabilidades. Testes de domínio verificam recorrência persistente, relações, concorrência de storage, fusos e restauração com dados sintéticos; a observação pública não substitui esses testes nem certifica transporte real dos agentes.
+
+CI GitHub dessa aplicação: [run 36914635779](https://github.com/jonnyakbal/lifesystem/actions/runs/36914635779). Tipos, lint e build concluíram; resultado integral remoto ainda em observação no momento deste registro. Deploy confirmado e CI são evidências separadas.
+
+Detalhes: [execução](roadmap-execution-2026-10-01.md), [schemas e regras de tarefas](task-structure-capacity.md), [pilotos dos agentes](agent-pilot.md) e [preparação privada do histórico](roadmap-privacy-preparation.md). As expansões futuras de agenda estão especificadas, não implementadas. Publicação de documentação posterior não muda o código de aplicação certificado neste recibo.
+
 ## Fluxo
 
 O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel da Hostinger. Um push para `main` aciona o build/release configurado na hospedagem. `.github/workflows/ci.yml` executa validações de TypeScript, build e Playwright; esse workflow **não** publica a aplicação.
@@ -81,3 +93,5 @@ O commit `9cdac5120742d0b1dc8058a3879c985cf23d18a7` foi confirmado em `origin/ma
 - O formulário simplificado do Financeiro carregou sem o erro de validação reportado. Nenhuma transação foi criada durante a verificação.
 - `/hermes` mostra heartbeat online e chamadas MCP recentes bem-sucedidas. O cron `lifesystem-heartbeat` está ativo no Hermes da VPS e tinha executado poucos minutos antes da checagem.
 - O conector Hostinger respondeu `401`, então os logs internos do build não foram consultados. A confirmação da versão foi feita pelos fluxos públicos; o push de documentação não altera o código em execução.
+
+Atualização da CI: o run `36914635779` terminou com 184 testes de domínio aprovados e 168 falhas de inicialização do Chromium. O executável era procurado no cache temporário da aplicação, diferente do cache da instalação. A correção preserva o cache original do runner e mantém dados/cache do servidor isolados; quatro testes do setup e 14 testes de interface passaram depois do ajuste (19.2s), sem retries. Tipos passaram novamente. Uma nova execução integral remota será conferida após o push da correção; a release de aplicação acima continua certificada independentemente dessa falha de infraestrutura de teste.

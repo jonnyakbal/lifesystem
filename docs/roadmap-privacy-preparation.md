@@ -1,5 +1,19 @@
 # Preparação reversível de privacidade — 01/10/2026
 
+## Atualização depois da entrega de produtividade
+
+O código `8328c67270527c7e424f464a7c25110e9c2d6846` foi integrado por fast-forward e enviado normalmente para `main`. Isso publica as melhorias de aplicação, **não reescreve o histórico**. Uma nova candidata privada incorpora esse código e o trabalho do Escritório em `117ed3c`; a preparação antiga abaixo permanece como recibo histórico.
+
+A nova recuperação é `C:/dev/jonny/lifesystem-private-roadmap-2026-10-01T19-30-55-939Z-recovery.bundle`, SHA-256 `4df25d7349096f4f89524d520a429235728d4b2540862bb9f99ce11388f25fc4`. A candidata é `C:/dev/jonny/lifesystem-private-roadmap-2026-10-01T19-30-55-939Z-candidate.bundle`, SHA-256 `86d6fe5d582b2a0b957a5051092fb3ecac603af00ebdb5ac4e53d19e1f005f94`. Ambos passaram em `git bundle verify`.
+
+A candidata `8e9fd29776b3e5a55bb404a956696973ceeb6443` abrange somente `refs/heads/main`, remove 101 caminhos históricos de risco e conserva os 460 arquivos retidos com igualdade exata de caminhos, modos e blobs. A cópia bare não tem remote. O scanner de texto examinou 400 arquivos e retornou três achados: os fixtures artificiais de `tests/agent-pilot.spec.ts` e `tests/branding.spec.ts` (`SECRET_ASSIGNMENT`) e o fixture já classificado em `tests/office-ui.spec.ts` (`BEARER_LITERAL`). A classificação verificou marcadores sintéticos sem exibir valores; as regras continuam ativas. Sessenta arquivos tiveram somente metadados. Nenhuma credencial de produção foi consultada ou rotacionada.
+
+`docs/analise-sistema-2026-09.md` deixou de ser rastreado na árvore atual; a cópia local privada foi preservada no worktree e o histórico original permanece recuperável no bundle. A filtragem candidata é somente por caminhos conhecidos: não certifica todos os conteúdos históricos, imagens retidas, PII, PR refs, forks ou caches. Documentos e imagens comunitários ainda requerem revisão apropriada antes de ampliar exposição pública.
+
+Não houve force-push nem alteração remota dos refs saneados. Uma próxima aplicação exige atualizar a candidata para eventuais commits posteriores, conferir o SHA remoto na janela, revisar os demais refs e autorizar explicitamente quais serão reescritos. A autorização de publicação normal não equivale à autorização de reescrita.
+
+## Recibo da primeira preparação
+
 Base desta preparação: `b1cf1afa7e7b3ff4944bf6095f0a4bc1b96d4118`. Os novos scripts e os outros ajustes do roadmap ainda são alterações de trabalho e **não estão incorporados na candidata**. Não houve commit, push, consulta remota nem reescrita de refs dos checkouts existentes.
 
 O inventário de nomes de arquivos encontrou dez refs locais, zero caminhos atualmente rastreados nas categorias de risco e 100 caminhos históricos: 18 JSON de runtime e 82 capturas. Essa operação usa metadados de caminhos; não lê runtime, `.env` real nem pixels de imagens históricas.

@@ -4,6 +4,8 @@ Atualização: 01/10/2026. Este arquivo concentra o backlog atual. Planos e aná
 
 ## Execução do roadmap — revisão posterior de 01/10
 
+Aplicação publicada em `8328c67`: Hostinger confirmou **Concluído / Atual** e o site mostrou a jornada editável em Carga e os campos de estrutura/esforço de tarefas. Validação local final: **352 testes passaram (8.7m)**, tipos/build aprovados, lint zero erros/avisos e auditoria npm zero vulnerabilidades. A candidata privada de saneamento foi atualizada para esse código; nenhuma reescrita do histórico remoto foi aplicada. Recibo e limites em [deploy de produção](deploy-producao.md).
+
 O código desta revisão acrescenta subtarefas/dependências, esforço opcional em minutos e jornada configurável. A conclusão de recorrências gera a sucessora na mesma transação da tarefa, com identidade determinística e vínculo persistente. A exclusão verifica vínculos antes de remover o evento Google. O planejamento conserva data/hora/fuso de blocos existentes; a jornada define a grade e não reescreve seus instantes.
 
 Storage passa a serializar gravações de todas as coleções entre processos cooperantes no mesmo host. Restauração e scanner de publicação foram ensaiados com dados sintéticos. Login/metadados/manifesto usam a projeção pública da marca. O lint global passou com zero erros e zero avisos; a CI passa a usar servidor de produção isolado, login sintético e zero retries.
