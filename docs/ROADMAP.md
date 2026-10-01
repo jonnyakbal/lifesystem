@@ -1,6 +1,6 @@
 # Roadmap e estado do LIFESYSTEM
 
-Atualização: 30/09/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
+Atualização: 01/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
 
 ## Entregue no código
 
@@ -8,6 +8,7 @@ Atualização: 30/09/2026. Este arquivo concentra o backlog atual. Planos e aná
 | --- | --- | --- |
 | Ciclo principal | Captura, conversão em sete destinos, Planejar, Hoje e revisão semanal | Revisão manual; não uma revisão automática por IA |
 | Planejar | Fila sem data, semana, prioridades por dia, início/duração e capacidade diária | Um bloco por tarefa; disponibilidade 08–20h |
+| Tarefas | Tabela editável e painel lateral; Kanban, Semana, calendário, linha do tempo de prazos, Foco e Carga | Carga soma blocos existentes, sem estimar capacidade livre; Gantt excluído por decisão do usuário |
 | Datas | Dia planejado e prazo usam `dueDate`; bloco guarda metadados de horário | Sem segundo prazo independente |
 | Google Agenda | Espelho da agenda principal; criar/mover/remover blocos próprios e adoção explícita | Atualização explícita; sem múltiplas agendas ou espelho de contas/conteúdos |
 | Financeiro | Meses passados/futuros, previsto vs realizado, gráficos/insights, cadastros e faturas | Saldos manuais; faturas separadas; sem gerar recorrências automaticamente |
@@ -17,6 +18,8 @@ Atualização: 30/09/2026. Este arquivo concentra o backlog atual. Planos e aná
 | Interface | Navegação condensada, dock mobile, tema e identidade configuráveis | Marca não cobre todas as superfícies |
 
 ## Revisão atual: tarefas e preparação da ativação
+
+Em 01/10, o conjunto das sete visões de Tarefas foi publicado no código `8ce708d`. Hostinger confirmou **Concluído / Atual**, e a sessão autenticada pública abriu Foco e Carga. Foco oferece checklist, fila e conclusão explícita recuperável. Carga distribui prazos por dia/projeto/pilar e sinaliza sobreposições de blocos, com semana navegável e fila sem prazo. Não é estimativa de esforço nem disponibilidade livre. Tabela, Kanban e calendário permitem edição pelos contratos atuais; prazo com bloco passa por Planejar. Validação local: **68 testes aprovados (3.9m)**, tipos/build sem erros, lint 0 erros / 96 avisos existentes. Ver [registro de entrega](task-focus-load-delivery.md) e [recibo público](deploy-producao.md). Isso não certifica transporte Órion/Sirius nem resolve idempotência persistente de recorrências.
 
 - Hoje separa título (abrir detalhes) de botão Concluir, oferece Desfazer e mantém Concluídas hoje com Reabrir.
 - Tarefas oferece Em aberto/Concluídas/Todas, contagem real, busca incluindo concluídas e ordenação por conclusão recente.

@@ -28,6 +28,16 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 ## Evidência confirmada
 
+### Visões ricas, Foco e Carga — 01/10/2026
+
+- Código de aplicação `8ce708d4da11cd2198771652c7793e5b8497254c`, enviado por push normal para `main`. Nenhuma configuração, credencial ou dado de produção foi alterado para essa entrega.
+- O hPanel autenticado mostrou `8ce708d4` como **Concluído / Atual**, na implantação iniciada às 12:48:43 (horário exibido pela hospedagem). Isso foi conferido independentemente do GitHub Actions.
+- A aplicação pública autenticada carregou `/_next/static/chunks/app/(dashboard)/tarefas/page-bce6b3e98d8dcc09.js`. Mostrou Lista editável e os sete seletores: Quadro, Lista, Semana, Calendário, Linha do tempo, Foco e Carga.
+- Foco abriu **Foco de execução**, com botão separado **Concluir tarefa em foco**. Carga abriu **Carga de trabalho**, seletor **Semana da carga** e link **Planejar horários**. Nenhum status, checklist ou registro real foi alterado nessa confirmação; Gantt não foi implementado.
+- Verificação local em build de produção, dados sintéticos: **68 passed (3.9m)**, sem retries. Build Webpack e TypeScript: exit 0; lint global: exit 0, 0 erros / 96 avisos existentes. O harness foi arquivado fora do Git. Detalhes e falhas corrigidas em [registro de entrega](task-focus-load-delivery.md).
+- O [run 60 da CI](https://github.com/jonnyakbal/lifesystem/actions/runs/36887153902) estava em execução no momento desta confirmação. Não declarar CI verde com base no deploy; o recibo certifica a hospedagem e os controles públicos observados. Commits posteriores de documentação não mudam o código de aplicação certificado acima.
+
+
 ### Recuperação de tarefas e descoberta Órion — 30/09/2026
 
 - Código de aplicação `99fa4ab43d12a0dd8567262650493c641a2908be`, enviado por push normal a `main`; integração nativa Hostinger manteve o canal de deploy.
