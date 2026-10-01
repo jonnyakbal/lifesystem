@@ -1,8 +1,21 @@
 import { expect, test } from '@playwright/test';
 import { calculateWorkload, weekDates, type WorkloadTask } from '../src/lib/task-workload';
+import { DEFAULT_PLANNING_PREFERENCES } from '../src/lib/planning-preferences';
 const stages = [{ id: 'todo', label: 'A fazer', color: '', dot: '' }, { id: 'finished', label: 'Finalizada', color: '', dot: '', isTerminal: true }];
 const task = (id: string, extra: Partial<WorkloadTask> = {}): WorkloadTask => ({ id, status: 'todo', priority: 'normal', ...extra });
 const plan = (startAt: string, endAt: string) => ({ date: '2026-12-31', timeZone: 'America/Sao_Paulo', startAt, endAt, syncToGoogle: false, syncState: 'local' as const });
+
+test('capacidade compara esforço informado e não inventa estimativa das demais tarefas', () => {
+  const calculate = calculateWorkload as unknown as (tasks: unknown[], stageDefinitions: typeof stages, days: string[], prefs?: unknown) => { distribution: { estimatedMinutes: number; unestimated: number; capacityMinutes: number | null }[]; estimatedMinutes: number; capacityMinutes: number | null };
+  const result = calculate([
+    { ...task('estimate', { dueDate: '2027-01-04' }), estimatedMinutes: 120 },
+    task('unknown', { dueDate: '2027-01-04' }),
+    { ...task('done', { dueDate: '2027-01-04', status: 'finished' }), estimatedMinutes: 600 },
+  ], stages, weekDates('2027-01-04'), { ...DEFAULT_PLANNING_PREFERENCES, workStart: '09:00', workEnd: '17:00', workingDays: [1, 2, 3, 4, 5] });
+  expect(result.distribution[0]).toMatchObject({ estimatedMinutes: 120, unestimated: 1, capacityMinutes: 480 });
+  expect(result.distribution[5].capacityMinutes).toBe(0); expect(result.capacityMinutes).toBe(2400); expect(result.estimatedMinutes).toBe(120);
+  expect(calculate([], stages, weekDates('2027-01-04')).capacityMinutes).toBeNull();
+});
 
 test('carga mantém semana de segunda a domingo na virada do ano', () => {
   expect(weekDates('2027-01-01')).toEqual(['2026-12-28', '2026-12-29', '2026-12-30', '2026-12-31', '2027-01-01', '2027-01-02', '2027-01-03']);

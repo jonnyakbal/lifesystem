@@ -1,10 +1,12 @@
 import type { StageDef, TaskPlanning } from '@/types';
 import { isTaskCompleted } from './task-stages';
+import { workWindowOnDay, type PlanningPreferences } from './planning-preferences';
 
 export interface WorkloadTask {
   id: string; status: string; completedAt?: string; dueDate?: string;
   priority: 'normal' | 'important' | 'urgent'; projectId?: string; pillarId?: string;
   planning?: TaskPlanning;
+  estimatedMinutes?: number;
 }
 function zonedDate(time: number, timeZone: string) {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date(time));
@@ -18,7 +20,7 @@ export function weekDates(date: string): string[] {
     return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
   });
 }
-export function calculateWorkload<T extends WorkloadTask>(tasks: T[], stages: StageDef[], days: string[]) {
+export function calculateWorkload<T extends WorkloadTask>(tasks: T[], stages: StageDef[], days: string[], preferences?: PlanningPreferences) {
   const open = tasks.filter(task => !isTaskCompleted(task, stages));
   const inWeek = open.filter(task => task.dueDate && days.includes(task.dueDate));
   const undated = open.filter(task => !task.dueDate);
@@ -36,7 +38,11 @@ export function calculateWorkload<T extends WorkloadTask>(tasks: T[], stages: St
       } catch { return []; }
       return startDate === date ? [{ id: task.id, start, end }] : [];
     });
-    return { date, tasks: items, urgent: items.filter(task => task.priority === 'urgent').length, blocks: blocks.length, hours: blocks.reduce((sum, block) => sum + (block.end - block.start) / 3600000, 0) };
+    const estimated = items.filter(task => typeof task.estimatedMinutes === 'number' && Number.isFinite(task.estimatedMinutes) && task.estimatedMinutes > 0);
+    const window = preferences ? workWindowOnDay(date, preferences) : null;
+    return { date, tasks: items, urgent: items.filter(task => task.priority === 'urgent').length, blocks: blocks.length, hours: blocks.reduce((sum, block) => sum + (block.end - block.start) / 3600000, 0),
+      estimatedMinutes: estimated.reduce((sum, task) => sum + task.estimatedMinutes!, 0), unestimated: items.length - estimated.length,
+      capacityMinutes: preferences ? (window ? window.end - window.start : 0) : null };
   });
   // Count pairs across the complete week, including blocks spanning midnight.
   const weekStart = days[0], weekEnd = days[days.length - 1];
@@ -55,5 +61,7 @@ export function calculateWorkload<T extends WorkloadTask>(tasks: T[], stages: St
     const start = Math.max(block.start, other.start), end = Math.min(block.end, other.end);
     if (start < end && [block.timeZone, other.timeZone].some(zone => zonedDate(start, zone) <= weekEnd && zonedDate(end - 1, zone) >= weekStart)) overlaps++;
   }));
-  return { open, inWeek, undated, outside, distribution, overlaps, hours: distribution.reduce((sum, day) => sum + day.hours, 0) };
+  return { open, inWeek, undated, outside, distribution, overlaps, hours: distribution.reduce((sum, day) => sum + day.hours, 0),
+    estimatedMinutes: distribution.reduce((sum, day) => sum + day.estimatedMinutes, 0), unestimated: distribution.reduce((sum, day) => sum + day.unestimated, 0),
+    capacityMinutes: preferences ? distribution.reduce((sum, day) => sum + day.capacityMinutes!, 0) : null };
 }

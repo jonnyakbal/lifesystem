@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { randomBytes } from 'node:crypto';
-import { storage } from './storage';
+import { storage, assertTaskDeletionLinks } from './storage';
 import type { Task, TaskPlanning } from '@/types';
 import { deleteManagedTaskEvent, GoogleCalendarError, readManagedTaskEvent, syncManagedTaskEvent } from './google-calendar';
 
@@ -97,17 +97,20 @@ export async function removeTaskPlanning(id: string, removeGoogleEvent: boolean)
 
 // Serialize deletion with moves/syncs so a new mirror cannot appear mid-delete.
 export async function deletePlannedTask(id: string, removeGoogleEvent: boolean): Promise<boolean> {
-  return withTaskPlanningLock(id, async () => {
-    const task = await storage.getById<Task>('tasks', id);
+  return withTaskPlanningLock(id, () => storage.transact<Task, boolean>('tasks', async items => {
+    const task = items.find(item => item.id === id);
     if (!task) return false;
+    // Hold the collection while checking references and crossing the network:
+    // a refused deletion never removes Google, and new references cannot race it.
+    assertTaskDeletionLinks(items, [id]);
     if (task.planning?.eventId) {
       if (!removeGoogleEvent) throw new Error('Confirme a exclusão da tarefa e de seu evento espelhado.');
       await deleteManagedTaskEvent(id, task.planning.eventId, task.planning.etag);
-      // Clear only after Google acknowledges removal; a failed local write is retryable (404).
-      await storage.update<Task>('tasks', id, { planning: undefined });
     }
-    return storage.delete<Task>('tasks', id);
-  });
+    // Google deletion accepts 404 on retry if the local commit failed.
+    items.splice(items.indexOf(task), 1);
+    return true;
+  }));
 }
 
 export async function adoptTaskGoogleEvent(id: string): Promise<Task> {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { motion } from 'motion/react';
 import { Plus, FolderKanban, ExternalLink, Trash2, X, Link as LinkIcon, Edit2 } from 'lucide-react';
 import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
@@ -278,7 +279,7 @@ export default function ProjectsPage() {
   function projectCard(project: Project, index: number) {
     return <article key={project.id} draggable onDragStart={event => handleDragStart(event, project.id)} onDragEnd={handleDragEnd} className={cn('work-project-card', draggedId === project.id && 'opacity-50')}>
       <div className="work-project-art" aria-hidden="true">
-        {project.coverUrl ? <img src={project.coverUrl} alt="" loading="lazy" /> : <div className={cn('work-project-orbits bg-gradient-to-br', project.coverColor)}><span /><span /><i /><Orbit className="h-8 w-8" /></div>}
+        {project.coverUrl ? <Image src={project.coverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" /> : <div className={cn('work-project-orbits bg-gradient-to-br', project.coverColor)}><span /><span /><i /><Orbit className="h-8 w-8" /></div>}
         <span className="work-project-index">{String(index + 1).padStart(2, '0')}</span>
         <span className="work-project-status"><span className={cn('h-1.5 w-1.5 rounded-full', getStage(project.status)?.dot)} />{getStatusLabel(project.status)}</span>
       </div>
@@ -370,7 +371,7 @@ export default function ProjectsPage() {
               <div className="relative h-32 rounded-lg overflow-hidden border border-border">
                 {editCoverUrl ? (
                   <div className="relative w-full h-full">
-                    <img src={editCoverUrl} alt="" className="w-full h-full object-cover" />
+                    <Image src={editCoverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 512px" className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-background/60 to-transparent" />
                     <button
                       type="button"

@@ -14,6 +14,9 @@ export const taskPayloadSchema = z.object({
   status: z.string().trim().min(1).max(100).regex(/^[a-zA-Z0-9_-]+$/, 'Etapa inválida').optional(),
   projectId: z.string().max(100).optional(),
   pillarId: z.string().max(100).optional(),
+  parentId: z.string().min(1).max(100).nullable().optional(),
+  dependsOnIds: z.array(z.string().min(1).max(100)).max(100).optional(),
+  estimatedMinutes: z.number().int().min(1).max(10080).nullable().optional(),
   dueDate: dateOnly.optional(),
   tags: z.array(z.string().max(100)).max(50).optional(),
   checklist: z.array(z.object({

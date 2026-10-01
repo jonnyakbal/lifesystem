@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { join } from 'path';
 import { stat, readdir, unlink } from 'fs/promises';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const uploadDir = join(process.cwd(), 'public', 'uploads');
     
@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json({ files: fileInfos });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ files: [] });
   }
 }
@@ -53,7 +53,7 @@ export async function DELETE(request: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
-  } catch (error) {
+  } catch {
     return NextResponse.json({ error: 'Delete failed' }, { status: 500 });
   }
 }

@@ -102,7 +102,7 @@ export default function HomePage() {
   }
 
   return <div className="work-page mx-auto max-w-[1600px] space-y-6 p-4 pb-24 lg:p-8">
-    <WorkspaceHeading eyebrow="Seu espaço" title="Seu dia em órbita" description={new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} actions={<><Button asChild><Link href="/hoje"><Calendar className="h-4 w-4" />Abrir meu dia</Link></Button><Button variant="outline" asChild><Link href="/planejar">Planejar semana<ArrowRight className="h-4 w-4" /></Link></Button></>}>
+    <WorkspaceHeading eyebrow="Seu espaço" title="Seu dia em órbita" description={loading ? 'Seu próximo passo começa aqui.' : new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} actions={<><Button asChild><Link href="/hoje"><Calendar className="h-4 w-4" />Abrir meu dia</Link></Button><Button variant="outline" asChild><Link href="/planejar">Planejar semana<ArrowRight className="h-4 w-4" /></Link></Button></>}>
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <WorkspaceMetric label="Para hoje" value={loading || unavailableTasks ? '—' : dueToday.length} detail="Próximos passos" tone="primary" />
         <WorkspaceMetric label="Para decidir" value={loading || failed('captures') ? '—' : queue.length} detail="Na caixa de entrada" />

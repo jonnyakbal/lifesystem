@@ -6,11 +6,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   X, ChevronLeft, Eye, Edit3, Bold, Italic, Code, Quote, List, ListOrdered,
   Heading2, Heading3, Minus, Link as LinkIcon, CheckSquare, Sparkles, Tag,
-  Calendar, Clock, Send, Archive, CheckCircle2, Globe, MonitorPlay, Camera,
-  Video, Trash2, Copy, Pin, PinOff, Save, Maximize2, Minimize2, Type, Image,
-  Hash, AtSign, Smile, BarChart3, ArrowRight, Square, ListChecks, Pilcrow,
-  AlignLeft, AlignCenter, AlignRight, Undo, Redo, Strikethrough, CodeSquare,
-  Blocks, PanelRightOpen, PanelRightClose
+  Calendar, Archive, CheckCircle2, Globe, MonitorPlay, Camera,
+  Video, Save, Maximize2, Minimize2,
+  Smile, Square, Strikethrough, CodeSquare
 } from 'lucide-react';
 import { cn, escapeHtml, sanitizeHtml } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -18,8 +16,6 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
-import { Switch } from '@/components/ui/switch';
-import { Progress } from '@/components/ui/progress';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -497,7 +493,7 @@ function ContentEditorPanel({
     }
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, slashOpen, title, body, channel, stage]);
+  }, [open, slashOpen, onClose]);
 
   function addTag() {
     const tag = tagInput.trim();

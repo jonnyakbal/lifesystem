@@ -1,22 +1,38 @@
 import fs from 'fs/promises';
 import { randomUUID } from 'crypto';
 import path from 'path';
+import { AsyncLocalStorage } from 'node:async_hooks';
+import { acquireCollectionLock, validateCollection, type CollectionLease } from './collection-lock';
+
+const storageContext = new AsyncLocalStorage<{ dir: string; collection: string; lease: CollectionLease }>();
 
 function dataDir() {
+  const context = storageContext.getStore();
+  if (context) return context.dir;
   return process.env.LIFESYSTEM_DATA_DIR
     ? path.resolve(process.env.LIFESYSTEM_DATA_DIR)
     : path.join(process.cwd(), 'data');
 }
 const collectionLocks = new Map<string, Promise<void>>();
 
-function assertDeletable(collection: string, items: unknown[]) {
+export function assertTaskDeletionLinks(allItems: unknown[], ids: string[]) {
+  const deleting = new Set(ids);
+  if (allItems.some(item => {
+    const task = item as { id: string; parentId?: string; dependsOnIds?: string[] };
+    return !deleting.has(task.id) && ((task.parentId && deleting.has(task.parentId)) || task.dependsOnIds?.some(id => deleting.has(id)));
+  })) throw new Error('Esta tarefa tem vínculos com outras tarefas. Desvincule as subtarefas e dependências antes de excluir.');
+}
+
+function assertDeletable(collection: string, items: unknown[], allItems: unknown[] = items) {
   if (collection === 'tasks' && items.some(item => Boolean((item as { planning?: { eventId?: string } }).planning?.eventId))) {
     throw new Error('Esta tarefa possui evento espelhado. Remova o bloco em Planejar antes de excluir a tarefa.');
   }
+  if (collection === 'tasks') {
+    assertTaskDeletionLinks(allItems, items.map(item => (item as { id: string }).id));
+  }
 }
 
-async function ensureDataDir() {
-  const dir = dataDir();
+async function ensureDataDir(dir = dataDir()) {
   try {
     await fs.access(dir);
   } catch {
@@ -25,8 +41,10 @@ async function ensureDataDir() {
 }
 
 async function readCollection<T>(name: string): Promise<T[]> {
-  await ensureDataDir();
-  const filePath = path.join(dataDir(), `${name}.json`);
+  validateCollection(name);
+  const dir = dataDir();
+  await ensureDataDir(dir);
+  const filePath = path.join(dir, `${name}.json`);
   try {
     const data = await fs.readFile(filePath, 'utf-8');
     return JSON.parse(data);
@@ -37,13 +55,19 @@ async function readCollection<T>(name: string): Promise<T[]> {
 }
 
 async function writeCollection<T>(name: string, data: T[]): Promise<void> {
-  await ensureDataDir();
-  const filePath = path.join(dataDir(), `${name}.json`);
-  const tempPath = path.join(dataDir(), `.${name}.${randomUUID()}.tmp`);
+  validateCollection(name);
+  const dir = dataDir();
+  const context = storageContext.getStore();
+  if (!context || context.collection !== name) throw new Error('Escrita sem trava de coleção.');
+  await context.lease.assertOwned();
+  await ensureDataDir(dir);
+  const filePath = path.join(dir, `${name}.json`);
+  const tempPath = path.join(dir, `.${name}.${randomUUID()}.tmp`);
   try {
     await fs.writeFile(tempPath, JSON.stringify(data, null, 2), 'utf-8');
     for (let attempt = 0; ; attempt++) {
       try {
+        await context.lease.assertOwned();
         await fs.rename(tempPath, filePath);
         break;
       } catch (error) {
@@ -58,34 +82,24 @@ async function writeCollection<T>(name: string, data: T[]): Promise<void> {
 }
 
 async function withCollectionLock<T>(collection: string, operation: () => Promise<T>): Promise<T> {
-  const previous = collectionLocks.get(collection) || Promise.resolve();
+  validateCollection(collection);
+  const requestedDir = dataDir();
+  await ensureDataDir(requestedDir);
+  const dir = await fs.realpath(requestedDir);
+  const key = path.join(dir, `${collection}.json`);
+  const previous = collectionLocks.get(key) || Promise.resolve();
   let release!: () => void;
   const current = new Promise<void>((resolve) => { release = resolve; });
   const queued = previous.then(() => current);
-  collectionLocks.set(collection, queued);
+  collectionLocks.set(key, queued);
   await previous;
   try {
-    if (collection !== 'tasks') return await operation();
-    // Task actions can be written by the web app and MCP in separate workers.
-    // Keep the read/modify/rename sequence exclusive across those processes.
-    await ensureDataDir();
-    const fileLock = path.join(dataDir(), '.tasks.lock');
-    const deadline = Date.now() + 10_000;
-    while (true) {
-      try { await fs.mkdir(fileLock); break; }
-      catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-        const stat = await fs.stat(fileLock).catch(() => null);
-        if (stat && Date.now() - stat.mtimeMs > 60_000) await fs.rm(fileLock, { recursive: true, force: true }).catch(() => undefined);
-        if (Date.now() >= deadline) throw new Error('Tarefas ocupadas; tente novamente com a mesma chave.');
-        await new Promise(resolve => setTimeout(resolve, 25 + Math.floor(Math.random() * 25)));
-      }
-    }
-    try { return await operation(); }
-    finally { await fs.rmdir(fileLock).catch(() => undefined); }
+    const lease = await acquireCollectionLock(dir, collection);
+    try { return await storageContext.run({ dir, collection, lease }, operation); }
+    finally { await lease.release(); }
   } finally {
     release();
-    if (collectionLocks.get(collection) === queued) collectionLocks.delete(collection);
+    if (collectionLocks.get(key) === queued) collectionLocks.delete(key);
   }
 }
 
@@ -191,7 +205,7 @@ export const storage = {
   async delete<T extends { id: string }>(collection: string, id: string): Promise<boolean> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);
-      assertDeletable(collection, items.filter(item => item.id === id));
+      assertDeletable(collection, items.filter(item => item.id === id), items);
       const filtered = items.filter(item => item.id !== id);
       if (filtered.length === items.length) return false;
       await writeCollection(collection, filtered);
@@ -202,7 +216,7 @@ export const storage = {
   async deleteWhere<T extends { id: string }>(collection: string, predicate: (item: T) => boolean): Promise<number> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);
-      assertDeletable(collection, items.filter(predicate));
+      assertDeletable(collection, items.filter(predicate), items);
       const kept = items.filter(item => !predicate(item));
       if (kept.length === items.length) return 0;
       await writeCollection(collection, kept);
@@ -238,7 +252,7 @@ export const storage = {
   async deleteMany<T extends { id: string }>(collection: string, ids: string[]): Promise<string[]> {
     return withCollectionLock(collection, async () => {
       const items = await readCollection<T>(collection);
-      assertDeletable(collection, items.filter(item => ids.includes(item.id)));
+      assertDeletable(collection, items.filter(item => ids.includes(item.id)), items);
       const wanted = new Set(ids);
       const deleted = items.filter((item) => wanted.has(item.id)).map((item) => item.id);
       if (deleted.length > 0) {

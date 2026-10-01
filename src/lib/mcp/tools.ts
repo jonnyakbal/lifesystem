@@ -17,8 +17,8 @@ import { runMcpToolWithAudit } from './audit';
 import { canUseMcpTool } from './auth';
 import { createGoogleCalendarEvent, createManagedMcpEventId, listGoogleCalendarEvents, removeManagedMcpCalendarEvent, syncManagedMcpCalendarEvent } from '@/lib/google-calendar';
 import { accountSchema, billItemSchema, billSchema, budgetSchema, cardSchema, financialEntrySchema, financialEntryUpdateSchema, financialGoalSchema, payeeSchema } from '@/lib/financial-validation';
-import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
-import type { Task } from '@/types';
+import { createTaskRecords, taskUpdateSchema, updateTaskRecord } from '@/lib/task-domain';
+import { taskPayloadSchema } from '@/lib/validation';
 import { summarizeFinancialMonth, type FinancialPeriodEntry } from '@/lib/financial-period';
 import { adoptTaskCalendarEventAction, convertCaptureAction, convertCaptureActionSchema, planTaskBlockAction, removeTaskBlockAction, taskPlanningActionSchema } from './actions';
 import { idempotencyKeySchema, runMcpIdempotent } from './receipts';
@@ -60,6 +60,7 @@ interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRa
   allowDelete?: boolean;
   idempotentCreate?: boolean;
   performUpdate?: (fields: Record<string, unknown>, id: string, expectedUpdatedAt?: string) => Promise<unknown>;
+  performCreate?: (fields: Record<string, unknown>, stableId?: string) => Promise<{ id: string; [key: string]: unknown }>;
 }
 
 function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRawShape>(
@@ -128,11 +129,12 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
           const input = fields as z.infer<z.ZodObject<TCreate>>;
           const payload = buildCreatePayload(input);
           if (collection === 'content') await validateContentBinding(payload);
-          const create = () => storage.create(collection, config.validateCreate ? config.validateCreate(payload) : payload);
+          const validated = config.validateCreate ? config.validateCreate(payload) : payload;
+          const create = () => config.performCreate ? config.performCreate(validated) : storage.create(collection, validated);
           if (config.idempotentCreate || idempotencyKey) {
             if (!idempotencyKey) return errorResult('idempotencyKey é obrigatória para esta criação. Reutilize a mesma chave somente ao repetir a mesma solicitação.');
             const identity = createHash('sha256').update(JSON.stringify([clientId || 'legacy', `create_${entity}`, idempotencyKey])).digest('hex');
-            const createStable = () => storage.createOnce(collection, `mcp-${identity}`, config.validateCreate ? config.validateCreate(payload) : payload);
+            const createStable = () => config.performCreate ? config.performCreate(validated, `mcp-${identity}`) : storage.createOnce(collection, `mcp-${identity}`, validated);
             const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, createStable);
             return textResult({ ...outcome.result, replayed: outcome.replayed });
           }
@@ -193,7 +195,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     entity: 'task',
     collection: 'tasks',
     plural: 'tasks',
-    listFilters: ['status', 'pillarId', 'projectId'],
+    listFilters: ['status', 'pillarId', 'projectId', 'parentId'],
     createShape: {
       workType: z.enum(['human', 'agent', 'decision', 'dependency']).optional(),
       responsible: z.string().max(500).optional(), nextAction: z.string().max(10000).optional(),
@@ -204,6 +206,11 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       projectId: z.string().optional(),
       pillarId: z.string().optional(),
       dueDate: z.string().optional().describe('Formato YYYY-MM-DD'),
+      parentId: taskPayloadSchema.shape.parentId.describe('ID da tarefa principal. Subtarefas têm status e prazo próprios; concluir a filha não conclui o pai.'),
+      dependsOnIds: taskPayloadSchema.shape.dependsOnIds.describe('IDs de tarefas que precisam ser concluídas antes desta. Sem ciclos.'),
+      estimatedMinutes: taskPayloadSchema.shape.estimatedMinutes.describe('Esforço previsto em minutos, opcional; não reserva horário nem representa tempo realizado.'),
+      recurring: taskPayloadSchema.shape.recurring,
+      recurringFrequency: taskPayloadSchema.shape.recurringFrequency.describe('daily, weekly ou monthly. Ao concluir, o servidor gera uma próxima ocorrência idempotente.'),
       tags: z.array(z.string()).optional(),
     },
     updateShape: {
@@ -216,6 +223,11 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       projectId: z.string().optional(),
       pillarId: z.string().optional(),
       dueDate: z.string().nullable().optional(),
+      parentId: taskPayloadSchema.shape.parentId.describe('ID da tarefa principal; null remove o vínculo.'),
+      dependsOnIds: taskPayloadSchema.shape.dependsOnIds.describe('Lista de dependências; [] remove todas.'),
+      estimatedMinutes: taskPayloadSchema.shape.estimatedMinutes.describe('Esforço em minutos; null remove estimativa. Não é tempo pago, medido ou agendado.'),
+      recurring: taskPayloadSchema.shape.recurring,
+      recurringFrequency: taskPayloadSchema.shape.recurringFrequency,
       tags: z.array(z.string()).optional(),
     },
     buildCreatePayload: (input) => ({
@@ -231,7 +243,9 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       checklist: [],
       sortOrder: 0,
     }),
-    validateUpdate: async (fields, id) => prepareTaskUpdate(taskUpdateSchema.parse(fields), await storage.getById<Task>('tasks', id)),
+    performCreate: async (fields, stableId) => ({ ...(await createTaskRecords([taskPayloadSchema.parse(fields)], stableId ? [stableId] : undefined))[0] }),
+    validateUpdate: fields => taskUpdateSchema.parse(fields),
+    performUpdate: (fields, id, version) => updateTaskRecord(id, taskUpdateSchema.parse(fields), version),
   }, scopes, clientId);
 
   if (canUseMcpTool('convert_capture', scopes)) server.registerTool('convert_capture', {

@@ -9,7 +9,6 @@
 import { Node, mergeAttributes } from '@tiptap/core';
 import { ReactNodeViewRenderer, NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import { useRouter } from 'next/navigation';
-import { FileText } from 'lucide-react';
 
 export interface PageEmbedOptions {
   // Called when the block is inserted with no pageId yet — creates the

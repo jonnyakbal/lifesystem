@@ -1,17 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2, ChevronLeft, ChevronRight, Clock3, Crosshair, Layers, ListChecks, Plus } from 'lucide-react';
 import type { StageDef } from '@/types';
 import { cn, todayStr } from '@/lib/utils';
 import { isTaskCompleted } from '@/lib/task-stages';
 import { calculateWorkload, weekDates } from '@/lib/task-workload';
+import { TaskCapacitySettings } from './task-capacity-settings';
+import { DEFAULT_PLANNING_PREFERENCES, planningPreferencesSchema, type PlanningPreferences } from '@/lib/planning-preferences';
+import { apiFetch, showError } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DeadlineCell, type TaskListRecord, type TaskCellPatch } from './task-workspace-table';
+import { TaskStructureSummary } from './task-structure-summary';
 
 interface Props {
+  allTasks?: TaskListRecord[];
   tasks: TaskListRecord[]; stages: StageDef[]; projects: { id: string; name: string }[]; pillars: { id: string; name: string }[];
   busyIds: Set<string>; onOpen: (id: string) => void; onComplete: (id: string) => void;
   onPatch: (id: string, patch: TaskCellPatch) => Promise<boolean>; onCreate: () => void;
@@ -35,6 +40,7 @@ export function TaskFocus(props: Props) {
         <div className="task-focus-topline"><span><Crosshair className="h-4 w-4" />Em foco · {index + 1} de {queue.length}</span><span className={`task-priority-${task.priority}`}>{priorityLabels[task.priority]}</span></div>
         <button type="button" className="task-focus-title" disabled={busy} onClick={() => onOpen(task.id)}>{task.title}</button>
         <p className="task-focus-hint">O título abre os detalhes. A conclusão fica no botão abaixo.</p>
+        <TaskStructureSummary task={task} tasks={props.allTasks || props.tasks} stages={stages} onOpen={onOpen} />
         <div className="task-focus-context"><span>{stages.find(stage => stage.id === task.status)?.label || task.status}</span>{task.projectId && <span>{props.projects.find(project => project.id === task.projectId)?.name || 'Projeto indisponível'}</span>}{task.pillarId && <span>{props.pillars.find(pillar => pillar.id === task.pillarId)?.name || 'Pilar indisponível'}</span>}<DeadlineCell task={task} busy={Boolean(busy)} completed={false} onPatch={onPatch} /></div>
         {task.nextAction && <div className="task-focus-next"><ArrowRight className="h-4 w-4" /><div><small>Próxima ação</small><p>{task.nextAction}</p></div></div>}
         {task.description && <p className="task-focus-description">{task.description}</p>}
@@ -48,12 +54,23 @@ export function TaskFocus(props: Props) {
 }
 
 export function TaskLoad(props: Props) {
+  const [preferences, setPreferences] = useState<PlanningPreferences | null>(null);
+  const [preferencesError, setPreferencesError] = useState('');
+  const [preferencesRetry, setPreferencesRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    apiFetch<PlanningPreferences>('/api/planning-preferences').then(value => {
+      const parsed = planningPreferencesSchema.parse(value);
+      if (active) { setPreferences(parsed); setPreferencesError(''); }
+    }).catch(error => { if (active) { setPreferences(null); setPreferencesError(showError(error)); } });
+    return () => { active = false; };
+  }, [preferencesRetry]);
   const [anchor, setAnchor] = useState(todayStr());
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [dimension, setDimension] = useState<'projectId' | 'pillarId'>('projectId');
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const days = weekDates(anchor);
-  const load = calculateWorkload(props.tasks, props.stages, days);
+  const load = calculateWorkload(props.tasks, props.stages, days, preferences || undefined);
   const date = selectedDay && days.includes(selectedDay) ? selectedDay : days[0];
   const grouped = new Map<string, TaskListRecord[]>();
   load.inWeek.forEach(task => { const key = task[dimension] || ''; grouped.set(key, [...(grouped.get(key) || []), task]); });
@@ -66,6 +83,9 @@ export function TaskLoad(props: Props) {
   return <div className="task-load-view">
     <header className="task-date-heading"><div><p className="task-eyebrow">Distribuir para executar</p><h2>Carga de trabalho</h2><p>Tarefas em aberto com os filtros atuais. Volume e blocos, sem estimativas inventadas.</p></div><Link href="/planejar" className="task-load-planning">Planejar horários<ArrowRight className="h-4 w-4" /></Link></header>
     <div className="task-load-stats"><div><span>Prazos nesta semana</span><strong>{load.inWeek.length}</strong></div><div><span>Horas em blocos</span><strong>{load.hours.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}<small>h</small></strong></div><div><span>Sem prazo</span><strong>{load.undated.length}</strong></div><div><span>Em outras semanas</span><strong>{load.outside.length}</strong></div></div>
+    {preferences || preferencesError ? <TaskCapacitySettings preferences={preferences || DEFAULT_PLANNING_PREFERENCES} onSaved={setPreferences} loadError={preferencesError} onRetry={() => setPreferencesRetry(value => value + 1)} /> : <p className="text-xs text-muted-foreground" role="status">Carregando jornada…</p>}
+    <div className="task-load-stats" aria-label="Esforço e jornada"><div><span>Esforço previsto</span><strong>{(load.estimatedMinutes / 60).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}<small>h</small></strong></div><div><span>Jornada da semana</span><strong>{load.capacityMinutes === null ? '—' : (load.capacityMinutes / 60).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}<small>{load.capacityMinutes === null ? '' : 'h'}</small></strong></div><div><span>Sem estimativa nesta semana</span><strong>{load.unestimated}</strong></div><div><span>Comparação da jornada</span><strong>{load.capacityMinutes === null ? '—' : load.estimatedMinutes > load.capacityMinutes ? 'Acima' : 'Dentro'}</strong></div></div>
+    <p className="task-load-note">Esforço considera somente minutos informados em cada tarefa. A jornada é capacidade bruta, não disponibilidade livre: não desconta Google, pausas nem tarefas sem estimativa. Não soma esforço aos blocos.</p>
     <div className="task-calendar-nav mb-4"><Button variant="outline" size="icon" aria-label="Semana anterior da carga" onClick={() => shift(-7)}><ChevronLeft className="h-4 w-4" /></Button><h3>{formatDay(days[0])} — {formatDay(days[6])}</h3><Button variant="outline" size="icon" aria-label="Próxima semana da carga" onClick={() => shift(7)}><ChevronRight className="h-4 w-4" /></Button><Input type="date" aria-label="Semana da carga" value={days[0]} className="w-auto" onChange={event => { if (/^\d{4}-\d{2}-\d{2}$/.test(event.target.value)) { setAnchor(event.target.value); setSelectedGroup(null); } }} /><Button variant="ghost" onClick={() => { setAnchor(todayStr()); setSelectedGroup(null); }}>Semana atual</Button></div>
     <p className="task-load-note"><Clock3 className="h-4 w-4" />Soma das durações válidas dos blocos iniciados em cada dia, no fuso de cada bloco. Sobreposições entram na soma; isto não mede horas livres nem inclui eventos externos do Google.</p>
     {load.overlaps > 0 && <p className="task-load-warning" role="status">{load.overlaps} pares de blocos se sobrepõem. Revise os horários em Planejar.</p>}

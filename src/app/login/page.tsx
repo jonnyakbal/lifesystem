@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { BrandMark } from '@/components/brand-mark';
+import { getPublicBranding } from '@/lib/public-branding';
+
+const branding = getPublicBranding();
 
 // Hardcoded so the star layout is identical on server and client render.
 const STARS = [
@@ -78,8 +81,8 @@ function LoginForm() {
           <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/30 to-accent/20 shadow-[0_0_40px_rgba(139,92,246,0.35)]">
             <BrandMark className="h-10 w-10" />
           </div>
-          <h1 className="font-display text-2xl font-bold tracking-tight text-white">LIFESYSTEM</h1>
-          <p className="mt-1 text-sm text-white/50">Guiado pelos povos das estrelas</p>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-white">{branding.name}</h1>
+          <p className="mt-1 text-sm text-white/50">{branding.tagline}</p>
         </div>
 
         <form
@@ -96,7 +99,7 @@ function LoginForm() {
                 value={user}
                 onChange={(e) => setUser(e.target.value)}
                 className="border-white/10 bg-white/5 text-white placeholder:text-white/30"
-                placeholder="jonny"
+                placeholder="Seu usuário"
               />
             </div>
             <div className="grid gap-2">

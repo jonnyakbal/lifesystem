@@ -2,20 +2,28 @@
 
 Atualização: 01/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
 
+## Execução do roadmap — revisão posterior de 01/10
+
+O código desta revisão acrescenta subtarefas/dependências, esforço opcional em minutos e jornada configurável. A conclusão de recorrências gera a sucessora na mesma transação da tarefa, com identidade determinística e vínculo persistente. A exclusão verifica vínculos antes de remover o evento Google. O planejamento conserva data/hora/fuso de blocos existentes; a jornada define a grade e não reescreve seus instantes.
+
+Storage passa a serializar gravações de todas as coleções entre processos cooperantes no mesmo host. Restauração e scanner de publicação foram ensaiados com dados sintéticos. Login/metadados/manifesto usam a projeção pública da marca. O lint global passou com zero erros e zero avisos; a CI passa a usar servidor de produção isolado, login sintético e zero retries.
+
+Os pilotos Órion/Sirius validam contratos SDK, aprovação humana e recibos com identidade, sem agentes reais nem execução externa. As expansões de agenda têm [especificação incremental](agenda-expansion-contracts.md), mas **ainda não estão implementadas**. Veja [regras de produtividade](task-structure-capacity.md), [piloto](agent-pilot.md) e [registro de execução](roadmap-execution-2026-10-01.md). Publicação e suíte final são registradas separadamente no recibo de deploy.
+
 ## Entregue no código
 
 | Área | O que existe | Limite atual |
 | --- | --- | --- |
 | Ciclo principal | Captura, conversão em sete destinos, Planejar, Hoje e revisão semanal | Revisão manual; não uma revisão automática por IA |
-| Planejar | Fila sem data, semana, prioridades por dia, início/duração e capacidade diária | Um bloco por tarefa; disponibilidade 08–20h |
-| Tarefas | Tabela editável e painel lateral; Kanban, Semana, calendário, linha do tempo de prazos, Foco e Carga | Carga soma blocos existentes, sem estimar capacidade livre; Gantt excluído por decisão do usuário |
+| Planejar | Fila sem data, semana, prioridades por dia, início/duração e jornada/fuso configuráveis | Um bloco por tarefa; disponibilidade depende da agenda principal carregada |
+| Tarefas | Sete visões, subtarefas, dependências e esforço opcional; Carga compara esforço e jornada | Sem inferir esforço ausente ou tempo livre do Google em Carga; Gantt excluído pelo usuário |
 | Datas | Dia planejado e prazo usam `dueDate`; bloco guarda metadados de horário | Sem segundo prazo independente |
 | Google Agenda | Espelho da agenda principal; criar/mover/remover blocos próprios e adoção explícita | Atualização explícita; sem múltiplas agendas ou espelho de contas/conteúdos |
 | Financeiro | Meses passados/futuros, previsto vs realizado, gráficos/insights, cadastros e faturas | Saldos manuais; faturas separadas; sem gerar recorrências automaticamente |
-| MCP/Hermes | Escopos por identidade, validações compartilhadas, auditoria, heartbeat e recibos | Saúde e tarefas usam bloqueio entre processos; demais coleções JSON ainda exigem cuidado com gravações concorrentes |
+| MCP/Hermes | Escopos por identidade, validações compartilhadas, auditoria, heartbeat e recibos; relações/recorrência de tarefas compartilhadas com REST | Locks de coleção exigem escritores cooperantes no mesmo host; não substituem banco distribuído |
 | Saúde/Órion | Contrato 1.2, contexto/observações, propostas/aprovações/recibos e ponte de tarefas/Planejar | Credencial exclusiva e transporte no Hermes ainda precisam de ativação verificada |
 | Profissional/Sirius | Contrato incremental, propostas, aprovações e recibos no LifeSystem | Piloto de transporte real ainda não certificado; Hermes/Arco CRM não alterados |
-| Interface | Navegação condensada, dock mobile, tema e identidade configuráveis | Marca não cobre todas as superfícies |
+| Interface | Navegação condensada, dock mobile, tema; marca pública coerente em login, metadados e PWA | Preferências privadas não são serializadas no manifesto |
 
 ## Revisão atual: tarefas e preparação da ativação
 
@@ -24,7 +32,7 @@ Em 01/10, o conjunto das sete visões de Tarefas foi publicado no código `8ce70
 - Hoje separa título (abrir detalhes) de botão Concluir, oferece Desfazer e mantém Concluídas hoje com Reabrir.
 - Tarefas oferece Em aberto/Concluídas/Todas, contagem real, busca incluindo concluídas e ordenação por conclusão recente.
 - Etapas removidas continuam visíveis; etapas terminais personalizadas são reconhecidas sem reescrever dados.
-- Recorrência lenta não bloqueia Reabrir e sua próxima ocorrência aparece sem reload. Reabrir preserva a ocorrência seguinte. A proteção contra repetir a geração é desta sessão; idempotência persistente de recorrências segue como pendência própria.
+- Recorrência lenta não bloqueia Reabrir e sua próxima ocorrência aparece sem reload. A revisão posterior acrescenta idempotência persistente no servidor; reabrir/reconcluir conserva a sucessora e sua exclusão não a recria silenciosamente.
 - O smoke de saúde verifica contrato 1.2, catálogo exclusivo, escopos e schemas por duas chamadas de descoberta. Handshake sem ferramentas verificáveis não é sucesso. O perfil saúde não consulta registros pessoais.
 - A integração operacional não foi certificada: conector Hostinger respondeu 401. Jonny informou a chave SSH, e a conexão somente leitura com a hospedagem foi confirmada; nenhuma configuração de produção foi substituída.
 
@@ -58,13 +66,9 @@ Na tentativa de publicação, `0adc054` passou na CI e falhou no Turbopack da Ho
 | --- | --- | --- |
 | P0 | Sanear histórico público e revisar documentação/imagens | [Auditoria de privacidade](privacidade-historico.md); autorizar reescrita após revisão da cópia preparada |
 | P1 | Ativar credenciais/transportes Órion e Sirius | Testar cada identidade dedicada, contrato, proposta/aprovação/recibo; sem chave genérica nem mudança em Hermes nesta sessão |
-| P1 | Idempotência persistente das recorrências de tarefas | Reabrir/reconcluir e retry entre sessões não criam próxima ocorrência duplicada |
 | P1 | Manter verificação após cada release | Comparar SHA, recibo Hostinger e comportamento público; CI separada do deploy |
-| P1 | Reduzir avisos de lint e revisar módulos secundários | Correção por fluxo; critérios mobile, claro/escuro e teclado em [direção visual](astral-redesign.md) |
-| P2 | Marca em login, metadados e PWA | Configuração coerente em todas as superfícies |
-| P2 | Restaurar backup em instalação isolada | Recuperar coleções e conferir integridade sem serviços externos |
-| P2 | Evoluir capacidade diária | Jornada configurável, sobreposição e duração prevista; sem agendamento silencioso |
-| P3 | Evoluções opcionais | Subtarefas, múltiplos blocos/agendas, espelho financeiro/editorial e sync incremental requerem especificação |
+| P2 | Ensaio operacional de backup privado real | Ferramenta e testes sintéticos concluídos; restaurar somente em destino isolado sem trocar runtime |
+| P3 | Expansões de agenda especificadas | Implementar fases de [contratos v2](agenda-expansion-contracts.md): múltiplos blocos/agendas, overlays e sync; nenhuma dessas expansões foi certificada em produção |
 
 Não há motivo demonstrado nesta revisão para migrar o banco ou acrescentar multiusuário. O foco continua no ciclo existente.
 

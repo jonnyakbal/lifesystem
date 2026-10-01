@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod';
 import { storage } from '@/lib/storage';
 import { ContentItem } from '@/types';
 import { readJson, contentItemPayloadSchema } from '@/lib/validation';

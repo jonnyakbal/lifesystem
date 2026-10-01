@@ -6,9 +6,34 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      TZ: America/Sao_Paulo
+      AUTH_USER: office-test
+      AUTH_PASSWORD: office-ui-test-only
+      MCP_API_KEY: qa-synthetic-only
+      MCP_API_KEYS: ''
+      HERMES_OFFICE_TOKEN: office-test-token-only-12345678901234567890
+      HERMES_OFFICE_INSTALLATION_ID: personal
+      GOOGLE_CALENDAR_CLIENT_ID: ''
+      GOOGLE_CALENDAR_CLIENT_SECRET: ''
+      GOOGLE_CALENDAR_TOKEN_ENCRYPTION_KEY: ''
+      AI_API_KEY: ''
+      OPENCODE_API_KEY: ''
+      AI_OPENROUTER_API_KEY: ''
+      AI_MISTRAL_API_KEY: ''
+      AI_GROQ_API_KEY: ''
+      NOUS_API_KEY: ''
     
     steps:
       - name: Checkout code
@@ -23,8 +48,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prepare isolated build storage
+        shell: bash
+        run: |
+          build_root="$(mktemp -d "$RUNNER_TEMP/lifesystem-build-XXXXXX")"
+          mkdir -p "$build_root/data" "$build_root/uploads" "$build_root/cache" "$build_root/backups"
+          echo "LIFESYSTEM_DATA_DIR=$build_root/data" >> "$GITHUB_ENV"
+          echo "LIFESYSTEM_UPLOAD_DIR=$build_root/uploads" >> "$GITHUB_ENV"
+          echo "LIFESYSTEM_BACKUP_DIR=$build_root/backups" >> "$GITHUB_ENV"
+          echo "XDG_CACHE_HOME=$build_root/cache" >> "$GITHUB_ENV"
+
+      - name: Check production authentication setup
+        run: node --test scripts/playwright-ci-setup.test.mjs
+
       - name: Run TypeScript check
         run: npx tsc --noEmit
+
+      - name: Run lint
+        run: npm run lint -- --max-warnings=0
 
       - name: Run build
         run: npm run build
@@ -33,24 +74,28 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run tests
+        shell: bash
         run: |
           set -o pipefail
-          npm test 2>&1 | tee /tmp/test-output.txt
-        env:
-          AUTH_USER: test
-          AUTH_PASSWORD: test-password-for-ci
-          MCP_API_KEY: test-mcp-key-for-ci
+          npx playwright test --config=playwright.ci.config.ts 2>&1 | tee "$RUNNER_TEMP/test-output.txt"
 
       - name: Dump test output to job summary
         if: failure()
         run: |
           mkdir -p playwright-report
-          tail -150 /tmp/test-output.txt | tee playwright-report/failure-tail.txt > "$GITHUB_STEP_SUMMARY"
+          if [ -f "$RUNNER_TEMP/test-output.txt" ]; then
+            tail -150 "$RUNNER_TEMP/test-output.txt" | tee playwright-report/failure-tail.txt >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "CI failed before the browser suite started. See the failed step above." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
           retention-days: 30

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Task } from '@/types';
 import { readJson } from '@/lib/validation';
-import { prepareTaskUpdate, taskUpdateSchema } from '@/lib/task-domain';
+import { updateTaskRecord, taskUpdateSchema } from '@/lib/task-domain';
 import { deletePlannedTask } from '@/lib/task-planning';
 
 export async function GET(
@@ -30,10 +30,9 @@ export async function PATCH(
   if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos' }, { status: 400 });
   const existing = await storage.getById<Task>('tasks', id);
   if (!existing) return NextResponse.json({ error: 'Tarefa não encontrada' }, { status: 404 });
-  let body: Partial<Task>;
-  try { body = await prepareTaskUpdate(parsed.data, existing); }
+  let updated: Task | null;
+  try { updated = await updateTaskRecord(id, parsed.data); }
   catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível alterar a data.' }, { status: 409 }); }
-  const updated = await storage.update<Task>('tasks', id, body);
   if (!updated) {
     return NextResponse.json({ error: 'Tarefa não encontrada' }, { status: 404 });
   }

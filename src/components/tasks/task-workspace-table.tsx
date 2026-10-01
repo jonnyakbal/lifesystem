@@ -11,16 +11,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { TaskStructureSummary } from './task-structure-summary';
 
 export interface TaskListRecord {
   id: string; title: string; status: string; priority: 'normal' | 'important' | 'urgent';
   dueDate?: string; projectId?: string; pillarId?: string; completedAt?: string; planning?: TaskPlanning;
   description?: string; nextAction?: string; responsible?: string; tags?: string[];
   checklist?: { id: string; text: string; done: boolean }[];
+  parentId?: string; dependsOnIds?: string[]; estimatedMinutes?: number;
 }
 export type TaskCellPatch = { priority?: TaskListRecord['priority']; status?: string; dueDate?: string | null; projectId?: string; checklist?: NonNullable<TaskListRecord['checklist']> };
 interface TaskGroup { id: string; label: string; dot: string; items: TaskListRecord[] }
 interface Props {
+  allTasks?: TaskListRecord[];
   groups: TaskGroup[]; stages: StageDef[]; projects: { id: string; name: string }[];
   selectedIds: Set<string>; busyIds: Set<string>; dense: boolean;
   onSelect: (id: string) => void; onSelectVisible: (ids: string[], selected: boolean) => void;
@@ -78,7 +81,7 @@ export function TaskWorkspaceTable(props: Props) {
           const done = isTaskCompleted(task, stages); const busy = busyIds.has(task.id);
           return <tr key={task.id} data-testid={`task-row-${task.id}`} className={cn('task-data-row', selectedIds.has(task.id) && 'task-row-selected', done && 'task-row-completed')}>
             <td className="task-select-cell"><label className="task-selection-target"><input type="checkbox" aria-label={`Selecionar ${task.title}`} checked={selectedIds.has(task.id)} disabled={busy} onChange={() => onSelect(task.id)} /></label></td>
-            <td className="task-title-cell"><button type="button" className="task-row-title" disabled={busy} onClick={() => onOpen(task.id)}>{task.title}</button>{!dense && (task.nextAction || task.description) && <p className="task-row-summary">{task.nextAction || task.description}</p>}{task.completedAt && <span className="task-completed-date">Concluída em {new Date(task.completedAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}{!dense && Boolean(task.tags?.length) && <div className="task-row-tags">{task.tags!.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}{task.tags!.length > 2 && <span>+{task.tags!.length - 2}</span>}</div>}</td>
+            <td className="task-title-cell"><button type="button" className="task-row-title" disabled={busy} onClick={() => onOpen(task.id)}>{task.title}</button>{!dense && (task.nextAction || task.description) && <p className="task-row-summary">{task.nextAction || task.description}</p>}{task.completedAt && <span className="task-completed-date">Concluída em {new Date(task.completedAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}{!dense && Boolean(task.tags?.length) && <div className="task-row-tags">{task.tags!.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}{task.tags!.length > 2 && <span>+{task.tags!.length - 2}</span>}</div>}<TaskStructureSummary task={task} tasks={props.allTasks || groups.flatMap(group => group.items)} stages={stages} onOpen={onOpen} /></td>
             {!hiddenColumns.has('status') && <td data-label="Status"><select aria-label={`Status de ${task.title}`} className="task-cell-select" value={task.status} disabled={busy} onChange={event => void onPatch(task.id, { status: event.target.value })}>{stages.map(stage => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select></td>}
             {!hiddenColumns.has('priority') && <td data-label="Prioridade"><select aria-label={`Prioridade de ${task.title}`} className={cn('task-cell-select', `task-priority-${task.priority}`)} value={task.priority} disabled={busy} onChange={event => void onPatch(task.id, { priority: event.target.value as TaskListRecord['priority'] })}><option value="normal">Normal</option><option value="important">Importante</option><option value="urgent">Urgente</option></select></td>}
             {!hiddenColumns.has('date') && <td data-label="Prazo"><DeadlineCell task={task} busy={busy} completed={done} onPatch={onPatch} /></td>}

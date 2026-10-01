@@ -1,5 +1,21 @@
 import { test, expect } from '@playwright/test';
 
+test('replanejar bloco de outro fuso conserva data civil e instante sem edição', async ({ page, request }) => {
+  await page.clock.setFixedTime(new Date('2026-10-01T15:00:00Z'));
+  const originalPreferences = await (await request.get('/api/planning-preferences')).json();
+  const task = await (await request.post('/api/tasks', { data: { title: 'Fuso QA Los Angeles' } })).json();
+  try {
+    await request.put('/api/planning-preferences', { data: { workStart: '08:00', workEnd: '20:00', workingDays: [1, 2, 3, 4, 5, 6, 7], timeZone: 'America/Sao_Paulo' } });
+    expect((await request.put(`/api/tasks/${task.id}/planning`, { data: { date: '2026-10-01', startAt: '2026-10-02T06:00:00Z', endAt: '2026-10-02T07:00:00Z', timeZone: 'America/Los_Angeles', syncToGoogle: false } })).ok()).toBe(true);
+    await page.goto('/planejar');
+    await page.getByTestId(`planning-task-${task.id}`).getByRole('button', { name: 'Replanejar', exact: true }).click();
+    await expect(page.getByLabel('Dia escolhido')).toHaveValue('2026-10-01');
+    await expect(page.getByLabel('Horário de início')).toHaveValue('23:00');
+    await page.getByRole('button', { name: 'Salvar bloco', exact: true }).click();
+    await expect.poll(async () => (await (await request.get(`/api/tasks/${task.id}`)).json()).planning.startAt).toBe('2026-10-02T06:00:00.000Z');
+  } finally { await request.delete(`/api/tasks/${task.id}`); await request.put('/api/planning-preferences', { data: originalPreferences }); }
+});
+
 test('mobile reserva e move um bloco mantendo o prazo na mesma data planejada', async ({ page, request }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const title = `Bloco UI ${Date.now()}`;

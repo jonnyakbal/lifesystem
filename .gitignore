@@ -19,6 +19,8 @@
 /screenshots/
 /qa-screenshots/
 /.claude/
+# Private historical analysis is retained locally; never republish it.
+/docs/analise-sistema-2026-09.md
 
 # next.js
 /.next/

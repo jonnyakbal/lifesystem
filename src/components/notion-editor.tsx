@@ -20,30 +20,16 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   Bold, Italic, Strikethrough, Code, Heading1, Heading2, Heading3,
   List, ListOrdered, CheckSquare, Quote, Minus, CodeSquare,
   Image as ImageIcon, Link as LinkIcon, Undo, Redo, Table as TableIcon,
-  Palette, Highlighter, Pilcrow, ArrowUp, ArrowDown, Trash2,
-  Plus, MoreHorizontal, GripVertical, PanelTop, ChevronDown,
-  Type, AtSign, Smile, Columns
+  Palette, Highlighter, Trash2,
+  Plus, GripVertical, ChevronDown
 } from 'lucide-react';
-
-// ─── Callout Extension (inline) ────────────────────────────────────────────────
-
-const CALLOUT_COLORS: Record<string, { bg: string; border: string; label: string }> = {
-  gray:   { bg: 'bg-zinc-500/10', border: 'border-zinc-500/30', label: 'Cinza' },
-  blue:   { bg: 'bg-blue-500/10', border: 'border-blue-500/30', label: 'Azul' },
-  yellow: { bg: 'bg-yellow-500/10', border: 'border-yellow-500/30', label: 'Amarelo' },
-  red:    { bg: 'bg-red-500/10', border: 'border-red-500/30', label: 'Vermelho' },
-  green:  { bg: 'bg-green-500/10', border: 'border-green-500/30', label: 'Verde' },
-  purple: { bg: 'bg-purple-500/10', border: 'border-purple-500/30', label: 'Roxo' },
-};
-
-const CALLOUT_ICONS = ['💡', '⚠️', '🚫', '✅', '🔥', '📝', '💬', '🎯', '⚡', '🚨', '📌', '🎵'];
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -74,8 +60,6 @@ export function NotionEditor({
   compact = false,
   onCreateSubpage,
 }: NotionEditorProps) {
-  const [isDragging, setIsDragging] = useState(false);
-
   const createSubpage = useCallback(async () => {
     if (onCreateSubpage) return onCreateSubpage();
     try {
@@ -150,7 +134,7 @@ export function NotionEditor({
         }
         return false;
       },
-      handlePaste: (view, event, slice) => {
+      handlePaste: (view, event) => {
         const items = event.clipboardData?.items;
         if (items) {
           for (const item of items) {
@@ -175,7 +159,7 @@ export function NotionEditor({
     if (editor && content !== editor.getHTML()) {
       editor.commands.setContent(content, { emitUpdate: false });
     }
-  }, [content]);
+  }, [content, editor]);
 
   // The slash menu's "Imagem" item can't open a file picker itself (it runs
   // inside a detached React root outside this component's tree), so it
@@ -296,7 +280,7 @@ async function uploadAndInsertImage(file: File, editor: Editor) {
     } else {
       toast.error(data.error || 'Falha no upload');
     }
-  } catch (err) {
+  } catch {
     toast.error('Erro ao enviar imagem');
   }
 }

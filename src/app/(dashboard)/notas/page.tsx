@@ -10,6 +10,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import NextLink from 'next/link';
+import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence, type MotionProps } from 'motion/react';
 import {
@@ -571,7 +572,7 @@ export default function NotasPage() {
                   >
                     <div className={cn('h-28 w-full bg-gradient-to-br relative', coverClass)}>
                       {capture.coverUrl ? (
-                        <img src={capture.coverUrl} alt="" className="w-full h-full object-cover" />
+                        <Image src={capture.coverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-20">
                           {cat?.icon || '📝'}
@@ -809,7 +810,7 @@ export default function NotasPage() {
                 <div className="relative h-40 bg-gradient-to-br from-muted/30 to-muted/10">
                   {editorCoverUrl ? (
                     <div className="relative w-full h-full">
-                      <img src={editorCoverUrl} alt="" className="w-full h-full object-cover" />
+                      <Image src={editorCoverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 720px" className="object-cover" />
                       <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
                       <button
                         type="button"

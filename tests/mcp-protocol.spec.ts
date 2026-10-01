@@ -9,6 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 let testDataDir: string;
+let previousDataDir: string | undefined;
 
 test('MCP mantém centavos exatos e permite remover vencimento pela mesma regra da interface', async () => {
   const server = createLifesystemMcpServer(['financial:read', 'financial:write']);
@@ -33,13 +34,16 @@ test('MCP mantém centavos exatos e permite remover vencimento pela mesma regra 
 });
 
 test.beforeAll(async () => {
+  previousDataDir = process.env.LIFESYSTEM_DATA_DIR;
   testDataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lifesystem-mcp-test-'));
   process.env.LIFESYSTEM_DATA_DIR = testDataDir;
 });
 
 test.afterAll(async () => {
-  delete process.env.LIFESYSTEM_DATA_DIR;
+  if (previousDataDir === undefined) delete process.env.LIFESYSTEM_DATA_DIR;
+  else process.env.LIFESYSTEM_DATA_DIR = previousDataDir;
   if (testDataDir) await fs.rm(testDataDir, { recursive: true, force: true });
+  expect(process.env.LIFESYSTEM_DATA_DIR, 'fixture cleanup must preserve the isolated runner storage').toBe(previousDataDir);
 });
 
 test('MCP handshake only exposes tools authorized for the client', async () => {

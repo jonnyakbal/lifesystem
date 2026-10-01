@@ -8,20 +8,23 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { ChromeGate } from "@/components/layout/chrome-gate";
 import { PWARegister } from "@/components/pwa-register";
+import { getPublicBranding } from '@/lib/public-branding';
+
+const branding = getPublicBranding();
 
 export const metadata: Metadata = {
-  title: "LIFESYSTEM",
-  description: "Meu ecossistema inteiro num só lugar",
+  title: branding.name,
+  description: branding.tagline,
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "LIFESYSTEM",
+    title: branding.name,
   },
   icons: {
-    icon: '/icons/solar.svg',
-    shortcut: '/icons/solar.svg',
-    apple: '/icons/solar-apple.png',
+    icon: branding.icon,
+    shortcut: branding.icon,
+    apple: branding.appleIcon,
   },
   other: {
     "mobile-web-app-capable": "yes",

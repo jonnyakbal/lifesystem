@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { DeadlineCell, TaskWorkspaceTable, type TaskCellPatch } from '@/components/tasks/task-workspace-table';
 import { TaskRichDates } from '@/components/tasks/task-rich-dates';
 import { TaskFocus, TaskLoad } from '@/components/tasks/task-focus-load';
+import { TaskRelationships } from '@/components/tasks/task-relationships';
 import { TaskDeleteDialog } from '@/components/task-delete-dialog';
 import { PlanningWorkspace } from '@/components/planning-workspace';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
@@ -66,6 +67,9 @@ interface Task {
   pillarId?: string;
   dueDate?: string;
   planning?: TaskPlanning;
+  parentId?: string;
+  dependsOnIds?: string[];
+  estimatedMinutes?: number;
   completedAt?: string;
   createdAt: string;
   updatedAt?: string;
@@ -249,6 +253,9 @@ export default function TasksPage() {
   const [newChecklistInput, setNewChecklistInput] = useState('');
   const [newProjectId, setNewProjectId] = useState('');
   const [newPillarId, setNewPillarId] = useState('');
+  const [newParentId, setNewParentId] = useState('');
+  const [newDependencies, setNewDependencies] = useState<string[]>([]);
+  const [newEstimate, setNewEstimate] = useState('');
   const [newRecurring, setNewRecurring] = useState(false);
   const [newRecurringFrequency, setNewRecurringFrequency] = useState<RecurringFrequency>('daily');
 
@@ -386,6 +393,7 @@ export default function TasksPage() {
     setNewChecklist([]);
     setNewProjectId('');
     setNewPillarId('');
+    setNewParentId(''); setNewDependencies([]); setNewEstimate('');
     setNewRecurring(false);
     setNewRecurringFrequency('daily');
     setIsDialogOpen(true);
@@ -403,6 +411,7 @@ export default function TasksPage() {
     setNewChecklist(task.checklist?.map(c => ({ ...c })) || []);
     setNewProjectId(task.projectId || '');
     setNewPillarId(task.pillarId || '');
+    setNewParentId(task.parentId || ''); setNewDependencies(task.dependsOnIds || []); setNewEstimate(task.estimatedMinutes?.toString() || '');
     setNewRecurring(task.recurring || false);
     setNewRecurringFrequency(task.recurringFrequency || 'daily');
     setIsDialogOpen(true);
@@ -422,6 +431,9 @@ export default function TasksPage() {
         checklist: newChecklist,
         projectId: newProjectId,
         pillarId: newPillarId,
+        parentId: newParentId || null,
+        dependsOnIds: newDependencies,
+        estimatedMinutes: newEstimate ? Number(newEstimate) : null,
         recurring: newRecurring,
         recurringFrequency: newRecurring ? newRecurringFrequency : undefined,
       };
@@ -963,6 +975,7 @@ export default function TasksPage() {
 
   function renderList() {
     return <TaskWorkspaceTable
+      allTasks={tasks}
       groups={Array.from(grouped.groups.entries()).map(([id, items]) => ({ id, label: getGroupLabel(id), dot: getGroupDot(id), items }))}
       stages={stages} projects={projects} selectedIds={selectedIds} busyIds={busyTasks} dense={dense}
       onSelect={toggleSelect}
@@ -1201,7 +1214,7 @@ export default function TasksPage() {
           {view === 'timeline' && renderDates('timeline')}
           {(view === 'focus' || view === 'load') && (() => {
             const Component = view === 'focus' ? TaskFocus : TaskLoad;
-            return <Component tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />;
+            return <Component allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />;
           })()}
         </motion.div>
       )}
@@ -1310,6 +1323,7 @@ export default function TasksPage() {
               </div>
             </div>
             <div className="grid gap-2">
+              <TaskRelationships taskId={editingTask?.id} tasks={tasks} stages={stages} parentId={newParentId} onParent={setNewParentId} dependencies={newDependencies} onDependencies={setNewDependencies} estimate={newEstimate} onEstimate={setNewEstimate} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} />
               <Label>Checklist</Label>
               <div className="space-y-1.5 mb-2">
                 {newChecklist.map(item => (

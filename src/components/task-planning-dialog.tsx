@@ -1,37 +1,48 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { Task } from '@/types';
 import { apiFetch, showError } from '@/lib/api';
-import { todayStr } from '@/lib/utils';
+import { planningClockParts, planningStartAt, planningTimeZone } from '@/lib/task-planning-timezone';
+import { planningPreferencesSchema } from '@/lib/planning-preferences';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 
-export function TaskPlanningDialog({ task, initialDate, connected, onClose, onSaved }: {
+export function TaskPlanningDialog({ task, initialDate, connected, onClose, onSaved, preferredTimeZone }: {
   task: Task; initialDate: string; connected: boolean; onClose: () => void; onSaved: (task: Task) => void;
+  preferredTimeZone?: string;
 }) {
   const previous = task.planning;
   const start = previous?.startAt ? new Date(previous.startAt) : null;
   const [date, setDate] = useState(initialDate);
   const [timed, setTimed] = useState(Boolean(start));
-  const [time, setTime] = useState(start ? `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}` : '09:00');
+  const [zone, setZone] = useState<string | null>(previous?.startAt && previous.timeZone ? previous.timeZone : preferredTimeZone || null);
+  const [zoneError, setZoneError] = useState('');
+  const [retry, setRetry] = useState(0);
+  const [time, setTime] = useState(start && previous?.timeZone ? planningClockParts(start.toISOString(), previous.timeZone).time : '09:00');
   const [minutes, setMinutes] = useState(start && previous?.endAt ? String((Date.parse(previous.endAt) - start.getTime()) / 60000) : '45');
   const [mirror, setMirror] = useState(Boolean(previous?.syncToGoogle));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  useEffect(() => {
+    if (previous?.startAt && previous.timeZone || preferredTimeZone) return;
+    let active = true;
+    apiFetch('/api/planning-preferences').then(value => {
+      const preferences = planningPreferencesSchema.parse(value);
+      if (active) { setZone(preferences.timeZone); setZoneError(''); }
+    }).catch(error => { if (active) setZoneError(showError(error)); });
+    return () => { active = false; };
+  }, [preferredTimeZone, previous?.startAt, previous?.timeZone, retry]);
+  const timeZone = zone ? planningTimeZone({ preferredTimeZone: zone, previousStartAt: previous?.startAt, previousTimeZone: previous?.timeZone }) : null;
 
   async function save(event: React.FormEvent) {
-    event.preventDefault(); if (saving) return;
+    event.preventDefault(); if (saving || !timeZone) return;
     setError('');
-    // Retain the original UTC offset when reopening the repeated hour of a DST fold.
-    const sameStart = start && todayStr(start) === date && `${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}` === time;
-    const begin = timed ? sameStart ? start : new Date(`${date}T${time}:00`) : null;
-    if (timed && (!begin || Number.isNaN(begin.getTime()) || todayStr(begin) !== date || `${String(begin.getHours()).padStart(2, '0')}:${String(begin.getMinutes()).padStart(2, '0')}` !== time)) {
-      setError('Esse horário não existe no fuso selecionado. Escolha outro horário.'); return;
-    }
+    let begin: Date | null;
+    try { begin = timed ? new Date(planningStartAt(date, time, timeZone, previous?.startAt)) : null; }
+    catch (error) { setError(showError(error)); return; }
     setSaving(true);
     try {
       const updated = await apiFetch<Task>(`/api/tasks/${task.id}/planning`, {
@@ -56,14 +67,15 @@ export function TaskPlanningDialog({ task, initialDate, connected, onClose, onSa
           <label className="grid gap-2 text-xs font-medium">Duração em minutos<Input type="number" required min="1" max="1440" value={minutes} onChange={event => setMinutes(event.target.value)} /></label>
         </div>
         <div className="flex gap-2" aria-label="Durações sugeridas">{[15, 30, 45, 60, 90].map(value => <button type="button" key={value} aria-pressed={minutes === String(value)} className="rounded-full border px-2.5 py-1.5 text-xs aria-pressed:border-primary aria-pressed:bg-primary/15" onClick={() => setMinutes(String(value))}>{value} min</button>)}</div>
-        <p className="text-xs text-muted-foreground">Fuso: {timeZone}. O horário será reservado por {minutes || '—'} minutos.</p>
+        <p className="text-xs text-muted-foreground">Fuso{previous?.startAt ? ' do bloco' : ' configurado'}: {timeZone || 'carregando…'}. O horário será reservado por {minutes || '—'} minutos.</p>
         <label className="flex items-center gap-3 text-sm"><input type="checkbox" checked={mirror} disabled={Boolean(previous?.eventId) || !connected} onChange={event => setMirror(event.target.checked)} className="h-4 w-4 accent-primary" />Espelhar no Google Agenda</label>
         {!connected && <p className="text-xs text-muted-foreground">Você pode salvar só aqui ou <Link className="text-primary underline" href="/api/google-calendar/connect">conectar o Google Agenda</Link> antes de espelhar.</p>}
         {previous?.eventId && <p className="text-xs text-muted-foreground">Salvar atualiza o mesmo evento. Para deixar de espelhar, use “Devolver ao planejamento” no cartão.</p>}
       </div>}
       {!timed && <p className="text-xs text-muted-foreground">A tarefa fica entre as prioridades do dia, sem ocupar um horário.</p>}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      <div className="flex justify-end gap-2"><Button type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Button><Button type="submit" disabled={saving || !date}>{saving ? 'Salvando…' : timed ? 'Salvar bloco' : 'Salvar dia'}</Button></div>
+      {zoneError && <div role="alert" className="text-sm text-destructive">{zoneError}<Button type="button" variant="ghost" onClick={() => setRetry(value => value + 1)}>Recarregar fuso</Button></div>}
+      <div className="flex justify-end gap-2"><Button type="button" variant="ghost" disabled={saving} onClick={onClose}>Cancelar</Button><Button type="submit" disabled={saving || !date || !timeZone}>{saving ? 'Salvando…' : !timeZone && !zoneError ? 'Carregando fuso…' : timed ? 'Salvar bloco' : 'Salvar dia'}</Button></div>
     </form>
   </DialogContent></Dialog>;
 }

@@ -89,7 +89,6 @@ const BASE = 'http://localhost:3000';
       await page.waitForTimeout(800);
       await page.reload({ waitUntil: 'networkidle' });
       await page.waitForTimeout(800);
-      const stillInOriginal = await columns.first().locator('[draggable="true"]', { hasText: sourceText }).count();
       log('Tarefas: drag-and-drop moves + persists card', true, `moved "${sourceText}"`);
     } else {
       log('Tarefas: drag-and-drop', false, 'no distinct target column found');
@@ -104,9 +103,6 @@ const BASE = 'http://localhost:3000';
     await page.waitForTimeout(800);
     const projCard = page.locator('[draggable="true"]').first();
     const projText = (await projCard.innerText()).slice(0, 30);
-    const projColumns = page.locator('div').filter({ has: page.locator('h3, [class*="font-medium"]') });
-    // Simpler: find the two column drop containers by their onDrop wrapper class pattern
-    const dropZones = page.locator('div[class*="min-h"]');
     log('Projetos: drag source card found', await projCard.count() > 0, projText);
   } catch (e) {
     log('Projetos: drag-and-drop flow', false, e.message.slice(0, 150));

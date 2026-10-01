@@ -3,16 +3,16 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
-  Plus, Search, Trash2, Pin, PinOff, Tag, Calendar, Clock, Eye, MoreHorizontal, X, BookOpen,
-  Globe, MonitorPlay, Camera, FileText, ArrowRight,
-  Edit3, Hash, TrendingUp, BarChart3, Send, Archive, CheckCircle2, Circle, Sparkles,
-  Image, Video, Type, Layers, Target, Zap, Save, SlidersHorizontal, ArrowUpDown,
-  LayoutGrid, Rows3, ChevronDown, Bookmark, Copy, EyeOff, Filter, GripVertical,
-  Play, Pause, CheckSquare, Square, Star, Flame, Edit2
+  Plus, Search, Trash2, Pin, PinOff, Calendar, Clock, Eye, MoreHorizontal, X, BookOpen,
+  Globe, MonitorPlay, Camera, ArrowRight,
+  Edit3, Hash, Archive, CheckCircle2, Sparkles,
+  Video, Layers, Save, SlidersHorizontal,
+  LayoutGrid, Rows3, Bookmark, Copy,
+  CheckSquare, Star, Edit2
 } from 'lucide-react';
 import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { cn, todayStr } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -26,9 +26,6 @@ import { apiFetch, showError } from '@/lib/api';
 import { loadStatusLabelOverrides } from '@/lib/status-labels';
 import { StatusLabelEditorDialog } from '@/components/status-label-editor-dialog';
 import { useSearchParams, useRouter } from 'next/navigation';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from '@/components/ui/dialog';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
@@ -108,20 +105,6 @@ const STAGES: { id: ContentStage; label: string; icon: typeof Sparkles; color: s
   { id: 'archived', label: 'Arquivado', icon: Archive, color: 'text-muted-foreground', dot: 'bg-muted-foreground' },
 ];
 
-const CHANNEL_CATEGORIES: Record<ContentChannel, string[]> = {
-  blog: ['Artigo', 'Tutorial', 'Review', 'Case Study', 'Guia', 'Notícia', 'Opinião'],
-  youtube: ['Vlog', 'Tutorial', 'Review', 'Entrevista', 'Short', 'Vídeo-aula', 'Timelapse'],
-  instagram: ['Post', 'Reels', 'Stories', 'Carrossel', 'IGTV', 'Enquete', 'Destaques'],
-  tiktok: ['Trend', 'Tutorial', 'Humor', 'Behind the scenes', 'Dica', 'Dueto', 'Stitch'],
-};
-
-const FORMATS: Record<ContentChannel, string[]> = {
-  blog: ['Artigo longo', 'Listicle', 'How-to', 'Case study', 'Entrevista', 'Newsletter'],
-  youtube: ['Vídeo longo', 'Short', 'Live', 'Collab', 'Compilation', 'Vlog'],
-  instagram: ['Feed', 'Reels', 'Stories', 'Carrossel', 'Live', 'Guide'],
-  tiktok: ['Vídeo', 'Photo', 'Duet', 'Stitch', 'Live', 'Séries'],
-};
-
 const EDITORIAL_LINES = [
   { id: 'arco-tech', label: 'ARCO Tech', color: '#3b82f6', icon: '⚡' },
   { id: 'arco-labs', label: 'ARCO Labs', color: '#8b5cf6', icon: '🔬' },
@@ -129,23 +112,6 @@ const EDITORIAL_LINES = [
   { id: 'rataria', label: 'Rataria S.A.', color: '#f59e0b', icon: '♟️' },
   { id: 'dona-maria', label: 'Dona Maria', color: '#ef4444', icon: '🍷' },
 ];
-
-const DEFAULT_VIEW: SavedView = {
-  id: 'default',
-  name: 'Padrão',
-  view: 'grid',
-  channel: 'blog',
-  filterStage: 'all',
-  filterCategory: 'all',
-  filterFormat: 'all',
-  filterLine: 'all',
-  search: '',
-  groupBy: 'stage',
-  colorBy: 'stage',
-  sortBy: 'date',
-  dense: false,
-  calendarMode: 'month',
-};
 
 const fade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0 } };
 const stagger = { animate: { transition: { staggerChildren: 0.04, delayChildren: 0.04 } } };
@@ -165,33 +131,6 @@ function timeAgo(date: string) {
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days}d`;
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
-
-function renderMarkdown(text: string): string {
-  return text
-    .replace(/^### (.+)$/gm, '<h3 class="text-base font-semibold mt-4 mb-2">$1</h3>')
-    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-semibold mt-4 mb-2">$1</h2>')
-    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.+?)\*/g, '<em>$1</em>')
-    .replace(/`(.+?)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
-    .replace(/^> (.+)$/gm, '<blockquote class="border-l-2 border-primary/30 pl-3 italic text-muted-foreground">$1</blockquote>')
-    .replace(/^- (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
-    .replace(/\n{2,}/g, '</p><p class="mb-2">')
-    .replace(/\n/g, '<br/>');
-}
-
-function wordCount(text: string): number {
-  return text.trim().split(/\s+/).filter(Boolean).length;
-}
-
-function getWordEstimate(text: string, channel: ContentChannel): string {
-  const words = wordCount(text);
-  if (channel === 'youtube') return `~${Math.round(words / 150)}min de vídeo`;
-  if (channel === 'blog') return `${words} palavras`;
-  if (channel === 'instagram') return `${Math.min(words, 2200)} chars`;
-  if (channel === 'tiktok') return `~${Math.min(Math.round(words / 2.5), 60)}s`;
-  return `${words} palavras`;
 }
 
 function getLineColor(lineId: string): string {
@@ -233,7 +172,7 @@ export default function ConteudoPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
   const [statusLabelDialogOpen, setStatusLabelDialogOpen] = useState(false);
-  const getStageLabel = (id: string) => statusLabels[id] || STAGES.find(s => s.id === id)?.label || id;
+  const getStageLabel = useCallback((id: string) => statusLabels[id] || STAGES.find(s => s.id === id)?.label || id, [statusLabels]);
 
   // View state
   const [view, setView] = useState<ViewMode>('grid');
@@ -256,6 +195,7 @@ export default function ConteudoPage() {
   // Editor
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ContentItem | null>(null);
+  const closeEditor = useCallback(() => setIsEditorOpen(false), []);
 
   // Load
   useEffect(() => {
@@ -453,7 +393,7 @@ export default function ConteudoPage() {
     if (filterFormat !== 'all') chips.push({ label: 'Formato', value: filterFormat, key: 'format' });
     if (filterLine !== 'all') chips.push({ label: 'Linha', value: EDITORIAL_LINES.find(l => l.id === filterLine)?.label || filterLine, key: 'line' });
     return chips;
-  }, [activeChannel, filterStage, filterCategory, filterFormat, filterLine]);
+  }, [activeChannel, filterStage, filterCategory, filterFormat, filterLine, getStageLabel]);
 
   function removeFilter(key: string) {
     if (key === 'channel') setActiveChannel('all');
@@ -476,7 +416,7 @@ export default function ConteudoPage() {
   const pipelineStats = useMemo(() => {
     const channelItems = activeChannel === 'all' ? items : items.filter(i => i.channel === activeChannel);
     return STAGES.map(s => ({ ...s, label: getStageLabel(s.id), count: channelItems.filter(i => i.stage === s.id).length }));
-  }, [items, activeChannel, statusLabels]);
+  }, [items, activeChannel, getStageLabel]);
 
   const totalByChannel = useMemo(() => {
     return CHANNELS.map(ch => ({ ...ch, count: items.filter(i => i.channel === ch.id).length }));
@@ -565,18 +505,9 @@ export default function ConteudoPage() {
     return 'bg-muted-foreground';
   }
 
-  function getCardBorder(item: ContentItem): string {
-    if (colorBy === 'channel') return getChannelData(item.channel)?.color?.replace('text-', 'border-l-') || '';
-    if (colorBy === 'stage') return getStageData(item.stage)?.dot?.replace('bg-', 'border-l-') || '';
-    if (colorBy === 'line' && item.editorialLine) return '';
-    if (colorBy === 'category') return '';
-    if (colorBy === 'format') return '';
-    return '';
-  }
-
   // ─── Render Card ──────────────────────────────────────────────────────────
 
-  function renderCard(item: ContentItem, compact = false) {
+  function renderCard(item: ContentItem) {
     const ch = getChannelData(item.channel);
     const st = getStageData(item.stage);
     const ChIcon = ch.icon;
@@ -1188,7 +1119,7 @@ export default function ConteudoPage() {
       {/* Content Editor */}
       <ContentEditor
         open={isEditorOpen}
-        onClose={() => setIsEditorOpen(false)}
+        onClose={closeEditor}
         editingItem={editingItem}
         activeChannel={activeChannel}
         onSaved={loadItems}

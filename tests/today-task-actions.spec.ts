@@ -114,7 +114,7 @@ test.describe('Hoje: abrir, concluir e recuperar tarefas', () => {
       const today = await page.evaluate(() => new Date().toLocaleDateString('en-CA'));
       const task = await (await request.post('/api/tasks', { data: { title, status: 'doing', priority: 'normal', dueDate: today, recurring: true, recurringFrequency: 'daily' } })).json();
       let recurringWrites = 0;
-      await page.route('**/api/tasks', async route => {
+      await page.route('**/api/tasks/*/next-occurrence', async route => {
         if (route.request().method() !== 'POST') return route.continue();
         recurringWrites++;
         await new Promise(resolveWait => setTimeout(resolveWait, 1200));

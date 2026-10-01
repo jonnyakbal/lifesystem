@@ -2,6 +2,12 @@ import { test, expect } from '@playwright/test';
 
 test.use({ timezoneId: 'America/Sao_Paulo' });
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/planning-preferences', route => route.fulfill({ json: {
+    workStart: '08:00', workEnd: '20:00', workingDays: [1, 2, 3, 4, 5, 6, 7], timeZone: 'America/Sao_Paulo',
+  } }));
+});
+
 test('semana de Tarefas usa agenda integrada, intervalos reais e seletor móvel', async ({ page }) => {
   await page.clock.install({ time: new Date('2026-09-28T15:00:00Z') });
   await page.route('**/api/google-calendar/status', route => route.fulfill({ json: { configured: true, connected: true } }));
@@ -16,7 +22,7 @@ test('semana de Tarefas usa agenda integrada, intervalos reais e seletor móvel'
   await page.goto('/tarefas');
   await page.getByRole('button', { name: 'Visualização: Semana', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
-  await expect(page.getByText('10h sem blocos · 08–20h')).toBeVisible();
+  await expect(page.getByText('10h sem blocos · 08:00–20:00')).toBeVisible();
   await page.screenshot({ path: 'screenshots/agenda-unified-desktop.png' });
   await page.setViewportSize({ width: 390, height: 844 });
   const days = page.getByRole('navigation', { name: 'Escolher dia' });
@@ -36,7 +42,7 @@ test('falha Google não apresenta horários como livres', async ({ page }) => {
   await page.route('**/api/google-calendar/events?*', route => route.fulfill({ status: 503, json: { error: 'Indisponível' } }));
   await page.goto('/planejar');
   await expect(page.getByRole('status')).toContainText('Indisponível');
-  await expect(page.getByText(/sem blocos · 08–20h/)).toHaveCount(0);
+  await expect(page.getByText(/sem blocos · 08:00–20:00/)).toHaveCount(0);
 });
 
 test('falha nas tarefas locais também impede afirmar disponibilidade', async ({ page }) => {
@@ -46,5 +52,5 @@ test('falha nas tarefas locais também impede afirmar disponibilidade', async ({
   await page.goto('/planejar');
   await expect(page.getByRole('alert').filter({ hasText: 'Tarefas indisponíveis' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Atualizar agenda', exact: true })).toBeEnabled();
-  await expect(page.getByText(/sem blocos · 08–20h/)).toHaveCount(0);
+  await expect(page.getByText(/sem blocos · 08:00–20:00/)).toHaveCount(0);
 });

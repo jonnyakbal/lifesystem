@@ -197,7 +197,7 @@ const covers = [
   {
     file: 'project-dona-maria',
     seed: 101, from: '#1a0f2e', to: '#0c0716', glow: '#f472b6',
-    icon: (c) => alienBoombox(200 + 30, 96, 1.05, '#22c55e', '#f472b6'),
+    icon: () => alienBoombox(200 + 30, 96, 1.05, '#22c55e', '#f472b6'),
   },
   {
     file: 'project-arco-pass',

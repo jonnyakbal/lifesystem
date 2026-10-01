@@ -11,13 +11,17 @@ import { projectOffice } from "../src/lib/office/view";
 import catalog from "../src/lib/office/catalog.json";
 
 let dir: string;
+let previousDataDir: string | undefined;
 test.beforeEach(async () => {
+  previousDataDir = process.env.LIFESYSTEM_DATA_DIR;
   dir = await mkdtemp(join(tmpdir(), "agent-office-"));
   process.env.LIFESYSTEM_DATA_DIR = dir;
 });
 test.afterEach(async () => {
-  delete process.env.LIFESYSTEM_DATA_DIR;
+  if (previousDataDir === undefined) delete process.env.LIFESYSTEM_DATA_DIR;
+  else process.env.LIFESYSTEM_DATA_DIR = previousDataDir;
   await rm(dir, { recursive: true, force: true });
+  expect(process.env.LIFESYSTEM_DATA_DIR, 'fixture cleanup must preserve the isolated runner storage').toBe(previousDataDir);
 });
 const time = () => new Date().toISOString();
 const snap = (sessionId: string, sequence: number, runs: unknown[] = []) => ({

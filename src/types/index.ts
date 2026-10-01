@@ -118,11 +118,15 @@ export interface Task extends BaseEntity {
   dueDate?: string;
   completedAt?: string;
   parentId?: string;
+  dependsOnIds?: string[];
+  estimatedMinutes?: number;
   sortOrder: number;
   tags: string[];
   checklist: TaskChecklistItem[];
   recurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly';
+  recurrenceSourceId?: string;
+  nextOccurrenceId?: string;
 }
 
 // Content

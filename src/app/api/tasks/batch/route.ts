@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { Task } from '@/types';
-import { taskUpdateSchema, prepareTaskUpdate } from '@/lib/task-domain';
+import { taskUpdateSchema, updateTaskRecords } from '@/lib/task-domain';
 
 export async function PATCH(request: NextRequest) {
   const body = await request.json();
@@ -13,8 +13,9 @@ export async function PATCH(request: NextRequest) {
 
   const parsed = taskUpdateSchema.safeParse(data);
   if (!parsed.success) return NextResponse.json({ error: 'Dados de tarefa inválidos.' }, { status: 400 });
-  const updateData = await prepareTaskUpdate(parsed.data);
-  const results = await storage.updateMany<Task>('tasks', ids, updateData);
+  let results: Task[];
+  try { results = await updateTaskRecords(ids, parsed.data); }
+  catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Não foi possível atualizar tarefas.' }, { status: 409 }); }
 
   return NextResponse.json({ updated: results.length, missing: ids.filter((id: string) => !results.some((task) => task.id === id)) });
 }
