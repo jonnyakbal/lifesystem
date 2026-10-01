@@ -23,3 +23,7 @@ Preservar dados, Hermes/Arco CRM, servidor pessoal e trabalho em andamento. Sem 
 - Evidências privadas fora do Git em `C:/dev/jonny/lifesystem-task-qa-evidence/`; nenhuma credencial real foi consultada. O harness temporário foi arquivado, não integra o produto.
 
 A autorização inclui integrar tabela/editor, Kanban, calendário, linha do tempo de prazos, Semana integrada, Foco e Carga. A confirmação da versão pública será registrada em `deploy-producao.md`; resultados locais e push não bastam para afirmar implantação.
+
+## Publicação confirmada
+
+Código `8ce708d4da11cd2198771652c7793e5b8497254c` publicado em 01/10/2026. Hostinger mostrou Concluído / Atual; a aplicação pública serviu o novo chunk de Tarefas e abriu Foco e Carga com os controles esperados. Nenhum registro real foi editado. O recibo completo está em [deploy-producao.md](deploy-producao.md). A CI completa estava em execução quando o recibo foi registrado; os 68 testes locais acima não equivalem ao resultado de todos os testes do GitHub.
