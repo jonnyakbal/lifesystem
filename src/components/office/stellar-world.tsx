@@ -11,11 +11,13 @@ function CelestialBody({
   selected,
   onSelect,
   animate,
+  showLabels,
 }: {
   node: Destination;
   selected: boolean;
   onSelect: () => void;
   animate: boolean;
+  showLabels: boolean;
 }) {
   const body = useRef<Group>(null);
   useFrame((_, dt) => {
@@ -154,15 +156,23 @@ function CelestialBody({
           position={[0, -0.6, 0]}
         />
       )}
-      <Tag
-        text={node.name.length > 23 ? node.name.slice(0, 21) + "…" : node.name}
-        sub={
-          isPlanet ? "PROJETO" : node.kind === "pillar" ? "PILAR" : "FERRAMENTA"
-        }
-        color={node.color}
-        width={selected ? 4.2 : 7}
-        position={[0, 2.5, 0]}
-      />
+      {(showLabels || selected) && (
+        <Tag
+          text={
+            node.name.length > 23 ? node.name.slice(0, 21) + "…" : node.name
+          }
+          sub={
+            isPlanet
+              ? "PROJETO"
+              : node.kind === "pillar"
+                ? "PILAR"
+                : "FERRAMENTA"
+          }
+          color={node.color}
+          width={selected ? 4.2 : 7}
+          position={[0, 2.5, 0]}
+        />
+      )}
       {/* A larger invisible hit area makes small satellites usable with touch. */}
       <mesh visible={false}>
         <sphereGeometry args={[2.1, 8, 6]} />
@@ -177,15 +187,17 @@ export function StellarWorld({
   selected,
   onSelect,
   animate,
+  showLabels = true,
 }: {
   nodes: Destination[];
   selected: string | null;
   onSelect: (node: Destination) => void;
   animate: boolean;
+  showLabels?: boolean;
 }) {
   return (
     <group>
-      {[12, 21, 29].map((r, i) => (
+      {[18, 28, 38].map((r, i) => (
         <Ring
           key={r}
           radius={r}
@@ -199,13 +211,15 @@ export function StellarWorld({
         <circleGeometry args={[5.5, 64]} />
         <meshBasicMaterial color="#0f2433" transparent opacity={0.65} />
       </mesh>
-      <Tag
-        text="ESTAÇÃO JONNY"
-        sub="SEU CENTRO DE OPERAÇÕES"
-        color="#afc8d0"
-        width={4.5}
-        position={[0, 3, 0]}
-      />
+      {showLabels && (
+        <Tag
+          text="ESTAÇÃO JONNY"
+          sub="SEU CENTRO DE OPERAÇÕES"
+          color="#afc8d0"
+          width={4.5}
+          position={[0, 3, 0]}
+        />
+      )}
       {nodes.map((n) => (
         <CelestialBody
           key={n.id}
@@ -213,6 +227,7 @@ export function StellarWorld({
           selected={selected === n.id}
           onSelect={() => onSelect(n)}
           animate={animate}
+          showLabels={showLabels}
         />
       ))}
     </group>

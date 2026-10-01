@@ -81,9 +81,45 @@ test("stellar navigation opens real projects and writes tasks only on explicit s
     await route.fulfill({ json: tasks[0] });
   });
   await page.goto("/escritorio");
+  await expect(
+    page.getByRole("button", { name: "Escritório 3D", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("navigation", { name: "Destinos estelares" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Lista", exact: true }).click();
-  await page.getByRole("button", { name: "Mapa estelar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Explorar universo", exact: true })
+    .click();
   await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
+  await page
+    .locator("canvas")
+    .evaluate((el) => el.setAttribute("data-scene-check", "same-scene"));
+  await page
+    .getByRole("button", { name: "Focalizar Sirius", exact: true })
+    .click();
+  const command = page.getByRole("region", { name: "Comando de Sirius" });
+  await expect(command).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Destinos estelares" }),
+  ).toBeVisible();
+  await expect(page.locator("canvas")).toHaveAttribute(
+    "data-scene-check",
+    "same-scene",
+  );
+  await page
+    .getByRole("navigation", { name: "Área de trabalho de Sirius" })
+    .getByRole("button", { name: "ArcoPass" })
+    .click();
+  await expect(command).toHaveCount(0);
+  await expect(
+    page.getByRole("region", { name: "Painel de ArcoPass" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Tripulação", exact: true }).click();
+  await expect(page.locator("canvas")).toHaveAttribute(
+    "data-scene-check",
+    "same-scene",
+  );
   await page
     .getByRole("button", { name: "Explorar ArcoPass", exact: true })
     .click();
@@ -167,7 +203,9 @@ test("stellar map reports unavailable data without fabricating empty projects", 
     route.fulfill({ status: 503, json: { error: "Unavailable" } }),
   );
   await page.goto("/escritorio");
-  await page.getByRole("button", { name: "Mapa estelar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Explorar universo", exact: true })
+    .click();
   await expect(
     page
       .getByRole("navigation", { name: "Destinos estelares" })
@@ -219,7 +257,9 @@ test("stellar confirmed writes survive a slower refresh and failed writes are no
     });
   });
   await page.goto("/escritorio");
-  await page.getByRole("button", { name: "Mapa estelar", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Explorar universo", exact: true })
+    .click();
   await page
     .getByRole("button", { name: "Explorar ArcoPass", exact: true })
     .click();
@@ -284,7 +324,7 @@ test("scientific station remains explorable with reduced motion on desktop and m
     .getByLabel("Escritório dos agentes", { exact: true })
     .screenshot({ path: "test-results/orbital-overview.png" });
   await page
-    .getByRole("button", { name: "Reunir equipe", exact: true })
+    .getByRole("button", { name: /Reunir equipe/ })
     .click();
   await page
     .getByRole("button", { name: "Ampliar estação", exact: true })
@@ -305,10 +345,10 @@ test("scientific station remains explorable with reduced motion on desktop and m
     ),
   ).toBeTruthy();
   await page
-    .getByRole("button", { name: "Voltar às estações", exact: true })
+    .getByRole("button", { name: /Aos postos/ })
     .click();
   await expect(
-    page.getByRole("button", { name: "Reunir equipe", exact: true }),
+    page.getByRole("button", { name: /Reunir equipe/ }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -328,26 +368,20 @@ test("orbital station offers crew interactions without sending commands to agent
   await page.goto("/escritorio");
   await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
   await page
-    .getByRole("button", { name: "Reunir equipe", exact: true })
+    .getByRole("button", { name: /Reunir equipe/ })
     .click();
   await expect(
-    page.getByRole("button", { name: "Voltar às estações", exact: true }),
+    page.getByRole("button", { name: /Aos postos/ }),
   ).toBeVisible();
   await expect(
-    page.getByText("Animação de ambientação · não executa tarefas", {
-      exact: true,
-    }),
+    page.getByText("Animação de ambiente", { exact: true }),
   ).toBeVisible();
   await page
     .getByLabel("Selecionar agente", { exact: true })
     .getByRole("button", { name: /Cosmo/ })
     .click();
-  await page
-    .getByRole("button", { name: "Cumprimentar Cosmo", exact: true })
-    .click();
-  await expect(
-    page.getByRole("status").filter({ hasText: "Cosmo" }),
-  ).toContainText("ideia");
+  await expect(page.getByRole("region", { name: "Comando de Cosmo" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Área de trabalho de Cosmo" })).toContainText("Central de conteúdo");
   await page
     .getByRole("button", { name: "Pausar animações", exact: true })
     .click();
@@ -367,14 +401,12 @@ test("orbital station offers crew interactions without sending commands to agent
     page.getByRole("button", { name: "Visão geral", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  await expect(
-    page.getByRole("button", { name: "Mudar órbita", exact: true }),
-  ).toBeFocused();
+  expect(await page.getByRole("dialog").evaluate((dialog) => dialog.contains(document.activeElement))).toBeTruthy();
   await page
     .getByRole("button", { name: "Focalizar Astro", exact: true })
     .click();
   await expect(
-    page.getByRole("button", { name: "Cumprimentar Astro", exact: true }),
+    page.getByRole("region", { name: "Comando de Astro" }),
   ).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(
@@ -410,6 +442,7 @@ test("office renders 3D, authenticates presence and explains every agent", async
   await expect(
     page.getByRole("heading", { name: /Um lugar para/ }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Focalizar Hermes", exact: true }).click();
   await expect(page.getByLabel("Ficha de Hermes")).toBeVisible();
   await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
   expect(

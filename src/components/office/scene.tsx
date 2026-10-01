@@ -46,19 +46,10 @@ function CameraRig({
     destination = useRef(new Vector3(15, 16, 20));
   useEffect(() => {
     const narrow = size.width < 650;
-    if (mapMode) {
-      if (destinationNode) {
-        const [x, y, z] = destinationNode.position;
-        target.current.set(x, y, z);
-        destination.current.set(x + 8, y + 11, z + 17);
-      } else {
-        target.current.set(0, 0, 0);
-        destination.current.set(
-          narrow ? 45 : 25,
-          narrow ? 68 : 49,
-          narrow ? 65 : 49,
-        );
-      }
+    if (destinationNode) {
+      const [x, y, z] = destinationNode.position;
+      target.current.set(x, y, z);
+      destination.current.set(x + 8, y + 11, z + 17);
     } else if (focus > 0) {
       const p = stationPoint(
         crew.findIndex((c) => c.id === selected),
@@ -66,6 +57,13 @@ function CameraRig({
       );
       target.current.set(p[0], 1, p[2]);
       destination.current.set(p[0] + 5, 5.5, p[2] + 7);
+    } else if (mapMode) {
+      target.current.set(0, 0, 0);
+      destination.current.set(
+        narrow ? 58 : 34,
+        narrow ? 85 : 62,
+        narrow ? 85 : 65,
+      );
     } else {
       target.current.set(0, 0, 0);
       destination.current.set(
@@ -104,7 +102,7 @@ function CameraRig({
       makeDefault
       enablePan
       minDistance={4}
-      maxDistance={mapMode ? 120 : 47}
+      maxDistance={150}
       minPolarAngle={0.15}
       maxPolarAngle={1.45}
       enableDamping={animate}
@@ -161,7 +159,7 @@ export default function Scene({
   return (
     <Canvas
       dpr={[1, 1.5]}
-      camera={{ position: [15, 16, 20], fov: 43, near: 0.1, far: 180 }}
+      camera={{ position: [15, 16, 20], fov: 43, near: 0.1, far: 240 }}
       frameloop={animate ? "always" : "demand"}
       fallback={<div>3D indisponível. Use a lista de agentes abaixo.</div>}
     >
@@ -177,8 +175,8 @@ export default function Scene({
         intensity={6}
         distance={9}
       />
-      <Space animate={animate} alternate={alternate} showPlanet={!mapMode} />
-      <group scale={mapMode ? 0.4 : 1}>
+      <Space animate={animate} alternate={alternate} showPlanet={false} />
+      <group>
         <OrbitalWorld
           animate={animate}
           meeting={meeting}
@@ -198,12 +196,13 @@ export default function Scene({
           />
         ))}
       </group>
-      {mapMode && (
+      {destinations.length > 0 && (
         <StellarWorld
           nodes={destinations}
           selected={selectedDestination}
           onSelect={onSelectDestination}
           animate={animate}
+          showLabels={mapMode && focus === 0 && !selectedDestination}
         />
       )}
       <CameraRig

@@ -77,10 +77,12 @@ export default function Office() {
   const [alternate, setAlternate] = useState(false);
   const [line, setLine] = useState("");
   const [inView, setInView] = useState(true);
-  const [mapMode, setMapMode] = useState(false);
+  const [mapMode, setMapMode] = useState(true);
+  const [stationView, setStationView] = useState(false);
+  const [agentPanel, setAgentPanel] = useState(false);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const flight = useFlightData(mapMode);
+  const flight = useFlightData(true);
   const allDestinations = useMemo(
     () => destinations(flight.data),
     [flight.data],
@@ -104,7 +106,7 @@ export default function Office() {
       if (chosen && !shown.some((n) => n.id === chosen.id)) shown.push(chosen);
       return shown.map((n, i) => {
         const a = (i / Math.max(shown.length, 1)) * Math.PI * 2 + ring * 0.7;
-        const r = [12, 21, 29][ring];
+        const r = [18, 28, 38][ring];
         return {
           ...n,
           position: [Math.cos(a) * r, Math.sin(i * 2.4), Math.sin(a) * r] as [
@@ -120,6 +122,9 @@ export default function Office() {
   const canvasWrap = useRef<HTMLDivElement>(null);
   function selectDestination(node: Destination) {
     setDestinationId(node.id);
+    setAgentPanel(false);
+    setStationView(false);
+    setFocus(0);
     setTour(false);
   }
   function closeDestination() {
@@ -132,7 +137,10 @@ export default function Office() {
       ?.focus();
   }
   function selectAgent(id: AgentId) {
-    setMapMode(false);
+    setMapMode(scene);
+    setAgentPanel(true);
+    setStationView(true);
+    setDestinationId(null);
     setSelected(id);
     setFocus((v) => v + 1);
     setLine("");
@@ -315,31 +323,41 @@ export default function Office() {
         </div>
         <div className={styles.toggles}>
           <button
-            aria-pressed={scene && !mapMode}
-            onClick={() => {
-              setScene(true);
-              setMapMode(false);
-            }}
-          >
-            Escritório 3D
-          </button>
-          <button
-            aria-pressed={mapMode}
+            aria-pressed={scene && stationView}
             onClick={() => {
               setScene(true);
               setMapMode(true);
+              setStationView(true);
               setDestinationId(null);
+              setAgentPanel(false);
               setFocus(0);
               setTour(false);
+              setReset((v) => v + 1);
             }}
           >
-            Mapa estelar
+            Tripulação
+          </button>
+          <button
+            aria-pressed={scene && !stationView}
+            onClick={() => {
+              setScene(true);
+              setMapMode(true);
+              setStationView(false);
+              setDestinationId(null);
+              setAgentPanel(false);
+              setFocus(0);
+              setTour(false);
+              setReset((v) => v + 1);
+            }}
+          >
+            Explorar universo
           </button>
           <button
             aria-pressed={!scene && !mapMode}
             onClick={() => {
               setScene(false);
               setMapMode(false);
+              setExpanded(false);
             }}
           >
             Lista
@@ -375,10 +393,10 @@ export default function Office() {
             >
               <div className={styles.sceneCaption}>
                 <span>HERMES / ORBITAL RESEARCH STATION</span>
-                <strong>{mapMode ? "Atlas pessoal" : "Estação Jonny"}</strong>
+                <strong>Estação Jonny</strong>
                 <small>
                   {mapMode
-                    ? "PROJETOS / PILARES / FERRAMENTAS"
+                    ? "UM UNIVERSO · SUA TRIPULAÇÃO · PRÓXIMOS AVANÇOS"
                     : `SETOR ${alternate ? "02 / ÓRBITA ÂMBAR" : "01 / ÓRBITA BOREAL"} · 06 UNIDADES`}
                 </small>
               </div>
@@ -392,6 +410,8 @@ export default function Office() {
                     setReset((v) => v + 1);
                     setTour(false);
                     setDestinationId(null);
+                    setAgentPanel(false);
+                    setStationView(false);
                   }}
                 >
                   Visão geral
@@ -426,9 +446,15 @@ export default function Office() {
                       focus={focus}
                       tour={tour}
                       alternate={alternate}
-                      onOrbit={() => setAlternate((v) => !v)}
+                      onOrbit={() => {
+                        setStationView(false);
+                        setFocus(0);
+                        setAgentPanel(false);
+                        setDestinationId(null);
+                        setReset((v) => v + 1);
+                      }}
                       onFailure={sceneFailure}
-                      mapMode={mapMode}
+                      mapMode={!stationView}
                       destinations={mappedDestinations}
                       selectedDestination={destinationId}
                       onSelectDestination={selectDestination}
@@ -440,6 +466,113 @@ export default function Office() {
                   </p>
                 )}
               </div>
+              {mapMode && (
+                <nav
+                  className={stellar.crewDock}
+                  aria-label="Tripulação da estação"
+                >
+                  {crew.map((c) => {
+                    const live = view.agents.find((a) => a.id === c.id)!;
+                    return (
+                      <button
+                        key={c.id}
+                        aria-label={`Focalizar ${c.name}`}
+                        aria-pressed={agentPanel && selected === c.id}
+                        onClick={() => selectAgent(c.id)}
+                        style={
+                          { "--crew-accent": c.accent } as React.CSSProperties
+                        }
+                      >
+                        <span>{c.name[0]}</span>
+                        <strong>{c.name}</strong>
+                        <small>{stateLabels[live.state]}</small>
+                      </button>
+                    );
+                  })}
+                  <button
+                    aria-pressed={meeting}
+                    onClick={() => {
+                      setMeeting((v) => !v);
+                      setStationView(true);
+                      setFocus(0);
+                      setDestinationId(null);
+                      setAgentPanel(false);
+                    }}
+                  >
+                    <span>◎</span>
+                    <strong>{meeting ? "Aos postos" : "Reunir equipe"}</strong>
+                    <small>Animação de ambiente</small>
+                  </button>
+                </nav>
+              )}
+              {mapMode && agentPanel && !destination && (
+                <section
+                  className={stellar.agentInspector}
+                  aria-label={`Comando de ${profile.name}`}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      event.stopPropagation();
+                      setAgentPanel(false);
+                      canvasWrap.current
+                        ?.querySelector<HTMLButtonElement>(
+                          `button[aria-label="Focalizar ${profile.name}"]`,
+                        )
+                        ?.focus();
+                    }
+                  }}
+                >
+                  <button
+                    className={stellar.closeAgent}
+                    aria-label="Fechar ficha do agente"
+                    onClick={() => setAgentPanel(false)}
+                  >
+                    Fechar ×
+                  </button>
+                  <nav
+                    className={stellar.agentDestinations}
+                    aria-label={`Área de trabalho de ${profile.name}`}
+                  >
+                    <small>ABRIR ÁREA DE TRABALHO</small>
+                    {allDestinations
+                      .filter((node) => {
+                        if (selected === "sirius")
+                          return node.kind === "project";
+                        if (selected === "vega")
+                          return node.entityId === "finance";
+                        if (selected === "cosmo")
+                          return node.entityId === "content";
+                        if (selected === "orion")
+                          return (
+                            node.kind === "pillar" &&
+                            /corpo|físic|saúde/i.test(node.name)
+                          );
+                        if (selected === "astro")
+                          return (
+                            node.kind === "pillar" &&
+                            /mente|conhecimento/i.test(node.name)
+                          );
+                        return node.kind === "tool";
+                      })
+                      .map((node) => (
+                        <button
+                          key={node.id}
+                          onClick={() => selectDestination(node)}
+                        >
+                          {node.name} ↗
+                        </button>
+                      ))}
+                  </nav>
+                  <AgentSheet
+                    key={profile.id}
+                    profile={profile}
+                    presence={presence}
+                    asOf={view.asOf}
+                    current={
+                      view.catalogCurrent && catalog.provenance === "deployed"
+                    }
+                  />
+                </section>
+              )}
               {mapMode ? (
                 <>
                   <StarDirectory
@@ -466,7 +599,7 @@ export default function Office() {
                   <div className={stellar.coordinates}>
                     <span>
                       <strong>
-                        ATLAS / {mappedDestinations.length} CORPOS VISÍVEIS
+                        UNIVERSO / {mappedDestinations.length} DESTINOS VISÍVEIS
                       </strong>{" "}
                       · {allDestinations.length} destinos no índice
                     </span>

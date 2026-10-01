@@ -28,7 +28,7 @@
   top: 133px;
   left: 22px;
   width: 235px;
-  bottom: 72px;
+  bottom: 136px;
   display: flex;
   flex-direction: column;
   padding: 16px 12px 9px;
@@ -140,7 +140,7 @@
 .inspector {
   top: 133px;
   right: 22px;
-  bottom: 72px;
+  bottom: 140px;
   width: 330px;
   padding: 18px;
   overflow-y: auto;
@@ -392,6 +392,135 @@
   font: 9px monospace;
   pointer-events: none;
 }
+.crewDock {
+  position: absolute;
+  z-index: 7;
+  bottom: 51px;
+  left: 22px;
+  right: 22px;
+  display: flex;
+  gap: 7px;
+  padding: 9px;
+  background: #0a1723ed;
+  border: 1px solid #66869640;
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+}
+.crewDock button {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 8px;
+  color: #c6d8e1;
+  display: grid;
+  grid-template-columns: 23px 1fr;
+  column-gap: 7px;
+}
+.crewDock button:hover,
+.crewDock button[aria-pressed="true"] {
+  background: #29435180;
+  border-color: var(--crew-accent, #829aa8);
+}
+.crewDock button:focus-visible {
+  outline: 2px solid #b3e3e8;
+  outline-offset: 2px;
+}
+.crewDock button > span {
+  color: var(--crew-accent, #b3d2df);
+  grid-row: span 2;
+  font:
+    20px Georgia,
+    serif;
+}
+.crewDock strong {
+  font-size: 11px;
+  font-weight: 500;
+}
+.crewDock small {
+  font: 8px monospace;
+  color: #8ea8b8;
+}
+.agentInspector {
+  position: absolute;
+  z-index: 8;
+  top: 133px;
+  right: 22px;
+  bottom: 140px;
+  width: 340px;
+  overflow-y: auto;
+  border: 1px solid #66869640;
+  border-radius: 12px;
+  background: #0b1723f5;
+  color: #d6e5ed;
+  scrollbar-width: thin;
+}
+.agentInspector > aside {
+  border: 0;
+  border-radius: 0;
+  max-height: none;
+  height: auto;
+  position: static;
+  background: transparent;
+}
+.agentInspector p,
+.agentInspector small {
+  color: #abc2ce;
+}
+.agentInspector h2,
+.agentInspector h3,
+.agentInspector summary {
+  color: #e3edf0;
+}
+.agentInspector article {
+  background: #182a36;
+}
+.agentInspector code {
+  color: #b1ced8;
+  overflow-wrap: anywhere;
+}
+.agentInspector aside > div:first-child > span:last-child {
+  background: #294552;
+  color: #d6e5ed;
+}
+.agentInspector blockquote,
+.agentInspector button,
+.agentInspector a {
+  color: #bcd9df;
+}
+.closeAgent {
+  display: block;
+  margin: 14px 16px 0 auto;
+  color: #bbd9de;
+  font-size: 11px;
+}
+.closeAgent:focus-visible {
+  outline: 2px solid #b3e3e8;
+}
+.agentDestinations {
+  padding: 14px 20px 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.agentDestinations small {
+  width: 100%;
+  font: 9px monospace;
+  letter-spacing: 0.1em;
+  margin-bottom: 4px;
+}
+.agentDestinations button {
+  color: #c3e0e4;
+  background: #203d4b;
+  border: 1px solid #688b9b66;
+  border-radius: 5px;
+  font-size: 10px;
+  padding: 7px 9px;
+}
+.agentDestinations button:focus-visible {
+  outline: 2px solid #b3e3e8;
+}
 .coordinates strong {
   color: #c8e2e4;
   font-weight: 400;
@@ -411,6 +540,11 @@
   .directory,
   .inspector {
     top: 183px;
+  }
+  .agentInspector {
+    top: 183px;
+    width: 290px;
+    right: 14px;
   }
   .directory {
     width: 210px;
@@ -433,12 +567,26 @@
     height: 430px;
   }
   .directory,
-  .inspector {
+  .inspector,
+  .agentInspector {
     position: relative;
     inset: auto;
     width: auto;
     margin: 0 12px 14px;
     backdrop-filter: none;
+  }
+  .crewDock {
+    position: relative;
+    inset: auto;
+    margin: 0 12px 14px;
+    flex-wrap: wrap;
+    backdrop-filter: none;
+  }
+  .crewDock button {
+    flex: 1 0 28%;
+  }
+  .agentInspector {
+    max-height: 550px;
   }
   .directory {
     max-height: 300px;
