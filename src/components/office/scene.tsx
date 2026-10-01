@@ -9,6 +9,8 @@ import type { AgentPresence } from "@/lib/office/view";
 import { crew, stationPoint } from "./orbital-model";
 import { OrbitalWorld, Space } from "./orbital-world";
 import { OrbitalRobot } from "./orbital-robot";
+import { StellarWorld } from "./stellar-world";
+import type { Destination } from "./stellar-data";
 function ContextGuard({ onFailure }: { onFailure: () => void }) {
   const gl = useThree((state) => state.gl);
   useEffect(() => {
@@ -25,6 +27,8 @@ function CameraRig({
   animate,
   tour,
   reset,
+  mapMode,
+  destinationNode,
 }: {
   selected: AgentId;
   focus: number;
@@ -32,6 +36,8 @@ function CameraRig({
   animate: boolean;
   tour: boolean;
   reset: number;
+  mapMode: boolean;
+  destinationNode?: Destination;
 }) {
   const controls = useRef<Controls>(null),
     flight = useRef(true);
@@ -40,7 +46,20 @@ function CameraRig({
     destination = useRef(new Vector3(15, 16, 20));
   useEffect(() => {
     const narrow = size.width < 650;
-    if (focus > 0) {
+    if (mapMode) {
+      if (destinationNode) {
+        const [x, y, z] = destinationNode.position;
+        target.current.set(x, y, z);
+        destination.current.set(x + 8, y + 11, z + 17);
+      } else {
+        target.current.set(0, 0, 0);
+        destination.current.set(
+          narrow ? 45 : 25,
+          narrow ? 68 : 49,
+          narrow ? 65 : 49,
+        );
+      }
+    } else if (focus > 0) {
       const p = stationPoint(
         crew.findIndex((c) => c.id === selected),
         meeting ? 2.3 : 4.65,
@@ -57,7 +76,16 @@ function CameraRig({
     }
     flight.current = true;
     invalidate();
-  }, [selected, focus, meeting, size.width, invalidate, reset]);
+  }, [
+    selected,
+    focus,
+    meeting,
+    size.width,
+    invalidate,
+    reset,
+    mapMode,
+    destinationNode,
+  ]);
   useFrame((_, dt) => {
     if (!controls.current) return;
     if (flight.current) {
@@ -76,7 +104,7 @@ function CameraRig({
       makeDefault
       enablePan
       minDistance={4}
-      maxDistance={47}
+      maxDistance={mapMode ? 120 : 47}
       minPolarAngle={0.15}
       maxPolarAngle={1.45}
       enableDamping={animate}
@@ -102,6 +130,10 @@ export default function Scene({
   alternate,
   onOrbit,
   reset,
+  mapMode = false,
+  destinations = [],
+  selectedDestination = null,
+  onSelectDestination = () => {},
 }: {
   agents: AgentPresence[];
   selected: AgentId;
@@ -115,6 +147,10 @@ export default function Scene({
   alternate: boolean;
   onOrbit: () => void;
   reset: number;
+  mapMode?: boolean;
+  destinations?: Destination[];
+  selectedDestination?: string | null;
+  onSelectDestination?: (node: Destination) => void;
 }) {
   useEffect(
     () => () => {
@@ -141,25 +177,35 @@ export default function Scene({
         intensity={6}
         distance={9}
       />
-      <Space animate={animate} alternate={alternate} />
-      <OrbitalWorld
-        animate={animate}
-        meeting={meeting}
-        onOrbit={onOrbit}
-        onSelect={(i) => onSelect(crew[i].id)}
-      />
-      {crew.map((c, i) => (
-        <OrbitalRobot
-          key={c.id}
-          index={i}
-          selected={selected === c.id}
-          onSelect={() => onSelect(c.id)}
+      <Space animate={animate} alternate={alternate} showPlanet={!mapMode} />
+      <group scale={mapMode ? 0.4 : 1}>
+        <OrbitalWorld
           animate={animate}
           meeting={meeting}
-          greeting={greeting}
-          presence={agents.find((a) => a.id === c.id)!}
+          onOrbit={onOrbit}
+          onSelect={(i) => onSelect(crew[i].id)}
         />
-      ))}
+        {crew.map((c, i) => (
+          <OrbitalRobot
+            key={c.id}
+            index={i}
+            selected={selected === c.id}
+            onSelect={() => onSelect(c.id)}
+            animate={animate}
+            meeting={meeting}
+            greeting={greeting}
+            presence={agents.find((a) => a.id === c.id)!}
+          />
+        ))}
+      </group>
+      {mapMode && (
+        <StellarWorld
+          nodes={destinations}
+          selected={selectedDestination}
+          onSelect={onSelectDestination}
+          animate={animate}
+        />
+      )}
       <CameraRig
         reset={reset}
         selected={selected}
@@ -167,6 +213,8 @@ export default function Scene({
         meeting={meeting}
         animate={animate}
         tour={tour}
+        mapMode={mapMode}
+        destinationNode={destinations.find((n) => n.id === selectedDestination)}
       />
     </Canvas>
   );

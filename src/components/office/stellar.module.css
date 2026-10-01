@@ -1,0 +1,471 @@
+.mapLayout {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.mapStage {
+  height: 830px !important;
+  background: #060e18;
+}
+.mapStage.mapExpanded {
+  height: auto !important;
+  min-height: 0;
+}
+.viewport {
+  height: 100%;
+  width: 100%;
+}
+.directory,
+.inspector {
+  position: absolute;
+  z-index: 5;
+  color: #dae7ec;
+  background: #0b1723ed;
+  border: 1px solid #66869640;
+  border-radius: 12px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 55px #0005;
+}
+.directory {
+  top: 133px;
+  left: 22px;
+  width: 235px;
+  bottom: 72px;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 12px 9px;
+}
+.directoryTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 5px 16px;
+}
+.directoryTitle strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.directoryTitle > span {
+  margin-left: auto;
+  font:
+    10px "JetBrains Mono Variable",
+    monospace;
+  color: #92bdc6;
+}
+.search {
+  border: 1px solid #65819150;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  gap: 6px;
+}
+.search input {
+  min-width: 0;
+  width: 100%;
+  padding: 10px 0;
+  background: transparent;
+  font-size: 11px;
+  outline: none;
+  color: #dceaf0;
+}
+.search:focus-within {
+  border-color: #a6dce4;
+}
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 0;
+}
+.filters button {
+  padding: 5px 7px;
+  border-radius: 5px;
+  font-size: 9px;
+  color: #93a9b8;
+}
+.filters button[aria-pressed="true"] {
+  background: #274553;
+  color: #e1f0ef;
+}
+.destinations {
+  min-height: 0;
+  overflow-y: auto;
+  flex: 1;
+  scrollbar-width: thin;
+  scrollbar-color: #456272 transparent;
+}
+.destinations > button {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  width: 100%;
+  gap: 10px;
+  padding: 12px 8px;
+  border: 1px solid transparent;
+  border-bottom-color: #68849520;
+  border-radius: 6px;
+}
+.destinations > button > span {
+  min-width: 0;
+  flex: 1;
+}
+.destinations > button > svg {
+  flex-shrink: 0;
+}
+.destinations strong {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.destinations small {
+  display: block;
+  font: 8px monospace;
+  color: #8098a8;
+  margin-top: 5px;
+}
+.destinations > button:hover,
+.destinations > button[aria-pressed="true"] {
+  background: #243f5077;
+  border-color: #88afb14d;
+}
+.refresh {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 6px 4px;
+  margin-top: 6px;
+  border-top: 1px solid #7893a633;
+  font-size: 10px;
+  color: #b6cbd6;
+}
+.inspector {
+  top: 133px;
+  right: 22px;
+  bottom: 72px;
+  width: 330px;
+  padding: 18px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #456272 transparent;
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.panelHead > span {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font: 9px monospace;
+  color: #94b6c2;
+  text-transform: uppercase;
+}
+.panelHead > button {
+  padding: 6px;
+  border-radius: 50%;
+  background: #2d455277;
+}
+.planetEmblem {
+  position: relative;
+  width: 85px;
+  height: 72px;
+  margin: 18px 0 6px;
+}
+.planetEmblem > span {
+  position: absolute;
+  width: 55px;
+  height: 55px;
+  top: 8px;
+  left: 15px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 30% 25%,
+    #ffffff99,
+    var(--planet) 20%,
+    #102031 80%
+  );
+  box-shadow: 0 0 30px color-mix(in srgb, var(--planet) 20%, transparent);
+}
+.planetEmblem > i {
+  position: absolute;
+  inset: 25px 0;
+  border: 1px solid var(--planet);
+  border-radius: 50%;
+  transform: rotate(-28deg);
+}
+.inspector h2 {
+  font:
+    26px "Fraunces Variable",
+    Georgia,
+    serif;
+  line-height: 1.1;
+  margin: 8px 0 12px;
+  color: #f1f3eb;
+  overflow-wrap: anywhere;
+}
+.inspector h2:focus {
+  outline: none;
+}
+.description {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #afc1ca;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.progress {
+  margin: 20px 0;
+  font-size: 10px;
+  color: #91aab8;
+}
+.progress strong {
+  color: #e0edf0;
+  font-size: 18px;
+  font-weight: 400;
+}
+.progress > div {
+  height: 3px;
+  border-radius: 3px;
+  background: #2c4553;
+  overflow: hidden;
+  margin-top: 10px;
+}
+.progress i {
+  display: block;
+  height: 100%;
+  transition: width 0.25s;
+}
+.context {
+  border-left: 2px solid #7aa8b4;
+  padding: 3px 0 3px 12px;
+  margin: 18px 0;
+}
+.context small {
+  font: 8px monospace;
+  letter-spacing: 0.8px;
+  color: #8facbb;
+}
+.context p {
+  margin: 6px 0;
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.taskHeading {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #708a9b33;
+  padding-top: 18px;
+}
+.taskHeading h3 {
+  font-size: 13px;
+  font-weight: 500;
+}
+.taskHeading > span {
+  font: 10px monospace;
+  color: #8dabbc;
+}
+.tasks {
+  margin: 10px 0 18px;
+  padding: 0;
+  list-style: none;
+}
+.tasks li {
+  padding: 12px 0;
+  border-bottom: 1px solid #6d8a991f;
+}
+.tasks li > div {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.tasks strong {
+  font-size: 11px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+.taskDot {
+  display: inline-block;
+  min-width: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.tasks small {
+  display: block;
+  font-size: 9px;
+  color: #8facbd;
+  margin: 6px 0 0 13px;
+}
+.tasks select {
+  margin-top: 9px;
+  width: 100%;
+  padding: 7px;
+  border: 1px solid #57748255;
+  border-radius: 5px;
+  font-size: 10px;
+  background: #142733;
+  color: #cbdee5;
+}
+.taskForm {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+.taskForm label {
+  font-size: 10px;
+  color: #afc2cc;
+}
+.taskForm input {
+  padding: 10px;
+  border: 1px solid #57748266;
+  border-radius: 6px;
+  background: #071420;
+  font-size: 11px;
+  color: #e5edf0;
+  width: 100%;
+}
+.taskForm button {
+  display: flex;
+  justify-content: space-between;
+  background: #afcdd1;
+  color: #102b35;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 11px;
+}
+.inspector button:disabled,
+.refresh:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.moduleLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #b5d7e0;
+  padding-top: 17px;
+  margin-top: 20px;
+  border-top: 1px solid #728d9c33;
+}
+.message {
+  color: #a5bac6;
+  font-size: 11px;
+  line-height: 1.6;
+  padding: 10px 4px;
+}
+.error {
+  background: #61413644;
+  color: #efd1bf;
+  border: 1px solid #bc876066;
+  padding: 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  margin: 12px 0;
+}
+.error button {
+  display: block;
+  margin-top: 8px;
+  text-decoration: underline;
+}
+.success {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  color: #bcdfb8;
+  margin-top: 10px;
+}
+.coordinates {
+  position: absolute;
+  z-index: 3;
+  bottom: 21px;
+  left: 25px;
+  right: 25px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: #86a4b7;
+  font: 9px monospace;
+  pointer-events: none;
+}
+.coordinates strong {
+  color: #c8e2e4;
+  font-weight: 400;
+}
+.directory button:focus-visible,
+.inspector button:focus-visible,
+.inspector a:focus-visible,
+.inspector input:focus-visible,
+.inspector select:focus-visible {
+  outline: 2px solid #b3e3e8;
+  outline-offset: 3px;
+}
+@media (max-width: 1150px) {
+  .mapStage {
+    height: 940px !important;
+  }
+  .directory,
+  .inspector {
+    top: 183px;
+  }
+  .directory {
+    width: 210px;
+    left: 14px;
+  }
+  .inspector {
+    width: 290px;
+    right: 14px;
+  }
+}
+@media (max-width: 700px) {
+  .mapStage.mapExpanded {
+    overflow-y: auto;
+  }
+  .mapStage {
+    height: auto !important;
+    min-height: 700px;
+  }
+  .viewport {
+    height: 430px;
+  }
+  .directory,
+  .inspector {
+    position: relative;
+    inset: auto;
+    width: auto;
+    margin: 0 12px 14px;
+    backdrop-filter: none;
+  }
+  .directory {
+    max-height: 300px;
+  }
+  .inspector {
+    max-height: none;
+    padding: 20px;
+  }
+  .coordinates {
+    position: relative;
+    inset: auto;
+    padding: 7px 15px 20px;
+    flex-direction: column;
+  }
+  .planetEmblem {
+    float: right;
+    margin: 10px 0 0 10px;
+  }
+  .panelHead {
+    margin-bottom: 20px;
+  }
+  .inspector h2 {
+    font-size: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress i {
+    transition: none;
+  }
+}

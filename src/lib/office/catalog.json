@@ -411,7 +411,7 @@
           "title": "Dados do LifeSystem",
           "kind": "connector",
           "reference": "lifesystem:mcp:cosmo",
-          "summary": "Projetos, tarefas e agenda no escopo do perfil. O pipeline editorial precisa de uma ponte própria.",
+          "summary": "Projetos, tarefas, agenda e rascunhos na central de conteúdo LifeSystem. A Máquina local continua sem conector.",
           "revision": null,
           "verifiedAt": null
         }
@@ -445,6 +445,16 @@
           "approval": "explicit",
           "enforcement": "instructions",
           "example": "Cosmo, prepare um rascunho para o pipeline e indique o que falta para registrar.",
+          "checkedAt": null
+        },
+        {
+          "title": "Salvar pautas no LifeSystem",
+          "description": "Consulta duplicatas e registra ideias ou rascunhos na central de conteúdo quando solicitado.",
+          "dependency": "LifeSystem MCP: list_content, create_content e update_content",
+          "availability": "configured",
+          "approval": "explicit",
+          "enforcement": "instructions",
+          "example": "Cosmo, salve as três pautas aprovadas como ideias de ArcoPass no LifeSystem.",
           "checkedAt": null
         }
       ]

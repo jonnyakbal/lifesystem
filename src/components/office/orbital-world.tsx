@@ -7,9 +7,11 @@ import { Panel, Ring, Orb, Tag } from "./orbital-parts";
 export function Space({
   animate,
   alternate,
+  showPlanet = true,
 }: {
   animate: boolean;
   alternate: boolean;
+  showPlanet?: boolean;
 }) {
   const planet = useRef<Group>(null);
   const stars = useMemo(() => {
@@ -42,7 +44,7 @@ export function Space({
           sizeAttenuation
         />
       </points>
-      <group position={[-13, 8, -24]} rotation={[0.2, 0, 0.4]} ref={planet}>
+      <group position={[-13, 8, -24]} rotation={[0.2, 0, 0.4]} ref={planet} visible={showPlanet}>
         <mesh>
           <sphereGeometry args={[7, 48, 32]} />
           <meshStandardMaterial

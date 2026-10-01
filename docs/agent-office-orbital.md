@@ -28,3 +28,16 @@ Three.js / React Three Fiber já instalados, sem novas dependências ou assets e
 Testes UI cobrem reunião, saudação sem POST, pausa, expansão, seleção por teclado, Escape, perda de contexto sem scroll preso, redução de movimento, desktop/mobile e presença recebida da API. A inspeção visual complementa esses testes; não representa benchmark de fps no computador de Jonny.
 
 Verificação local: 4 testes UI passaram; TypeScript, lint dos componentes e build de produção Webpack passaram. Revisão independente concluída, com correções de foco e rolagem na expansão. O teste visual também identificou e confirmou a correção do reenquadramento sem remontar o canvas. Capturas estão em `C:/dev/jonny/hermes/entregas/escritorio-3d/orbital-expanded.png` e `orbital-mobile.png`.
+
+
+## Atlas pessoal — 01/10/2026
+
+A expansão aprovada acrescenta o modo **Mapa estelar**, preservando a estação da tripulação e a lista. Projetos reais aparecem como planetas, pilares como constelações e seis ferramentas como satélites. Diretório pesquisável e filtros mantêm todos os destinos acessíveis; a cena limita corpos simultâneos para preservar legibilidade e inclui sempre a seleção.
+
+Selecionar um corpo aproxima a câmera e abre seu painel dentro da navegação. Projetos e pilares usam dados atuais de `/api/projects`, `/api/pillars`, `/api/tasks` e a configuração real das etapas. O painel mostra contexto, progresso e tarefas; permite criar uma tarefa vinculada e mudar sua etapa. A confirmação depende do recibo do servidor, sem alteração otimista, envio automático ou retry. Uma atualização iniciada antes da escrita não pode apagar da tela o recibo confirmado depois dela. Em resposta ambígua, o painel orienta conferir os dados antes de repetir.
+
+Agenda, conteúdo, financeiro, capturas e Hermes oferecem acesso aos módulos completos; Arco Leads abre o CRM existente em outra aba. Esta entrega não implementa integração MCP comercial nem cria um segundo CRM. Movimentos dos robôs continuam sendo ambientação; presença vem da telemetria real.
+
+A navegação possui movimento reduzido, pausa, recuperação sem WebGL, diretório por teclado e painéis empilhados no celular. Expansão retém foco e admite Escape; seu scrollport foi testado em 600×390. Trocar de aba não desmonta o formulário. Não há dependências novas.
+
+Validação: sete casos UI distintos passaram (suíte de seis e rodada final de três testes do mapa), incluindo tarefas com etapas personalizadas, criação vinculada, erro de leitura, erro de gravação sem repetição, corrida entre refresh e recibo, Lista→Mapa, desktop/mobile, expansão, perda de contexto e presença real na API local. Dados de teste são sintéticos; nenhuma tarefa pessoal foi criada nesses testes. TypeScript e lint dos arquivos alterados passaram. A revisão independente encontrou e confirmou correções de foco, renderização e concorrência. Capturas 3D foram inspecionadas após o canvas carregar. Publicação e build final serão registrados no recibo de entrega.
