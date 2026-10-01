@@ -1,6 +1,14 @@
 # Escritório 3D dos agentes
 
-Implementação na branch `feat/agent-office`, worktree `C:/dev/jonny/lifesystem-agent-office`. Esta entrega não foi publicada no LifeSystem nem ativada na VPS.
+Implementação na branch `feat/agent-office`, worktree `C:/dev/jonny/lifesystem-agent-office`; integrada em `main` pelos commits `ed6e9e7` e `1404e52`. A ponte foi instalada na VPS pessoal em 01/10/2026. **Conexão real confirmada** depois do cadastro de `HERMES_OFFICE_TOKEN` no ambiente do LifeSystem: catálogo e sinais periódicos entregues, fila vazia e sem erros recentes.
+
+## Recibo de ativação pessoal — 01/10/2026
+
+Plugin instalado somente em `hermes-agent-7faz-hermes-agent-1`, catálogo `office-312594adbc45763052cb`, backup `/opt/data/backups/office-20261001T040508Z`. Variáveis exclusivas foram adicionadas ao `.env` pessoal, que o gateway carrega nativamente; o Compose e 18 arquivos protegidos mantiveram seus hashes. Nenhuma chave MCP foi reutilizada. Dona Maria permaneceu intacto.
+
+A validação real revelou registro síncrono de plugins antes do loop asyncio. O publicador agora usa thread daemon supervisionada por `ctx.on_unload`, apenas no processo gateway. Regressões cobrem ausência de loop, inicialização s6 e prevenção de publicadores no dashboard/CLI: 62 testes locais passaram (um POSIX ignorado) e 18 testes passaram no Python do container. Gateway reiniciado sem coroutine não aguardada; os erros HTTP 401 cessaram após o cadastro da credencial.
+
+O cadastro automático da variável LifeSystem ficou impedido por `401 Unauthenticated` do conector e falha de inicialização do controle do navegador. `C:/dev/jonny/hermes/scripts/copy-office-token.ps1` copiou o segredo dedicado para a área de transferência sem exibi-lo. Jonny salvou a variável no hPanel; a ponte reconectou sem novo reinício Hermes. Às 04:37:16 UTC (01:37:16 em São Paulo), a entrega periódica avançou da sequência 2 para 5 e o outbox estava vazio; o catálogo no runtime apresentou `provenance=deployed`, com seis fichas. Não foi enviada mensagem fictícia de trabalho nem mensagem no WhatsApp para essa certificação. Ver recibo completo em `C:/dev/jonny/hermes/integracoes/ESCRITORIO-LIFESYSTEM.md`.
 
 ## O que entra no LifeSystem
 

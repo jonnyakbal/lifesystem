@@ -1,4 +1,6 @@
-import json,tempfile,unittest
+import json,tempfile,unittest,threading
+from types import SimpleNamespace
+from unittest.mock import patch
 from pathlib import Path
 from specialist_router.office import OfficePublisher
 
@@ -22,6 +24,40 @@ class OfficeTests(unittest.TestCase):
  def test_disabled_does_not_create_database(self):
   home=Path(self.tmp.name)/'disabled';p=OfficePublisher(home)
   p.accept('run','vega','whatsapp');self.assertFalse(home.exists())
+ def test_sync_gateway_registration_publishes_without_an_asyncio_loop(self):
+  published=threading.Event();cleanup=[]
+  def request(path,body):
+   if path=='events':published.set()
+   return {'id':'session-sync'} if path=='sessions' else {'accepted':len(body)}
+  def no_loop(coro,**kwargs):
+   coro.close()
+   raise RuntimeError('no running event loop')
+  self.office.request=request
+  with patch.dict('os.environ',{'_HERMES_GATEWAY':'1'}):
+   try:self.office.start(SimpleNamespace(spawn_task=no_loop,on_unload=cleanup.append))
+   except RuntimeError as error:self.fail('Synchronous gateway registration failed: '+str(error))
+  self.assertTrue(published.wait(2),'Idle gateway did not publish presence')
+  self.assertEqual(len(cleanup),1)
+  cleanup[0]();self.office._thread.join(2)
+  self.assertFalse(self.office._thread.is_alive(),'Plugin unload must stop publishing')
+ def test_dashboard_and_worker_processes_never_start_a_competing_publisher(self):
+  launched=[]
+  def unexpected(coro,**kwargs):
+   coro.close();launched.append('task')
+  with patch.dict('os.environ',{'_HERMES_GATEWAY':'0'}):
+   self.office.start(SimpleNamespace(spawn_task=unexpected,on_unload=lambda f:launched.append('cleanup')))
+  self.assertFalse(launched)
+ def test_s6_gateway_can_publish_before_gateway_module_sets_its_flag(self):
+  published=threading.Event();cleanup=[]
+  def request(path,body):
+   if path=='events':published.set()
+   return {'id':'s6-session'} if path=='sessions' else {'accepted':len(body)}
+  self.office.request=request
+  with patch.dict('os.environ',{'_HERMES_GATEWAY':'0','HERMES_S6_SUPERVISED_CHILD':'1'}),patch('sys.argv',['hermes','gateway','run','--replace']):
+   self.office.start(SimpleNamespace(on_unload=cleanup.append))
+  self.assertTrue(published.wait(2),'Supervised gateway registration must publish before module startup')
+  cleanup[0]();self.office._thread.join(2)
+  self.assertFalse(self.office._thread.is_alive())
  def test_failed_transport_preserves_events(self):
   self.office.accept('run-1','vega','whatsapp')
   def fail(*a):raise OSError('network')

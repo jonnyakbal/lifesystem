@@ -6,6 +6,7 @@ import logging
 import os
 import random
 import sqlite3
+import sys
 import threading
 import time
 import urllib.error
@@ -36,6 +37,8 @@ class OfficePublisher:
         self.gap = False
         self.catalog = None
         self.lock = threading.RLock()
+        self._shutdown = threading.Event()
+        self._thread = None
         self.last_flush = 0
         self.path = self.home/'specialists/office.sqlite'
         if not self.enabled:
@@ -197,17 +200,50 @@ class OfficePublisher:
             except asyncio.CancelledError:
                 raise
             except Exception as exc:
-                delay = min(60, max(6, delay*2))
-                if isinstance(exc, urllib.error.HTTPError):
-                    if exc.code == 409:
-                        log.warning('Office publisher retired; stopping publication')
-                        return
-                    retry = exc.headers.get('Retry-After', '')
-                    if retry.isdigit():
-                        delay = max(delay, min(300, int(retry)))
-                log.warning('Office publication unavailable (%s)', type(exc).__name__)
+                delay = self.failure_delay(exc, delay)
+                if delay is None:
+                    return
             await asyncio.sleep(delay+random.uniform(0,.5))
 
+    def failure_delay(self, exc, previous):
+        delay = min(60, max(6, previous*2))
+        if isinstance(exc, urllib.error.HTTPError):
+            if exc.code == 409:
+                log.warning('Office publisher retired; stopping publication')
+                return None
+            retry = exc.headers.get('Retry-After', '')
+            if retry.isdigit():
+                delay = max(delay, min(300, int(retry)))
+            log.warning('Office publication unavailable (%s, status=%s)', type(exc).__name__, exc.code)
+        else:
+            log.warning('Office publication unavailable (%s)', type(exc).__name__)
+        return delay
+
+    def run_background(self):
+        delay = 3
+        while not self._shutdown.is_set():
+            try:
+                if self.queue_count() or time.monotonic()-self.last_flush >= 30:
+                    self.flush()
+                delay = 3
+            except Exception as exc:
+                delay = self.failure_delay(exc, delay)
+                if delay is None:
+                    return
+            self._shutdown.wait(delay+random.uniform(0,.5))
+
     def start(self, ctx):
-        if self.enabled:
-            ctx.spawn_task(self.run(), name='specialist:office-publisher')
+        # Registration is synchronous in the installed Hermes host, before asyncio.run.
+        # A host cleanup handle supervises this bounded network-only daemon instead.
+        # Dashboard/CLI imports must never replace the gateway's publisher session.
+        gateway = (os.getenv('_HERMES_GATEWAY') == '1' or
+                   (os.getenv('HERMES_S6_SUPERVISED_CHILD') == '1' and 'gateway' in sys.argv[1:]))
+        if not self.enabled or not gateway:
+            return
+        with self.lock:
+            if self._thread is not None:
+                return
+            ctx.on_unload(self._shutdown.set)
+            self._thread = threading.Thread(target=self.run_background, name='specialist:office-publisher', daemon=True)
+            self._thread.start()
+            log.info('Office publisher started for personal gateway')
