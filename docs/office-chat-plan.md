@@ -22,12 +22,14 @@ e escrita exigem sessão; worker exige token, instalação personal e sessão at
 O navegador não recebe credenciais. Nada é enviado ao WhatsApp/Telegram por este fluxo.
 
 Plano de execução:
-- [ ] Testes de deduplicação, concorrência, autenticação, transição e reinício.
-- [ ] Store/API de conversa e recebimento dos comandos, sem polling causar inferência.
-- [ ] Consumidor na ponte, inicializado por hook nativo gateway:startup, sob lock comum.
-- [ ] Painel Conversar/Ficha por agente, histórico, envio explícito, falhas e recibos.
-- [ ] Testes do consumidor, regressões da ponte, UI, build e revisão independente.
-- [ ] Backup e implantação exclusiva 7faz; publicação GitHub/Hostinger; teste real no Chrome.
+- [x] Testes de deduplicação, concorrência, autenticação, transição e reinício.
+- [x] Store/API de conversa e recebimento dos comandos, sem polling causar inferência.
+- [x] Consumidor na ponte, inicializado por hook nativo gateway:startup, sob lock comum.
+- [x] Conversa junto à ficha de cada agente, histórico, envio explícito, falhas e recibos.
+- [x] Testes do consumidor, regressões da ponte, UI, build e revisão independente.
+- [x] Backup e implantação exclusiva 7faz; publicação GitHub/Hostinger; teste real no Chrome.
 
 Ruling: as autorizações anteriores de integração e publicação, e o pedido atual,
 permitem executar o plano sem repetir aprovação das mesmas ações.
+
+Validação final: Hostinger concluiu a publicação 92db7303 em 01/10/2026 às 18:20. Chrome mostrou respostas reais concluídas de Sirius e Hermes, com históricos separados; nenhum registro de negócio alterado. Build webpack e 20 testes da estação passaram; 25 testes da ponte/consumidor, 62 regressões dos especialistas (1 skip) e 10 da revisão noturna. Backup VPS office-chat-20261001; arquivos privados com proprietário do serviço.
