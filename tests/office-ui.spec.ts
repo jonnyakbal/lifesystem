@@ -1,5 +1,72 @@
 import { test, expect, type Route } from "@playwright/test";
 
+test("station chats pin the selected agent, show actual replies and never send on selection", async ({
+  page,
+  context,
+}) => {
+  await page.request.post("/api/login", {
+    data: { user: "office-test", password: "office-ui-test-only" },
+  });
+  await context.addCookies((await page.request.storageState()).cookies);
+  const jobs: Record<string, unknown>[] = [];
+  await page.route("**/api/hermes/office/chat**", (route) => {
+    if (route.request().method() === "GET")
+      return route.fulfill({
+        json: {
+          jobs: jobs.filter(
+            (j) =>
+              j.agentId ===
+              new URL(route.request().url()).searchParams.get("agentId"),
+          ),
+        },
+      });
+    const body = route.request().postDataJSON();
+    const job = {
+      ...body,
+      id: "conversation-test",
+      status: "completed",
+      response: "Consultei os projetos: avance a validação do ArcoPass.",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    jobs.push(job);
+    return route.fulfill({ json: { job } });
+  });
+  await page.goto("/escritorio");
+  await page
+    .getByRole("button", { name: "Focalizar Sirius", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Conversa com Sirius" }),
+  ).toBeVisible();
+  expect(jobs).toHaveLength(0);
+  await page
+    .getByLabel("Mensagem para Sirius")
+    .fill("Consulte meus projetos e proponha prioridades.");
+  await page
+    .getByRole("button", { name: "Enviar para Sirius", exact: true })
+    .click();
+  await expect(
+    page.getByText("Consultei os projetos: avance a validação do ArcoPass.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  expect(jobs[0].agentId).toBe("sirius");
+  expect(jobs).toHaveLength(1);
+  await page
+    .getByRole("button", { name: "Focalizar Vega", exact: true })
+    .click();
+  await expect(
+    page.getByRole("region", { name: "Conversa com Vega" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Consultei os projetos: avance a validação do ArcoPass.", {
+      exact: true,
+    }),
+  ).toHaveCount(0);
+  expect(jobs).toHaveLength(1);
+});
+
 test("stellar navigation opens real projects and writes tasks only on explicit submission", async ({
   page,
   context,
@@ -323,9 +390,7 @@ test("scientific station remains explorable with reduced motion on desktop and m
   await page
     .getByLabel("Escritório dos agentes", { exact: true })
     .screenshot({ path: "test-results/orbital-overview.png" });
-  await page
-    .getByRole("button", { name: /Reunir equipe/ })
-    .click();
+  await page.getByRole("button", { name: /Reunir equipe/ }).click();
   await page
     .getByRole("button", { name: "Ampliar estação", exact: true })
     .click();
@@ -344,9 +409,7 @@ test("scientific station remains explorable with reduced motion on desktop and m
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBeTruthy();
-  await page
-    .getByRole("button", { name: /Aos postos/ })
-    .click();
+  await page.getByRole("button", { name: /Aos postos/ }).click();
   await expect(
     page.getByRole("button", { name: /Reunir equipe/ }),
   ).toBeVisible();
@@ -367,12 +430,8 @@ test("orbital station offers crew interactions without sending commands to agent
   await context.addCookies((await page.request.storageState()).cookies);
   await page.goto("/escritorio");
   await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
-  await page
-    .getByRole("button", { name: /Reunir equipe/ })
-    .click();
-  await expect(
-    page.getByRole("button", { name: /Aos postos/ }),
-  ).toBeVisible();
+  await page.getByRole("button", { name: /Reunir equipe/ }).click();
+  await expect(page.getByRole("button", { name: /Aos postos/ })).toBeVisible();
   await expect(
     page.getByText("Animação de ambiente", { exact: true }),
   ).toBeVisible();
@@ -380,8 +439,12 @@ test("orbital station offers crew interactions without sending commands to agent
     .getByLabel("Selecionar agente", { exact: true })
     .getByRole("button", { name: /Cosmo/ })
     .click();
-  await expect(page.getByRole("region", { name: "Comando de Cosmo" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Área de trabalho de Cosmo" })).toContainText("Central de conteúdo");
+  await expect(
+    page.getByRole("region", { name: "Comando de Cosmo" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "Área de trabalho de Cosmo" }),
+  ).toContainText("Central de conteúdo");
   await page
     .getByRole("button", { name: "Pausar animações", exact: true })
     .click();
@@ -401,7 +464,11 @@ test("orbital station offers crew interactions without sending commands to agent
     page.getByRole("button", { name: "Visão geral", exact: true }),
   ).toBeFocused();
   await page.keyboard.press("Shift+Tab");
-  expect(await page.getByRole("dialog").evaluate((dialog) => dialog.contains(document.activeElement))).toBeTruthy();
+  expect(
+    await page
+      .getByRole("dialog")
+      .evaluate((dialog) => dialog.contains(document.activeElement)),
+  ).toBeTruthy();
   await page
     .getByRole("button", { name: "Focalizar Astro", exact: true })
     .click();
@@ -442,7 +509,9 @@ test("office renders 3D, authenticates presence and explains every agent", async
   await expect(
     page.getByRole("heading", { name: /Um lugar para/ }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Focalizar Hermes", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Focalizar Hermes", exact: true })
+    .click();
   await expect(page.getByLabel("Ficha de Hermes")).toBeVisible();
   await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
   expect(

@@ -9,6 +9,12 @@ import {
 } from "../src/lib/office/store";
 import { projectOffice } from "../src/lib/office/view";
 import catalog from "../src/lib/office/catalog.json";
+import {
+  submitChat,
+  readChats,
+  commandTransaction,
+} from "../src/lib/office/chat-store";
+import { randomUUID } from "node:crypto";
 
 let dir: string;
 test.beforeEach(async () => {
@@ -20,6 +26,83 @@ test.afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 const time = () => new Date().toISOString();
+test("chat keeps agent identity and deduplicates browser retries without requeueing claims", async () => {
+  const s = await registerPublisher("personal", "chat-boot");
+  await ingestOffice("personal", [snap(s.id, 1)]);
+  const clientId = randomUUID();
+  const input = {
+    clientId,
+    agentId: "sirius",
+    text: "Leia meus projetos e proponha prioridades.",
+  };
+  const jobs = await Promise.all(
+    Array.from({ length: 4 }, () => submitChat("personal", input)),
+  );
+  expect(new Set(jobs.map((j) => j.id)).size).toBe(1);
+  const claimed = await commandTransaction("personal", {
+    sessionId: s.id,
+    op: "claim",
+  });
+  expect(claimed.job?.agentId).toBe("sirius");
+  expect(
+    (await commandTransaction("personal", { sessionId: s.id, op: "claim" })).job
+      ?.id,
+  ).toBe(jobs[0].id);
+  await commandTransaction("personal", {
+    sessionId: s.id,
+    op: "result",
+    id: jobs[0].id,
+    status: "completed",
+    response: "Consultei três projetos.",
+  });
+  expect(
+    (await commandTransaction("personal", { sessionId: s.id, op: "claim" }))
+      .job,
+  ).toBeNull();
+  expect((await submitChat("personal", input)).status).toBe("completed");
+  await expect(
+    submitChat("personal", { ...input, text: "outro pedido" }),
+  ).rejects.toThrow();
+  expect((await readChats("personal", "vega")).length).toBe(0);
+  expect((await readChats("personal", "sirius"))[0].response).toBe(
+    "Consultei três projetos.",
+  );
+});
+test("chat refuses stale workers and never reexecutes an uncertain claim after restart", async () => {
+  const s = await registerPublisher("personal", "chat-old");
+  await ingestOffice("personal", [snap(s.id, 1)]);
+  const job = await submitChat("personal", {
+    clientId: randomUUID(),
+    agentId: "cosmo",
+    text: "Prepare uma pauta.",
+  });
+  await commandTransaction("personal", { sessionId: s.id, op: "claim" });
+  const fresh = await registerPublisher("personal", "chat-new");
+  await expect(
+    commandTransaction("personal", {
+      sessionId: s.id,
+      op: "result",
+      id: job.id,
+      status: "completed",
+      response: "inventado",
+    }),
+  ).rejects.toThrow();
+  expect(
+    (await commandTransaction("personal", { sessionId: fresh.id, op: "claim" }))
+      .job,
+  ).toBeNull();
+  expect((await readChats("personal", "cosmo"))[0].status).toBe("interrupted");
+});
+test("chat recovers a persisted terminal receipt after worker restart without requeueing", async () => {
+  const old = await registerPublisher("personal", "receipt-old");
+  await ingestOffice("personal", [snap(old.id, 1)]);
+  const job = await submitChat("personal", { clientId: randomUUID(), agentId: "sirius", text: "Leia projetos." });
+  await commandTransaction("personal", { sessionId: old.id, op: "claim" });
+  const next = await registerPublisher("personal", "receipt-new");
+  await commandTransaction("personal", { sessionId: next.id, receiptSession: old.id, op: "result", id: job.id, status: "completed", response: "Resposta persistida antes do reinício." });
+  expect((await readChats("personal", "sirius"))[0].status).toBe("completed");
+  expect((await commandTransaction("personal", { sessionId: next.id, op: "claim" })).job).toBeNull();
+});
 const snap = (sessionId: string, sequence: number, runs: unknown[] = []) => ({
   schemaVersion: 1,
   sessionId,

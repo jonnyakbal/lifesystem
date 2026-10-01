@@ -13,6 +13,7 @@ import { catalogSchema, emptyOffice, type AgentId } from "@/lib/office/schema";
 import localCatalog from "@/lib/office/catalog.json";
 import { projectOffice, stateLabels, type OfficeView } from "@/lib/office/view";
 import { AgentSheet, colors } from "./agent-sheet";
+import { AgentChat } from "./agent-chat";
 import styles from "./office.module.css";
 import { crew } from "./orbital-model";
 import { destinations, useFlightData, type Destination } from "./stellar-data";
@@ -562,6 +563,11 @@ export default function Office() {
                         </button>
                       ))}
                   </nav>
+                  <AgentChat
+                    key={"chat-" + profile.id}
+                    agentId={profile.id}
+                    name={profile.name}
+                  />
                   <AgentSheet
                     key={profile.id}
                     profile={profile}
@@ -742,24 +748,32 @@ export default function Office() {
             ) : (
               <p className={styles.empty}>
                 Ainda sem atividade recebida. Quando um especialista atender
-                você pelo WhatsApp ou Telegram, o movimento aparecerá aqui.
+                você no escritório, WhatsApp ou Telegram, o movimento aparecerá
+                aqui.
               </p>
             )}
           </section>
         </section>
         {!mapMode && (
-          <AgentSheet
-            key={profile.id}
-            profile={profile}
-            presence={presence}
-            asOf={view.asOf}
-            current={view.catalogCurrent && catalog.provenance === "deployed"}
-          />
+          <div>
+            <AgentChat
+              key={"chat-list-" + profile.id}
+              agentId={profile.id}
+              name={profile.name}
+            />
+            <AgentSheet
+              key={profile.id}
+              profile={profile}
+              presence={presence}
+              asOf={view.asOf}
+              current={view.catalogCurrent && catalog.provenance === "deployed"}
+            />
+          </div>
         )}
       </div>
       <footer className={styles.footer}>
-        Atividade observada, sem chamadas extras ao modelo.{" "}
-        <span>As conversas continuam no WhatsApp e Telegram.</span>
+        Sinais de atividade sem chamadas extras ao modelo.{" "}
+        <span>Converse aqui ou continue pelo WhatsApp e Telegram.</span>
       </footer>
     </main>
   );

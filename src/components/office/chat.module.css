@@ -1,0 +1,97 @@
+.chat {
+  padding: 20px;
+  color: #dce9ee;
+  background: #101f2d;
+  border-bottom: 1px solid #607d8d44;
+}
+.chat header h3 {
+  margin: 0 0 4px;
+  font-size: 19px;
+}
+.chat header small,
+.hint {
+  color: #adc0cc;
+  font-size: 11px;
+}
+.history {
+  max-height: 330px;
+  overflow-y: auto;
+  margin: 18px 0;
+  scrollbar-width: thin;
+}
+.history article {
+  margin: 0 0 16px;
+  background: transparent !important;
+}
+.history p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 5px 0;
+  line-height: 1.65;
+  font-size: 13px;
+}
+.history small {
+  font-size: 10px;
+  color: #acc8d5;
+}
+.user {
+  background: #25414f;
+  padding: 12px;
+  border-radius: 10px 10px 0 10px;
+  margin-left: 24px;
+}
+.reply {
+  border-left: 2px solid #80b0bf;
+  padding: 10px 12px;
+  margin: 12px 16px 0 0;
+}
+.empty,
+.wait {
+  font-size: 12px;
+  color: #a5bcc8;
+}
+.chat label {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 7px;
+}
+.chat textarea {
+  display: block;
+  width: 100%;
+  resize: vertical;
+  min-height: 86px;
+  max-height: 200px;
+  background: #091520;
+  color: #e2edf1;
+  border: 1px solid #688596;
+  border-radius: 8px;
+  padding: 11px;
+  font-size: 13px;
+}
+.chat textarea:focus-visible,
+.chat button:focus-visible {
+  outline: 2px solid #a1dce5;
+  outline-offset: 2px;
+}
+.chat button {
+  margin: 10px 0 0 auto;
+  display: block;
+  padding: 10px 14px;
+  border: 1px solid #7cafbc;
+  background: #234a5b;
+  color: #e4f2f6 !important;
+  border-radius: 6px;
+  font-size: 12px;
+}
+.chat button:disabled {
+  opacity: 0.55;
+}
+.hint {
+  line-height: 1.5;
+  margin: 12px 0 0;
+}
+.error {
+  color: #f3c1ad !important;
+  font-size: 12px;
+  line-height: 1.5;
+}

@@ -26,7 +26,7 @@ async function load(path: string): Promise<OfficeData> {
     throw e;
   }
 }
-async function transaction<T>(
+export async function transaction<T>(
   installation: string,
   change: (data: OfficeData) => T,
 ): Promise<T> {
