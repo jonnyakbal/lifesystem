@@ -49,7 +49,10 @@ Pedido de Jonny: a estação deve parecer quase um jogo, sem botões mortos, com
    - fila, execução e interrompidos nunca são arquivados;
    - na interface: "Carregar conversas anteriores", "Ver arquivadas" e manutenção com prévia e confirmação na Central de missões.
 
-Pendentes da estação: E4 (capacidades por contrato) e o feixe visual entre um agente e o destino de uma missão.
+7. **Capacidades comprovadas (E4):** `GET /api/hermes/office/capabilities` (só a sessão do dono; ids e escopos, nunca chaves) e a seção "O que foi comprovado" nas fichas do Órion e do Sirius. A credencial pertence ao agente pelo domínio de escopo (`health:` ou `professional:`), não pelo nome. Credencial configurada, chamada real bem-sucedida (desatualizada após 7 dias), falha mais recente e operação aprovada e aplicada ficam separadas. O piloto HTTP sintético está em `tests/agent-contract-http.spec.ts`.
+8. **Feixe de missão:** um robô com missão em andamento emite um feixe pulsante na sua cor.
+
+Pendentes da estação: verificar em produção as credenciais reais (etapa operacional) e a voz local no Hermes ([contrato](contracts/office-voice-v1.md)).
 
 ## Entrada para Claude na nuvem — 02/10
 
