@@ -45,6 +45,24 @@ export function StarDirectory({
 }) {
   const [kind, setKind] = useState("all");
   const filtered = nodes.filter((n) => kind === "all" || n.kind === kind);
+  // Shows when the last manual refresh finished, so the button visibly answers.
+  const [requested, setRequested] = useState(false);
+  const [refreshedAt, setRefreshedAt] = useState("");
+  const [wasLoading, setWasLoading] = useState(loading);
+  if (loading !== wasLoading) {
+    setWasLoading(loading);
+    if (!loading && requested) {
+      setRequested(false);
+      setRefreshedAt(
+        error
+          ? ""
+          : new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+      );
+    }
+  }
+  const empty = query
+    ? "Nenhum destino para esta busca."
+    : ({ project: "Nenhum projeto no seu universo ainda.", pillar: "Nenhum pilar cadastrado ainda.", tool: "Nenhuma ferramenta disponível." } as Record<string, string>)[kind] || "Nenhum destino ainda.";
   return (
     <nav className={s.directory} aria-label="Destinos estelares">
       <div className={s.directoryTitle}>
@@ -110,13 +128,26 @@ export function StarDirectory({
               );
             })
           ) : (
-            <p className={s.message}>Nenhum destino para esta busca.</p>
+            <p className={s.message} role="status">{empty}</p>
           )}
         </div>
       )}
-      <button className={s.refresh} disabled={loading} onClick={refresh}>
-        Atualizar dados <span>↻</span>
+      <button
+        className={s.refresh}
+        disabled={loading}
+        onClick={() => {
+          setRequested(true);
+          setRefreshedAt("");
+          refresh();
+        }}
+      >
+        {loading && requested ? "Atualizando…" : "Atualizar dados"} <span>↻</span>
       </button>
+      {refreshedAt && (
+        <p className={s.refreshed} role="status">
+          Dados atualizados às {refreshedAt}
+        </p>
+      )}
     </nav>
   );
 }

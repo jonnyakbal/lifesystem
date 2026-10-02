@@ -617,3 +617,59 @@
     transition: none;
   }
 }
+/* Action feedback: every control confirms what happened. */
+.notice {
+  position: absolute;
+  z-index: 9;
+  top: 120px;
+  left: 50%;
+  max-width: min(440px, calc(100% - 32px));
+  transform: translate(-50%, -8px);
+  margin: 0;
+  padding: 9px 16px;
+  color: #e9f6f2;
+  font: 600 12px/1.4 var(--font-sans, system-ui);
+  text-align: center;
+  background: #10273aee;
+  border: 1px solid #7fd8c860;
+  border-radius: 999px;
+  box-shadow: 0 10px 40px #0007;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.notice:empty {
+  padding: 0;
+  border: 0;
+}
+.noticeOn {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+.tourBadge {
+  position: absolute;
+  z-index: 8;
+  top: 96px;
+  right: 22px;
+  margin: 0;
+  color: #9ff0d8;
+  font: 700 10px monospace;
+  letter-spacing: 0.12em;
+  animation: tourPulse 1.6s ease-in-out infinite;
+}
+@keyframes tourPulse {
+  50% { opacity: 0.35; }
+}
+.refreshed {
+  margin: 6px 0 0;
+  color: #8fb3a6;
+  font: 10px monospace;
+  text-align: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .notice { transition: none; }
+  .tourBadge { animation: none; }
+}
+@media (max-width: 720px) {
+  .notice { top: 150px; }
+}

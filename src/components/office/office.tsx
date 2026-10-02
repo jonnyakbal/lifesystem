@@ -83,6 +83,15 @@ export default function Office() {
   const [agentPanel, setAgentPanel] = useState(false);
   const [destinationId, setDestinationId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  // Every control answers with a short, polite announcement (visible + aria-live).
+  const [notice, setNotice] = useState("");
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  function announce(text: string) {
+    setNotice(text);
+    clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(""), 3500);
+  }
+  useEffect(() => () => clearTimeout(noticeTimer.current), []);
   const flight = useFlightData(true);
   const allDestinations = useMemo(
     () => destinations(flight.data),
@@ -137,7 +146,9 @@ export default function Office() {
       .find((button) => button.getAttribute("aria-label") === label)
       ?.focus();
   }
+  const selectAgentRef = useRef<(id: AgentId) => void>(() => {});
   function selectAgent(id: AgentId) {
+    announce(`${agentNames[id] || id} em foco. Converse pelo painel de comando.`);
     setMapMode(scene);
     setAgentPanel(true);
     setStationView(true);
@@ -147,6 +158,24 @@ export default function Office() {
     setLine("");
     setTour(false);
   }
+  useEffect(() => {
+    selectAgentRef.current = selectAgent;
+  });
+  // Keys 1–6 focus a crew member, like picking a unit in a game; typing is never hijacked.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.altKey || event.ctrlKey || event.metaKey) return;
+      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      const index = Number(event.key) - 1;
+      if (Number.isInteger(index) && index >= 0 && index < crew.length) {
+        event.preventDefault();
+        selectAgentRef.current(crew[index].id);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   function sceneFailure() {
     setScene(false);
     setExpanded(false);
@@ -412,7 +441,11 @@ export default function Office() {
                     setTour(false);
                     setDestinationId(null);
                     setAgentPanel(false);
-                    setStationView(false);
+                    announce(
+                      stationView
+                        ? "Câmera de volta à visão geral da estação."
+                        : "Câmera de volta à visão geral do universo.",
+                    );
                   }}
                 >
                   Visão geral
@@ -420,19 +453,53 @@ export default function Office() {
                 <button
                   aria-pressed={tour}
                   onClick={() => {
+                    if (!tour && !(motion && !paused)) {
+                      announce(
+                        paused
+                          ? "Retome as animações para iniciar o passeio orbital."
+                          : "Passeio indisponível: seu sistema pede menos movimento.",
+                      );
+                      return;
+                    }
                     setTour((v) => !v);
                     setFocus(0);
+                    setDestinationId(null);
+                    setAgentPanel(false);
+                    setReset((v) => v + 1);
+                    announce(
+                      tour
+                        ? "Passeio orbital encerrado."
+                        : "Passeio orbital iniciado. Arraste a cena para assumir o controle.",
+                    );
                   }}
                 >
-                  Passeio orbital
+                  {tour ? "Parar passeio" : "Passeio orbital"}
                 </button>
-                <button onClick={() => setPaused((v) => !v)}>
+                <button
+                  onClick={() => {
+                    setPaused((v) => !v);
+                    if (!paused) setTour(false);
+                    announce(paused ? "Animações retomadas." : "Animações pausadas.");
+                  }}
+                >
                   {paused ? "Retomar animações" : "Pausar animações"}
                 </button>
                 <button onClick={() => setExpanded((v) => !v)}>
                   {expanded ? "Sair da visão ampliada" : "Ampliar estação"}
                 </button>
               </div>
+              <p
+                className={`${stellar.notice} ${notice ? stellar.noticeOn : ""}`}
+                role="status"
+                aria-live="polite"
+              >
+                {notice}
+              </p>
+              {tour && (
+                <p className={stellar.tourBadge} aria-hidden="true">
+                  ● PASSEIO ORBITAL
+                </p>
+              )}
               <div className={stellar.viewport}>
                 {scene ? (
                   <SceneBoundary onFailure={sceneFailure}>
@@ -498,6 +565,11 @@ export default function Office() {
                       setFocus(0);
                       setDestinationId(null);
                       setAgentPanel(false);
+                      announce(
+                        meeting
+                          ? "Tripulação de volta aos postos."
+                          : "Tripulação reunida no centro da estação.",
+                      );
                     }}
                   >
                     <span>◎</span>
@@ -610,8 +682,8 @@ export default function Office() {
                       · {allDestinations.length} destinos no índice
                     </span>
                     <span>
-                      Selecione um destino · arraste para orbitar · role para
-                      aproximar
+                      Selecione um destino · teclas 1–6 escolhem a tripulação ·
+                      arraste para orbitar · role para aproximar
                     </span>
                   </div>
                 </>
@@ -669,7 +741,16 @@ export default function Office() {
                     >
                       Cumprimentar {profile.name}
                     </button>
-                    <button onClick={() => setAlternate((v) => !v)}>
+                    <button
+                      onClick={() => {
+                        setAlternate((v) => !v);
+                        announce(
+                          alternate
+                            ? "Órbita boreal ativada."
+                            : "Órbita âmbar ativada.",
+                        );
+                      }}
+                    >
                       Mudar órbita
                     </button>
                   </div>

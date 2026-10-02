@@ -108,7 +108,7 @@ function CameraRig({
       enableDamping={animate}
       dampingFactor={0.08}
       autoRotate={tour && animate}
-      autoRotateSpeed={0.35}
+      autoRotateSpeed={1.4}
       onStart={() => {
         flight.current = false;
       }}

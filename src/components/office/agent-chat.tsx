@@ -47,10 +47,16 @@ export function AgentChat({
         if (!stop) {
           setJobs(current => {
             const byId = new Map<string, ChatJob>(current.map(j => [j.id, j]));
+            let changed = false;
             for (const j of data.jobs as ChatJob[]) {
               const prior = byId.get(j.id);
-              if (!prior || j.updatedAt >= prior.updatedAt) byId.set(j.id, j);
+              if (!prior || j.updatedAt > prior.updatedAt) {
+                byId.set(j.id, j);
+                changed = true;
+              }
             }
+            // An unchanged poll keeps the same array, so nothing re-renders or scrolls.
+            if (!changed) return current;
             return [...byId.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt)).slice(-50);
           });
           if (
@@ -82,11 +88,22 @@ export function AgentChat({
       clearInterval(timer);
     };
   }, [agentId]);
+  // Follow new messages only while the reader is already at the end or just
+  // sent something; otherwise offer a jump button instead of stealing position.
+  const atEnd = useRef(true);
+  const justSent = useRef(false);
+  const [unseen, setUnseen] = useState(false);
+  function toEnd() {
+    history.current?.scrollTo({ top: history.current.scrollHeight, behavior: "instant" });
+    atEnd.current = true;
+    setUnseen(false);
+  }
   useEffect(() => {
-    history.current?.scrollTo({
-      top: history.current.scrollHeight,
-      behavior: "instant",
-    });
+    if (!jobs.length) return;
+    if (atEnd.current || justSent.current) {
+      justSent.current = false;
+      toEnd();
+    } else setUnseen(true);
   }, [jobs]);
   async function send() {
     if (sending || !draft.trim()) return;
@@ -96,6 +113,7 @@ export function AgentChat({
       text: draft.trim(),
     };
     pending.current = payload;
+    justSent.current = true;
     setSending(true);
     setError("");
     try {
@@ -144,6 +162,11 @@ export function AgentChat({
         ref={history}
         role="log"
         aria-label={`Histórico de ${name}`}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          if (atEnd.current) setUnseen(false);
+        }}
       >
         {!jobs.length && (
           <p className={styles.empty}>
@@ -179,6 +202,11 @@ export function AgentChat({
           </article>
         ))}
       </div>
+      {unseen && (
+        <button type="button" className={styles.jump} onClick={toEnd}>
+          Novas mensagens ↓
+        </button>
+      )}
       <form
         onSubmit={(e) => {
           e.preventDefault();
