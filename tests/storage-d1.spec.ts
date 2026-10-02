@@ -3,7 +3,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer, type Server } from 'node:http';
 import { mkdtemp, readdir, rm } from 'node:fs/promises';
 import type { AddressInfo } from 'node:net';
-import { createRequire } from 'node:module';
+import initSqlJs from 'sql.js';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { storage } from '../src/lib/storage';
@@ -21,10 +21,30 @@ let db: DatabaseSync;
 let base: string;
 const aiRequests: Record<string, unknown>[] = [];
 
-// node:sqlite ships with Node 22 but not with the pinned @types/node.
-type Statement = { all(...params: unknown[]): unknown[]; get(...params: unknown[]): unknown; run(...params: unknown[]): { changes: number | bigint } };
+// Real SQLite (sql.js, WebAssembly) so the suite also runs on the Node 20 CI.
+type Statement = { all(...params: unknown[]): unknown[]; get(...params: unknown[]): unknown; run(...params: unknown[]): { changes: number } };
 type DatabaseSync = { exec(sql: string): void; prepare(sql: string): Statement; close(): void };
-const { DatabaseSync } = createRequire(__filename)('node:sqlite') as { DatabaseSync: new (path: string) => DatabaseSync };
+async function openDatabase(): Promise<DatabaseSync> {
+  const SQL = await initSqlJs();
+  const raw = new SQL.Database();
+  const rows = (sql: string, params: unknown[]) => {
+    const statement = raw.prepare(sql);
+    statement.bind(params as never);
+    const out: Record<string, unknown>[] = [];
+    while (statement.step()) out.push(statement.getAsObject());
+    statement.free();
+    return out;
+  };
+  return {
+    exec: (sql) => { raw.exec(sql); },
+    close: () => raw.close(),
+    prepare: (sql) => ({
+      all: (...params) => rows(sql, params),
+      get: (...params) => rows(sql, params)[0],
+      run: (...params) => { raw.run(sql, params as never); return { changes: raw.getRowsModified() }; },
+    }),
+  };
+}
 
 function reply(res: import('node:http').ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { 'Content-Type': 'application/json' });
@@ -33,7 +53,7 @@ function reply(res: import('node:http').ServerResponse, status: number, body: un
 
 test.beforeAll(async () => {
   // One database for the file: the app creates its schema once per process.
-  db = new DatabaseSync(':memory:');
+  db = await openDatabase();
   server = createServer((req, res) => {
     let raw = '';
     req.on('data', chunk => { raw += chunk; });
