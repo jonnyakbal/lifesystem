@@ -885,7 +885,7 @@ export default function ConteudoPage() {
               key={s.id}
               onClick={() => setFilterStage(filterStage === s.id ? 'all' : s.id)}
               className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
+                'flex shrink-0 items-center gap-1.5 rounded-full border min-h-10 px-3 py-1.5 text-xs font-medium transition-all',
                 filterStage === s.id ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50'
               )}
             >

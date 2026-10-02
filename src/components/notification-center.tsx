@@ -167,7 +167,7 @@ export function NotificationCenter() {
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-7 w-7 shrink-0" aria-label="Abrir notificações">
+        <Button variant="ghost" size="icon" className="relative h-10 w-10 shrink-0" aria-label="Abrir notificações">
           <Bell className="h-3.5 w-3.5 text-muted-foreground" />
           <AnimatePresence>
             {unread.length > 0 && (

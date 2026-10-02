@@ -130,7 +130,7 @@ export default function ProfessionalPage() {
   return <main className="work-page mx-auto max-w-[1600px] px-4 pb-28 pt-6 lg:px-8">
     <WorkspaceHeading eyebrow="Profissional" title="Seu próximo movimento" description="Seus negócios por marca, o que fazer a seguir e o que espera a sua aprovação. Clientes e vendas ficam no Arco Leads." actions={<div className="flex flex-wrap gap-2"><a href={ARCO_LEADS} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium hover:bg-accent">Abrir Arco Leads (CRM)<ArrowUpRight className="ml-2 h-4 w-4" /></a><Button onClick={() => openEditor('context')}><Plus className="mr-2 h-4 w-4" />Adicionar projeto</Button></div>} />
     {error && <div role="alert" className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm">{error}<p className="mt-2 text-muted-foreground">Esta área exige sua sessão autenticada, inclusive para aprovar. <Link href="/login" className="text-primary underline">Entrar</Link></p><Button variant="outline" className="mt-3" onClick={() => void load()}>Tentar novamente</Button></div>}
-    <section className="mb-6 grid gap-3 sm:grid-cols-3" aria-label="Resumo profissional">
+    <section className="work-metrics mb-6" aria-label="Resumo profissional">
       <WorkspaceMetric label="Projetos" value={overview?.counts.projects || 0} detail="Com marca e objetivo associados" />
       <WorkspaceMetric label="Próximos passos" value={overview?.counts.works || 0} detail="Em aberto, seus ou de agentes" />
       <WorkspaceMetric label="Entregas para revisar" value={overview?.counts.awaitingReview || 0} detail="Preparadas para sua aprovação" />

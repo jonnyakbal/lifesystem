@@ -1212,3 +1212,9 @@ html.lenis, html.lenis body {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+/* Mobile: the copilot button floats over the bottom nav; leave room so the
+   last content of a page can always scroll clear of it. */
+@media (max-width: 1023px) {
+  .workspace-main { padding-bottom: calc(env(safe-area-inset-bottom) + 9rem); }
+}

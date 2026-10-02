@@ -814,3 +814,9 @@
   font-size: 10px;
   opacity: 0.8;
 }
+
+/* Touch screens: every station control gets a comfortable target. */
+@media (pointer: coarse) {
+  .office button,
+  .office a { min-height: 40px; }
+}
