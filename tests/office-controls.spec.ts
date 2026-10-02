@@ -48,8 +48,12 @@ test("reduced motion explains why the orbital tour stays off", async ({ page }) 
 test("number keys pick crew members but never hijack typing", async ({ page }) => {
   await login(page);
   await page.goto("/escritorio");
-  await page.locator("body").press("3");
-  await expect(page.getByRole("region", { name: "Conversa com Sirius" })).toBeVisible();
+  // The shortcut exists once the page is hydrated; a key pressed earlier is
+  // simply not handled, so press again like a person would.
+  await expect(async () => {
+    await page.locator("body").press("3");
+    await expect(page.getByRole("region", { name: "Conversa com Sirius" })).toBeVisible({ timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
   await expect(notice(page)).toContainText("Sirius em foco");
   await page.getByLabel("Mensagem para Sirius").fill("prazo 2");
   await expect(page.getByLabel("Mensagem para Sirius")).toHaveValue("prazo 2");

@@ -6,6 +6,12 @@ Atualização: 02/10/2026. Este arquivo concentra o backlog atual. Planos e aná
 
 Decisão de Jonny: manter a hospedagem na Hostinger e adicionar banco e IA da Cloudflare. O código acrescenta `LIFESYSTEM_STORAGE=d1`, que guarda as coleções no D1 via REST com lease distribuído e gravação protegida por revisão. Acrescenta também o provedor Workers AI e os scripts de importação e exportação. O padrão continua sendo arquivo. Ledger de saúde, estação e uploads ficam fora do D1 nesta fase. A ativação depende de tokens e variáveis na Hostinger e da migração com backup; ainda não foi feita. Ver [Cloudflare D1 e Workers AI](cloudflare-d1-workers-ai.md).
 
+## Agenda v2, fase A — 02/10 (branch `claude/serene-bell-usq5xy`)
+
+- **Projeção somente leitura** `src/lib/agenda/{schemas,projection}.ts` (`AgendaItemV2`): prazo da tarefa como dia, bloco primário legado `legacy-task-block:<id>`, publicação de conteúdo (ponto sem duração inventada; arquivado e data inválida ficam de fora) e conta pela regra `dueDate || date`, com o fallback identificado e sem aparecer duas vezes.
+- **No Planejar:** filtros "Publicações" e "Contas", que ficam salvos no navegador. A auditoria achou que contas pendentes sem vencimento explícito sumiam da semana; agora aparecem com a marca "sem vencimento, pela data do lançamento".
+- **Ainda não feito:** fases B–F (blocos extras, agendas, espelhos, sync, worker) continuam só documentadas.
+
 ## Profissional simplificado — 02/10 (branch `claude/serene-bell-usq5xy`)
 
 Decisão de Jonny: o CRM é o Arco Leads e não é duplicado no LifeSystem. A tela `/profissional` passa de sete abas para três áreas em português simples:
