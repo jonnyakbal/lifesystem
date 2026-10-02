@@ -17,13 +17,13 @@ Pedido de Jonny: a estação deve parecer quase um jogo, sem botões mortos, com
    - teclas 1–6 escolhem a tripulação;
    - "Atualizar dados" mostra o horário da atualização e os filtros vazios se explicam.
 2. **Chat (E1):** o polling não puxa mais o leitor para o fim e há o botão "Novas mensagens". Respostas longas abrem recolhidas, com "Ler tudo" e "Recolher". "Copiar" copia só o texto recebido e avisa quando a área de transferência recusa. Marcação HTML na resposta continua sendo texto.
-5. **Procedência (E2):** a ficha mostra "referência local", "recebido da instalação", "aguardando confirmação de revisão" ou "sem sinal recente", com revisão e data de recebimento. Ela não fabrica horário de verificação. `catalogCurrent` continua igual para quem já o usa.
-3. **Missões e decisões:**
+3. **Procedência (E2):** a ficha mostra "referência local", "recebido da instalação", "aguardando confirmação de revisão" ou "sem sinal recente", com revisão e data de recebimento. Ela não fabrica horário de verificação. `catalogCurrent` continua igual para quem já o usa.
+4. **Missões e decisões:**
    - a "Central de missões" mostra os pedidos reais de todos os agentes (`GET /api/hermes/office/chat?agentId=all`, com sessão);
    - mostra também as propostas pendentes do Órion e do Sirius, com revisão exata e aprovação pelas mesmas rotas das telas Corpo e Profissional; `external_action` continua bloqueada;
    - robôs e barra da tripulação mostram "em missão", "missão na fila" e "decisão pendente";
    - uma fonte que falha nunca aparece como zero.
-4. **Voz:**
+5. **Voz:**
    - microfone por agente, pelo reconhecimento do navegador, opcional e com aviso de que o Chrome envia o áudio ao Google;
    - "Ouvir respostas" com voz do sistema e tom por agente; o robô aparece "♪ FALANDO";
    - a voz local no Hermes é [contrato proposto](contracts/office-voice-v1.md) para a sessão Hermes e não está implementada.
