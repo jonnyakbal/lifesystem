@@ -176,7 +176,9 @@ O LIFESYSTEM concentra a conexão OAuth e cifra o token no diretório de dados. 
 
 ## Storage Layer
 
-O `data/*.json` é a camada de dados. A interface `src/lib/storage/index.ts` abstrai CRUD, serializa escritas por coleção e grava via arquivo temporário com rename atômico.
+O `data/*.json` é a camada de dados padrão. A interface `src/lib/storage/index.ts` abstrai CRUD, serializa escritas por coleção e grava via arquivo temporário com rename atômico.
+
+Opcionalmente, `LIFESYSTEM_STORAGE=d1` guarda as coleções no Cloudflare D1 pela API REST, com a aplicação ainda hospedada no servidor próprio. Configuração, migração e limites em [Cloudflare D1 e Workers AI](docs/cloudflare-d1-workers-ai.md).
 
 Em produção, configure `LIFESYSTEM_DATA_DIR` para um diretório persistente fora do checkout/release do Git. Nunca use a pasta versionada do projeto como banco de produção: um novo deploy pode substituir os JSON runtime pelos dados do repositório.
 

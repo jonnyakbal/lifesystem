@@ -2,6 +2,10 @@
 
 Atualização: 02/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
 
+## Cloudflare híbrido — 02/10 (branch `claude/serene-bell-usq5xy`, não publicado)
+
+Decisão de Jonny: manter a hospedagem na Hostinger e adicionar banco e IA da Cloudflare. O código acrescenta `LIFESYSTEM_STORAGE=d1`, que guarda as coleções no D1 via REST com lease distribuído e gravação protegida por revisão. Acrescenta também o provedor Workers AI e os scripts de importação e exportação. O padrão continua sendo arquivo. Ledger de saúde, estação e uploads ficam fora do D1 nesta fase. A ativação depende de tokens e variáveis na Hostinger e da migração com backup; ainda não foi feita. Ver [Cloudflare D1 e Workers AI](cloudflare-d1-workers-ai.md).
+
 ## Entrada para Claude na nuvem — 02/10
 
 As pendências e instruções passam a ser publicadas por autorização de Jonny. Leia [continuidade cloud](CONTINUIDADE-CLAUDE-CLOUD.md) e [plano E1–E4 da estação](superpowers/plans/2026-10-02-office-lifesystem-followups.md). Conversa já publicada/testada: evolução de histórico/arquivamento, respostas longas, procedência das fichas e capacidades MCP continua pendente e não bloqueia a entrega anterior. Sessão LifeSystem cuida de código/UI/APIs; sessão Hermes pessoal cuida da VPS, configuração e consumidor. Não alterar Hermes Dona Maria ou Arco CRM.

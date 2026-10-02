@@ -3,8 +3,18 @@ import { randomUUID } from 'crypto';
 import path from 'path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { acquireCollectionLock, validateCollection, type CollectionLease } from './collection-lock';
+import { acquireD1Lease, readD1Collection, writeD1Collection } from './d1';
 
-const storageContext = new AsyncLocalStorage<{ dir: string; collection: string; lease: CollectionLease }>();
+// D1 holds the owner token and the revision read under the lease.
+type D1Session = { owner: string; rev?: string };
+const storageContext = new AsyncLocalStorage<{ dir: string; collection: string; lease: CollectionLease; d1?: D1Session }>();
+
+// Files stay the default; an unknown value fails closed instead of writing elsewhere.
+function isD1Backend() {
+  const backend = process.env.LIFESYSTEM_STORAGE || 'file';
+  if (backend !== 'file' && backend !== 'd1') throw new Error(`LIFESYSTEM_STORAGE inválido: ${backend}`);
+  return backend === 'd1';
+}
 
 function dataDir() {
   const context = storageContext.getStore();
@@ -42,6 +52,12 @@ async function ensureDataDir(dir = dataDir()) {
 
 async function readCollection<T>(name: string): Promise<T[]> {
   validateCollection(name);
+  if (isD1Backend()) {
+    const { items, rev } = await readD1Collection<T>(name);
+    const context = storageContext.getStore();
+    if (context?.d1 && context.collection === name) context.d1.rev = rev;
+    return items;
+  }
   const dir = dataDir();
   await ensureDataDir(dir);
   const filePath = path.join(dir, `${name}.json`);
@@ -60,6 +76,11 @@ async function writeCollection<T>(name: string, data: T[]): Promise<void> {
   const context = storageContext.getStore();
   if (!context || context.collection !== name) throw new Error('Escrita sem trava de coleção.');
   await context.lease.assertOwned();
+  if (context.d1) {
+    if (context.d1.rev === undefined) throw new Error('Escrita sem leitura da coleção sob a trava.');
+    context.d1.rev = await writeD1Collection(name, data, context.d1.owner, context.d1.rev);
+    return;
+  }
   await ensureDataDir(dir);
   const filePath = path.join(dir, `${name}.json`);
   const tempPath = path.join(dir, `.${name}.${randomUUID()}.tmp`);
@@ -83,10 +104,14 @@ async function writeCollection<T>(name: string, data: T[]): Promise<void> {
 
 async function withCollectionLock<T>(collection: string, operation: () => Promise<T>): Promise<T> {
   validateCollection(collection);
-  const requestedDir = dataDir();
-  await ensureDataDir(requestedDir);
-  const dir = await fs.realpath(requestedDir);
-  const key = path.join(dir, `${collection}.json`);
+  const d1 = isD1Backend();
+  let dir = '';
+  if (!d1) {
+    const requestedDir = dataDir();
+    await ensureDataDir(requestedDir);
+    dir = await fs.realpath(requestedDir);
+  }
+  const key = d1 ? `d1:${collection}` : path.join(dir, `${collection}.json`);
   const previous = collectionLocks.get(key) || Promise.resolve();
   let release!: () => void;
   const current = new Promise<void>((resolve) => { release = resolve; });
@@ -94,6 +119,11 @@ async function withCollectionLock<T>(collection: string, operation: () => Promis
   collectionLocks.set(key, queued);
   await previous;
   try {
+    if (d1) {
+      const lease = await acquireD1Lease(collection);
+      try { return await storageContext.run({ dir, collection, lease, d1: { owner: lease.owner } }, operation); }
+      finally { await lease.release(); }
+    }
     const lease = await acquireCollectionLock(dir, collection);
     try { return await storageContext.run({ dir, collection, lease }, operation); }
     finally { await lease.release(); }

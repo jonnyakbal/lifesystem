@@ -18,7 +18,8 @@
 
 interface ProviderDef {
   name: string;
-  baseUrl: string;
+  // A function when the URL depends on env (Cloudflare's carries the account id).
+  baseUrl: string | (() => string | undefined);
   keyEnv: string;
   modelsEnv: string;
   defaultModels: string[];
@@ -61,6 +62,26 @@ const PROVIDERS: ProviderDef[] = [
     modelsEnv: 'AI_MISTRAL_MODELS',
     defaultModels: ['mistral-small-latest'],
   },
+  {
+    // Workers AI through its OpenAI-compatible endpoint. Needs
+    // CLOUDFLARE_ACCOUNT_ID plus a token with Account > Workers AI > Read;
+    // the free allocation is a daily neuron budget, so it also 429s when spent.
+    name: 'cloudflare',
+    baseUrl: () => {
+      const account = process.env.CLOUDFLARE_ACCOUNT_ID;
+      if (!account) return undefined;
+      const api = process.env.CLOUDFLARE_API_BASE || 'https://api.cloudflare.com/client/v4';
+      return `${api}/accounts/${encodeURIComponent(account)}/ai/v1/chat/completions`;
+    },
+    keyEnv: 'AI_CLOUDFLARE_API_KEY',
+    modelsEnv: 'AI_CLOUDFLARE_MODELS',
+    // From the Workers AI catalog (2026-10-02). Non-reasoning models first:
+    // they answer within a tight max_tokens budget.
+    defaultModels: [
+      '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+      '@cf/mistralai/mistral-small-3.1-24b-instruct',
+    ],
+  },
 ];
 
 // Back-compat: the original single-provider env vars still work as a
@@ -77,8 +98,14 @@ function allProviders(): ProviderDef[] {
   return [LEGACY_PROVIDER, ...PROVIDERS];
 }
 
+function providerUrl(p: ProviderDef): string | undefined {
+  return typeof p.baseUrl === 'function' ? p.baseUrl() : p.baseUrl;
+}
+
 function providerKey(p: ProviderDef): string | undefined {
   if (p.name === 'legacy') return process.env.AI_API_KEY || process.env.OPENCODE_API_KEY;
+  // A key without its URL (missing account id) leaves the provider unconfigured.
+  if (!providerUrl(p)) return undefined;
   return process.env[p.keyEnv];
 }
 
@@ -145,7 +172,7 @@ async function callModel(
   if (opts.system) messages.push({ role: 'system', content: opts.system });
   messages.push({ role: 'user', content: prompt });
 
-  const res = await fetch(provider.baseUrl, {
+  const res = await fetch(providerUrl(provider)!, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -157,7 +184,7 @@ async function callModel(
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || `Erro ${res.status} de ${provider.name} (${model}).`);
+    throw new Error(data.error?.message || data.errors?.[0]?.message || `Erro ${res.status} de ${provider.name} (${model}).`);
   }
   const text = data.choices?.[0]?.message?.content;
   if (!text) throw new Error(`${provider.name} (${model}) devolveu uma resposta vazia.`);
@@ -230,7 +257,7 @@ async function callChatModel(
     body.tool_choice = 'auto';
   }
 
-  const res = await fetch(provider.baseUrl, {
+  const res = await fetch(providerUrl(provider)!, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -242,7 +269,7 @@ async function callChatModel(
 
   const data = await res.json();
   if (!res.ok) {
-    throw new Error(data.error?.message || `Erro ${res.status} de ${provider.name} (${model}).`);
+    throw new Error(data.error?.message || data.errors?.[0]?.message || `Erro ${res.status} de ${provider.name} (${model}).`);
   }
   const message = data.choices?.[0]?.message;
   if (!message) throw new Error(`${provider.name} (${model}) devolveu uma resposta vazia.`);
