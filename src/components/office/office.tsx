@@ -18,6 +18,8 @@ import styles from "./office.module.css";
 import { crew } from "./orbital-model";
 import { destinations, useFlightData, type Destination } from "./stellar-data";
 import { DestinationPanel, StarDirectory } from "./stellar-panel";
+import { activityByAgent, useMissionBoard } from "./missions";
+import { MissionsPanel } from "./missions-panel";
 import stellar from "./stellar.module.css";
 const Scene = dynamic(() => import("./scene"), {
   ssr: false,
@@ -93,6 +95,26 @@ export default function Office() {
   }
   useEffect(() => () => clearTimeout(noticeTimer.current), []);
   const flight = useFlightData(true);
+  const missions = useMissionBoard(true);
+  const activity = useMemo(() => activityByAgent(missions.board), [missions.board]);
+  const [missionsOpen, setMissionsOpen] = useState(false);
+  const waitingDecisions = missions.board.decisions.filter((d) => !d.approved).length;
+  const activeMissions = Object.values(activity).reduce((sum, a) => sum + (a?.active || 0), 0);
+  // Game-like cues: a new decision or a finished mission is announced once.
+  const seenBoard = useRef<{ decisions: Set<string>; done: Set<string> } | null>(null);
+  useEffect(() => {
+    const { board } = missions;
+    if (!board.loadedAt) return;
+    const decisions = new Set(board.decisions.filter((d) => !d.approved).map((d) => d.key));
+    const done = new Set(board.jobs.filter((j) => j.status === "completed").map((j) => j.id));
+    const prior = seenBoard.current;
+    seenBoard.current = { decisions, done };
+    if (!prior) return;
+    const fresh = board.decisions.find((d) => !d.approved && !prior.decisions.has(d.key));
+    const finished = board.jobs.find((j) => j.status === "completed" && !prior.done.has(j.id));
+    if (fresh) announce(`${agentNames[fresh.agentId]} pede sua decisão: ${fresh.title}.`);
+    else if (finished) announce(`${agentNames[finished.agentId]} concluiu uma missão.`);
+  }, [missions]);
   const allDestinations = useMemo(
     () => destinations(flight.data),
     [flight.data],
@@ -131,6 +153,7 @@ export default function Office() {
   const destination = allDestinations.find((n) => n.id === destinationId);
   const canvasWrap = useRef<HTMLDivElement>(null);
   function selectDestination(node: Destination) {
+    setMissionsOpen(false);
     setDestinationId(node.id);
     setAgentPanel(false);
     setStationView(false);
@@ -150,6 +173,7 @@ export default function Office() {
   function selectAgent(id: AgentId) {
     announce(`${agentNames[id] || id} em foco. Converse pelo painel de comando.`);
     setMapMode(scene);
+    setMissionsOpen(false);
     setAgentPanel(true);
     setStationView(true);
     setDestinationId(null);
@@ -484,6 +508,25 @@ export default function Office() {
                 >
                   {paused ? "Retomar animações" : "Pausar animações"}
                 </button>
+                {mapMode && (
+                  <button
+                    aria-pressed={missionsOpen}
+                    aria-label={`Missões: ${activeMissions} em andamento, ${waitingDecisions} aguardando decisão`}
+                    onClick={() => {
+                      setMissionsOpen((v) => !v);
+                      setAgentPanel(false);
+                      setDestinationId(null);
+                    }}
+                  >
+                    Missões
+                    {activeMissions > 0 && (
+                      <span className={stellar.hudBadge} data-kind="active">{activeMissions}</span>
+                    )}
+                    {waitingDecisions > 0 && (
+                      <span className={stellar.hudBadge}>!{waitingDecisions}</span>
+                    )}
+                  </button>
+                )}
                 <button onClick={() => setExpanded((v) => !v)}>
                   {expanded ? "Sair da visão ampliada" : "Ampliar estação"}
                 </button>
@@ -506,6 +549,7 @@ export default function Office() {
                     <Scene
                       reset={reset}
                       agents={view.agents}
+                      activity={activity}
                       selected={selected}
                       onSelect={selectAgent}
                       animate={motion && visible && inView && !paused}
@@ -552,8 +596,19 @@ export default function Office() {
                         }
                       >
                         <span>{c.name[0]}</span>
-                        <strong>{c.name}</strong>
-                        <small>{stateLabels[live.state]}</small>
+                        <strong>
+                          {c.name}
+                          {(activity[c.id]?.decisions || 0) > 0 && (
+                            <span className={stellar.hudBadge} aria-label="decisão pendente">!</span>
+                          )}
+                        </strong>
+                        <small>
+                          {activity[c.id]?.working
+                            ? "Em missão"
+                            : activity[c.id]?.active
+                              ? "Missão na fila"
+                              : stateLabels[live.state]}
+                        </small>
                       </button>
                     );
                   })}
@@ -577,6 +632,18 @@ export default function Office() {
                     <small>Animação de ambiente</small>
                   </button>
                 </nav>
+              )}
+              {mapMode && missionsOpen && (
+                <MissionsPanel
+                  board={missions.board}
+                  names={agentNames}
+                  onClose={() => setMissionsOpen(false)}
+                  onOpenAgent={selectAgent}
+                  onDecided={(text) => {
+                    announce(text);
+                    void missions.refresh();
+                  }}
+                />
               )}
               {mapMode && agentPanel && !destination && (
                 <section

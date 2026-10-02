@@ -68,6 +68,15 @@ export async function readChats(installation: string, agent: AgentId) {
     .slice(-50)
     .map(publicJob);
 }
+/** Mission board: each agent's latest 50, the same public projection as readChats. */
+export async function readAllChats(installation: string) {
+  const data = await readOffice(installation);
+  expire(data);
+  const chats = data.chats || [];
+  return agentIds.flatMap((agent) =>
+    chats.filter((j) => j.agentId === agent).slice(-50).map(publicJob),
+  );
+}
 export async function submitChat(installation: string, raw: unknown) {
   const value = input.parse(raw);
   return transaction(installation, (data) => {

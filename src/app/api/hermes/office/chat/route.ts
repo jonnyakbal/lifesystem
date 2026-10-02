@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isValidSessionToken, SESSION_COOKIE } from "@/lib/auth";
 import { installation, limitedJson } from "@/lib/office/auth";
-import { readChats, submitChat } from "@/lib/office/chat-store";
+import { readAllChats, readChats, submitChat } from "@/lib/office/chat-store";
 import { agentIds, type AgentId } from "@/lib/office/schema";
 import { consumeRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
@@ -14,7 +14,20 @@ export async function GET(r: NextRequest) {
       { error: "Faça login para conversar." },
       { status: 401 },
     );
-  const id = r.nextUrl.searchParams.get("agentId") as AgentId;
+  const id = r.nextUrl.searchParams.get("agentId") as AgentId | "all";
+  if (id === "all") {
+    try {
+      return NextResponse.json(
+        { jobs: await readAllChats(installation()) },
+        { headers: { "Cache-Control": "private, no-store" } },
+      );
+    } catch {
+      return NextResponse.json(
+        { error: "Não foi possível ler as missões." },
+        { status: 503 },
+      );
+    }
+  }
   if (!agentIds.includes(id))
     return NextResponse.json({ error: "Agente inválido." }, { status: 400 });
   try {

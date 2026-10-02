@@ -9,6 +9,7 @@ import type { AgentPresence } from "@/lib/office/view";
 import { crew, stationPoint } from "./orbital-model";
 import { OrbitalWorld, Space } from "./orbital-world";
 import { OrbitalRobot } from "./orbital-robot";
+import type { AgentActivity } from "./missions";
 import { StellarWorld } from "./stellar-world";
 import type { Destination } from "./stellar-data";
 function ContextGuard({ onFailure }: { onFailure: () => void }) {
@@ -117,6 +118,7 @@ function CameraRig({
 }
 export default function Scene({
   agents,
+  activity = {},
   selected,
   onSelect,
   animate,
@@ -134,6 +136,7 @@ export default function Scene({
   onSelectDestination = () => {},
 }: {
   agents: AgentPresence[];
+  activity?: Partial<Record<AgentId, AgentActivity>>;
   selected: AgentId;
   onSelect: (id: AgentId) => void;
   animate: boolean;
@@ -193,6 +196,7 @@ export default function Scene({
             meeting={meeting}
             greeting={greeting}
             presence={agents.find((a) => a.id === c.id)!}
+            activity={activity[c.id]}
           />
         ))}
       </group>

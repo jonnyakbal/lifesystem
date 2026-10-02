@@ -5,6 +5,7 @@ import { Group, MathUtils } from "three";
 import type { AgentPresence } from "@/lib/office/view";
 import { crew, robotPose, stationPoint } from "./orbital-model";
 import { Panel, Ring, Orb, Tag } from "./orbital-parts";
+import type { AgentActivity } from "./missions";
 export function OrbitalRobot({
   index,
   selected,
@@ -13,6 +14,7 @@ export function OrbitalRobot({
   meeting,
   greeting,
   presence,
+  activity,
 }: {
   index: number;
   selected: boolean;
@@ -21,6 +23,7 @@ export function OrbitalRobot({
   meeting: boolean;
   greeting: number;
   presence: AgentPresence;
+  activity?: AgentActivity;
 }) {
   const spec = crew[index],
     color = spec.accent;
@@ -32,7 +35,10 @@ export function OrbitalRobot({
   const time = useRef(0),
     lastGreeting = useRef(greeting),
     waveUntil = useRef(0);
-  const working = presence.state === "working";
+  // Office missions count as work too, so the crew visibly acts on real requests.
+  const working = presence.state === "working" || Boolean(activity?.working);
+  const deciding = (activity?.decisions || 0) > 0;
+  const beacon = useRef<Group>(null);
   useFrame((_, dt) => {
     if (!root.current) return;
     const step = Math.min(dt, 0.05);
@@ -103,6 +109,12 @@ export function OrbitalRobot({
         : 0;
       right.current.rotation.z =
         animate && t < waveUntil.current ? -2 + Math.sin(t * 10) * 0.3 : -0.1;
+    }
+    if (beacon.current) {
+      beacon.current.position.y = (index === 0 ? 2.85 : 2.65) + (animate ? Math.sin(t * 3 + index) * 0.07 : 0);
+      beacon.current.rotation.y = animate ? t * 1.6 : 0;
+      const pulse = animate ? 1 + Math.sin(t * 5) * 0.12 : 1;
+      beacon.current.scale.setScalar(pulse);
     }
     if (legs.current)
       legs.current.rotation.z = animate && moving ? Math.sin(t * 9) * 0.06 : 0;
@@ -341,9 +353,28 @@ export function OrbitalRobot({
           rounded
         />
       )}
+      {(deciding || working || (activity?.active || 0) > 0) && (
+        <group ref={beacon} position={[0, index === 0 ? 2.85 : 2.65, 0]}>
+          <Orb
+            radius={deciding ? 0.24 : 0.17}
+            color={deciding ? "#e1b450" : working ? "#7fd8c8" : "#5f8fa3"}
+            glow={deciding ? 2.4 : 1.4}
+          />
+        </group>
+      )}
       <Tag
         text={spec.name}
-        sub={selected ? spec.specialty : spec.code}
+        sub={
+          deciding
+            ? "! DECISÃO PENDENTE"
+            : working
+              ? "● EM MISSÃO"
+              : activity?.active
+                ? "○ MISSÃO NA FILA"
+                : selected
+                  ? spec.specialty
+                  : spec.code
+        }
         color={color}
         position={[0, index === 0 ? 2.3 : 2.12, 0]}
         width={selected ? 1.85 : 1.55}

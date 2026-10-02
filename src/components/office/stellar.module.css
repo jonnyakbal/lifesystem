@@ -673,3 +673,197 @@
 @media (max-width: 720px) {
   .notice { top: 150px; }
 }
+/* Mission board: real chat jobs and owner decisions, as a game HUD. */
+.missions {
+  position: absolute;
+  z-index: 8;
+  top: 133px;
+  right: 22px;
+  bottom: 140px;
+  width: 380px;
+  overflow-y: auto;
+  padding: 16px 18px;
+  color: #d6e5ed;
+  background: #0b1723f5;
+  border: 1px solid #66869640;
+  border-radius: 12px;
+  scrollbar-width: thin;
+}
+.missions header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.missions header strong {
+  font-size: 16px;
+}
+.missions h4 {
+  margin: 16px 0 8px;
+  color: #8fb3c2;
+  font: 700 10px monospace;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.missions ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.missions li:not(.decision) > button,
+.decision {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  color: inherit;
+  text-align: left;
+  background: #132634;
+  border: 1px solid #2c4757;
+  border-radius: 10px;
+}
+.missions li:not(.decision) > button:hover,
+.missions li:not(.decision) > button:focus-visible {
+  border-color: #7fd8c8;
+}
+.decision {
+  border-color: #c9a24a88;
+  box-shadow: inset 3px 0 0 #e1b450;
+}
+.decision button,
+.missions header button,
+.reviewActions button {
+  justify-self: start;
+  margin-top: 6px;
+  padding: 6px 12px;
+  color: #10202b;
+  font-weight: 700;
+  font-size: 12px;
+  background: #e1b450;
+  border: 0;
+  border-radius: 999px;
+}
+.missions header button {
+  margin: 0;
+  color: #d6e5ed;
+  background: transparent;
+  border: 1px solid #66869660;
+}
+.missionAgent {
+  color: #9ff0d8;
+  font: 700 10px monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.missionText {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 13px;
+  line-height: 1.35;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow-wrap: anywhere;
+}
+.missions small {
+  color: #9db4c0;
+  font-size: 11px;
+}
+.missions small[data-state="running"],
+.missions small[data-state="claimed"] {
+  color: #9ff0d8;
+}
+.missions small[data-state="failed"],
+.missions small[data-state="interrupted"] {
+  color: #f0a58f;
+}
+.missionEmpty {
+  margin: 0;
+  color: #9db4c0;
+  font-size: 12px;
+}
+.missionError {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  color: #ffd9c9;
+  font-size: 12px;
+  background: #4a1f1a88;
+  border-radius: 8px;
+}
+.reviewBackdrop {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: #02070dcc;
+}
+.review {
+  width: min(560px, 100%);
+  max-height: 85dvh;
+  overflow-y: auto;
+  padding: 22px;
+  color: #dce9ee;
+  background: #0f1e2b;
+  border: 1px solid #c9a24a88;
+  border-radius: 14px;
+}
+.review strong {
+  font-size: 18px;
+}
+.review p {
+  color: #b5c8d2;
+  font-size: 13px;
+}
+.review pre {
+  max-height: 300px;
+  overflow: auto;
+  padding: 12px;
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: #071019;
+  border-radius: 8px;
+}
+.reviewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+.reviewActions button:first-child {
+  color: #d6e5ed;
+  background: transparent;
+  border: 1px solid #66869660;
+}
+.reviewActions button:disabled {
+  opacity: 0.5;
+}
+.hudBadge {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 6px;
+  padding: 0 5px;
+  place-items: center;
+  color: #10202b;
+  font: 700 10px/1 monospace;
+  background: #e1b450;
+  border-radius: 999px;
+}
+.hudBadge[data-kind="active"] {
+  background: #7fd8c8;
+}
+@media (max-width: 1150px) {
+  .missions { top: 183px; right: 14px; width: 300px; }
+}
+@media (max-width: 700px) {
+  .missions {
+    position: relative;
+    inset: auto;
+    width: auto;
+    max-height: 560px;
+    margin: 0 12px 14px;
+  }
+}
