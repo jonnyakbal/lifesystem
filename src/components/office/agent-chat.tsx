@@ -240,29 +240,71 @@ export function AgentChat({
       if (alive.current) setSending(false);
     }
   }
-  return (
-    <section className={styles.chat} aria-label={`Conversa com ${name}`}>
-      <header>
-        <h3>Conversar com {name}</h3>
-        <small>Conversa própria do escritório</small>
-      </header>
-      <div
-        className={styles.history}
-        ref={history}
-        role="log"
-        aria-label={`Histórico de ${name}`}
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
-          if (atEnd.current) setUnseen(false);
-        }}
-      >
-        {!jobs.length && (
-          <p className={styles.empty}>
-            O que vamos avançar? Envie seu pedido aqui.
-          </p>
-        )}
-        {jobs.map((j) => (
+  // E3: older and archived pages come from the history API, newest first.
+  const [older, setOlder] = useState<ChatJob[]>([]);
+  const [olderCursor, setOlderCursor] = useState<string | null>(null);
+  const [canLoadOlder, setCanLoadOlder] = useState(false);
+  const [archivedView, setArchivedView] = useState(false);
+  const [archived, setArchived] = useState<ChatJob[]>([]);
+  const [archivedCursor, setArchivedCursor] = useState<string | null>(null);
+  const [archivedCount, setArchivedCount] = useState(0);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const cursorFor = (job: ChatJob, isArchived: boolean) =>
+    btoa(JSON.stringify({ t: job.createdAt, id: job.id, a: agentId, ar: isArchived }))
+      .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  async function page(isArchived: boolean, before?: string) {
+    const query = new URLSearchParams({ agentId, archived: String(isArchived), limit: "20", ...(before ? { before } : {}) });
+    const r = await fetch(`/api/hermes/office/chat/history?${query}`, { cache: "no-store" });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(data.error || "Histórico indisponível.");
+    return data as { jobs: ChatJob[]; nextCursor: string | null; activeCount: number; archivedCount: number };
+  }
+  useEffect(() => {
+    let stop = false;
+    // Counts only: tells whether older or archived conversations exist.
+    page(false, undefined)
+      .then((data) => {
+        if (stop) return;
+        setCanLoadOlder(data.activeCount > 50);
+        setArchivedCount(data.archivedCount);
+      })
+      .catch(() => undefined);
+    return () => {
+      stop = true;
+    };
+    // page closes over agentId only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId]);
+  async function loadOlder() {
+    const oldest = older[0] || jobs[0];
+    if (!oldest) return;
+    setLoadingOlder(true);
+    try {
+      const data = await page(false, olderCursor || cursorFor(oldest, false));
+      const shown = new Set([...older, ...jobs].map((j) => j.id));
+      setOlder((current) => [...data.jobs.filter((j) => !shown.has(j.id)).reverse(), ...current]);
+      setOlderCursor(data.nextCursor);
+      setCanLoadOlder(Boolean(data.nextCursor));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Histórico indisponível.");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+  async function loadArchived(before?: string) {
+    setLoadingOlder(true);
+    try {
+      const data = await page(true, before);
+      setArchived((current) => [...(before ? current : []), ...data.jobs]);
+      setArchivedCursor(data.nextCursor);
+      setArchivedCount(data.archivedCount);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Arquivo indisponível.");
+    } finally {
+      setLoadingOlder(false);
+    }
+  }
+  const renderJob = (j: ChatJob) => (
           <article key={j.id}>
             <div className={styles.user}>
               <small>
@@ -328,7 +370,66 @@ export function AgentChat({
               )}
             </div>
           </article>
-        ))}
+  );
+  return (
+    <section className={styles.chat} aria-label={`Conversa com ${name}`}>
+      <header>
+        <h3>Conversar com {name}</h3>
+        <small>Conversa própria do escritório</small>
+        {archivedCount > 0 && (
+          <button
+            type="button"
+            className={styles.more}
+            aria-pressed={archivedView}
+            onClick={() => {
+              const next = !archivedView;
+              setArchivedView(next);
+              if (next) void loadArchived();
+            }}
+          >
+            {archivedView ? "Voltar à conversa" : `Ver arquivadas (${archivedCount})`}
+          </button>
+        )}
+      </header>
+      <div
+        className={styles.history}
+        ref={history}
+        role="log"
+        aria-label={`Histórico de ${name}`}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          atEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+          if (atEnd.current) setUnseen(false);
+        }}
+      >
+        {!jobs.length && (
+          <p className={styles.empty}>
+            O que vamos avançar? Envie seu pedido aqui.
+          </p>
+        )}
+        {(olderCursor !== null || canLoadOlder) && !archivedView && (
+          <button type="button" className={styles.more} disabled={loadingOlder} onClick={() => void loadOlder()}>
+            {loadingOlder ? "Carregando…" : "Carregar conversas anteriores"}
+          </button>
+        )}
+        {archivedView ? (
+          <>
+            <p className={styles.archiveNote} role="status">
+              Conversas arquivadas · somente leitura{archived.length ? "" : loadingOlder ? "…" : " · nenhuma ainda"}
+            </p>
+            {archived.map(renderJob)}
+            {archivedCursor && (
+              <button type="button" className={styles.more} disabled={loadingOlder} onClick={() => void loadArchived(archivedCursor)}>
+                Carregar mais arquivadas
+              </button>
+            )}
+          </>
+        ) : (
+          <>
+            {older.map(renderJob)}
+            {jobs.map(renderJob)}
+          </>
+        )}
       </div>
       {unseen && (
         <button type="button" className={styles.jump} onClick={toEnd}>

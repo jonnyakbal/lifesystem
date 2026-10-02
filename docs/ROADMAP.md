@@ -28,7 +28,15 @@ Pedido de Jonny: a estação deve parecer quase um jogo, sem botões mortos, com
    - "Ouvir respostas" com voz do sistema e tom por agente; o robô aparece "♪ FALANDO";
    - a voz local no Hermes é [contrato proposto](contracts/office-voice-v1.md) para a sessão Hermes e não está implementada.
 
-Pendentes da estação: E3 (histórico e arquivamento) e E4 (capacidades por contrato), além do feixe visual entre um agente e o destino de uma missão.
+6. **Histórico e arquivamento (E3):**
+   - `GET /api/hermes/office/chat/history` lista páginas estáveis por `(createdAt, id)`, ativas ou arquivadas, com cursor preso ao agente e ao tipo de histórico; aceita só sessão humana, nunca o token do publicador;
+   - `POST` com `op: "archive"` exige a prévia (`expectedRevision`) e um `requestId` idempotente;
+   - só conversas concluídas ou com falha são arquivadas, num segmento imutável `office-<hash>.archive-<id>.json`, que também entra nos backups de `*.json`;
+   - um índice leve preserva retry por `clientId`, a cota de 100 por 24 h e recibos tardios idênticos;
+   - fila, execução e interrompidos nunca são arquivados;
+   - na interface: "Carregar conversas anteriores", "Ver arquivadas" e manutenção com prévia e confirmação na Central de missões.
+
+Pendentes da estação: E4 (capacidades por contrato) e o feixe visual entre um agente e o destino de uma missão.
 
 ## Entrada para Claude na nuvem — 02/10
 

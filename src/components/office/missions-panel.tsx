@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AgentId, ChatJob } from "@/lib/office/schema";
 import { ACTIVE, approveDecision, type Decision, type MissionBoard } from "./missions";
 import s from "./stellar.module.css";
@@ -19,6 +19,98 @@ function since(iso: string, now: number) {
   if (minutes < 60) return `há ${minutes} min`;
   const hours = Math.round(minutes / 60);
   return hours < 24 ? `há ${hours} h` : `há ${Math.round(hours / 24)} d`;
+}
+
+type Preview = { eligible: number; activeCount: number; archivedCount: number; revision: number };
+const DAY = 86_400_000;
+
+async function fetchPreview(): Promise<{ before: string; data: Preview } | Error> {
+  const before = new Date(Date.now() - 30 * DAY).toISOString();
+  try {
+    const r = await fetch(`/api/hermes/office/chat/history?preview=1&before=${encodeURIComponent(before)}`, { cache: "no-store" });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) return new Error(data.error || "Prévia indisponível.");
+    return { before, data: data as Preview };
+  } catch {
+    return new Error("Prévia indisponível.");
+  }
+}
+
+/** Explicit, previewed archiving of finished conversations older than 30 days. */
+function HistoryMaintenance({ onDone }: { onDone: (text: string) => void }) {
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [cutoff, setCutoff] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  // One identity per previewed intent, so a retried click cannot archive twice.
+  const requestId = useRef<string>("");
+  const apply = useCallback((result: { before: string; data: Preview } | Error) => {
+    if (result instanceof Error) return setError(result.message);
+    requestId.current = crypto.randomUUID();
+    setCutoff(result.before);
+    setPreview(result.data);
+    setError("");
+  }, []);
+  useEffect(() => {
+    let stop = false;
+    fetchPreview().then((result) => !stop && apply(result));
+    return () => {
+      stop = true;
+    };
+  }, [apply]);
+  async function archive() {
+    if (!preview) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch("/api/hermes/office/chat/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ op: "archive", requestId: requestId.current, agentId: null, before: cutoff, expectedRevision: preview.revision }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(data.error || "Arquivamento recusado.");
+      setConfirming(false);
+      onDone(`${data.receipt.archivedCount} conversa(s) arquivada(s). Elas continuam disponíveis em "Ver arquivadas".`);
+      apply(await fetchPreview());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Arquivamento recusado.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <h4>Manutenção do histórico</h4>
+      {error && <p className={s.missionError} role="alert">{error}</p>}
+      {preview && (
+        <div className={s.maintenance}>
+          <p className={preview.activeCount >= 800 ? s.missionError : s.missionEmpty}>
+            Histórico ativo: {preview.activeCount} de 1000 · {preview.archivedCount} arquivada(s).
+            {preview.activeCount >= 800 && " Perto do limite: arquive conversas antigas para continuar enviando."}
+          </p>
+          {preview.eligible > 0 ? (
+            confirming ? (
+              <div className={s.reviewActions}>
+                <button disabled={busy} onClick={() => setConfirming(false)}>Cancelar</button>
+                <button disabled={busy} onClick={() => void archive()}>
+                  {busy ? "Arquivando…" : `Confirmar: arquivar ${preview.eligible}`}
+                </button>
+              </div>
+            ) : (
+              <button className={s.maintenanceButton} onClick={() => setConfirming(true)}>
+                Arquivar {preview.eligible} conversa(s) concluída(s) com mais de 30 dias
+              </button>
+            )
+          ) : (
+            <p className={s.missionEmpty}>Nenhuma conversa concluída com mais de 30 dias para arquivar.</p>
+          )}
+          <small>Pedidos na fila, em andamento ou interrompidos nunca são arquivados. Nada é apagado.</small>
+        </div>
+      )}
+    </>
+  );
 }
 
 export function MissionsPanel({
@@ -130,6 +222,8 @@ export function MissionsPanel({
         </>
       )}
       {!board.loadedAt && <p className={s.missionEmpty} role="status">Carregando missões…</p>}
+
+      <HistoryMaintenance onDone={onDecided} />
 
       {review && (
         <div className={s.reviewBackdrop}>

@@ -7,6 +7,7 @@ import {
   type OfficeData,
 } from "./schema";
 import { readOffice, transaction } from "./store";
+import { archivedJob, jobFingerprint, responseFingerprint } from "./chat-history";
 
 const input = z
   .object({
@@ -88,6 +89,13 @@ export async function submitChat(installation: string, raw: unknown) {
         throw new Error("Identificador já usado em outro pedido.");
       return publicJob(prior);
     }
+    // An uncertain send retried after maintenance still finds its original job.
+    const archived = data.archive?.index.find((j) => j.clientId === value.clientId);
+    if (archived) {
+      if (archived.fingerprint !== jobFingerprint(value.agentId, value.text))
+        throw new Error("Identificador já usado em outro pedido.");
+      return archivedJob(installation, archived);
+    }
     if (
       !data.snapshot ||
       Date.now() - Date.parse(data.snapshot.receivedAt) > 90000
@@ -99,11 +107,15 @@ export async function submitChat(installation: string, raw: unknown) {
       throw new Error("A fila está cheia. Aguarde um atendimento terminar.");
     if (chats.length >= 1000)
       throw new Error(
-        "Histórico cheio. Solicite manutenção antes de continuar.",
+        "Histórico cheio. Arquive conversas concluídas na Central de missões antes de continuar.",
       );
+    const recent = (j: { createdAt: string }) =>
+      Date.now() - Date.parse(j.createdAt) < 86400000;
+    // Archiving never resets the daily quota.
     if (
-      chats.filter((j) => Date.now() - Date.parse(j.createdAt) < 86400000)
-        .length >= 100
+      chats.filter(recent).length +
+        (data.archive?.index || []).filter(recent).length >=
+      100
     )
       throw new Error("Limite de cem pedidos em 24 horas atingido.");
     const job: ChatJob = {
@@ -139,7 +151,22 @@ export async function commandTransaction(installation: string, raw: unknown) {
       return { job: job || null };
     }
     const job = jobs.find((j) => j.id === value.id);
-    if (!job || job.claimSession !== (value.receiptSession || value.sessionId))
+    if (!job) {
+      // Only an identical terminal receipt is accepted for an archived job.
+      const entry = data.archive?.index.find((j) => j.id === value.id);
+      if (
+        !entry ||
+        entry.claimSession !== (value.receiptSession || value.sessionId)
+      )
+        throw new Error("Recibo de atendimento inválido.");
+      if (
+        entry.status === value.status &&
+        entry.responseFingerprint === responseFingerprint(value.response || null)
+      )
+        return { job: archivedJob(installation, entry) };
+      throw new Error("Atendimento já encerrado.");
+    }
+    if (job.claimSession !== (value.receiptSession || value.sessionId))
       throw new Error("Recibo de atendimento inválido.");
     if (value.status === "running" && job.claimSession !== value.sessionId)
       throw new Error("Execução de sessão antiga recusada.");
