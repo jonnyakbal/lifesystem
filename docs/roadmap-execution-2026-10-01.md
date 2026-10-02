@@ -1,5 +1,7 @@
 # Execução incremental do roadmap — 01/10/2026
 
+Registro da rodada de produtividade/confiabilidade, preservado como evidência histórica. O main avançou depois com conversa real no Escritório; estado atual, diferenças entre pilotos e sequência completa de pendências estão no [handoff para Claude](HANDOFF-CLAUDE.md). Parágrafos de CI “em observação” abaixo representam o momento do registro; o resultado posterior consta ao final e no recibo atualizado.
+
 Pedido: executar todas as pendências e expansões descritas no roadmap. Base isolada `b1cf1af`, incluindo o trabalho recente do Escritório; preservar o servidor pessoal e os dados existentes. Publicação posterior segue o canal GitHub/Hostinger e exige verificação da versão servida. Não modificar Hermes/Arco CRM nesta sessão; preparar e testar os contratos do LifeSystem. Reescrita pública do histórico somente depois de revisão da candidata concreta.
 
 - [x] CI: servidor de produção isolado, autenticação sintética coerente, estado de sessão e suíte completa sem mascarar falhas.

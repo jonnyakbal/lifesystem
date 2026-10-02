@@ -1,6 +1,22 @@
 # Roadmap e estado do LIFESYSTEM
 
-Atualização: 01/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
+Atualização: 02/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
+
+## Entrada para Claude na nuvem — 02/10
+
+As pendências e instruções passam a ser publicadas por autorização de Jonny. Leia [continuidade cloud](CONTINUIDADE-CLAUDE-CLOUD.md) e [plano E1–E4 da estação](superpowers/plans/2026-10-02-office-lifesystem-followups.md). Conversa já publicada/testada: evolução de histórico/arquivamento, respostas longas, procedência das fichas e capacidades MCP continua pendente e não bloqueia a entrega anterior. Sessão LifeSystem cuida de código/UI/APIs; sessão Hermes pessoal cuida da VPS, configuração e consumidor. Não alterar Hermes Dona Maria ou Arco CRM.
+
+O resumo técnico necessário do registro externo CONVERSA-ESCRITORIO.md foi internalizado na continuidade cloud; não depender do caminho local para essas tarefas. Evidências privadas, stash e runtime local não serão publicados, e sua ausência não bloqueia desenvolvimento/testes sintéticos das melhorias.
+
+## Continuidade atual para Claude
+
+Leia [o handoff completo](HANDOFF-CLAUDE.md) antes de executar: decisões do usuário, contratos MCP, critérios de aceite, evidências privadas e próximos passos estão consolidados nele. No início do repasse, main e origin/main estavam em `c42a2e5`; o [run 36928569715](https://github.com/jonnyakbal/lifesystem/actions/runs/36928569715) foi consultado pela API pública e estava concluído/success para esse HEAD. Isso certifica CI, não uma nova observação do deploy.
+
+A conversa real com agentes no Escritório foi integrada por `92db730`; o [recibo da estação](office-chat-plan.md) registra publicação Hostinger e respostas de Sirius/Hermes no navegador. Esse fluxo é separado de aplicar propostas health/professional por credenciais dedicadas e executar jobs profissionais: esses pilotos operacionais continuam pendentes. Preservar a implementação mais recente; worktrees antigas não são a base atual.
+
+Achado deste repasse: `src/lib/health/store.ts` ainda usa trava própria recuperada por idade, sem verificar dono/heartbeat. Investigar e reproduzir concorrência com operação longa antes de ampliar seu uso; não confundir a saúde com a trava geral reforçada. A candidata privada de saneamento baseada em `4ee5545` ficou desatualizada para o main atual e não deve ser aplicada ao remoto.
+
+Na retomada local, antes de novas features, reconciliar alterações preexistentes no worktree `lifesystem-orion-action-bridge`: snapshot privado de 16 arquivos preservado, com 10 diferentes de main. Uma diferença não prova trabalho faltante; comparar a base e a evolução atual antes de integrar ou arquivar. Na nuvem, a reconciliação permanece com a sessão local e não bloqueia entregas independentes a partir de main. Localização e instruções no handoff.
 
 ## Execução do roadmap — revisão posterior de 01/10
 
@@ -25,9 +41,10 @@ Os pilotos Órion/Sirius validam contratos SDK, aprovação humana e recibos com
 | MCP/Hermes | Escopos por identidade, validações compartilhadas, auditoria, heartbeat e recibos; relações/recorrência de tarefas compartilhadas com REST | Locks de coleção exigem escritores cooperantes no mesmo host; não substituem banco distribuído |
 | Saúde/Órion | Contrato 1.2, contexto/observações, propostas/aprovações/recibos e ponte de tarefas/Planejar | Credencial exclusiva e transporte no Hermes ainda precisam de ativação verificada |
 | Profissional/Sirius | Contrato incremental, propostas, aprovações e recibos no LifeSystem | Piloto de transporte real ainda não certificado; Hermes/Arco CRM não alterados |
+| Escritório | Estação 3D/lista, telemetria pessoal e conversa real por perfil com fila/recibo | Conversa e telemetria não equivalem a execução de jobs profissionais; desempenho real ainda merece aferição |
 | Interface | Navegação condensada, dock mobile, tema; marca pública coerente em login, metadados e PWA | Preferências privadas não são serializadas no manifesto |
 
-## Revisão atual: tarefas e preparação da ativação
+## Registro histórico: tarefas e preparação da ativação
 
 Em 01/10, o conjunto das sete visões de Tarefas foi publicado no código `8ce708d`. Hostinger confirmou **Concluído / Atual**, e a sessão autenticada pública abriu Foco e Carga. Foco oferece checklist, fila e conclusão explícita recuperável. Carga distribui prazos por dia/projeto/pilar e sinaliza sobreposições de blocos, com semana navegável e fila sem prazo. Não é estimativa de esforço nem disponibilidade livre. Tabela, Kanban e calendário permitem edição pelos contratos atuais; prazo com bloco passa por Planejar. Validação local: **68 testes aprovados (3.9m)**, tipos/build sem erros, lint 0 erros / 96 avisos existentes. Ver [registro de entrega](task-focus-load-delivery.md) e [recibo público](deploy-producao.md). Isso não certifica transporte Órion/Sirius nem resolve idempotência persistente de recorrências.
 
@@ -67,10 +84,15 @@ Na tentativa de publicação, `0adc054` passou na CI e falhou no Turbopack da Ho
 | Ordem | Pendência | Critério de conclusão |
 | --- | --- | --- |
 | P0 | Sanear histórico público e revisar documentação/imagens | [Auditoria de privacidade](privacidade-historico.md); autorizar reescrita após revisão da cópia preparada |
+| P1 | Reforçar a trava própria do ledger de saúde | Reproduzir operação ativa longa/recuperação concorrente e preservar exclusão mútua; não remover trava ativa somente por idade |
+| P1 | Conciliar o brief de saúde com a jornada de Planejar | Janela hoje fixa 08–20; definir regra compartilhada, atualizar contrato e testar dias/fuso/falhas sem inventar disponibilidade |
 | P1 | Ativar credenciais/transportes Órion e Sirius | Testar cada identidade dedicada, contrato, proposta/aprovação/recibo; sem chave genérica nem mudança em Hermes nesta sessão |
 | P1 | Manter verificação após cada release | Comparar SHA, recibo Hostinger e comportamento público; CI separada do deploy |
+| P1 | Estação E1–E4 | [Plano incremental](superpowers/plans/2026-10-02-office-lifesystem-followups.md): leitura de respostas, procedência, histórico/arquivamento e capacidades, sem quebrar consumidor publicado |
 | P2 | Ensaio operacional de backup privado real | Ferramenta e testes sintéticos concluídos; restaurar somente em destino isolado sem trocar runtime |
 | P3 | Expansões de agenda especificadas | Implementar fases de [contratos v2](agenda-expansion-contracts.md): múltiplos blocos/agendas, overlays e sync; nenhuma dessas expansões foi certificada em produção |
+
+Pedidos operacionais ainda sem certificação neste repasse: verificar cadastro/vínculos do edital LIC-SM 2027 antes de criar duplicatas; localizar a tarefa concluída por engano sem reabrir registros ao acaso; aferir acessibilidade/desempenho do Escritório. Detalhes, ordem e gates no [handoff](HANDOFF-CLAUDE.md).
 
 Não há motivo demonstrado nesta revisão para migrar o banco ou acrescentar multiusuário. O foco continua no ciclo existente.
 

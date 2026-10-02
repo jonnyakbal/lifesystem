@@ -1,5 +1,11 @@
 # Deploy de produção
 
+## Estado mais recente no repasse — 01/10/2026
+
+Main e origin/main observados em `c42a2e5b24ee915c744d4aa230695ea48dccff75`. A API pública do GitHub confirmou [run 36928569715](https://github.com/jonnyakbal/lifesystem/actions/runs/36928569715) concluído/success para esse SHA. A conversa da estação, integrada em `92db730`, tem [recibo próprio](office-chat-plan.md): Hostinger concluiu às 18:20 e Chrome mostrou respostas reais de Sirius e Hermes, sem alterar registros de negócio. Este repasse não reabriu a produção para certificar outro deploy.
+
+Os recibos abaixo preservam resultados das respectivas rodadas; contagens locais e afirmações de observação pendente não descrevem automaticamente o estado atual. A falha inicial de Chromium foi corrigida por `4ee5545` e a CI posterior passou. Próximos passos e limites estão no [handoff para Claude](HANDOFF-CLAUDE.md). Esta atualização é local, sem push/deploy.
+
 ## Recibo de produtividade e confiabilidade — 01/10/2026
 
 Código de aplicação `8328c67270527c7e424f464a7c25110e9c2d6846`, integrado sobre o Escritório `117ed3c` sem substituir o trabalho em andamento. Push normal confirmado em `origin/main`. A tabela autenticada de implantações da Hostinger mostrou esse SHA como **Concluído / Atual**, após a construção iniciada em 01/10 às 16:29:19.
@@ -8,7 +14,7 @@ Na aplicação pública autenticada, Carga apresentou **Jornada de trabalho**, *
 
 Validação local final no servidor de produção isolado: **352 passed (8.7m)**, zero retries; tipos, lint global com zero avisos e build Webpack passaram. Três testes do setup de autenticação passaram. Auditoria npm: zero vulnerabilidades. Testes de domínio verificam recorrência persistente, relações, concorrência de storage, fusos e restauração com dados sintéticos; a observação pública não substitui esses testes nem certifica transporte real dos agentes.
 
-CI GitHub dessa aplicação: [run 36914635779](https://github.com/jonnyakbal/lifesystem/actions/runs/36914635779). Tipos, lint e build concluíram; resultado integral remoto ainda em observação no momento deste registro. Deploy confirmado e CI são evidências separadas.
+CI GitHub dessa aplicação: [run 36914635779](https://github.com/jonnyakbal/lifesystem/actions/runs/36914635779). Tipos, lint e build concluíram; a execução terminou com falha de localização do Chromium, corrigida na rodada posterior. O [run 36917946053](https://github.com/jonnyakbal/lifesystem/actions/runs/36917946053) passou para `4ee5545`. Deploy confirmado e CI são evidências separadas.
 
 Detalhes: [execução](roadmap-execution-2026-10-01.md), [schemas e regras de tarefas](task-structure-capacity.md), [pilotos dos agentes](agent-pilot.md) e [preparação privada do histórico](roadmap-privacy-preparation.md). As expansões futuras de agenda estão especificadas, não implementadas. Publicação de documentação posterior não muda o código de aplicação certificado neste recibo.
 

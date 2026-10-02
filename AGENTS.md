@@ -8,6 +8,18 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Continuidade desta sessão — 01/10/2026
+
+Atualização de 02/10: Jonny autorizou publicar as pendências/documentação para Claude na nuvem. Comece por `docs/CONTINUIDADE-CLAUDE-CLOUD.md`; esta sessão cuida de código/UI/APIs LifeSystem, a outra da configuração/consumidor Hermes pessoal na VPS. Não alterar nenhuma instalação Hermes nem Arco CRM aqui. A conversa da estação já está publicada/testada; seguir o plano incremental, sem reinstalá-la. A restrição documental de não publicar no repasse anterior abaixo é histórica e não impede esta publicação expressamente solicitada; não amplia a autorização para reescrita pública ou mudanças de runtime.
+
+- Leia `docs/HANDOFF-CLAUDE.md` antes de implementar; ele consolida evidências, pendências, contratos e próximos passos. `docs/ROADMAP.md` mantém as prioridades; planos datados são registros históricos.
+- Confira HEAD, origin/main, alterações locais e worktrees antes de trabalhar. Preserve o trabalho concorrente do Escritório; não restaure main a uma branch antiga. Não descarte arquivos ignorados ao limpar worktrees.
+- O repasse de 01/10 foi documental e local; a atualização de 02/10 autoriza publicar esses documentos e o plano cloud. Isso não autoriza reescrita pública: ela exige autorização específica para referências, candidata e janela após revisão privada.
+- Não altere Hermes ou Arco CRM nesta continuidade sem nova autorização que mude explicitamente esse escopo. Nunca altere/reinicie a instalação Hermes empresarial Dona Maria. Consulte referências privadas somente quando necessárias e sem copiar seus dados para o Git.
+- Não consulte/imprima `.env`, tokens, credenciais, registros financeiros ou relatos pessoais reais durante QA. Testes e builds usam dados sintéticos e diretórios temporários; não reutilize o servidor pessoal.
+- Preserve os pedidos do usuário: título de tarefa abre detalhes, conclusão tem controle explícito e recuperação; prazo e dia planejado são a mesma data; Foco/Carga estão incluídos e Gantt está excluído; previsto financeiro não é pagamento realizado.
+- Toda entrega deve registrar comandos/resultados reais, nomes/schemas/escopos MCP afetados, aprovações/recibos e evidência de publicação separada da CI. Não marcar preparação, conversa ou telemetria como execução profissional certificada.
+
 ## Production deploy memory
 
 - Production deploys through Hostinger's native GitHub repository integration. A push to `main` triggers Hostinger's build and release.

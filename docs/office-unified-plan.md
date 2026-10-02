@@ -1,5 +1,7 @@
 # Estação única — 01/10/2026
 
+Registro histórico desta etapa. O limite de envio de ordens descrito abaixo foi ampliado posteriormente pela conversa explícita e persistente da estação; ler [office-chat-plan](office-chat-plan.md) e [handoff atual](HANDOFF-CLAUDE.md) antes de interpretar este plano como pendência. A animação/telemetria continua sem provar execução de negócio.
+
 Pedido aprovado: unificar escritório e mapa em uma experiência interativa de gestão.
 Preservar estética espacial sóbria, identidade dos agentes e confirmações reais de escrita.
 

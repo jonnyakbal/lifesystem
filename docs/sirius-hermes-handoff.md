@@ -12,7 +12,7 @@ Arco Labs prioriza geração de caixa por serviços; Arcopass e Ateliê Studio r
 
 ## Armazenamento e compatibilidade
 
-`professional-ledger.json` contém registros, versões, propostas, aprovações, jobs, recibos e histórico de IDs/atores. O serviço usa o lock e a gravação atômica existentes; não reescreve dados pessoais antigos para preencher contexto. O modelo JSON atual pressupõe **um processo de aplicação escritor**, assim como as coleções existentes. Para múltiplas réplicas escritoras é necessário storage transacional compartilhado.
+`professional-ledger.json` contém registros, versões, propostas, aprovações, jobs, recibos e histórico de IDs/atores. O serviço usa `storage.transact`, com lock de coleção entre processos cooperantes no mesmo host/disco e gravação atômica; não reescreve dados pessoais antigos para preencher contexto. Essa garantia foi reforçada na rodada de 01/10 e não se limita mais a um único processo escritor. Para escritores distribuídos em hosts/armazenamentos distintos, essa trava não é suficiente: avaliar storage transacional compartilhado. Ver [contrato de storage](storage-hardening.md). Não estender essa garantia a stores próprios de outros módulos sem inspecioná-los.
 
 Trabalhos profissionais projetam uma tarefa real com ID estável e vínculo `linkedTaskId`; pautas projetam um registro real de Conteúdo. Etapas em andamento são preservadas. Alteração concorrente pela tela normal exige releitura; conteúdo legado com o mesmo ID não é sobrescrito por uma nova associação. As projeções conservam metadados de versão/recuperação para reencontrar o mesmo registro após timeout. Não há migração destrutiva nem geração automática de recorrências.
 

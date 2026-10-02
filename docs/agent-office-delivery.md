@@ -1,5 +1,7 @@
 # Escritório 3D dos agentes
 
+Este arquivo registra a entrega inicial e sua ativação. A etapa seguinte acrescentou conversa explícita por perfil, fila persistente e respostas reais, com [plano/recibo próprio](office-chat-plan.md). Por isso, a descrição histórica abaixo de ações que apenas copiam texto não descreve toda a interface atual. A atualização de segurança Next e a CI posterior constam no [handoff](HANDOFF-CLAUDE.md); não repetir instalação/configuração de Hermes por seguir uma etapa histórica deste documento.
+
 Implementação na branch `feat/agent-office`, worktree `C:/dev/jonny/lifesystem-agent-office`; integrada em `main` pelos commits `ed6e9e7` e `1404e52`. A ponte foi instalada na VPS pessoal em 01/10/2026. **Conexão real confirmada** depois do cadastro de `HERMES_OFFICE_TOKEN` no ambiente do LifeSystem: catálogo e sinais periódicos entregues, fila vazia e sem erros recentes.
 
 ## Recibo de ativação pessoal — 01/10/2026

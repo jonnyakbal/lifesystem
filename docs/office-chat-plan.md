@@ -1,5 +1,7 @@
 # Conversa na estação — desenho e plano, 01/10/2026
 
+Conversa entregue e publicada. Em 02/10, Jonny definiu que código/UI/APIs LifeSystem ficam nesta sessão e configuração/consumidor Hermes pessoal na outra. Próximas melhorias estão no [plano E1–E4](superpowers/plans/2026-10-02-office-lifesystem-followups.md) e na [entrada para Claude na nuvem](CONTINUIDADE-CLAUDE-CLOUD.md): histórico/arquivamento, respostas longas, procedência e validação de capacidades. Esses itens futuros não reabrem a implementação da conversa concluída abaixo. Não alterar Hermes Dona Maria nem Arco CRM.
+
 Objetivo autorizado: conversar com cada robô dentro do LifeSystem, com resposta real
 do Hermes pessoal. Execução nesta sessão; preservar perfis, modelos gratuitos,
 aprovações por domínio e isolamento da Dona Maria.
