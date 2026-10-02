@@ -1,7 +1,12 @@
 "use client";
 import { useState } from "react";
 import type { Profile } from "@/lib/office/schema";
-import { stateLabels, type AgentPresence } from "@/lib/office/view";
+import {
+  catalogStateLabels,
+  stateLabels,
+  type AgentPresence,
+  type CatalogState,
+} from "@/lib/office/view";
 import styles from "./office.module.css";
 export const colors: Record<string, string> = {
   hermes: "#e2d5bd",
@@ -27,14 +32,15 @@ const kind = {
 export function AgentSheet({
   profile,
   presence,
-  current,
+  catalog,
   asOf,
 }: {
   profile: Profile;
   presence: AgentPresence;
-  current: boolean;
+  catalog: { state: CatalogState; revision: string | null; receivedAt: string | null };
   asOf: number;
 }) {
+  const current = catalog.state === "received";
   const [copied, setCopied] = useState("");
   async function copy(text: string) {
     try {
@@ -61,10 +67,17 @@ export function AgentSheet({
         <span className={styles.status}>{stateLabels[presence.state]}</span>
       </div>
       <p className={styles.summary}>{profile.summary}</p>
-      <p className={styles.provenance}>
-        {current
-          ? "Fontes recebidas da instalação conectada."
-          : "Referência local · implantação ainda não confirmada."}
+      <p className={styles.provenance} data-state={catalog.state}>
+        {catalogStateLabels[catalog.state]}
+        {catalog.revision && catalog.state !== "local" && (
+          <>
+            {" "}
+            Revisão {catalog.revision}
+            {catalog.receivedAt &&
+              ` · recebida em ${new Date(catalog.receivedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`}
+            .
+          </>
+        )}
       </p>
       {presence.run && (
         <div className={styles.run}>

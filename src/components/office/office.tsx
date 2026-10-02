@@ -331,6 +331,11 @@ export default function Office() {
     catalog.profiles.find((p) => p.id === selected) ||
     reference.profiles.find((p) => p.id === selected)!;
   const presence = view.agents.find((a) => a.id === selected)!;
+  const sheetCatalog = {
+    state: view.catalogState,
+    revision: view.catalogRevision,
+    receivedAt: view.catalogReceivedAt,
+  };
   // Each crew member opens the destinations of its own domain.
   const agentDestinations = allDestinations.filter((node) => {
     if (selected === "sirius") return node.kind === "project";
@@ -710,9 +715,7 @@ export default function Office() {
                     profile={profile}
                     presence={presence}
                     asOf={view.asOf}
-                    current={
-                      view.catalogCurrent && catalog.provenance === "deployed"
-                    }
+                    catalog={sheetCatalog}
                   />
                 </section>
               )}
@@ -912,7 +915,7 @@ export default function Office() {
               profile={profile}
               presence={presence}
               asOf={view.asOf}
-              current={view.catalogCurrent && catalog.provenance === "deployed"}
+              catalog={sheetCatalog}
             />
           </div>
         )}

@@ -19,6 +19,13 @@ export interface AgentPresence {
   run: OfficeRun | null;
   queued: number;
 }
+export type CatalogState = "local" | "received" | "awaiting" | "stale";
+export const catalogStateLabels: Record<CatalogState, string> = {
+  local: "Referência local · nenhum catálogo recebido da instalação.",
+  received: "Catálogo recebido da instalação conectada.",
+  awaiting: "Catálogo recebido · aguardando confirmação de revisão.",
+  stale: "Catálogo recebido · estado sem sinal recente.",
+};
 export function projectOffice(data: OfficeData, now = Date.now()) {
   const snap = data.snapshot;
   const fresh = !!snap && now - Date.parse(snap.receivedAt) <= 90000;
@@ -47,8 +54,20 @@ export function projectOffice(data: OfficeData, now = Date.now()) {
     !!snap &&
     data.catalog?.payload.revision === snap.payload.catalogRevision &&
     data.catalog.sessionId === snap.sessionId;
+  // Provenance of what the sheets show. Each state is derived only from
+  // received data; nothing here fabricates a verification time.
+  const catalogState: CatalogState = !data.catalog
+    ? "local"
+    : !fresh
+      ? "stale"
+      : catalogCurrent && data.catalog.payload.provenance === "deployed"
+        ? "received"
+        : "awaiting";
   return {
     asOf: now,
+    catalogState,
+    catalogRevision: data.catalog?.payload.revision || null,
+    catalogReceivedAt: data.catalog?.receivedAt || null,
     agents,
     fresh,
     lastSeenAt: snap?.receivedAt || null,

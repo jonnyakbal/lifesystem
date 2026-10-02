@@ -18,6 +18,7 @@ function writePreference(key: string, on: boolean) {
     // Preference only; voice still works for this visit.
   }
 }
+const LONG = 700;
 const labels = {
   queued: "Na fila",
   claimed: "Recebido pelo Hermes",
@@ -126,6 +127,17 @@ export function AgentChat({
   // Voice: speech in fills (or, if chosen, sends) the message; replies that
   // arrive after "Ouvir respostas" is switched on are read aloud once.
   // The chat only mounts after a click, so stored preferences are read directly.
+  // Long replies start collapsed; Copiar copies only the received text.
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [copied, setCopied] = useState<{ id: string; ok: boolean } | null>(null);
+  async function copyReply(job: ChatJob) {
+    try {
+      await navigator.clipboard.writeText(job.response || "");
+      setCopied({ id: job.id, ok: true });
+    } catch {
+      setCopied({ id: job.id, ok: false });
+    }
+  }
   const [readAloud, setReadAloud] = useState(() => typeof window !== "undefined" && readPreference("office-voice-read"));
   const [autoSend, setAutoSend] = useState(() => typeof window !== "undefined" && readPreference("office-voice-autosend"));
   const [speakingId, setSpeakingId] = useState<string | null>(null);
@@ -268,7 +280,33 @@ export function AgentChat({
               </small>
               {j.response ? (
                 <>
-                  <p>{j.response}</p>
+                  <p
+                    className={
+                      j.response.length > LONG && !expanded.has(j.id) ? styles.clamped : undefined
+                    }
+                  >
+                    {j.response}
+                  </p>
+                  <div className={styles.replyTools}>
+                    {j.response.length > LONG && (
+                      <button
+                        type="button"
+                        aria-expanded={expanded.has(j.id)}
+                        onClick={() =>
+                          setExpanded((current) => {
+                            const next = new Set(current);
+                            if (next.has(j.id)) next.delete(j.id);
+                            else next.add(j.id);
+                            return next;
+                          })
+                        }
+                      >
+                        {expanded.has(j.id) ? "Recolher" : "Ler tudo"}
+                      </button>
+                    )}
+                    <button type="button" onClick={() => void copyReply(j)}>
+                      {copied?.id === j.id ? (copied.ok ? "Copiado ✓" : "Não foi possível copiar") : "Copiar"}
+                    </button>
                   {canSpeak && (
                     <button
                       type="button"
@@ -279,6 +317,7 @@ export function AgentChat({
                       {speakingId === j.id ? "■ Parar" : "▶ Ouvir"}
                     </button>
                   )}
+                  </div>
                 </>
               ) : (
                 <p className={styles.wait}>
