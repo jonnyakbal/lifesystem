@@ -15,6 +15,7 @@ export function OrbitalRobot({
   greeting,
   presence,
   activity,
+  speaking = false,
 }: {
   index: number;
   selected: boolean;
@@ -24,6 +25,7 @@ export function OrbitalRobot({
   greeting: number;
   presence: AgentPresence;
   activity?: AgentActivity;
+  speaking?: boolean;
 }) {
   const spec = crew[index],
     color = spec.accent;
@@ -77,8 +79,10 @@ export function OrbitalRobot({
         ? Math.sin(t * (index === 4 ? 0.5 : 1) + index) * 0.23
         : 0;
       head.current.rotation.x = animate
-        ? Math.sin(t * (explaining ? 3 : 1) + index) *
-          (explaining ? 0.09 : 0.025)
+        ? speaking
+          ? Math.sin(t * 7) * 0.12
+          : Math.sin(t * (explaining ? 3 : 1) + index) *
+            (explaining ? 0.09 : 0.025)
         : 0;
     }
     if (left.current)
@@ -365,7 +369,9 @@ export function OrbitalRobot({
       <Tag
         text={spec.name}
         sub={
-          deciding
+          speaking
+            ? "♪ FALANDO"
+            : deciding
             ? "! DECISÃO PENDENTE"
             : working
               ? "● EM MISSÃO"

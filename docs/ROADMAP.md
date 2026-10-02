@@ -6,6 +6,29 @@ Atualização: 02/10/2026. Este arquivo concentra o backlog atual. Planos e aná
 
 Decisão de Jonny: manter a hospedagem na Hostinger e adicionar banco e IA da Cloudflare. O código acrescenta `LIFESYSTEM_STORAGE=d1`, que guarda as coleções no D1 via REST com lease distribuído e gravação protegida por revisão. Acrescenta também o provedor Workers AI e os scripts de importação e exportação. O padrão continua sendo arquivo. Ledger de saúde, estação e uploads ficam fora do D1 nesta fase. A ativação depende de tokens e variáveis na Hostinger e da migração com backup; ainda não foi feita. Ver [Cloudflare D1 e Workers AI](cloudflare-d1-workers-ai.md).
 
+## Estação interativa — 02/10 (branch `claude/serene-bell-usq5xy`, não publicado)
+
+Pedido de Jonny: a estação deve parecer quase um jogo, sem botões mortos, com missões e voz. Entregue no código, ainda sem publicação:
+
+1. **Controles:**
+   - todo controle confirma o que fez com um aviso;
+   - "Visão geral" mantém o modo atual;
+   - o passeio orbital ficou visível e explica quando não pode iniciar;
+   - teclas 1–6 escolhem a tripulação;
+   - "Atualizar dados" mostra o horário da atualização e os filtros vazios se explicam.
+2. **Chat:** o polling não puxa mais o leitor para o fim; há o botão "Novas mensagens". Isso resolve parte do E1; leitura expandida e copiar continuam pendentes.
+3. **Missões e decisões:**
+   - a "Central de missões" mostra os pedidos reais de todos os agentes (`GET /api/hermes/office/chat?agentId=all`, com sessão);
+   - mostra também as propostas pendentes do Órion e do Sirius, com revisão exata e aprovação pelas mesmas rotas das telas Corpo e Profissional; `external_action` continua bloqueada;
+   - robôs e barra da tripulação mostram "em missão", "missão na fila" e "decisão pendente";
+   - uma fonte que falha nunca aparece como zero.
+4. **Voz:**
+   - microfone por agente, pelo reconhecimento do navegador, opcional e com aviso de que o Chrome envia o áudio ao Google;
+   - "Ouvir respostas" com voz do sistema e tom por agente; o robô aparece "♪ FALANDO";
+   - a voz local no Hermes é [contrato proposto](contracts/office-voice-v1.md) para a sessão Hermes e não está implementada.
+
+Pendentes da estação: E1 (leitura expandida e copiar), E2 (procedência), E3 (histórico e arquivamento) e E4 (capacidades por contrato), além do feixe visual entre um agente e o destino de uma missão.
+
 ## Entrada para Claude na nuvem — 02/10
 
 As pendências e instruções passam a ser publicadas por autorização de Jonny. Leia [continuidade cloud](CONTINUIDADE-CLAUDE-CLOUD.md) e [plano E1–E4 da estação](superpowers/plans/2026-10-02-office-lifesystem-followups.md). Conversa já publicada/testada: evolução de histórico/arquivamento, respostas longas, procedência das fichas e capacidades MCP continua pendente e não bloqueia a entrega anterior. Sessão LifeSystem cuida de código/UI/APIs; sessão Hermes pessoal cuida da VPS, configuração e consumidor. Não alterar Hermes Dona Maria ou Arco CRM.

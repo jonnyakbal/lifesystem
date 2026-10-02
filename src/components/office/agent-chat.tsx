@@ -2,6 +2,22 @@
 import { useEffect, useRef, useState } from "react";
 import type { AgentId, ChatJob } from "@/lib/office/schema";
 import styles from "./chat.module.css";
+import { speak, speechOutputSupported, stopSpeaking, useBrowserCapability, useSpeechInput } from "./voice";
+
+function readPreference(key: string) {
+  try {
+    return window.localStorage.getItem(key) === "1";
+  } catch {
+    return false;
+  }
+}
+function writePreference(key: string, on: boolean) {
+  try {
+    window.localStorage.setItem(key, on ? "1" : "0");
+  } catch {
+    // Preference only; voice still works for this visit.
+  }
+}
 const labels = {
   queued: "Na fila",
   claimed: "Recebido pelo Hermes",
@@ -14,10 +30,12 @@ export function AgentChat({
   agentId,
   name,
   initialDraft = "",
+  onSpeaking,
 }: {
   agentId: AgentId;
   name: string;
   initialDraft?: string;
+  onSpeaking?: (speaking: boolean) => void;
 }) {
   const [jobs, setJobs] = useState<ChatJob[]>([]);
   const [draft, setDraft] = useState(initialDraft);
@@ -105,12 +123,71 @@ export function AgentChat({
       toEnd();
     } else setUnseen(true);
   }, [jobs]);
-  async function send() {
-    if (sending || !draft.trim()) return;
+  // Voice: speech in fills (or, if chosen, sends) the message; replies that
+  // arrive after "Ouvir respostas" is switched on are read aloud once.
+  // The chat only mounts after a click, so stored preferences are read directly.
+  const [readAloud, setReadAloud] = useState(() => typeof window !== "undefined" && readPreference("office-voice-read"));
+  const [autoSend, setAutoSend] = useState(() => typeof window !== "undefined" && readPreference("office-voice-autosend"));
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
+  const canSpeak = useBrowserCapability(speechOutputSupported);
+  const spoken = useRef<Set<string> | null>(null);
+  const speakingRef = useRef(onSpeaking);
+  useEffect(() => {
+    speakingRef.current = onSpeaking;
+  });
+  useEffect(() => {
+    return () => {
+      stopSpeaking();
+      speakingRef.current?.(false);
+    };
+  }, []);
+  function play(job: ChatJob) {
+    if (!job.response) return;
+    speak(job.response, agentId, {
+      onStart: () => {
+        setSpeakingId(job.id);
+        speakingRef.current?.(true);
+      },
+      onEnd: () => {
+        setSpeakingId((current) => (current === job.id ? null : current));
+        speakingRef.current?.(false);
+      },
+    });
+  }
+  function silence() {
+    stopSpeaking();
+    setSpeakingId(null);
+    speakingRef.current?.(false);
+  }
+  useEffect(() => {
+    const done = jobs.filter((j) => j.status === "completed" && j.response);
+    if (!readAloud) {
+      spoken.current = null;
+      return;
+    }
+    // History present when reading starts is never replayed.
+    if (!spoken.current) {
+      spoken.current = new Set(done.map((j) => j.id));
+      return;
+    }
+    const next = done.find((j) => !spoken.current!.has(j.id));
+    if (!next) return;
+    spoken.current.add(next.id);
+    play(next);
+    // play is recreated each render; jobs/readAloud are the real triggers.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobs, readAloud]);
+  const mic = useSpeechInput((heard) => {
+    if (autoSend && !pending.current) void send(heard);
+    else setDraft((current) => (current.trim() ? `${current.trim()} ${heard}` : heard));
+  });
+  async function send(spoken?: string) {
+    const text = (spoken ?? draft).trim();
+    if (sending || !text) return;
     const payload = pending.current || {
       clientId: crypto.randomUUID(),
       agentId,
-      text: draft.trim(),
+      text,
     };
     pending.current = payload;
     justSent.current = true;
@@ -190,7 +267,19 @@ export function AgentChat({
                 {name} · {labels[j.status]}
               </small>
               {j.response ? (
-                <p>{j.response}</p>
+                <>
+                  <p>{j.response}</p>
+                  {canSpeak && (
+                    <button
+                      type="button"
+                      className={styles.listen}
+                      aria-pressed={speakingId === j.id}
+                      onClick={() => (speakingId === j.id ? silence() : play(j))}
+                    >
+                      {speakingId === j.id ? "■ Parar" : "▶ Ouvir"}
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className={styles.wait}>
                   {j.status === "running"
@@ -207,6 +296,60 @@ export function AgentChat({
           Novas mensagens ↓
         </button>
       )}
+      <div className={styles.voice} aria-label={`Voz com ${name}`} role="group">
+        {mic.supported ? (
+          <button
+            type="button"
+            className={mic.listening ? styles.micOn : styles.mic}
+            aria-pressed={mic.listening}
+            disabled={sending || uncertain}
+            onClick={() => (mic.listening ? mic.stop() : mic.start())}
+          >
+            {mic.listening ? "● Ouvindo… toque para parar" : `🎙 Falar com ${name}`}
+          </button>
+        ) : (
+          <small>Seu navegador não oferece reconhecimento de voz; digite abaixo.</small>
+        )}
+        {canSpeak && (
+          <label>
+            <input
+              type="checkbox"
+              checked={readAloud}
+              onChange={(e) => {
+                setReadAloud(e.target.checked);
+                writePreference("office-voice-read", e.target.checked);
+                if (!e.target.checked) silence();
+              }}
+            />
+            Ouvir respostas
+          </label>
+        )}
+        {mic.supported && (
+          <label>
+            <input
+              type="checkbox"
+              checked={autoSend}
+              onChange={(e) => {
+                setAutoSend(e.target.checked);
+                writePreference("office-voice-autosend", e.target.checked);
+              }}
+            />
+            Enviar ao terminar de falar
+          </label>
+        )}
+        {mic.listening && (
+          <p className={styles.interim} aria-live="polite">
+            {mic.interim || "Pode falar…"}
+          </p>
+        )}
+        {mic.error && <p role="alert" className={styles.error}>{mic.error}</p>}
+        {mic.supported && (
+          <small className={styles.voiceNote}>
+            A transcrição usa o serviço de voz do navegador (no Chrome, o áudio
+            vai para o Google). A voz local pelo Hermes ainda não está ativa.
+          </small>
+        )}
+      </div>
       <form
         onSubmit={(e) => {
           e.preventDefault();

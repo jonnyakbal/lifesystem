@@ -102,3 +102,56 @@
   font-size: 11px;
   border-radius: 999px;
 }
+.voice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  margin: 0 0 12px;
+}
+.voice label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #c4d5de;
+  font-size: 12px;
+}
+.chat button.mic,
+.chat button.micOn {
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+.chat button.micOn {
+  color: #10202b;
+  background: #f08c7a;
+  animation: micPulse 1.2s ease-in-out infinite;
+}
+@keyframes micPulse {
+  50% { box-shadow: 0 0 0 6px #f08c7a33; }
+}
+.interim {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 8px 10px;
+  color: #e9f6f2;
+  font-size: 13px;
+  font-style: italic;
+  background: #17303f;
+  border-radius: 8px;
+}
+.voiceNote {
+  flex-basis: 100%;
+  color: #8ea6b3;
+  font-size: 10px;
+}
+.chat button.listen {
+  margin: 6px 0 0;
+  padding: 3px 10px;
+  font-size: 11px;
+  border-radius: 999px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chat button.micOn { animation: none; }
+}

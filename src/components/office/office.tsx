@@ -98,6 +98,7 @@ export default function Office() {
   const missions = useMissionBoard(true);
   const activity = useMemo(() => activityByAgent(missions.board), [missions.board]);
   const [missionsOpen, setMissionsOpen] = useState(false);
+  const [speaking, setSpeaking] = useState<AgentId | null>(null);
   const waitingDecisions = missions.board.decisions.filter((d) => !d.approved).length;
   const activeMissions = Object.values(activity).reduce((sum, a) => sum + (a?.active || 0), 0);
   // Game-like cues: a new decision or a finished mission is announced once.
@@ -330,6 +331,17 @@ export default function Office() {
     catalog.profiles.find((p) => p.id === selected) ||
     reference.profiles.find((p) => p.id === selected)!;
   const presence = view.agents.find((a) => a.id === selected)!;
+  // Each crew member opens the destinations of its own domain.
+  const agentDestinations = allDestinations.filter((node) => {
+    if (selected === "sirius") return node.kind === "project";
+    if (selected === "vega") return node.entityId === "finance";
+    if (selected === "cosmo") return node.entityId === "content";
+    if (selected === "orion")
+      return node.kind === "pillar" && /corpo|físic|saúde/i.test(node.name);
+    if (selected === "astro")
+      return node.kind === "pillar" && /mente|conhecimento/i.test(node.name);
+    return node.kind === "tool";
+  });
   const working = view.agents.filter((a) => a.state === "working").length;
   const queued = view.agents.reduce((sum, a) => sum + a.queued, 0);
   return (
@@ -550,6 +562,7 @@ export default function Office() {
                       reset={reset}
                       agents={view.agents}
                       activity={activity}
+                      speaking={speaking}
                       selected={selected}
                       onSelect={selectAgent}
                       animate={motion && visible && inView && !paused}
@@ -668,32 +681,13 @@ export default function Office() {
                   >
                     Fechar ×
                   </button>
-                  <nav
-                    className={stellar.agentDestinations}
-                    aria-label={`Área de trabalho de ${profile.name}`}
-                  >
-                    <small>ABRIR ÁREA DE TRABALHO</small>
-                    {allDestinations
-                      .filter((node) => {
-                        if (selected === "sirius")
-                          return node.kind === "project";
-                        if (selected === "vega")
-                          return node.entityId === "finance";
-                        if (selected === "cosmo")
-                          return node.entityId === "content";
-                        if (selected === "orion")
-                          return (
-                            node.kind === "pillar" &&
-                            /corpo|físic|saúde/i.test(node.name)
-                          );
-                        if (selected === "astro")
-                          return (
-                            node.kind === "pillar" &&
-                            /mente|conhecimento/i.test(node.name)
-                          );
-                        return node.kind === "tool";
-                      })
-                      .map((node) => (
+                  {agentDestinations.length > 0 && (
+                    <nav
+                      className={stellar.agentDestinations}
+                      aria-label={`Área de trabalho de ${profile.name}`}
+                    >
+                      <small>ABRIR ÁREA DE TRABALHO</small>
+                      {agentDestinations.map((node) => (
                         <button
                           key={node.id}
                           onClick={() => selectDestination(node)}
@@ -701,11 +695,15 @@ export default function Office() {
                           {node.name} ↗
                         </button>
                       ))}
-                  </nav>
+                    </nav>
+                  )}
                   <AgentChat
                     key={"chat-" + profile.id}
                     agentId={profile.id}
                     name={profile.name}
+                    onSpeaking={(on) =>
+                      setSpeaking((current) => (on ? profile.id : current === profile.id ? null : current))
+                    }
                   />
                   <AgentSheet
                     key={profile.id}

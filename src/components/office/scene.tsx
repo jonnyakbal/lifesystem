@@ -119,6 +119,7 @@ function CameraRig({
 export default function Scene({
   agents,
   activity = {},
+  speaking = null,
   selected,
   onSelect,
   animate,
@@ -137,6 +138,7 @@ export default function Scene({
 }: {
   agents: AgentPresence[];
   activity?: Partial<Record<AgentId, AgentActivity>>;
+  speaking?: AgentId | null;
   selected: AgentId;
   onSelect: (id: AgentId) => void;
   animate: boolean;
@@ -197,6 +199,7 @@ export default function Scene({
             greeting={greeting}
             presence={agents.find((a) => a.id === c.id)!}
             activity={activity[c.id]}
+            speaking={speaking === c.id}
           />
         ))}
       </group>
