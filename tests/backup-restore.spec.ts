@@ -18,7 +18,7 @@ const fixture = async () => {
   return { root, source, target };
 };
 
-test('restaura backup legado produzido pelo comando real e verifica conteúdo sem imprimir valores', async () => {
+test('restaura backup produzido pelo comando real e verifica conteúdo sem imprimir valores', async () => {
   const { root, source, target } = await fixture();
   try {
     await writeFile(join(source, 'tasks.json'), '{"synthetic":"private-fixture-marker"}');
@@ -31,7 +31,8 @@ test('restaura backup legado produzido pelo comando real e verifica conteúdo se
     const result = restore(snapshot, target);
     expect(result.status).toBe(0);
     expect(result.stdout + result.stderr).not.toContain('private-fixture-marker');
-    expect(JSON.parse(result.stdout).integrity).toBe('source-target-sha256-only');
+    // The producer now writes a manifest, so the restore verifies original checksums.
+    expect(JSON.parse(result.stdout).integrity).toBe('manifest-sha256');
     expect(await readFile(join(target, 'tasks.json'), 'utf8')).toBe('{"synthetic":"private-fixture-marker"}');
     expect(await readdir(root)).not.toContain('review.rollback');
   } finally { await rm(root, { recursive: true, force: true }); }
@@ -174,5 +175,47 @@ test('scanner redige achados e trata environment, runtime e binários somente po
     const report = JSON.parse(result.stdout);
     expect(report.findings).toEqual([{ path: 'src/sample.ts', rules: ['OPENAI_KEY'] }]);
     expect(report.metadataOnly.map((item: { path: string }) => item.path).sort()).toEqual(['.env', 'data/personal.json', 'image.png']);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('backup publica manifesto verificado, ignora travas e temporários e não deixa staging', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'lifesystem-backup-'));
+  try {
+    const data = join(root, 'data-source'); const backups = join(root, 'snapshots');
+    await mkdir(data);
+    await writeFile(join(data, 'tasks.json'), '[{"id":"a"}]');
+    await writeFile(join(data, 'office-abc.archive-0123456789abcdef01234567.json'), '{"id":"seg","jobs":[]}');
+    await writeFile(join(data, '.tasks.123.tmp'), 'partial');
+    await mkdir(join(data, '.tasks.lock'));
+    const backup = spawnSync(process.execPath, [resolve('scripts/backup-data.mjs')], { env: { ...process.env, LIFESYSTEM_DATA_DIR: data, LIFESYSTEM_BACKUP_DIR: backups, LIFESYSTEM_STORAGE: 'file' }, encoding: 'utf8' });
+    expect(backup.status).toBe(0);
+    expect(backup.stdout).toContain('verified-unchanged');
+    expect(await readdir(backups)).toHaveLength(1);
+    const snapshot = join(backups, (await readdir(backups))[0]);
+    expect((await readdir(snapshot)).sort()).toEqual(['manifest.json', 'office-abc.archive-0123456789abcdef01234567.json', 'tasks.json']);
+    const manifest = JSON.parse(await readFile(join(snapshot, 'manifest.json'), 'utf8'));
+    expect(manifest).toEqual(expect.objectContaining({ version: 1, storage: 'file', consistency: 'verified-unchanged' }));
+    expect(manifest.files.find((f: { path: string }) => f.path === 'tasks.json').sha256).toBe(createHash('sha256').update('[{"id":"a"}]').digest('hex'));
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+test('backup com escritor ativo nunca falha o deploy e o snapshot continua íntegro', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'lifesystem-backup-busy-'));
+  try {
+    const data = join(root, 'data-source'); const backups = join(root, 'snapshots');
+    await mkdir(data);
+    for (let i = 0; i < 40; i++) await writeFile(join(data, `c${i}.json`), JSON.stringify({ i, pad: 'x'.repeat(20000) }));
+    const writer = spawn(process.execPath, ['-e', `const fs=require('fs');let n=0;setInterval(()=>{const t=${JSON.stringify(join(data, 'c0.json'))}+'.tmp';fs.writeFileSync(t,JSON.stringify({n:n++}));fs.renameSync(t,${JSON.stringify(join(data, 'c0.json'))});},1);`]);
+    try {
+      const backup = spawnSync(process.execPath, [resolve('scripts/backup-data.mjs')], { env: { ...process.env, LIFESYSTEM_DATA_DIR: data, LIFESYSTEM_BACKUP_DIR: backups, LIFESYSTEM_STORAGE: 'file' }, encoding: 'utf8' });
+      expect(backup.status).toBe(0);
+      expect(backup.stdout).toMatch(/verified-unchanged|best-effort/);
+    } finally { writer.kill(); }
+    const snapshot = join(backups, (await readdir(backups)).find(name => !name.startsWith('.'))!);
+    const target = join(root, 'review'); await mkdir(target);
+    const result = restore(snapshot, target);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).integrity).toBe('manifest-sha256');
+    expect((await readdir(backups)).filter(name => name.includes('staging'))).toEqual([]);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
