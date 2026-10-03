@@ -88,3 +88,29 @@ desenhada depois de medir a latência da v1 no hardware real.
   diferente.
 - Latência medida: tempo de transcrição, tempo de resposta e tempo de síntese
   para áudios de 5 s e 30 s.
+
+## Conversa ao vivo (03/10/2026)
+
+Modo de voz rápido, sem as mãos, implementado na interface; o Hermes não muda.
+
+- **Fluxo:** o usuário fala, o reconhecimento do navegador transcreve e
+  `POST /api/hermes/office/live` envia `{agentId, text, history≤12}`. A
+  resposta vem pela cadeia de IA do LifeSystem (`src/lib/ai.ts`, por exemplo
+  Workers AI ou Groq), com a persona pública do catálogo local. A voz do
+  sistema fala a resposta e o microfone reabre sozinho. Tocar enquanto o robô
+  fala interrompe e passa a ouvir. Esc ou "Encerrar" termina o modo.
+- **Limites:** não é o perfil Hermes. Não tem memória, ferramentas nem job na
+  fila, e nada é persistido. O prompt proíbe afirmar que algo foi registrado,
+  consultado, agendado ou enviado. "Mandar a última fala ao Hermes" apenas
+  preenche a caixa de mensagem; o envio continua explícito.
+- **Proteções:** exige sessão humana; o proxy aplica a regra de mesma origem.
+  Limite de 30 falas por minuto, entrada de até 1000 caracteres e fala
+  limpa de markdown e links. A interface mostra o provedor, o modelo e o
+  tempo de cada resposta.
+- **Voz de saída:** escolhe a melhor voz pt disponível (Natural, Neural ou
+  Online primeiro, depois Google, por último as vozes locais "Desktop"), com
+  uma voz diferente por tripulante quando houver várias. O tom fica próximo
+  de 1 para não distorcer.
+- **Ainda local futuro:** STT/TTS no Hermes continuam como descrito acima.
+  Workers AI ainda não oferece TTS em português; por isso a voz depende das
+  vozes do sistema (Edge "Natural" ou Chrome "Google").

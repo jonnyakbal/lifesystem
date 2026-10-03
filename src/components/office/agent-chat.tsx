@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { AgentId, ChatJob } from "@/lib/office/schema";
 import styles from "./chat.module.css";
 import { speak, speechOutputSupported, stopSpeaking, useBrowserCapability, useSpeechInput } from "./voice";
+import { LiveTalk } from "./live-talk";
 
 function readPreference(key: string) {
   try {
@@ -436,6 +437,12 @@ export function AgentChat({
           Novas mensagens ↓
         </button>
       )}
+      <LiveTalk
+        agentId={agentId}
+        name={name}
+        onSpeaking={onSpeaking}
+        onSendToHermes={(text) => setDraft(text)}
+      />
       <div className={styles.voice} aria-label={`Voz com ${name}`} role="group">
         {mic.supported ? (
           <button
