@@ -98,7 +98,7 @@ test.afterAll(async () => {
 });
 
 const saved: Record<string, string | undefined> = {};
-const ENV = ['LIFESYSTEM_STORAGE', 'LIFESYSTEM_DATA_DIR', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_D1_DATABASE_ID', 'CLOUDFLARE_D1_API_TOKEN', 'CLOUDFLARE_API_BASE', 'AI_CLOUDFLARE_API_KEY'];
+const ENV = ['LIFESYSTEM_STORAGE', 'LIFESYSTEM_DATA_DIR', 'LIFESYSTEM_BACKUP_DIR', 'CLOUDFLARE_ACCOUNT_ID', 'CLOUDFLARE_D1_DATABASE_ID', 'CLOUDFLARE_D1_API_TOKEN', 'CLOUDFLARE_API_BASE', 'AI_CLOUDFLARE_API_KEY'];
 let dataDir: string;
 let children: ChildProcess[];
 
@@ -264,6 +264,23 @@ test('import moves JSON collections into D1 without overwriting, and export rest
   expect(await runScript('d1-export.mjs', [out])).toContain('(2 coleções)');
   expect(JSON.parse(await readFile(join(out, 'tasks.json'), 'utf8'))).toEqual([expect.objectContaining({ id: 't1', title: 'Editada no D1' })]);
   expect((await readdir(out)).sort()).toEqual(['projects.json', 'tasks.json']);
+});
+
+test('backup in D1 mode exports the collections into a manifest-verified snapshot', async () => {
+  const { writeFile, readFile } = await import('node:fs/promises');
+  await storage.createOnce('tasks', 'from-d1', { title: 'No banco' });
+  // A stale file from before the migration must not win over D1.
+  await writeFile(join(dataDir, 'tasks.json'), JSON.stringify([{ id: 'stale' }]));
+  await writeFile(join(dataDir, 'health-ledger.json'), JSON.stringify({ id: 'health-v1' }));
+  const backups = join(dataDir, 'snapshots');
+  process.env.LIFESYSTEM_BACKUP_DIR = backups;
+  expect(await runScript('backup-data.mjs')).toContain('inclui D1');
+  const snapshot = join(backups, (await readdir(backups))[0]);
+  const manifest = JSON.parse(await readFile(join(snapshot, 'manifest.json'), 'utf8'));
+  expect(manifest.storage).toBe('d1');
+  expect(manifest.files.map((f: { path: string }) => f.path).sort()).toEqual(['health-ledger.json', 'tasks.json']);
+  expect(JSON.parse(await readFile(join(snapshot, 'tasks.json'), 'utf8'))).toEqual([expect.objectContaining({ id: 'from-d1' })]);
+  expect((await readdir(snapshot)).sort()).toEqual(['health-ledger.json', 'manifest.json', 'tasks.json']);
 });
 
 test('storage fails closed on an unknown backend or incomplete D1 configuration', async () => {

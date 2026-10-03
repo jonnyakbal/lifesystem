@@ -776,3 +776,47 @@
     animation: none !important;
   }
 }
+.proof {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #66869640;
+  border-radius: 12px;
+}
+.proof h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.proof ul {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+.proof li {
+  display: grid;
+  gap: 2px;
+  padding-left: 18px;
+  position: relative;
+}
+.proof li::before {
+  content: "○";
+  position: absolute;
+  left: 0;
+  color: #8ea6b3;
+}
+.proof li[data-ok="true"]::before {
+  content: "●";
+  color: #7fd8c8;
+}
+.proof small {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+/* Touch screens: every station control gets a comfortable target. */
+@media (pointer: coarse) {
+  .office button,
+  .office a { min-height: 40px; }
+}

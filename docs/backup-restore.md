@@ -1,6 +1,22 @@
 # Ensaio seguro de restauração
 
-`scripts/backup-data.mjs` copia os JSON da pasta configurada em `LIFESYSTEM_DATA_DIR`; `prebuild-backup.mjs` só o executa quando essa variável está configurada. O formato atual não cria manifesto, checksum original ou snapshot transacional. Um backup pode refletir arquivos de instantes diferentes se houver escritores ativos.
+`scripts/backup-data.mjs` copia os JSON da pasta configurada em `LIFESYSTEM_DATA_DIR`. `prebuild-backup.mjs` só o executa quando essa variável está configurada.
+
+**Desde 02/10/2026, o produtor grava `manifest.json` (versão 1):**
+- inventário exato, tamanho e SHA-256 de cada arquivo, mais `createdAt`, `storage` e `consistency`;
+- arquivos temporários e travas ficam de fora; segmentos de arquivo da estação (`office-*.archive-*.json`) entram;
+- o snapshot é montado numa pasta temporária e publicado por `rename`.
+
+**Consistência.** Cada arquivo é lido e tem o hash calculado, depois é copiado; em seguida a origem é lida de novo.
+- Se nada mudou, `consistency` vale `verified-unchanged`: todos os arquivos tinham aquele conteúdo no início da segunda leitura, o que forma um ponto consistente no tempo, salvo a improvável volta do mesmo conteúdo.
+- Com escrita contínua, o backup tenta três vezes e publica como `best-effort`, com aviso no log, para nunca bloquear o `prebuild` de um deploy.
+
+**Modo D1.** Com `LIFESYSTEM_STORAGE=d1`, as coleções são exportadas do D1 para dentro do snapshot e têm precedência sobre arquivos antigos em disco. Uma falha na exportação não publica nada.
+
+**Limites.**
+- O checksum não autentica quem escreveu o manifesto.
+- Isto continua não sendo uma transação entre arquivos e banco.
+- Snapshots antigos, sem manifesto, continuam restauráveis no modo `source-target-sha256-only`.
 
 `scripts/restore-backup.mjs` serve para **ensaio em pasta isolada vazia**. Não conecta a produção, não troca o runtime e não tem destino padrão. Exige `--source`, `--target` e `--isolated`; o destino deve existir, estar vazio e ficar fora de todos os checkouts registrados no Git. Também recusa sobreposição com o snapshot, diretórios chamados `data`, `runtime`, `prod` ou `production` e o runtime informado por `LIFESYSTEM_DATA_DIR`.
 

@@ -146,8 +146,38 @@ export type OfficeEvent = z.infer<typeof eventSchema>;
 export type ReceivedEvent = OfficeEvent & { receivedAt: string };
 export type Snapshot = Extract<ReceivedEvent, { kind: "snapshot" }>;
 export type StoredCatalog = Extract<ReceivedEvent, { kind: "catalog.updated" }>;
+/** Lightweight identity kept for every archived job: idempotency, quota and late receipts. */
+export interface ArchivedJobIndex {
+  id: string;
+  clientId: string;
+  agentId: AgentId;
+  fingerprint: string;
+  responseFingerprint: string | null;
+  status: "completed" | "failed";
+  createdAt: string;
+  updatedAt: string;
+  segment: string;
+  // Worker receipt reference; never exposed to the browser.
+  claimSession?: string;
+}
+export interface ArchiveReceipt {
+  requestId: string;
+  receiptId: string;
+  agentId: AgentId | null;
+  before: string;
+  archivedCount: number;
+  revision: number;
+  at: string;
+}
+export interface OfficeArchive {
+  revision: number;
+  segments: { id: string; count: number; createdAt: string }[];
+  index: ArchivedJobIndex[];
+  receipts: ArchiveReceipt[];
+}
 export interface OfficeData {
   chats?: ChatJob[];
+  archive?: OfficeArchive;
   session: { id: string; bootId: string } | null;
   retired: string[];
   snapshot: Snapshot | null;

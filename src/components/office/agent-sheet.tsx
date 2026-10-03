@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type { AgentEvidence } from "@/lib/office/capabilities";
 import type { Profile } from "@/lib/office/schema";
 import {
   catalogStateLabels,
@@ -41,6 +42,19 @@ export function AgentSheet({
   asOf: number;
 }) {
   const current = catalog.state === "received";
+  const proven = profile.id === "orion" || profile.id === "sirius";
+  const [evidence, setEvidence] = useState<AgentEvidence | null | "error">(null);
+  useEffect(() => {
+    if (!proven) return;
+    let stop = false;
+    fetch("/api/hermes/office/capabilities", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("indisponível"))))
+      .then((data) => !stop && setEvidence(data[profile.id] as AgentEvidence))
+      .catch(() => !stop && setEvidence("error"));
+    return () => {
+      stop = true;
+    };
+  }, [profile.id, proven]);
   const [copied, setCopied] = useState("");
   async function copy(text: string) {
     try {
@@ -79,6 +93,42 @@ export function AgentSheet({
           </>
         )}
       </p>
+      {proven && (
+        <section className={styles.proof} aria-label={`O que foi comprovado sobre ${profile.name}`}>
+          <h3>O que foi comprovado</h3>
+          {evidence === null && <p>Carregando evidências…</p>}
+          {evidence === "error" && <p>Evidências indisponíveis agora; isso não significa ausência.</p>}
+          {evidence && evidence !== "error" && (
+            <ul>
+              <li data-ok={evidence.credentials.length > 0}>
+                <strong>Credencial dedicada</strong>
+                {evidence.credentials.length
+                  ? `${evidence.credentials.map((c) => c.id).join(", ")} · ${evidence.domain === "health" ? "escopos de saúde" : "escopos profissionais"}`
+                  : "Nenhuma configurada neste servidor."}
+              </li>
+              <li data-ok={evidence.state === "verified"}>
+                <strong>Chamada real bem-sucedida</strong>
+                {evidence.lastCall
+                  ? `${evidence.lastCall.tool} · ${new Date(evidence.lastCall.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}${evidence.state === "stale" ? " · há mais de 7 dias" : ""}`
+                  : `Nenhuma nas últimas ${evidence.logWindow} chamadas registradas.`}
+              </li>
+              {evidence.lastFailure && (
+                <li data-ok={false}>
+                  <strong>Falha mais recente</strong>
+                  {`${evidence.lastFailure.tool} · ${new Date(evidence.lastFailure.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}`}
+                </li>
+              )}
+              <li data-ok={Boolean(evidence.lastApplied)}>
+                <strong>Operação aprovada por você e aplicada</strong>
+                {evidence.lastApplied
+                  ? new Date(evidence.lastApplied.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+                  : "Nenhuma ainda."}
+              </li>
+            </ul>
+          )}
+          <small>Conversar no Escritório não comprova estas operações. O contrato também é coberto por teste automatizado com dados sintéticos.</small>
+        </section>
+      )}
       {presence.run && (
         <div className={styles.run}>
           <strong>

@@ -431,11 +431,11 @@ export default function EditaisPage() {
   return (
     <motion.div className="work-page p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       <WorkspaceHeading eyebrow="Oportunidades em movimento" title="Editais Culturais" description="Encontre oportunidades que combinam com sua trajetória. Acompanhe os prazos e transforme uma boa inscrição no seu próximo projeto." actions={<>
-          <Button variant="outline" size="icon" onClick={openCockpit} title="Cockpit da automação" aria-label="Cockpit da automação">
-            <SlidersHorizontal className="h-4 w-4" />
+          <Button variant="outline" onClick={openCockpit} className="gap-1.5" aria-label="Cockpit da automação">
+            <SlidersHorizontal className="h-4 w-4" />Automação
           </Button>
-          <Button variant="outline" size="icon" onClick={() => setStageDialogOpen(true)} title="Editar etapas" aria-label="Editar etapas">
-            <Edit2 className="h-4 w-4" />
+          <Button variant="outline" onClick={() => setStageDialogOpen(true)} className="gap-1.5" aria-label="Editar etapas">
+            <Edit2 className="h-4 w-4" />Etapas
           </Button>
           <Button variant="outline" onClick={buscarEditais} className="gap-1.5">
             <Radar className="h-4 w-4" /> Buscar editais

@@ -356,9 +356,9 @@ export default function HojePage() {
       )}
       {!loading && <section aria-label="Concluídas hoje" className="mt-6">
         <Card>
-          <CardHeader className="flex-row items-center justify-between gap-3">
-            <CardTitle className="flex items-center gap-2 text-base"><CheckCircle2 className="h-4 w-4 text-money" />Concluídas hoje ({completedToday.length})</CardTitle>
-            <Link href="/tarefas?completed=1" className="text-xs text-primary hover:underline">Ver todas as concluídas</Link>
+          <CardHeader className="flex-row flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <CardTitle className="flex items-center gap-2 whitespace-nowrap text-base"><CheckCircle2 className="h-4 w-4 text-money" />Concluídas hoje ({completedToday.length})</CardTitle>
+            <Link href="/tarefas?completed=1" className="inline-flex min-h-10 items-center text-xs text-primary hover:underline">Ver todas as concluídas</Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {completedToday.length === 0 && <p className="text-sm text-muted-foreground">Suas conclusões ficam aqui. Clique no título para abrir; use Concluir para finalizar.</p>}

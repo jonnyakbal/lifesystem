@@ -110,6 +110,7 @@ export function CopilotoPanel() {
         onClick={() => setOpen(v => !v)}
         className="fixed bottom-20 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform hover:scale-105 lg:bottom-6 lg:right-6"
         title="Copiloto (⌘M)"
+        aria-label="Abrir copiloto"
       >
         {open ? <X className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
       </button>

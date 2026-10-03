@@ -1,7 +1,7 @@
 "use client";
 import { useFrame } from "@react-three/fiber";
 import { useRef } from "react";
-import { Group, MathUtils } from "three";
+import { AdditiveBlending, Group, MathUtils, type MeshBasicMaterial } from "three";
 import type { AgentPresence } from "@/lib/office/view";
 import { crew, robotPose, stationPoint } from "./orbital-model";
 import { Panel, Ring, Orb, Tag } from "./orbital-parts";
@@ -41,6 +41,7 @@ export function OrbitalRobot({
   const working = presence.state === "working" || Boolean(activity?.working);
   const deciding = (activity?.decisions || 0) > 0;
   const beacon = useRef<Group>(null);
+  const beam = useRef<MeshBasicMaterial>(null);
   useFrame((_, dt) => {
     if (!root.current) return;
     const step = Math.min(dt, 0.05);
@@ -114,6 +115,8 @@ export function OrbitalRobot({
       right.current.rotation.z =
         animate && t < waveUntil.current ? -2 + Math.sin(t * 10) * 0.3 : -0.1;
     }
+    // Mission beam: pulses while the agent works on a real request.
+    if (beam.current) beam.current.opacity = animate ? 0.32 + Math.sin(t * 4 + index) * 0.12 : 0.36;
     if (beacon.current) {
       beacon.current.position.y = (index === 0 ? 2.85 : 2.65) + (animate ? Math.sin(t * 3 + index) * 0.07 : 0);
       beacon.current.rotation.y = animate ? t * 1.6 : 0;
@@ -356,6 +359,12 @@ export function OrbitalRobot({
           color="#766b4e"
           rounded
         />
+      )}
+      {working && (
+        <mesh position={[0, 5.5, 0]} raycast={() => null}>
+          <cylinderGeometry args={[0.05, 0.3, 6, 20, 1, true]} />
+          <meshBasicMaterial ref={beam} color={color} transparent opacity={0.36} blending={AdditiveBlending} depthWrite={false} />
+        </mesh>
       )}
       {(deciding || working || (activity?.active || 0) > 0) && (
         <group ref={beacon} position={[0, index === 0 ? 2.85 : 2.65, 0]}>

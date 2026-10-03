@@ -59,7 +59,12 @@ test('todas as telas com conteúdo sintético em desktop, mobile e tema claro', 
     await page.addInitScript(theme => localStorage.setItem('lifesystem-theme', theme), variant.theme);
     for (const route of routes) {
       const before = errors.length;
-      await page.goto(route, { waitUntil: 'networkidle' });
+      // A Next link prefetch left pending by the previous page can keep the
+      // network busy forever and hang the whole sweep (seen on /pilares after
+      // /visao). Wait for the page, then give the network a bounded window to
+      // settle; every assertion below still runs on the loaded screen.
+      await page.goto(route, { waitUntil: 'load' });
+      await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
       await expect(page.getByRole('heading', { level: 1 }).first(), route).toBeVisible();
       // Let entrance transitions finish before assessing the actual composition.
       await page.waitForTimeout(1200);

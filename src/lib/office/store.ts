@@ -10,6 +10,11 @@ import {
   type ReceivedEvent,
 } from "./schema";
 const WEEK = 7 * 86400000;
+/** Immutable archive segment written beside the installation file (covered by backups). */
+export function archiveSegmentFile(installation: string, segment: string) {
+  if (!/^[a-f0-9]{24}$/.test(segment)) throw new Error("Segmento inválido.");
+  return file(installation).replace(/\.json$/, `.archive-${segment}.json`);
+}
 function file(installation: string) {
   return join(
     resolve(process.env.LIFESYSTEM_DATA_DIR || "data"),

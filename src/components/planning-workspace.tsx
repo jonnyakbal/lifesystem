@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useEffect, useMemo, useState, useRef, useSyncExternalStore } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, ArrowRight, CalendarDays, CheckCircle2, CircleAlert, FileText, Inbox, Plus, Sparkles, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,6 +17,16 @@ import { PlanningWizard } from '@/components/planning-wizard';
 import { clockLabel, dateKeyInTimeZone, freeIntervals, minutesOnDay } from '@/lib/planning-availability';
 import { DEFAULT_PLANNING_PREFERENCES, workWindowOnDay, type PlanningPreferences } from '@/lib/planning-preferences';
 import { TaskCapacitySettings } from '@/components/tasks/task-capacity-settings';
+import { projectAgenda } from '@/lib/agenda/projection';
+
+const OVERLAY_KEY = 'planning-overlays';
+const OVERLAY_EVENT = 'planning-overlays-change';
+const DEFAULT_OVERLAYS = JSON.stringify({ content: true, financial: true });
+function readOverlays() { try { return window.localStorage.getItem(OVERLAY_KEY) || DEFAULT_OVERLAYS; } catch { return DEFAULT_OVERLAYS; } }
+function subscribeOverlays(onChange: () => void) {
+  window.addEventListener('storage', onChange); window.addEventListener(OVERLAY_EVENT, onChange);
+  return () => { window.removeEventListener('storage', onChange); window.removeEventListener(OVERLAY_EVENT, onChange); };
+}
 
 type Connection = { configured: boolean; connected: boolean };
 
@@ -44,6 +54,15 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask
   const [tasks, setTasks] = useState<Task[]>([]);
   const [content, setContent] = useState<Content[]>([]);
   const [financial, setFinancial] = useState<FinancialEntry[]>([]);
+  // Reminder overlays (agenda v2, phase A): read-only, never reserve time.
+  // Read through useSyncExternalStore so server and first client render match.
+  const overlayRaw = useSyncExternalStore(subscribeOverlays, readOverlays, () => DEFAULT_OVERLAYS);
+  const overlays = useMemo(() => { try { return { ...JSON.parse(DEFAULT_OVERLAYS), ...JSON.parse(overlayRaw) } as { content: boolean; financial: boolean }; } catch { return JSON.parse(DEFAULT_OVERLAYS) as { content: boolean; financial: boolean }; } }, [overlayRaw]);
+  function toggleOverlay(key: 'content' | 'financial') {
+    const next = { ...overlays, [key]: !overlays[key] };
+    try { window.localStorage.setItem(OVERLAY_KEY, JSON.stringify(next)); } catch { /* preference only */ }
+    window.dispatchEvent(new Event(OVERLAY_EVENT));
+  }
   const [events, setEvents] = useState<GoogleCalendarEvent[]>([]);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [terminal, setTerminal] = useState<string[]>(['done']);
@@ -225,6 +244,7 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask
       <div className="flex items-center gap-2"><Button variant="outline" size="icon" aria-label="Semana anterior" onClick={() => setWeekOffset(value => value - 1)}><ArrowLeft className="h-4 w-4" /></Button><h2 className="min-w-44 text-center text-sm font-semibold capitalize">{period}</h2><Button variant="outline" size="icon" aria-label="Próxima semana" onClick={() => setWeekOffset(value => value + 1)}><ArrowRight className="h-4 w-4" /></Button>{weekOffset !== 0 && <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>Hoje</Button>}</div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">{connection?.connected ? <><CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" /> Google Agenda conectada</> : <><CalendarDays className="h-3.5 w-3.5" /> {connection?.configured ? <Link href="/api/google-calendar/connect" className="text-primary hover:underline">Conectar Google Agenda</Link> : 'Google Agenda indisponível neste ambiente'}</>}</div>
       {calendarError && <div role="status" className="flex items-center gap-2 text-xs text-amber-500"><CircleAlert className="h-3.5 w-3.5" />{calendarError}<Link href="/api/google-calendar/connect" className="underline">Reconectar</Link></div>}
+      <div className="flex items-center gap-1 text-xs" role="group" aria-label="Lembretes na semana"><span className="text-muted-foreground">Lembretes:</span><Button variant={overlays.content ? 'secondary' : 'ghost'} size="sm" aria-pressed={overlays.content} onClick={() => toggleOverlay('content')}><FileText className="mr-1 h-3.5 w-3.5" />Publicações</Button><Button variant={overlays.financial ? 'secondary' : 'ghost'} size="sm" aria-pressed={overlays.financial} onClick={() => toggleOverlay('financial')}><Wallet className="mr-1 h-3.5 w-3.5" />Contas</Button></div>
       {connection?.connected && <Button variant="ghost" size="sm" disabled={loadedPeriod !== periodKey} onClick={() => setCalendarRefresh(value => value + 1)}>{loadedPeriod !== periodKey ? 'Atualizando agenda…' : 'Atualizar agenda'}</Button>}
     </div>
 
@@ -243,8 +263,11 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask
           const workWindow = workWindowOnDay(key, preferences);
           const free = workWindow ? freeIntervals(timed.filter(item => !item.event || item.event.busy !== false), workWindow.start, workWindow.end) : [];
           const freeMinutes = free.reduce((total, item) => total + item.end - item.start, 0);
-          const dayContent = content.filter(item => item.scheduledDate === key && item.status !== 'archived');
-          const dayFinancial = financial.filter(item => item.dueDate === key && item.status !== 'paid');
+          // Same rules as Conteúdo and Financeiro: pending bills without an
+          // explicit due date fall back to the entry date and are labelled.
+          const reminders = projectAgenda({ from: key, to: key, timeZone: preferences.timeZone, content, financial, filters: { tasks: false, content: overlays.content, financial: overlays.financial } });
+          const dayContent = reminders.filter(item => item.kind === 'content_publication');
+          const dayFinancial = reminders.filter(item => item.kind === 'financial_due');
           const isToday = key === planningToday;
           return <div key={key} data-day={key} onDragOver={event => event.preventDefault()} onDrop={event => {
             event.preventDefault(); const id = event.dataTransfer.getData('text/plain');
@@ -258,8 +281,8 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask
               {calendarReady && free.length > 0 && <details className="rounded-lg border border-dashed p-2 text-[11px] text-muted-foreground"><summary className="cursor-pointer">{free.length} {free.length === 1 ? 'intervalo livre' : 'intervalos livres'}</summary><ul className="mt-2 space-y-1">{free.map(slot => <li key={slot.start} className="tabular-nums">{clockLabel(slot.start)} – {clockLabel(slot.end)}</li>)}</ul></details>}
               {dayTasks.some(task => !task.planning?.startAt) && <p className="pt-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Prioridades · sem horário</p>}
               {dayTasks.filter(task => !task.planning?.startAt).map(taskCard)}
-              {dayContent.map(item => <Link key={item.id} href="/conteudo" className="flex gap-1.5 rounded-lg border border-violet-400/20 bg-violet-400/5 px-2.5 py-2 text-xs"><FileText className="mt-0.5 h-3 w-3 shrink-0 text-violet-400" /><span className="line-clamp-2">{item.title}</span></Link>)}
-              {dayFinancial.map(item => <Link key={item.id} href="/financeiro" className="flex gap-1.5 rounded-lg border border-amber-400/20 bg-amber-400/5 px-2.5 py-2 text-xs"><Wallet className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" /><span className="line-clamp-2">{item.description || item.category}</span></Link>)}
+              {dayContent.map(item => <Link key={item.id} href="/conteudo" className="flex gap-1.5 rounded-lg border border-violet-400/20 bg-violet-400/5 px-2.5 py-2 text-xs"><FileText className="mt-0.5 h-3 w-3 shrink-0 text-violet-400" /><span className="line-clamp-2">{item.time.kind === 'point' ? `${item.time.at.slice(11, 16)} · ` : ''}{item.title}</span></Link>)}
+              {dayFinancial.map(item => <Link key={item.id} href="/financeiro" className="flex gap-1.5 rounded-lg border border-amber-400/20 bg-amber-400/5 px-2.5 py-2 text-xs"><Wallet className="mt-0.5 h-3 w-3 shrink-0 text-amber-400" /><span className="line-clamp-2">{item.title}{item.confidence === 'fallback' && <span className="text-muted-foreground"> · sem vencimento, pela data do lançamento</span>}</span></Link>)}
             </div>
             {!loading && dayTasks.length + dayEvents.length + dayContent.length + dayFinancial.length === 0 && <p className="px-1 py-3 text-xs text-muted-foreground/70">Nenhum item carregado para este dia</p>}
           </div>;

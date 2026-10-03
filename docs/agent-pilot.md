@@ -52,3 +52,17 @@ node node_modules/@playwright/test/cli.js test --config C:/dev/jonny/lifesystem-
 ```
 
 Para reproduzir em outro checkout, ajuste os caminhos absolutos da configuração externa. A configuração padrão do projeto inicia o servidor de desenvolvimento; não é a configuração deste piloto.
+
+## Piloto HTTP — 02/10/2026
+
+`tests/agent-contract-http.spec.ts` sobe um servidor de produção próprio, na porta 3117, com diretório de dados temporário e quatro credenciais dedicadas sintéticas: dois Órion e dois Sirius. Ele conversa com `/api/mcp` pelo `StreamableHTTPClientTransport`, o mesmo transporte usado pelo Hermes.
+
+O teste comprova, pelo caminho real (proxy, Bearer, escopos, rotas web):
+- **Credenciais:** recusa sem credencial, com cabeçalho malformado e com token desconhecido (401).
+- **Catálogo por identidade:** Órion não vê ferramentas profissionais, e Sirius não vê as de saúde. Nenhuma das duas tem ferramenta de aprovação humana.
+- **Órion 1.2:** proposta, aplicação recusada sem aprovação e aprovação web. A aprovação só vale com sessão e origem corretas: origem forjada (403), Bearer no lugar de sessão (recusado) e hash divergente (403) são recusados. Depois vêm a aplicação, o replay idêntico e o recibo isolado por ator.
+- **Sirius 1.0:** projeto explícito criado pela interface e escopo de trabalho proposto. Exige critérios de aceite, e isso foi validado pelo servidor. Aprovação web exata, aplicação, replay e recibo isolado. Um job fica **na fila, sem execução** (adapter `contract-only`).
+
+**Limites:**
+- Não certifica TLS, proxy da Hostinger, credenciais reais nem o Hermes.
+- A verificação em produção de cada credencial dedicada, só com descoberta e schema, continua sendo uma etapa operacional separada.
