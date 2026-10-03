@@ -10,7 +10,7 @@
 // answering. This mirrors the confirm-before-write discipline in Nave-Mãe's
 // Copiloto (dona-maria/nave-app/src/lib/copiloto.ts), moved server-side.
 import { NextRequest, NextResponse } from 'next/server';
-import { chatCompletion, isAIConfigured, type ChatMessage } from '@/lib/ai';
+import { chatCompletion, isAIConfigured, type ChatMessage, type ProviderFailure } from '@/lib/ai';
 import { TOOLS, isWriteTool, executeTool, describeTool, validateArgs } from '@/lib/copiloto/tools';
 import { buildSystemPrompt } from '@/lib/copiloto/prompt';
 
@@ -125,13 +125,15 @@ export async function POST(request: NextRequest) {
     historico = [...historico, { role: 'tool', tool_call_id: call.id, name: call.function.name, content: resultText }];
   }
 
+  let via: { provider: string; model: string; falhas: ProviderFailure[] } | undefined;
   try {
     for (let i = 0; i < MAX_TOOL_ITERATIONS; i++) {
-      const { message } = await chatCompletion(historico, { tools: TOOLS, maxTokens: 2000 });
+      const { message, provider, model, failures } = await chatCompletion(historico, { tools: TOOLS, maxTokens: 2000 });
+      via = { provider, model, falhas: failures };
       historico = [...historico, message];
 
       if (!message.tool_calls || message.tool_calls.length === 0) {
-        return NextResponse.json({ status: 'concluido', resposta: message.content || '', historico });
+        return NextResponse.json({ status: 'concluido', resposta: message.content || '', historico, via });
       }
 
       // Every tool_call below MUST end up with a matching 'tool' response by

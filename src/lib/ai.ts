@@ -276,10 +276,26 @@ async function callChatModel(
   return message;
 }
 
+export interface ProviderFailure {
+  provider: string;
+  model: string;
+  error: string;
+}
+
 export interface ChatCompletionResult {
   message: ChatMessage;
   provider: string;
   model: string;
+  // Providers/models tried before the one that answered. Fallback used to be
+  // silent, which made "is Cloudflare actually being used?" unanswerable.
+  failures: ProviderFailure[];
+}
+
+// Provider error bodies can be long; keys are never part of them, but keep
+// what reaches the browser short.
+function shortError(err: unknown): string {
+  const text = err instanceof Error ? err.message : String(err);
+  return text.replace(/\s+/g, ' ').slice(0, 200);
 }
 
 export async function chatCompletion(
@@ -287,17 +303,75 @@ export async function chatCompletion(
   opts: { tools?: ChatTool[]; model?: string; maxTokens?: number } = {}
 ): Promise<ChatCompletionResult> {
   let lastError = 'Nenhum provedor de IA configurado.';
+  const failures: ProviderFailure[] = [];
   for (const provider of orderedConfiguredProviders()) {
     for (const model of candidateModels(provider, opts.model)) {
       try {
         const message = await callChatModel(provider, model, messages, opts.tools, opts.maxTokens ?? 2000);
-        return { message, provider: provider.name, model };
+        return { message, provider: provider.name, model, failures };
       } catch (err) {
         lastError = err instanceof Error ? err.message : lastError;
+        failures.push({ provider: provider.name, model, error: shortError(err) });
+        console.warn(`[ai] ${provider.name} (${model}) falhou: ${shortError(err)}`);
       }
     }
   }
   throw new Error(lastError);
+}
+
+export interface ProviderDiagnosis {
+  provider: string;
+  position: number | null;
+  configured: boolean;
+  reason?: string;
+  models: { model: string; ok: boolean; ms: number; error?: string; toolsOk?: boolean; toolsError?: string }[];
+}
+
+const PING_TOOL: ChatTool = {
+  type: 'function',
+  function: { name: 'ping', description: 'Responde ao teste de diagnóstico.', parameters: { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'] } },
+};
+
+// Calls every configured provider and model once, separately, with a tiny
+// prompt, plus one call with a tool attached (the Copiloto always sends
+// tools, and some endpoints reject them). Reports why each one is or isn't
+// usable. Never returns key values.
+export async function diagnoseProviders(): Promise<{ order: string[]; providers: ProviderDiagnosis[] }> {
+  const ordered = orderedConfiguredProviders();
+  const result: ProviderDiagnosis[] = [];
+  for (const provider of allProviders()) {
+    const position = ordered.indexOf(provider);
+    const hasKey = provider.name === 'legacy' ? Boolean(process.env.AI_API_KEY || process.env.OPENCODE_API_KEY) : Boolean(process.env[provider.keyEnv]);
+    const reason = !hasKey ? `${provider.keyEnv} ausente`
+      : !providerUrl(provider) ? 'URL indisponível (para cloudflare: CLOUDFLARE_ACCOUNT_ID ausente)'
+      : providerModels(provider).length === 0 ? `nenhum modelo (${provider.modelsEnv})` : undefined;
+    const entry: ProviderDiagnosis = { provider: provider.name, position: position >= 0 ? position + 1 : null, configured: position >= 0, reason, models: [] };
+    if (position >= 0) {
+      for (const model of providerModels(provider)) {
+        const started = Date.now();
+        const row: ProviderDiagnosis['models'][number] = { model, ok: false, ms: 0 };
+        try {
+          await callModel(provider, model, 'Responda apenas: ok', { maxTokens: 300 });
+          row.ok = true;
+        } catch (err) {
+          row.error = shortError(err);
+        }
+        row.ms = Date.now() - started;
+        if (row.ok) {
+          try {
+            await callChatModel(provider, model, [{ role: 'user', content: 'Chame a ferramenta ping com ok=true.' }], [PING_TOOL], 300);
+            row.toolsOk = true;
+          } catch (err) {
+            row.toolsOk = false;
+            row.toolsError = shortError(err);
+          }
+        }
+        entry.models.push(row);
+      }
+    }
+    result.push(entry);
+  }
+  return { order: ordered.map(p => p.name), providers: result };
 }
 
 // Models routinely wrap JSON in prose or ``` fences, so parse defensively

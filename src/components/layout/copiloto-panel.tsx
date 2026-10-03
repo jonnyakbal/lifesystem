@@ -22,9 +22,27 @@ interface PendingAction {
   args: Record<string, unknown>;
 }
 
+interface Via {
+  provider: string;
+  model: string;
+  falhas: { provider: string; model: string; error: string }[];
+}
+
 interface Bubble {
   role: 'user' | 'assistant';
   text: string;
+  via?: Via;
+}
+
+function shortModel(model: string) {
+  return model.split('/').pop() || model;
+}
+
+// Models answer in Markdown. Render only **bold** and line structure; the
+// text stays plain React text (no HTML injection).
+function RichText({ text }: { text: string }) {
+  return <>{text.split(/(\*\*[^*\n]+\*\*)/g).map((part, i) =>
+    part.startsWith('**') && part.endsWith('**') && part.length > 4 ? <strong key={i}>{part.slice(2, -2)}</strong> : part)}</>;
 }
 
 export function CopilotoPanel() {
@@ -56,7 +74,7 @@ export function CopilotoPanel() {
     setInput('');
     setLoading(true);
     try {
-      const r = await apiFetch<{ status: string; resposta?: string; historico: ChatMessage[]; acaoPendente?: PendingAction; descricao?: string; error?: string }>(
+      const r = await apiFetch<{ status: string; resposta?: string; historico: ChatMessage[]; acaoPendente?: PendingAction; descricao?: string; error?: string; via?: Via }>(
         '/api/copiloto',
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mensagem, historico }) }
       );
@@ -64,7 +82,7 @@ export function CopilotoPanel() {
       if (r.status === 'confirmar' && r.acaoPendente) {
         setPending({ acao: r.acaoPendente, descricao: r.descricao || r.acaoPendente.name });
       } else {
-        setBubbles(prev => [...prev, { role: 'assistant', text: r.resposta || '(sem resposta)' }]);
+        setBubbles(prev => [...prev, { role: 'assistant', text: r.resposta || '(sem resposta)', via: r.via }]);
       }
     } catch (err) {
       toast.error(showError(err));
@@ -80,7 +98,7 @@ export function CopilotoPanel() {
     setPending(null);
     setLoading(true);
     try {
-      const r = await apiFetch<{ status: string; resposta?: string; historico: ChatMessage[]; acaoPendente?: PendingAction; descricao?: string }>(
+      const r = await apiFetch<{ status: string; resposta?: string; historico: ChatMessage[]; acaoPendente?: PendingAction; descricao?: string; via?: Via }>(
         '/api/copiloto',
         { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ historico, confirmarAcao: { id: acao.id, aprovado } }) }
       );
@@ -88,7 +106,7 @@ export function CopilotoPanel() {
       if (r.status === 'confirmar' && r.acaoPendente) {
         setPending({ acao: r.acaoPendente, descricao: r.descricao || r.acaoPendente.name });
       } else {
-        setBubbles(prev => [...prev, { role: 'assistant', text: r.resposta || '(sem resposta)' }]);
+        setBubbles(prev => [...prev, { role: 'assistant', text: r.resposta || '(sem resposta)', via: r.via }]);
       }
     } catch (err) {
       toast.error(showError(err));
@@ -141,7 +159,11 @@ export function CopilotoPanel() {
                     'max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap',
                     b.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-muted'
                   )}>
-                    {b.text}
+                    {b.role === 'assistant' ? <RichText text={b.text} /> : b.text}
+                    {b.via && <p className="mt-1.5 text-[10px] text-muted-foreground" title={b.via.falhas.map(f => `${f.provider} (${f.model}): ${f.error}`).join('\n') || undefined}>
+                      via {b.via.provider} · {shortModel(b.via.model)}
+                      {b.via.falhas.length > 0 && <> · {b.via.falhas.length} {b.via.falhas.length === 1 ? 'falha' : 'falhas'} antes ({[...new Set(b.via.falhas.map(f => f.provider))].join(', ')})</>}
+                    </p>}
                   </div>
                 </div>
               ))}
