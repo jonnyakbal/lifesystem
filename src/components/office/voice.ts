@@ -86,15 +86,63 @@ export function useSpeechInput(onFinal: (text: string) => void) {
   return { supported, listening, interim, error, start, stop };
 }
 
-// Distinct but natural settings per crew member; pitch/rate only, no cloning.
-const personas: Record<AgentId, { pitch: number; rate: number }> = {
-  hermes: { pitch: 1, rate: 1.02 },
-  vega: { pitch: 1.15, rate: 1 },
-  sirius: { pitch: 0.9, rate: 1.06 },
-  orion: { pitch: 0.82, rate: 0.96 },
-  astro: { pitch: 1.08, rate: 0.94 },
-  cosmo: { pitch: 1.22, rate: 1.1 },
+// Each crew member gets its own natural voice when the system has several.
+// Pitch stays close to 1: bending it was what made voices sound robotic.
+const personas: Record<AgentId, { gender: "m" | "f"; pitch: number; rate: number; slot: number }> = {
+  hermes: { gender: "m", pitch: 1, rate: 1.08, slot: 0 },
+  vega: { gender: "f", pitch: 1, rate: 1.06, slot: 0 },
+  sirius: { gender: "m", pitch: 0.97, rate: 1.1, slot: 1 },
+  orion: { gender: "m", pitch: 0.94, rate: 1.02, slot: 2 },
+  astro: { gender: "f", pitch: 1.02, rate: 1.04, slot: 1 },
+  cosmo: { gender: "f", pitch: 1.04, rate: 1.12, slot: 2 },
 };
+
+const maleNames = /antonio|daniel|donato|fabio|f[aá]bio|humberto|julio|j[uú]lio|nicolau|valerio|val[eé]rio|thiago|duarte|male|masculin/i;
+
+/** Higher is better: neural/online voices first, then Google, then pt-BR. */
+export function voiceScore(v: { name: string; lang: string; localService?: boolean }): number {
+  const lang = v.lang.toLowerCase().replace("_", "-");
+  if (!lang.startsWith("pt")) return -1;
+  let score = lang === "pt-br" ? 30 : 5;
+  if (/natural|neural|online|premium|enhanced|wavenet/i.test(v.name)) score += 100;
+  if (/google/i.test(v.name)) score += 60;
+  if (/desktop|compact|espeak/i.test(v.name)) score -= 40;
+  if (v.localService === false) score += 5;
+  return score;
+}
+
+export function pickVoice<V extends { name: string; lang: string; localService?: boolean }>(voices: V[], agent: AgentId): V | undefined {
+  const ranked = voices.filter((v) => voiceScore(v) >= 0).sort((a, b) => voiceScore(b) - voiceScore(a));
+  if (!ranked.length) return undefined;
+  const persona = personas[agent];
+  const best = voiceScore(ranked[0]);
+  // Only voices close to the best quality compete; never trade a natural
+  // voice for a robotic one just to vary gender.
+  const good = ranked.filter((v) => voiceScore(v) >= best - 40);
+  const sameGender = good.filter((v) => (maleNames.test(v.name) ? "m" : "f") === persona.gender);
+  const pool = sameGender.length ? sameGender : good;
+  return pool[persona.slot % pool.length];
+}
+
+/** Voices load asynchronously; the first call often sees an empty list. Waits
+ * once, briefly, then never delays speech again. */
+let waitedForVoices = false;
+function loadVoices(): Promise<SpeechSynthesisVoice[]> {
+  const synth = window.speechSynthesis;
+  const now = synth.getVoices();
+  if (now.length || waitedForVoices) return Promise.resolve(now);
+  waitedForVoices = true;
+  return new Promise((resolve) => {
+    const done = () => resolve(synth.getVoices());
+    synth.addEventListener?.("voiceschanged", done, { once: true });
+    setTimeout(done, 600);
+  });
+}
+
+export function voiceNameFor(agent: AgentId): string | null {
+  if (!speechOutputSupported()) return null;
+  return pickVoice(window.speechSynthesis.getVoices(), agent)?.name || null;
+}
 
 /** Short sentences avoid engines that silently stop long utterances. */
 export function speechChunks(text: string, max = 220): string[] {
@@ -123,20 +171,22 @@ export function speak(text: string, agent: AgentId, events: { onStart?: () => vo
   synth.cancel();
   const chunks = speechChunks(text);
   if (!chunks.length) return false;
-  const voice = synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith("pt"));
   const persona = personas[agent];
-  chunks.forEach((chunk, index) => {
-    const utterance = new SpeechSynthesisUtterance(chunk);
-    utterance.lang = "pt-BR";
-    if (voice) utterance.voice = voice;
-    utterance.pitch = persona.pitch;
-    utterance.rate = persona.rate;
-    if (index === 0) utterance.onstart = () => events.onStart?.();
-    if (index === chunks.length - 1) {
-      utterance.onend = () => events.onEnd?.();
-      utterance.onerror = () => events.onEnd?.();
-    }
-    synth.speak(utterance);
+  void loadVoices().then((voices) => {
+    const voice = pickVoice(voices, agent);
+    chunks.forEach((chunk, index) => {
+      const utterance = new SpeechSynthesisUtterance(chunk);
+      utterance.lang = voice?.lang || "pt-BR";
+      if (voice) utterance.voice = voice;
+      utterance.pitch = persona.pitch;
+      utterance.rate = persona.rate;
+      if (index === 0) utterance.onstart = () => events.onStart?.();
+      if (index === chunks.length - 1) {
+        utterance.onend = () => events.onEnd?.();
+        utterance.onerror = () => events.onEnd?.();
+      }
+      synth.speak(utterance);
+    });
   });
   return true;
 }

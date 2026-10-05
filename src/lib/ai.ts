@@ -273,7 +273,35 @@ async function callChatModel(
   }
   const message = data.choices?.[0]?.message;
   if (!message) throw new Error(`${provider.name} (${model}) devolveu uma resposta vazia.`);
-  return message;
+  return normalizeAssistantMessage(message, `${provider.name} (${model})`);
+}
+
+// Strict OpenAI clients (the Hermes Agent among them) reject tool calls that
+// are not exactly in the OpenAI shape. Some OpenAI-compatible endpoints (seen
+// with Workers AI) return arguments as an object or omit id/type. Fix what is
+// unambiguous; a call whose arguments are not valid JSON is a provider
+// failure, so the chain moves on instead of handing the client garbage.
+export function normalizeAssistantMessage(raw: Record<string, unknown>, label = 'provedor'): ChatMessage {
+  const calls = Array.isArray(raw.tool_calls) ? raw.tool_calls : [];
+  const tool_calls = calls.map((call: Record<string, unknown>, index: number) => {
+    const fn = (call.function || {}) as { name?: unknown; arguments?: unknown };
+    if (typeof fn.name !== 'string' || !fn.name) throw new Error(`${label} devolveu uma chamada de ferramenta sem nome.`);
+    let args = fn.arguments ?? {};
+    if (typeof args !== 'string') args = JSON.stringify(args);
+    try {
+      JSON.parse(args as string);
+    } catch {
+      throw new Error(`${label} devolveu argumentos inválidos para ${fn.name}.`);
+    }
+    return {
+      id: typeof call.id === 'string' && call.id ? call.id : `call_${Date.now().toString(36)}_${index}`,
+      type: 'function' as const,
+      function: { name: fn.name, arguments: args as string },
+    };
+  });
+  const content = typeof raw.content === 'string' ? raw.content : raw.content == null ? null : JSON.stringify(raw.content);
+  if (!tool_calls.length && !content) throw new Error(`${label} devolveu uma resposta vazia.`);
+  return { role: 'assistant', content, ...(tool_calls.length ? { tool_calls } : {}) };
 }
 
 export interface ProviderFailure {
