@@ -6,6 +6,8 @@ import type { AddressInfo } from "node:net";
 // next provider with no trace. These checks run src/lib/ai.ts against local
 // fake endpoints (no real provider, no real key).
 let server: Server;
+const touched = ["CLOUDFLARE_API_BASE", "CLOUDFLARE_ACCOUNT_ID", "AI_CLOUDFLARE_API_KEY", "AI_BASE_URL", "AI_API_KEY", "AI_MODELS", "AI_GROQ_API_KEY", "AI_OPENROUTER_API_KEY", "AI_MISTRAL_API_KEY", "AI_PROVIDER_ORDER"];
+const saved = Object.fromEntries(touched.map((k) => [k, process.env[k]]));
 let base = "";
 const seen: { path: string; auth: string; tools: boolean }[] = [];
 
@@ -38,7 +40,14 @@ test.beforeAll(async () => {
     AI_PROVIDER_ORDER: "cloudflare,legacy",
   });
 });
-test.afterAll(() => server.close());
+// Same worker runs other files: never leak the fake endpoints to them.
+test.afterAll(() => {
+  server.close();
+  for (const k of touched) {
+    if (saved[k] === undefined) delete process.env[k];
+    else process.env[k] = saved[k];
+  }
+});
 
 test("copilot completion reports who answered and every failure before it", async () => {
   const { chatCompletion } = await import("../src/lib/ai");
@@ -61,4 +70,14 @@ test("diagnosis lists order, missing keys and per-model results without key valu
   expect(legacy.models[0]).toMatchObject({ model: "legacy-model", ok: true, toolsOk: true });
   expect(report.providers.find((p) => p.provider === "groq")).toMatchObject({ configured: false, reason: "AI_GROQ_API_KEY ausente" });
   expect(JSON.stringify(report)).not.toMatch(/synthetic/);
+});
+
+test("tool calls reach strict OpenAI clients in the exact OpenAI shape", async () => {
+  const { normalizeAssistantMessage } = await import("../src/lib/ai");
+  const fixed = normalizeAssistantMessage({ role: "assistant", content: null, tool_calls: [{ function: { name: "buscar", arguments: { q: "oi" } } }] });
+  expect(fixed.tool_calls![0]).toMatchObject({ type: "function", function: { name: "buscar", arguments: '{"q":"oi"}' } });
+  expect(fixed.tool_calls![0].id).toMatch(/^call_/);
+  expect(() => normalizeAssistantMessage({ content: null, tool_calls: [{ function: { name: "x", arguments: "{quebrado" } }] })).toThrow(/argumentos inválidos/);
+  expect(() => normalizeAssistantMessage({ content: "", tool_calls: [] })).toThrow(/vazia/);
+  expect(normalizeAssistantMessage({ role: "assistant", content: "olá" })).toEqual({ role: "assistant", content: "olá" });
 });
