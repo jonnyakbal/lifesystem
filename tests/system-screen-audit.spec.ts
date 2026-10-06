@@ -65,7 +65,15 @@ test('todas as telas com conteúdo sintético em desktop, mobile e tema claro', 
       // settle; every assertion below still runs on the loaded screen.
       await page.goto(route, { waitUntil: 'load' });
       await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => undefined);
-      await expect(page.getByRole('heading', { level: 1 }).first(), route).toBeVisible();
+      try {
+        await expect(page.getByRole('heading', { level: 1 }).first(), route).toBeVisible();
+      } catch (error) {
+        // Seen once in CI only (/diario, 2026-10-06). Report what was on
+        // screen instead of a bare "not found", so the next occurrence names
+        // its cause (error boundary, login redirect, server error...).
+        const text = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+        throw new Error(`${route}: sem h1 em ${page.url()}. Tela: "${text}". Erros: ${errors.slice(before).join(' | ') || 'nenhum'}`, { cause: error });
+      }
       // Let entrance transitions finish before assessing the actual composition.
       await page.waitForTimeout(1200);
       await page.addStyleTag({ content: 'nextjs-portal { display: none; }' });
