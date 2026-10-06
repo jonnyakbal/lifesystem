@@ -71,7 +71,8 @@ test('todas as telas com conteúdo sintético em desktop, mobile e tema claro', 
         // Seen once in CI only (/diario, 2026-10-06). Report what was on
         // screen instead of a bare "not found", so the next occurrence names
         // its cause (error boundary, login redirect, server error...).
-        const text = (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
+        const detail = await page.getByTestId('error-detail').textContent({ timeout: 500 }).catch(() => null);
+        const text = (detail ? `[${detail}] ` : '') + (await page.locator('body').innerText().catch(() => '')).replace(/\s+/g, ' ').slice(0, 400);
         throw new Error(`${route}: sem h1 em ${page.url()}. Tela: "${text}". Erros: ${errors.slice(before).join(' | ') || 'nenhum'}`, { cause: error });
       }
       // Let entrance transitions finish before assessing the actual composition.
