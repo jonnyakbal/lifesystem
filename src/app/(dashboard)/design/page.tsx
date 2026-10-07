@@ -11,13 +11,14 @@ import { Chip } from '@/components/ds/chip';
 import { EmptyState } from '@/components/ds/empty-state';
 import { ScreenHeader } from '@/components/ds/screen-header';
 import { TaskRow } from '@/components/ds/task-row';
+import { BrandBook } from './brand-book';
 
 // Living design system: every sample below is the real component or token
 // the app uses (or will use once approved), so this page cannot drift from
 // the product. Sample data is fictional and nothing here calls an API.
 
 const sections = [
-  ['principios', 'Princípios'], ['marca', 'Marca e voz'], ['cores', 'Cores'], ['tipografia', 'Tipografia'],
+  ['identidade', 'Identidade'], ['principios', 'Princípios'], ['marca', 'Voz na interface'], ['cores', 'Cores na interface'], ['tipografia', 'Escala tipográfica'],
   ['medidas', 'Medidas'], ['icones', 'Ícones'], ['ilustracao', 'Ilustração'], ['componentes', 'Componentes'],
   ['tarefa', 'Linha de tarefa'], ['padroes', 'Padrões de tela'], ['acesso', 'Toque e acessibilidade'],
   ['decisoes', 'Decisões para aprovar'],
@@ -43,7 +44,7 @@ function DoDont({ good, bad }: { good: string; bad: string }) {
 }
 
 const colors = [
-  ['--color-primary', 'Ação', 'Botões principais, links, foco, seleção. Uma só cor de ação.'],
+  ['--color-primary', 'Ação (hoje)', 'Botões principais, links, foco, seleção. Decisão 1 define se vira o violeta da marca.'],
   ['--color-stellar', 'Agentes e marca', 'Hermes, Órion, Sirius, propostas de agentes, assinatura astral.'],
   ['--color-money', 'Sucesso / dinheiro', 'Concluído, salvo, recebido. Nunca usado para enfeite.'],
   ['--color-qty', 'Informação', 'Quantidades, dados neutros, gráficos.'],
@@ -68,13 +69,15 @@ export default function DesignPage() {
   const [deleted, setDeleted] = useState(false);
   return (
     <main className="work-page mx-auto max-w-[1200px] px-4 pb-28 pt-6 lg:px-8">
-      <ScreenHeader eyebrow="Sistema · design" title="Design do LifeSystem" context="Referência viva: cada exemplo é o componente real. Em revisão — as escolhas marcadas como decisão aguardam sua aprovação." />
+      <ScreenHeader eyebrow="Marca · design" title="Design do LifeSystem" context="Identidade Órbita e o sistema que a leva para cada tela. Cada exemplo é o componente real; as escolhas marcadas como decisão aguardam sua aprovação." />
 
       <nav aria-label="Seções do design" className="sticky top-2 z-10 -mx-1 mb-2 flex gap-1 overflow-x-auto rounded-xl border bg-background/90 p-1 backdrop-blur">
         {sections.map(([id, label]) => (
           <a key={id} href={`#${id}`} className="inline-flex min-h-10 shrink-0 items-center rounded-lg px-3 text-sm text-muted-foreground hover:bg-muted hover:text-foreground">{label}</a>
         ))}
       </nav>
+
+      <div id="identidade" className="scroll-mt-24"><BrandBook /></div>
 
       <Section id="principios" title="Princípios" intro="Astral discreto, operação clara. Seis regras que decidem os casos não previstos.">
         <ol className="grid gap-3 sm:grid-cols-2">
@@ -95,23 +98,15 @@ export default function DesignPage() {
         </ol>
       </Section>
 
-      <Section id="marca" title="Marca e voz" intro="LIFESYSTEM — “Seu universo, em movimento”. Nome e ícone vêm da configuração da marca; a voz é próxima, curta e sem jargão.">
-        <div className="flex flex-wrap items-center gap-6 rounded-2xl border bg-card p-6">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/icons/icon-v1-orbit.svg" alt="Ícone LifeSystem" width={64} height={64} className="rounded-2xl" />
-          <div>
-            <p className="text-xl font-semibold tracking-wide">LIFESYSTEM</p>
-            <p className="text-sm text-muted-foreground">Seu universo, em movimento</p>
-          </div>
-        </div>
-        <div className="mt-4 space-y-2">
+      <Section id="marca" title="Voz na interface" intro="A voz da marca aplicada a botões, avisos e erros.">
+        <div className="space-y-2">
           <DoDont good="“Tarefa concluída. Desfazer”" bad="“Status atualizado para done com sucesso!”" />
           <DoDont good="“Prazo”, “etapa”, “prioridade urgente”" bad="“dueDate”, “stage”, “urgent” (nomes técnicos na tela)" />
           <DoDont good="“Não foi possível salvar. Tente de novo.” + botão" bad="“Erro 500” ou mensagem sem saída" />
         </div>
       </Section>
 
-      <Section id="cores" title="Cores" intro="Cada cor tem um significado. Alterne o tema (ícone de sol/lua na barra lateral) para ver as duas versões — os nomes e significados não mudam.">
+      <Section id="cores" title="Cores na interface" intro="Cada cor tem um significado. Alterne o tema (ícone de sol/lua na barra lateral) para ver as duas versões — os nomes e significados não mudam.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {colors.map(([v, name, use]) => (
             <div key={v} className="flex gap-3 rounded-2xl border bg-card p-3">
@@ -137,7 +132,7 @@ export default function DesignPage() {
         </div>
       </Section>
 
-      <Section id="tipografia" title="Tipografia" intro="Fraunces para títulos de tela e seção; Inter para todo o resto; JetBrains Mono só para números tabulares e código. Seis tamanhos — nada abaixo de 12 px.">
+      <Section id="tipografia" title="Escala tipográfica" intro="Fraunces para títulos de tela e seção; Inter para todo o resto; JetBrains Mono só para números tabulares e código. Seis tamanhos — nada abaixo de 12 px.">
         <div className="divide-y rounded-2xl border bg-card">
           {typeScale.map(([cls, spec, use, sample]) => (
             <div key={spec} className="grid gap-1 p-4 sm:grid-cols-[180px_1fr] sm:items-baseline">
@@ -274,9 +269,9 @@ export default function DesignPage() {
 
       <Section id="decisoes" title="Decisões para aprovar" intro="Responda no chat com a letra de cada uma (ex.: 1A, 2A, 3B). Depois disso, consolido o sistema e reestilizo começando por Tarefas.">
         <div className="space-y-6">
-          <Decision n={1} title="Cor de ação em Tarefas"
-            a={{ label: 'A — Ciano em todo o sistema', note: 'Uma só cor de ação. O violeta fica para agentes e marca. Recomendado.', sample: <Button>Nova tarefa</Button> }}
-            b={{ label: 'B — Violeta em Tarefas (como hoje)', note: 'Mantém o “observatório” só nessa tela; o resto continua ciano.', sample: <Button className="bg-stellar text-white hover:bg-stellar/90">Nova tarefa</Button> }} />
+          <Decision n={1} title="Cor de ação em todo o sistema"
+            a={{ label: 'A — Nebulosa violeta (identidade aprovada)', note: 'O violeta do L vira a cor de todas as ações, em todas as telas. Ciano passa a significar movimento/progresso e o dourado marca conquistas. Recomendado: é o que a marca Órbita define.', sample: <Button className="bg-[#8B5CF6] text-white hover:bg-[#7C3AED]">Nova tarefa</Button> }}
+            b={{ label: 'B — Ciano (como o resto do app hoje)', note: 'Mantém o ciano como ação e o violeta só para agentes; Tarefas deixa de ser violeta.', sample: <Button>Nova tarefa</Button> }} />
           <Decision n={2} title="Cartão do Quadro"
             a={{ label: 'A — Cartão compacto', note: 'Título, “Concluir” e chips. Etapa e prioridade mudam no painel ou arrastando. Recomendado.', sample: <TaskRow title="Atualizar portfólio" meta={<><Chip icon={<Calendar className="h-3 w-3" />}>12 out</Chip><Chip>Normal</Chip></>} /> }}
             b={{ label: 'B — Cartão com seletores (como hoje)', note: 'Edita etapa e prioridade direto no cartão; ocupa o dobro da altura.', sample: <div className="rounded-xl border bg-card p-3 text-sm"><p className="font-medium">Atualizar portfólio</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><span className="rounded-lg border p-2">Etapa: A fazer ▾</span><span className="rounded-lg border p-2">Prioridade: Normal ▾</span></div></div> }} />

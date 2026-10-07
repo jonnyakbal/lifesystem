@@ -9,11 +9,14 @@ test("design page documents the system with live components and fits a phone", a
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/design");
   await expect(page.getByRole("heading", { level: 1, name: "Design do LifeSystem" })).toBeVisible();
-  for (const name of ["Princípios", "Cores", "Tipografia", "Linha de tarefa", "Decisões para aprovar"])
+  await expect(page.getByRole("img", { name: "Constelação de Órion" })).toBeVisible();
+  await page.getByRole("button", { name: "Concluir 4 tarefas" }).click();
+  await expect(page.getByRole("button", { name: "Voltar" })).toBeVisible();
+  for (const name of ["A ideia", "O símbolo", "A tripulação", "Sua constelação", "Princípios", "Cores na interface", "Escala tipográfica", "Linha de tarefa", "Decisões para aprovar"])
     await expect(page.getByRole("heading", { level: 2, name })).toBeAttached();
 
   // The task line keeps "open" and "complete" apart, and completion is reversible.
-  const complete = page.getByRole("button", { name: "Concluir" }).nth(1);
+  const complete = page.getByRole("button", { name: "Concluir", exact: true }).nth(1);
   await complete.click();
   await expect(page.getByRole("button", { name: "Feita" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Arquivar exemplo" }).click();
