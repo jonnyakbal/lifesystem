@@ -12,7 +12,8 @@ test("design page documents the system with live components and fits a phone", a
   await expect(page.getByRole("img", { name: "Constelação de Órion" })).toBeVisible();
   await page.getByRole("button", { name: "Concluir 4 tarefas" }).click();
   await expect(page.getByRole("button", { name: "Voltar" })).toBeVisible();
-  for (const name of ["A ideia", "O símbolo", "A tripulação", "Sua constelação", "Princípios", "Cores na interface", "Escala tipográfica", "Linha de tarefa", "Decisões para aprovar"])
+  await expect(page.getByRole("img", { name: /Mapa do sistema/ })).toBeVisible();
+  for (const name of ["A ideia", "O universo", "Glossário do céu", "O símbolo", "A tripulação", "Sua constelação", "Princípios", "Cores na interface", "Escala tipográfica", "Linha de tarefa", "Decisões para aprovar"])
     await expect(page.getByRole("heading", { level: 2, name })).toBeAttached();
 
   // The task line keeps "open" and "complete" apart, and completion is reversible.

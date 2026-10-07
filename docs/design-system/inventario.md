@@ -45,3 +45,31 @@ pessoal foi usado.
 4. Consolidar tokens (escala de fonte e raio no `@theme`) e componentes `src/components/ds/`.
 5. Reestilizar Tarefas, depois Hoje e Planejar, depois o restante, cada uma com testes em
    desktop/mobile e nos dois temas.
+
+## Cosmologia do LifeSystem (08/10/2026)
+
+Universo semântico definido no livro de marca (`/design`), alinhado ao mapa
+estelar do Escritório (`kindNames` em `stellar-panel.tsx`):
+
+| Corpo celeste | No app |
+| --- | --- |
+| Núcleo | Visão: você e o seu porquê |
+| Constelações | Pilares |
+| Planetas | Projetos |
+| Satélites | Ferramentas: Agenda, Financeiro, Conteúdo, Notas, Fontes, Arco Leads |
+| Estrelas | Tarefas (acesas = concluídas) |
+| Cometas | Caixa de entrada / capturas |
+| Cinturão | Tarefas soltas, sem projeto nem pilar |
+| Órbita | Planejar e Hoje (o percurso da semana) |
+| Eclipse | Dependências entre tarefas |
+| Janela de lançamento | Editais |
+| Combustível | Financeiro (saldo) |
+| Suporte de vida | Corpo & saúde |
+| Estação orbital | Escritório e tripulação |
+| Diário de bordo | Diário |
+| Telescópio | Revisão e Metas |
+| Sinais | Fontes e avisos |
+
+As ilustrações ficam em `src/components/brand/illustrations.tsx` (uma por conceito),
+o mapa completo em `system-map.tsx`. Na reestilização, cada módulo usa a sua
+ilustração no estado vazio e na abertura.

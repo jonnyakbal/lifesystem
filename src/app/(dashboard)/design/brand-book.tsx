@@ -6,6 +6,11 @@ import { AgentSigil, agentSky } from '@/components/brand/sigils';
 import { LifeConstellation } from '@/components/brand/constellation';
 import { SolarGlyph, SolarMono, Wordmark } from '@/components/brand/marks';
 import type { AgentId } from '@/lib/office/schema';
+import { SystemMap } from '@/components/brand/system-map';
+import {
+  AsteroidsArt, CometArt, ConstellationArt, EclipseArt, FuelArt, LaunchWindowArt, LifeSupportArt, LogbookArt,
+  OrbitWeekArt, PlanetArt, SatelliteArt, SignalArt, StarsArt, StationArt, SunArt, TelescopeArt,
+} from '@/components/brand/illustrations';
 
 // The brand book lives in brand space: always the deep-space surface of the
 // approved "Órbita" identity, whatever the app theme, because that is how the
@@ -27,6 +32,26 @@ const functional = [
   ['Anã vermelha', '#FB7185', 'Atraso, urgência, erro'],
   ['Poeira estelar', '#A5A3C2', 'Texto secundário'],
 ] as const;
+
+
+const universe: [(p: { size?: number }) => React.ReactElement, string, string, string][] = [
+  [SunArt, 'Núcleo', 'Visão', 'Você e o seu porquê. Tudo gira em volta.'],
+  [ConstellationArt, 'Constelações', 'Pilares', 'As áreas da vida que dão sentido ao céu: carreira, saúde, relações.'],
+  [PlanetArt, 'Planetas', 'Projetos', 'Corpos com massa própria, ligados a um pilar. Crescem com o trabalho.'],
+  [SatelliteArt, 'Satélites', 'Ferramentas', 'Agenda, Financeiro, Conteúdo, Notas, Fontes, Arco Leads: orbitam e servem os projetos.'],
+  [StarsArt, 'Estrelas', 'Tarefas', 'Pontos de luz. Apagadas esperam um passo; concluídas acendem.'],
+  [CometArt, 'Cometas', 'Caixa de entrada', 'Ideias que chegam de fora, rápidas. Capture antes que passem.'],
+  [AsteroidsArt, 'Cinturão', 'Tarefas soltas', 'Sem projeto nem pilar. Vale dar uma órbita a elas.'],
+  [OrbitWeekArt, 'Órbita', 'Planejar e Hoje', 'O percurso da semana: cada dia é um ponto do caminho.'],
+  [EclipseArt, 'Eclipse', 'Dependências', 'Uma tarefa que encobre outra até ser resolvida.'],
+  [LaunchWindowArt, 'Janela de lançamento', 'Editais', 'Oportunidade com prazo para decolar.'],
+  [FuelArt, 'Combustível', 'Financeiro', 'O que mantém a missão em voo. O satélite Financeiro mede o tanque.'],
+  [LifeSupportArt, 'Suporte de vida', 'Corpo & saúde', 'Sono, água, movimento: o que mantém a tripulação de pé.'],
+  [StationArt, 'Estação orbital', 'Escritório', 'A base de onde a tripulação trabalha com você.'],
+  [LogbookArt, 'Diário de bordo', 'Diário', 'O registro da viagem: o que viveu, decidiu e aprendeu.'],
+  [TelescopeArt, 'Telescópio', 'Revisão e Metas', 'Olhar o céu de longe para medir o caminho.'],
+  [SignalArt, 'Sinais', 'Fontes e avisos', 'O que chega de fora: notícias, alertas, mensagens.'],
+];
 
 const crew: [AgentId, string, string][] = [
   ['hermes', 'Hermes', '#e2d5bd'], ['vega', 'Vega', '#d8ac64'], ['sirius', 'Sirius', '#8dbdcd'],
@@ -89,7 +114,7 @@ export function BrandBook() {
         <div className="grid gap-4 md:grid-cols-3">
           {[
             ['O núcleo', 'Você e o seu porquê. O sol dourado no centro: é em volta dele que tudo se organiza.', <svg key="c" viewBox="0 0 80 80" className="h-20 w-20"><circle cx="40" cy="40" r="26" fill="#FDE68A" opacity=".2" /><circle cx="40" cy="40" r="15" fill="#FDE68A" /></svg>],
-            ['As órbitas', 'Seus pilares e rotinas. Cada um no próprio caminho, todos ligados ao mesmo centro.', <svg key="o" viewBox="0 0 80 80" className="h-20 w-20"><ellipse cx="40" cy="40" rx="34" ry="14" transform="rotate(-20 40 40)" fill="none" stroke="#C4B5FD" strokeWidth="2" /><circle cx="70" cy="30" r="5" fill="#67E8F9" /><circle cx="40" cy="40" r="6" fill="#FDE68A" /></svg>],
+            ['As órbitas', 'Seus projetos e rotinas em movimento. Cada um no próprio caminho, todos ligados ao mesmo centro.', <svg key="o" viewBox="0 0 80 80" className="h-20 w-20"><ellipse cx="40" cy="40" rx="34" ry="14" transform="rotate(-20 40 40)" fill="none" stroke="#C4B5FD" strokeWidth="2" /><circle cx="70" cy="30" r="5" fill="#67E8F9" /><circle cx="40" cy="40" r="6" fill="#FDE68A" /></svg>],
             ['O L', 'A direção. A linha desce, assenta no chão e segue em frente: decidir, firmar, avançar.', <svg key="l" viewBox="0 0 80 80" className="h-20 w-20"><path d="M24 14v38c0 7 4 11 11 11h24" stroke="#A78BFA" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round" fill="none" /></svg>],
           ].map(([t, d, art]) => (
             <div key={String(t)} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
@@ -101,7 +126,25 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="02" title="O símbolo" kicker="O L solar aprovado é o ícone do app. Para cada tamanho e fundo, uma versão — sempre a mesma geometria.">
+
+      <Chapter n="02" title="O universo" kicker="O LifeSystem inteiro é um céu. Você está no centro; seus projetos são planetas em órbita, as ferramentas são satélites que os servem, os pilares desenham constelações ao fundo. É a mesma lógica do mapa estelar do Escritório.">
+        <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-2 sm:p-4"><SystemMap /></div>
+      </Chapter>
+
+      <Chapter n="03" title="Glossário do céu" kicker="Cada parte do sistema tem um corpo celeste, um significado e uma ilustração. As ilustrações formam a biblioteca usada em estados vazios, aberturas e cabeçalhos de cada módulo.">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {universe.map(([Art, object, where, meaning]) => (
+            <div key={object} className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="grid h-24 place-items-center rounded-xl bg-black/30"><Art size={120} /></div>
+              <p className="mt-3 font-display text-lg">{object}</p>
+              <p className="text-xs uppercase tracking-wider" style={{ color: '#67E8F9' }}>{where}</p>
+              <p className="mt-1 text-sm leading-relaxed" style={{ color: dim }}>{meaning}</p>
+            </div>
+          ))}
+        </div>
+      </Chapter>
+
+      <Chapter n="04" title="O símbolo" kicker="O L solar aprovado é o ícone do app. Para cada tamanho e fundo, uma versão — sempre a mesma geometria.">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <figure className="rounded-2xl border border-white/10 bg-black/30 p-6 text-center">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -128,7 +171,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="03" title="Logotipo" kicker="Símbolo + nome em Fraunces espaçada. O nome em caixa alta, a frase em itálico: estrutura e alma juntas.">
+      <Chapter n="05" title="Logotipo" kicker="Símbolo + nome em Fraunces espaçada. O nome em caixa alta, a frase em itálico: estrutura e alma juntas.">
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="flex items-center gap-5 rounded-2xl border border-white/10 bg-black/30 p-8">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -142,7 +185,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="04" title="Paleta" kicker="Cinco cores de marca com papel definido, e três funcionais que significam sempre a mesma coisa.">
+      <Chapter n="06" title="Paleta" kicker="Cinco cores de marca com papel definido, e três funcionais que significam sempre a mesma coisa.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {palette.map(([name, hex, use, fg]) => (
             <div key={name} className="flex min-h-48 flex-col justify-between rounded-2xl border border-white/10 p-5" style={{ background: hex, color: fg }}>
@@ -161,7 +204,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="05" title="Tipografia" kicker="Duas vozes que se completam.">
+      <Chapter n="07" title="Tipografia" kicker="Duas vozes que se completam.">
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 lg:col-span-2">
             <p className="font-mono text-xs" style={{ color: '#FDE68A' }}>ALMA · FRAUNCES</p>
@@ -183,7 +226,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="06" title="A tripulação" kicker="Cada agente é uma constelação. Os nomes vêm do céu — e o desenho também, quando o céu permite.">
+      <Chapter n="08" title="A tripulação" kicker="Cada agente é uma constelação. Os nomes vêm do céu — e o desenho também, quando o céu permite.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {crew.map(([id, name, color]) => (
             <div key={id} className="flex gap-4 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
@@ -200,13 +243,13 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="07" title="Sua constelação" kicker="A ilustração da marca é feita dos seus dados. Cada pilar é um planeta; cada tarefa concluída acende uma estrela e se liga às outras. O desenho cresce com você.">
+      <Chapter n="09" title="Sua constelação" kicker="A ilustração da marca é feita dos seus dados. Cada projeto é um planeta; cada tarefa concluída acende uma estrela em volta dele e se liga às outras. O desenho cresce com você.">
         <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/30 p-4">
           <LifeConstellation pillars={[
-            { name: 'Carreira', color: '#67E8F9', done: lit ? 7 : 5, open: 3 },
-            { name: 'Saúde', color: '#34D399', done: lit ? 5 : 3, open: 2 },
-            { name: 'Relações', color: '#FDE68A', done: 2, open: 2 },
-            { name: 'Criação', color: '#A78BFA', done: 4, open: 3 },
+            { name: 'Site Arco Labs', color: '#67E8F9', done: lit ? 7 : 5, open: 3 },
+            { name: 'Treino', color: '#34D399', done: lit ? 5 : 3, open: 2 },
+            { name: 'Casamento', color: '#FDE68A', done: 2, open: 2 },
+            { name: 'TCC', color: '#A78BFA', done: 4, open: 3 },
           ]} />
           <button type="button" onClick={() => setLit(v => !v)} className="absolute bottom-4 right-4 inline-flex min-h-11 items-center gap-2 rounded-full px-4 text-sm font-medium" style={{ background: '#8B5CF6', color: '#fff' }}>
             <Sparkles className="h-4 w-4" />{lit ? 'Voltar' : 'Concluir 4 tarefas'}
@@ -214,7 +257,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="08" title="Voz" kicker="Fala como alguém que está do seu lado: calma, direta, nunca culpa. Frases curtas. Nenhum jargão técnico.">
+      <Chapter n="10" title="Voz" kicker="Fala como alguém que está do seu lado: calma, direta, nunca culpa. Frases curtas. Nenhum jargão técnico.">
         <div className="grid gap-3 md:grid-cols-3">
           {['Um passo de cada vez.', 'Ideias ganham forma quando encontram espaço.', 'Clareza também é uma forma de cuidado.'].map(t => (
             <blockquote key={t} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 font-display text-xl italic">“{t}”</blockquote>
@@ -230,7 +273,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="09" title="Movimento" kicker="Lento como uma órbita, nunca nervoso. O movimento celebra uma conclusão ou mostra uma mudança — e desliga quando você pede menos movimento.">
+      <Chapter n="11" title="Movimento" kicker="Lento como uma órbita, nunca nervoso. O movimento celebra uma conclusão ou mostra uma mudança — e desliga quando você pede menos movimento.">
         <div className="flex flex-wrap items-center gap-6 rounded-2xl border border-white/10 bg-black/30 p-6">
           <button type="button" onClick={() => setLit(v => !v)} aria-pressed={lit} className="inline-flex min-h-11 items-center gap-3 rounded-full border border-white/15 px-5 text-sm">
             <span className={`relative grid h-6 w-6 place-items-center`}>
@@ -243,7 +286,7 @@ export function BrandBook() {
         </div>
       </Chapter>
 
-      <Chapter n="10" title="Aplicações" kicker="Como a marca aparece no produto.">
+      <Chapter n="12" title="Aplicações" kicker="Como a marca aparece no produto.">
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="relative overflow-hidden rounded-2xl border border-white/10 p-6 text-center" style={{ background: '#070A1C' }}>
             <Starfield count={30} seed={3} />
