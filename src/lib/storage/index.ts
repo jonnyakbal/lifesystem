@@ -50,13 +50,27 @@ async function ensureDataDir(dir = dataDir()) {
   }
 }
 
+// Unlocked D1 reads of the same collection that overlap in time share one
+// API call (a page load often asks for the same collection from several
+// routes at once). Each caller gets its own copy, and reads under a lease
+// never join: they must start after the lease and carry their own revision.
+const sharedD1Reads = new Map<string, Promise<unknown[]>>();
+
 async function readCollection<T>(name: string): Promise<T[]> {
   validateCollection(name);
   if (isD1Backend()) {
-    const { items, rev } = await readD1Collection<T>(name);
     const context = storageContext.getStore();
-    if (context?.d1 && context.collection === name) context.d1.rev = rev;
-    return items;
+    if (context?.d1 && context.collection === name) {
+      const { items, rev } = await readD1Collection<T>(name);
+      context.d1.rev = rev;
+      return items;
+    }
+    let shared = sharedD1Reads.get(name);
+    if (!shared) {
+      shared = readD1Collection<unknown>(name).then(r => r.items).finally(() => sharedD1Reads.delete(name));
+      sharedD1Reads.set(name, shared);
+    }
+    return structuredClone(await shared) as T[];
   }
   const dir = dataDir();
   await ensureDataDir(dir);
@@ -79,6 +93,8 @@ async function writeCollection<T>(name: string, data: T[]): Promise<void> {
   if (context.d1) {
     if (context.d1.rev === undefined) throw new Error('Escrita sem leitura da coleção sob a trava.');
     context.d1.rev = await writeD1Collection(name, data, context.d1.owner, context.d1.rev);
+    // Later reads must see this write, never join a read started before it.
+    sharedD1Reads.delete(name);
     return;
   }
   await ensureDataDir(dir);
