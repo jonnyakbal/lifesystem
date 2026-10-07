@@ -101,6 +101,8 @@ export type CopyResult = { name: string; outcome: 'copied' | 'replaced' | 'uncha
 
 export async function copyToD1(replace: string[] = []): Promise<CopyResult[]> {
   if (!d1Configured()) throw new Error('D1 não configurado no servidor.');
+  // After the switch D1 holds newer records than the frozen files.
+  if (process.env.LIFESYSTEM_STORAGE === 'd1') throw new Error('O app já usa o D1; copiar os arquivos antigos sobrescreveria registros novos.');
   const results: CopyResult[] = [];
   for (const entry of await fileCollections()) {
     if (entry.separate || !entry.items) {

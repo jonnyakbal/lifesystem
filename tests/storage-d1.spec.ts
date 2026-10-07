@@ -321,6 +321,14 @@ test('in-app migration copies, verifies, never overwrites unasked and leaves fil
   expect(await readFile(join(dataDir, 'tasks.json'), 'utf8')).toBe(before);
 });
 
+test('after the switch to D1 the old files can no longer be copied over newer records', async () => {
+  process.env.LIFESYSTEM_STORAGE = 'd1';
+  await writeFile(join(dataDir, 'tasks.json'), JSON.stringify([{ id: 'old' }]));
+  await storage.create('tasks', { title: 'Nova no D1' });
+  await expect(copyToD1(['tasks'])).rejects.toThrow('já usa o D1');
+  expect((await storage.getAll<{ title?: string }>('tasks')).map(t => t.title)).toEqual(['Nova no D1']);
+});
+
 test('migration refuses to run without D1 credentials', async () => {
   delete process.env.CLOUDFLARE_D1_API_TOKEN;
   await expect(copyToD1()).rejects.toThrow('D1 não configurado');

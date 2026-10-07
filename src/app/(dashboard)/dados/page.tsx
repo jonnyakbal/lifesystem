@@ -65,6 +65,10 @@ export default function DadosPage() {
   }
 
   const rows = plan?.collections || [];
+  // Once the app runs on D1, D1 is the current data and the files are the
+  // frozen pre-switch copy: differences are expected and must never be
+  // "fixed" by copying the old files over newer records.
+  const live = plan?.mode === 'd1';
   const different = rows.filter((r) => r.status === 'different');
   return (
     <main className="work-page mx-auto max-w-[1100px] px-4 pb-28 pt-6 lg:px-8">
@@ -80,13 +84,14 @@ export default function DadosPage() {
           <section aria-label="Situação" className="mb-6 grid gap-3 sm:grid-cols-3">
             <div className="rounded-xl border p-4"><p className="text-xs text-muted-foreground">Usando agora</p><p className="mt-1 text-lg font-semibold">{plan.mode === 'd1' ? 'Banco D1' : 'Arquivos'}</p></div>
             <div className="rounded-xl border p-4"><p className="text-xs text-muted-foreground">D1 configurado</p><p className="mt-1 text-lg font-semibold">{plan.d1Configured ? 'Sim' : 'Não'}</p></div>
-            <div className="rounded-xl border p-4"><p className="text-xs text-muted-foreground">Pronto para trocar</p><p className="mt-1 text-lg font-semibold">{plan.ready ? 'Sim ✓' : 'Ainda não'}</p></div>
+            <div className="rounded-xl border p-4"><p className="text-xs text-muted-foreground">{live ? 'Migração' : 'Pronto para trocar'}</p><p className="mt-1 text-lg font-semibold">{live ? 'Concluída ✓' : plan.ready ? 'Sim ✓' : 'Ainda não'}</p></div>
           </section>
 
+          {live && <p role="status" className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">O app já usa o D1, que tem a versão atual dos seus dados. Os arquivos ficaram como cópia de antes da troca, então diferenças agora são normais (o D1 é mais novo). A cópia fica desativada para nunca sobrescrever registros novos com os antigos.</p>}
           <div className="mb-4 flex flex-wrap gap-2">
-            <Button onClick={() => void copy()} disabled={busy || !plan.d1Configured} className="min-h-11 gap-2">
+            {!live && <Button onClick={() => void copy()} disabled={busy || !plan.d1Configured} className="min-h-11 gap-2">
               <Upload className="h-4 w-4" />{busy ? 'Copiando e conferindo…' : 'Copiar para o D1'}
-            </Button>
+            </Button>}
             <Button variant="outline" onClick={() => void load()} disabled={busy} className="min-h-11 gap-2">
               <RefreshCw className="h-4 w-4" />Conferir de novo
             </Button>
@@ -111,8 +116,8 @@ export default function DadosPage() {
                     <td className="p-3">{r.fileItems ?? '—'}</td>
                     <td className="p-3">{r.d1Items ?? '—'}</td>
                     <td className="p-3">
-                      {statusLabel[r.status]}{r.error ? ` (${r.error})` : ''}
-                      {r.status === 'different' && (
+                      {live && r.status === 'different' ? 'D1 mais novo (normal)' : statusLabel[r.status]}{r.error ? ` (${r.error})` : ''}
+                      {r.status === 'different' && !live && (
                         <label className="ml-2 inline-flex items-center gap-1 text-xs">
                           <input type="checkbox" checked={replace.includes(r.name)} onChange={(e) => setReplace((cur) => e.target.checked ? [...cur, r.name] : cur.filter((n) => n !== r.name))} />
                           substituir pelo arquivo
@@ -125,7 +130,7 @@ export default function DadosPage() {
               </tbody>
             </table>
           </section>
-          {different.length > 0 && <p className="mt-2 text-xs text-muted-foreground">Coleções “diferentes” nunca são substituídas sozinhas. Marque só as que você quer trocar pela versão dos arquivos.</p>}
+          {different.length > 0 && !live && <p className="mt-2 text-xs text-muted-foreground">Coleções “diferentes” nunca são substituídas sozinhas. Marque só as que você quer trocar pela versão dos arquivos.</p>}
 
           <section aria-label="Próximo passo" className="mt-6 rounded-xl border p-4 text-sm leading-relaxed">
             <p className="font-medium">Como trocar para o D1</p>
