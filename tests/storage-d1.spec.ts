@@ -8,6 +8,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { storage } from '../src/lib/storage';
 import { askAI } from '../src/lib/ai';
+import { copyToD1, migrationPlan } from '../src/lib/storage/d1-migration';
+import { writeFile, readFile } from 'node:fs/promises';
 
 // A local stand-in for Cloudflare's REST API backed by real SQLite, so the
 // production D1 code path (HTTP, lease and fenced writes) runs unmodified.
@@ -281,6 +283,48 @@ test('backup in D1 mode exports the collections into a manifest-verified snapsho
   expect(manifest.files.map((f: { path: string }) => f.path).sort()).toEqual(['health-ledger.json', 'tasks.json']);
   expect(JSON.parse(await readFile(join(snapshot, 'tasks.json'), 'utf8'))).toEqual([expect.objectContaining({ id: 'from-d1' })]);
   expect((await readdir(snapshot)).sort()).toEqual(['health-ledger.json', 'manifest.json', 'tasks.json']);
+});
+
+test('in-app migration copies, verifies, never overwrites unasked and leaves files untouched', async () => {
+  process.env.LIFESYSTEM_STORAGE = 'file';
+  const tasks = [{ id: 't1', title: 'Sintética' }];
+  const notes = [{ id: 'n1', body: 'Nota sintética' }];
+  await writeFile(join(dataDir, 'tasks.json'), JSON.stringify(tasks));
+  await writeFile(join(dataDir, 'notes.json'), JSON.stringify(notes));
+  await writeFile(join(dataDir, 'health-ledger.json'), JSON.stringify({ receipts: [] }));
+  await writeFile(join(dataDir, 'broken.json'), '{not json');
+  const before = await readFile(join(dataDir, 'tasks.json'), 'utf8');
+
+  const plan = await migrationPlan();
+  expect(plan).toMatchObject({ mode: 'file', d1Configured: true, ready: false });
+  const status = Object.fromEntries(plan.collections.map(c => [c.name, c.status]));
+  expect(status).toEqual({ broken: 'invalid', 'health-ledger': 'separate', notes: 'missing', tasks: 'missing' });
+
+  // Something different already in D1 is kept until explicitly named.
+  process.env.LIFESYSTEM_STORAGE = 'd1';
+  await storage.create('notes', { body: 'Outra versão' });
+  process.env.LIFESYSTEM_STORAGE = 'file';
+  const first = Object.fromEntries((await copyToD1()).map(r => [r.name, r.outcome]));
+  expect(first).toMatchObject({ tasks: 'copied', notes: 'kept', broken: 'skipped', 'health-ledger': 'skipped' });
+  expect((await migrationPlan()).collections.find(c => c.name === 'notes')?.status).toBe('different');
+
+  const second = Object.fromEntries((await copyToD1(['notes'])).map(r => [r.name, r.outcome]));
+  expect(second).toMatchObject({ tasks: 'unchanged', notes: 'replaced' });
+  await rm(join(dataDir, 'broken.json'));
+  const done = await migrationPlan();
+  expect(done.ready).toBe(true);
+  expect(done.collections.filter(c => c.name !== 'health-ledger').every(c => c.status === 'same')).toBe(true);
+
+  process.env.LIFESYSTEM_STORAGE = 'd1';
+  expect(await storage.getAll('tasks')).toEqual(tasks);
+  expect(await storage.getAll('notes')).toEqual(notes);
+  expect(await readFile(join(dataDir, 'tasks.json'), 'utf8')).toBe(before);
+});
+
+test('migration refuses to run without D1 credentials', async () => {
+  delete process.env.CLOUDFLARE_D1_API_TOKEN;
+  await expect(copyToD1()).rejects.toThrow('D1 não configurado');
+  expect((await migrationPlan()).d1Configured).toBe(false);
 });
 
 test('storage fails closed on an unknown backend or incomplete D1 configuration', async () => {
