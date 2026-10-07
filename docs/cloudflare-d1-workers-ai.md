@@ -80,7 +80,17 @@ automaticamente no primeiro acesso.
    O Workers AI já funciona só com isso, independente do armazenamento.
    `AI_CLOUDFLARE_MODELS` substitui a cadeia de modelos e `AI_PROVIDER_ORDER`
    reordena os provedores.
-3. **Migração dos dados**, com a aplicação ainda em `file`:
+3. **Migração dos dados pelo próprio app (recomendado):** com a aplicação
+   ainda em `file`, abra **/dados** ("Banco de dados") e clique em **Copiar
+   para o D1**. A cópia roda no servidor, onde os dados e as credenciais já
+   estão, então nenhum dado pessoal passa por terminal. Cada coleção é relida
+   do D1 e comparada por SHA-256. Os arquivos nunca são alterados, e uma
+   coleção já existente e diferente no D1 só é substituída se for marcada
+   explicitamente. `health-ledger` e `office-*` continuam em arquivo. A
+   rota é `GET|POST /api/storage/d1-migration`, exige sessão e devolve apenas
+   nomes e contagens.
+
+   Alternativa por terminal, com uma cópia dos arquivos:
    ```bash
    npm run backup:data
    node --env-file=.env.local scripts/d1-import.mjs --dry-run
