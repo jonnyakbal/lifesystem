@@ -43,6 +43,7 @@ function config() {
 async function send(sql: string, params: unknown[] = []): Promise<Result> {
   const { url, token } = config();
   let lastError: unknown;
+  let throttled = 0;
   // Every statement here is safe to resend: lease and write outcomes are
   // re-checked by token/revision, so an unknown first outcome is resolved.
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -57,6 +58,16 @@ async function send(sql: string, params: unknown[] = []): Promise<Result> {
       if (response.ok && body.success !== false) return body.result?.[body.result.length - 1] || {};
       const detail = body.errors?.map(error => error.message).filter(Boolean).join('; ') || `HTTP ${response.status}`;
       const failure = new Error(`Banco D1 recusou a operação: ${detail}`);
+      // The Cloudflare API rate-limits per token; a 429 is "wait", not "no".
+      if (response.status === 429 && throttled < 3) {
+        throttled++;
+        attempt--;
+        const retryAfter = Number(response.headers.get('retry-after'));
+        const waitMs = Number.isFinite(retryAfter) && retryAfter > 0 ? Math.min(retryAfter * 1000, 4000) : 400 * throttled;
+        await new Promise(resolve => setTimeout(resolve, waitMs));
+        lastError = failure;
+        continue;
+      }
       if (response.status < 500) throw Object.assign(failure, { final: true });
       lastError = failure;
     } catch (error) {

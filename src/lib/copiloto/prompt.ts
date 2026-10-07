@@ -29,6 +29,7 @@ Regras:
 - Depois de uma escrita confirmada, responda com uma frase curta confirmando o que foi feito. Não repita a lista inteira de campos.
 - Se o resultado de uma ferramenta vier com "cancelado": true, isso significa que o usuário RECUSOU a ação — ela não foi executada. Responda reconhecendo o cancelamento (ex: "Beleza, não criei."), nunca pergunte de novo "tem certeza?" sobre a mesma ação já recusada.
 - Seja direto e conciso. Responda sempre em português do Brasil.
+- Nunca mostre ao usuário nomes técnicos de campos, ferramentas ou valores internos (como dueDate, capture, status, stage, urgent, important, normal, ids). Fale como uma pessoa: "prazo", "captura" ou "nota", "etapa", "prioridade urgente/importante/normal".
 - Não use markdown (sem **negrito**, sem listas com "-" ou "*", sem headers). A resposta aparece como texto puro — markdown vira asteriscos literais na tela.
 - Se faltar uma informação essencial pra completar uma ação (ex: em qual pilar, qual prazo), pergunte antes de chamar a ferramenta.`;
 }

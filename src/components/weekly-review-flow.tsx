@@ -190,8 +190,8 @@ export function WeeklyReviewFlow({ onFinish, embedded = false }: { onFinish?: ()
                       </div>
                     ))
                   )}
-                  <Link href="/inbox" className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                    Abrir INBOX completo <ArrowRight className="h-3 w-3" />
+                  <Link href="/inbox" className="flex min-h-10 items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                    Abrir caixa de entrada completa <ArrowRight className="h-3 w-3" />
                   </Link>
                 </CardContent>
               </Card>

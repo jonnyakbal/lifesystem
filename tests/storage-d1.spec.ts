@@ -22,6 +22,8 @@ let server: Server;
 let db: DatabaseSync;
 let base: string;
 const aiRequests: Record<string, unknown>[] = [];
+let throttleNext = 0;
+let collectionSelects = 0;
 
 // Real SQLite (sql.js, WebAssembly) so the suite also runs on the Node 20 CI.
 type Statement = { all(...params: unknown[]): unknown[]; get(...params: unknown[]): unknown; run(...params: unknown[]): { changes: number } };
@@ -68,7 +70,13 @@ test.beforeAll(async () => {
       }
       if (req.url !== `/client/v4/accounts/${ACCOUNT}/d1/database/${DATABASE}/query`) return reply(res, 404, { success: false, errors: [{ message: 'not found' }] });
       if (req.headers.authorization !== `Bearer ${TOKEN}`) return reply(res, 403, { success: false, errors: [{ message: 'Authentication error' }] });
+      if (throttleNext > 0) {
+        throttleNext--;
+        res.setHeader('Retry-After', '0');
+        return reply(res, 429, { success: false, errors: [{ message: 'rate limited' }] });
+      }
       const sql = String(body.sql);
+      if (/^\s*SELECT rev, encoding, data FROM lifesystem_collections/i.test(sql)) collectionSelects++;
       const params: unknown[] = body.params || [];
       try {
         // Mirrors D1: parameters are only accepted with a single statement.
@@ -321,10 +329,41 @@ test('in-app migration copies, verifies, never overwrites unasked and leaves fil
   expect(await readFile(join(dataDir, 'tasks.json'), 'utf8')).toBe(before);
 });
 
+test('after the switch to D1 the old files can no longer be copied over newer records', async () => {
+  process.env.LIFESYSTEM_STORAGE = 'd1';
+  await writeFile(join(dataDir, 'tasks.json'), JSON.stringify([{ id: 'old' }]));
+  await storage.create('tasks', { title: 'Nova no D1' });
+  await expect(copyToD1(['tasks'])).rejects.toThrow('já usa o D1');
+  expect((await storage.getAll<{ title?: string }>('tasks')).map(t => t.title)).toEqual(['Nova no D1']);
+});
+
 test('migration refuses to run without D1 credentials', async () => {
   delete process.env.CLOUDFLARE_D1_API_TOKEN;
   await expect(copyToD1()).rejects.toThrow('D1 não configurado');
   expect((await migrationPlan()).d1Configured).toBe(false);
+});
+
+test('overlapping reads share one D1 call, give independent copies and never hide a later write', async () => {
+  await storage.create('tasks', { title: 'A' });
+  collectionSelects = 0;
+  const [one, two, three] = await Promise.all([storage.getAll<{ title: string }>('tasks'), storage.getAll<{ title: string }>('tasks'), storage.getAll<{ title: string }>('tasks')]);
+  expect(collectionSelects).toBe(1);
+  one[0].title = 'mutado só aqui';
+  expect(two[0].title).toBe('A');
+  expect(three).toHaveLength(1);
+
+  const slowRead = storage.getAll('tasks');
+  await storage.create('tasks', { title: 'B' });
+  expect((await storage.getAll<{ title: string }>('tasks')).map(t => t.title)).toEqual(['A', 'B']);
+  await slowRead;
+});
+
+test('a Cloudflare 429 is waited out and retried instead of failing the request', async () => {
+  throttleNext = 2;
+  const created = await storage.create<{ id: string; title: string }>('tasks', { title: 'Depois do limite' });
+  expect(throttleNext).toBe(0);
+  throttleNext = 1;
+  expect((await storage.getById<{ id: string; title: string }>('tasks', created.id))?.title).toBe('Depois do limite');
 });
 
 test('storage fails closed on an unknown backend or incomplete D1 configuration', async () => {
