@@ -1,15 +1,21 @@
 'use client';
 
+import { useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { errorDetail } from '@/lib/error-detail';
 
 export default function DashboardError({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error('[dashboard error]', error);
+  }, [error]);
   return (
     <div className="p-4 lg:p-8">
       <Card className="border-destructive/50 bg-destructive/5">
@@ -21,6 +27,10 @@ export default function DashboardError({
           <p className="mt-1 text-sm text-muted-foreground">
             Ocorreu um erro inesperado. Tente novamente.
           </p>
+          <details className="mt-3 max-w-md text-xs text-muted-foreground">
+            <summary className="cursor-pointer">Detalhe técnico</summary>
+            <p className="mt-1 break-words font-mono" data-testid="error-detail">{errorDetail(error)}</p>
+          </details>
           <Button variant="destructive" className="mt-6" onClick={reset}>
             Tentar novamente
           </Button>
