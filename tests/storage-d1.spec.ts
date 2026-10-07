@@ -363,7 +363,7 @@ test('a Cloudflare 429 is waited out and retried instead of failing the request'
   const created = await storage.create<{ id: string; title: string }>('tasks', { title: 'Depois do limite' });
   expect(throttleNext).toBe(0);
   throttleNext = 1;
-  expect((await storage.getById<{ title: string }>('tasks', created.id))?.title).toBe('Depois do limite');
+  expect((await storage.getById<{ id: string; title: string }>('tasks', created.id))?.title).toBe('Depois do limite');
 });
 
 test('storage fails closed on an unknown backend or incomplete D1 configuration', async () => {
