@@ -21,6 +21,7 @@ import { TableHeader } from '@tiptap/extension-table-header';
 import { Image } from '@tiptap/extension-image';
 import { Link } from '@tiptap/extension-link';
 import { useEffect, useState, useCallback, useRef } from 'react';
+import { syncEditorContent } from '@/lib/editor-sync';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
@@ -156,9 +157,7 @@ export function NotionEditor({
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
-      editor.commands.setContent(content, { emitUpdate: false });
-    }
+    syncEditorContent(editor, content);
   }, [content, editor]);
 
   // The slash menu's "Imagem" item can't open a file picker itself (it runs
