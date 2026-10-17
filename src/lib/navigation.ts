@@ -1,4 +1,4 @@
-import { Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, History, Rss, Sunrise, Sparkles, HeartPulse, Compass } from 'lucide-react';
+import { Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, History, Rss, Sunrise, Sparkles, HeartPulse, Compass, Palette, Database } from 'lucide-react';
 
 export const navigation = [
   { label: 'Seu dia', icon: Sunrise, prompt: 'Um passo de cada vez.', items: [
@@ -28,6 +28,8 @@ export const navigation = [
     { title: 'Diário de bordo', href: '/diario-bordo', icon: ScrollText, description: 'Decisões e aprendizados que ficam.' },
     { title: 'Hermes', href: '/hermes', icon: Bot, description: 'Seu assistente, conectado ao seu contexto.' },
     { title: 'Escritório', href: '/escritorio', icon: Bot, description: 'Seu time, suas fontes e o trabalho em andamento.' },
+    { title: 'Design', href: '/design', icon: Palette, description: 'Marca, cores, componentes e padrões do sistema.' },
+    { title: 'Banco de dados', href: '/dados', icon: Database, description: 'Onde seus dados estão guardados.' },
   ] },
 ];
 
