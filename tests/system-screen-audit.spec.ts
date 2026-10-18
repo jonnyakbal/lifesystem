@@ -38,7 +38,9 @@ const fixtures: Record<string, unknown> = {
 
 test('todas as telas com conteúdo sintético em desktop, mobile e tema claro', async ({ page }) => {
   test.setTimeout(240000);
-  await page.clock.setFixedTime(new Date('2026-09-30T15:00:00-03:00'));
+  // The production SSR uses the real clock. Freezing only the browser to a
+  // previous day introduces an artificial hydration mismatch in date headings.
+  // Fixtures stay synthetic; navigation uses the same current clock as SSR.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors: string[] = [];
   page.on('pageerror', error => errors.push(error.message));

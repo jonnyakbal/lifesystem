@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { DeadlineCell, TaskWorkspaceTable, type TaskCellPatch } from '@/components/tasks/task-workspace-table';
+import { TaskRichDates } from '@/components/tasks/task-rich-dates';
+import { TaskFocus, TaskLoad } from '@/components/tasks/task-focus-load';
 import { TaskDeleteDialog } from '@/components/task-delete-dialog';
 import { PlanningWorkspace } from '@/components/planning-workspace';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
@@ -11,7 +13,7 @@ import {
   GripVertical, CalendarDays, X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
-  ArrowRight, Repeat, FileText, Wallet, Edit2
+  ArrowRight, Repeat, Edit2, Orbit, ChevronDown, ChevronRight, GanttChart, Crosshair, ChartNoAxesColumnIncreasing
 } from 'lucide-react';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
@@ -89,7 +91,7 @@ interface Pillar {
   color?: string;
 }
 
-type ViewMode = 'kanban' | 'list' | 'week' | 'calendar';
+type ViewMode = 'kanban' | 'list' | 'week' | 'calendar' | 'timeline' | 'focus' | 'load';
 
 // Lightweight shapes for the two other entity types the unified calendar
 // overlays alongside Task — just enough fields to plot + link out, not a
@@ -112,6 +114,8 @@ interface SavedView {
   onlyCompleted?: boolean;
   dense: boolean;
   filterPriority: string;
+  filterProject?: string;
+  filterPillar?: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -190,7 +194,11 @@ export default function TasksPage() {
 
   // View state
   const [deletionTask, setDeletionTask] = useState<Task | null>(null);
-  const [view, setView] = useState<ViewMode>(searchParams.get('completed') === '1' ? 'list' : 'kanban');
+  const [view, setView] = useState<ViewMode>('list');
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [collapsedColumns, setCollapsedColumns] = useState(new Set<string>());
+  const [quickAddBusy, setQuickAddBusy] = useState(false);
+  const quickAddPending = useRef(false);
   const [search, setSearch] = useState('');
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [showDone, setShowDone] = useState(searchParams.get('completed') === '1');
@@ -219,6 +227,10 @@ export default function TasksPage() {
   // Bulk
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [editorBusy, setEditorBusy] = useState(false);
+  const editorPending = useRef(false);
 
   // Drag
   const [draggedId, setDraggedId] = useState<string | null>(null);
@@ -264,7 +276,8 @@ export default function TasksPage() {
     const task = tasks.find(t => t.id === openId);
     if (task) {
       openEdit(task);
-      router.replace('/tarefas');
+      const remaining = new URLSearchParams(searchParams.toString()); remaining.delete('open');
+      router.replace(`/tarefas${remaining.size ? `?${remaining}` : ''}`, { scroll: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks, searchParams]);
@@ -340,12 +353,13 @@ export default function TasksPage() {
     setOnlyCompleted(v.onlyCompleted || false);
     setDense(v.dense);
     setFilterPriority(v.filterPriority);
+    setFilterProject(v.filterProject || 'all'); setFilterPillar(v.filterPillar || 'all'); setSelectedIds(new Set());
   }
 
   function saveCurrentView(name: string) {
     const v: SavedView = {
       id: `tv_${Date.now()}`, name, view, groupBy, sortBy, search,
-      filterOverdue, showDone, onlyCompleted, dense, filterPriority,
+      filterOverdue, showDone, onlyCompleted, dense, filterPriority, filterProject, filterPillar,
     };
     const updated = [...savedViews, v];
     saveViews(updated);
@@ -378,7 +392,7 @@ export default function TasksPage() {
   }
 
   function openEdit(task: Task) {
-    if (bulkMode) return;
+    if (pendingTaskIds.current.has(task.id)) return;
     setEditingTask(task);
     setNewTitle(task.title);
     setNewPriority(task.priority);
@@ -395,22 +409,31 @@ export default function TasksPage() {
   }
 
   async function handleSave() {
+    if (editorPending.current || !newTitle.trim() || (editingTask && pendingTaskIds.current.has(editingTask.id))) return;
+    editorPending.current = true; setEditorBusy(true);
     try {
       const payload = {
         title: newTitle || 'Sem título',
         description: newDescription,
         priority: newPriority,
         status: newStatus,
-        dueDate: newDueDate || undefined,
+        dueDate: newDueDate || (editingTask ? null : undefined),
         tags: newTags,
         checklist: newChecklist,
-        projectId: newProjectId || undefined,
-        pillarId: newPillarId || undefined,
+        projectId: newProjectId,
+        pillarId: newPillarId,
         recurring: newRecurring,
         recurringFrequency: newRecurring ? newRecurringFrequency : undefined,
       };
       if (editingTask) {
-        await apiFetch(`/api/tasks/${editingTask.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const updated = await apiFetch<Task>(`/api/tasks/${editingTask.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        setTasks(current => current.map(task => task.id === updated.id ? updated : task));
+        setSelectedIds(current => { const next = new Set(current); next.delete(updated.id); return next; });
+        if (!isTaskCompleted(editingTask, stages) && isTaskCompleted(updated, stages)) {
+          void announceCompletion(editingTask, updated);
+        } else if (isTaskCompleted(editingTask, stages) && !isTaskCompleted(updated, stages)) {
+          toast.success('Tarefa reaberta');
+        }
       } else {
         await apiFetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       }
@@ -419,7 +442,7 @@ export default function TasksPage() {
       toast.success(editingTask ? 'Tarefa atualizada!' : 'Tarefa criada!');
     } catch (err) {
       toast.error(showError(err));
-    }
+    } finally { editorPending.current = false; setEditorBusy(false); }
   }
 
   function handleDelete(id: string) {
@@ -441,12 +464,16 @@ export default function TasksPage() {
   }
 
   async function handleBulkDelete() {
+    if (bulkBusy || pendingTaskIds.current.size || !selectedIds.size) return;
+    setBulkBusy(true);
     try {
-      const count = selectedIds.size;
-      const deletedTasks = tasks.filter(t => selectedIds.has(t.id));
-      await apiFetch('/api/tasks/batch', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: Array.from(selectedIds) }) });
+      const deletedTasks = filteredTasks.filter(t => selectedIds.has(t.id));
+      if (!deletedTasks.length) return;
+      const count = deletedTasks.length;
+      await apiFetch('/api/tasks/batch', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: deletedTasks.map(task => task.id) }) });
       setSelectedIds(new Set());
       setBulkMode(false);
+      setBulkDeleteOpen(false);
       loadTasks();
       toast(`${count} tarefa${count > 1 ? 's' : ''} excluída${count > 1 ? 's' : ''}`, {
         action: {
@@ -470,20 +497,21 @@ export default function TasksPage() {
       });
     } catch (err) {
       toast.error(showError(err));
-    }
+    } finally { setBulkBusy(false); }
   }
 
   async function handleBulkStatus(status: Task['status']) {
+    if (bulkBusy || pendingTaskIds.current.size) return;
+    const targets = filteredTasks.filter(task => selectedIds.has(task.id));
+    if (!targets.length) return;
+    setBulkBusy(true);
     try {
-      const count = selectedIds.size;
-      await apiFetch('/api/tasks/batch', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: Array.from(selectedIds), data: { status } }) });
-      setSelectedIds(new Set());
-      setBulkMode(false);
-      loadTasks();
-      toast.success(`${count} tarefa${count > 1 ? 's' : ''} movida${count > 1 ? 's' : ''}!`);
-    } catch (err) {
-      toast.error(showError(err));
-    }
+      const failed = new Set<string>();
+      for (const task of targets) if (!await handleQuickPatch(task.id, { status })) failed.add(task.id);
+      setSelectedIds(failed); setBulkMode(failed.size > 0);
+      if (failed.size) toast.error(`${failed.size} tarefa(s) não foram alteradas. A seleção foi preservada para tentar novamente.`);
+      else toast.success(`${targets.length} tarefa(s) atualizadas.`);
+    } finally { setBulkBusy(false); }
   }
 
   function toggleSelect(id: string) {
@@ -508,53 +536,73 @@ export default function TasksPage() {
     }
   }
 
-  async function handleToggleDone(task: Task, restoreStatus?: string) {
-    if (pendingTaskIds.current.has(task.id)) return;
+  async function handleToggleDone(task: Task, restoreStatus?: string, destination?: string): Promise<boolean> {
+    if (pendingTaskIds.current.has(task.id)) return false;
     pendingTaskIds.current.add(task.id); setBusyTasks(new Set(pendingTaskIds.current));
     const completed = isTaskCompleted(task, stages);
-    const nextStatus = restoreStatus || (completed ? previousStatuses.current.get(task.id) || taskReopenStatus(stages) : taskCompletionStatus(stages));
+    const nextStatus = destination || restoreStatus || (completed ? previousStatuses.current.get(task.id) || taskReopenStatus(stages) : taskCompletionStatus(stages));
+    let success = false;
     let newlyCompleted: Task | undefined;
     try {
       const updated = await apiFetch<Task>(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: nextStatus }) });
       setTasks(current => current.map(item => item.id === task.id ? updated : item));
+      setSelectedIds(current => { const next = new Set(current); next.delete(task.id); return next; });
+      success = true;
       if (!completed && !restoreStatus) {
-        previousStatuses.current.set(task.id, task.status);
-        fireConfetti();
         newlyCompleted = updated;
       } else { toast.success('Tarefa reaberta'); }
     } catch (err) { toast.error(showError(err)); }
     finally { pendingTaskIds.current.delete(task.id); setBusyTasks(new Set(pendingTaskIds.current)); }
     if (newlyCompleted) {
-      const completedTask = newlyCompleted;
+      await announceCompletion(task, newlyCompleted);
+    }
+    return success;
+  }
+
+  async function announceCompletion(task: Task, completedTask: Task) {
+      previousStatuses.current.set(task.id, task.status);
+      fireConfetti();
       toast.success('Tarefa concluída! 🎉', {
-        duration: 10000, description: task.recurring ? 'A próxima ocorrência continua no planejamento.' : task.title,
-        action: { label: task.recurring ? 'Reabrir' : 'Desfazer', onClick: () => { void handleToggleDone(completedTask, task.status); } },
+        duration: 10000, description: completedTask.recurring ? 'A próxima ocorrência continua no planejamento.' : completedTask.title,
+        action: { label: completedTask.recurring ? 'Reabrir' : 'Desfazer', onClick: () => { void handleToggleDone(completedTask, task.status); } },
       });
       if (!recurringCreated.current.has(task.id)) {
         recurringCreated.current.add(task.id);
         try {
-          const next = await spawnNextOccurrenceIfRecurring(task, taskReopenStatus(stages));
+          const next = await spawnNextOccurrenceIfRecurring(completedTask, taskReopenStatus(stages));
           if (next) setTasks(current => current.some(item => item.id === next.id) ? current : [...current, next]);
         } catch (err) {
           recurringCreated.current.delete(task.id);
           toast.error(`Tarefa concluída, mas a próxima ocorrência não foi criada: ${showError(err)}`);
         }
       }
-    }
   }
 
   async function handleQuickStatus(taskId: string, status: Task['status']) {
-    if (pendingTaskIds.current.has(taskId)) return;
+    return handleQuickPatch(taskId, { status });
+  }
+
+  async function handleQuickPatch(taskId: string, patch: TaskCellPatch): Promise<boolean> {
+    const task = tasks.find(item => item.id === taskId);
+    if (!task || pendingTaskIds.current.has(taskId)) return false;
+    if (patch.status && patch.status !== task.status) {
+      const wasDone = isTaskCompleted(task, stages);
+      const willBeDone = isTaskCompleted({ status: patch.status }, stages);
+      if (wasDone !== willBeDone) return handleToggleDone(task, wasDone ? patch.status : undefined, patch.status);
+    }
     pendingTaskIds.current.add(taskId); setBusyTasks(new Set(pendingTaskIds.current));
     try {
-      const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+      const updated = await apiFetch<Task>(`/api/tasks/${taskId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
       setTasks(current => current.map(item => item.id === taskId ? updated : item));
-    } catch (err) { toast.error(showError(err)); }
+      setSelectedIds(current => { const next = new Set(current); next.delete(taskId); return next; });
+      return true;
+    } catch (err) { toast.error(showError(err)); return false; }
     finally { pendingTaskIds.current.delete(taskId); setBusyTasks(new Set(pendingTaskIds.current)); }
   }
 
   async function handleQuickAdd(status: Task['status']) {
-    if (!quickAddTitle.trim()) return;
+    if (!quickAddTitle.trim() || quickAddPending.current) return;
+    quickAddPending.current = true; setQuickAddBusy(true);
     try {
       await apiFetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: quickAddTitle, status, priority: 'normal' }) });
       setQuickAddTitle('');
@@ -562,7 +610,7 @@ export default function TasksPage() {
       loadTasks();
     } catch (err) {
       toast.error(showError(err));
-    }
+    } finally { quickAddPending.current = false; setQuickAddBusy(false); }
   }
 
   function addTag() { const tag = newTagInput.trim(); if (tag && !newTags.includes(tag)) { setNewTags([...newTags, tag]); setNewTagInput(''); } }
@@ -626,6 +674,7 @@ export default function TasksPage() {
   }, [filterOverdue, filterPriority, filterProject, filterPillar, showDone, overdueCount, projects, pillars]);
 
   function removeFilter(key: string) {
+    setSelectedIds(new Set());
     if (key === 'overdue') setFilterOverdue(false);
     if (key === 'priority') setFilterPriority('all');
     if (key === 'project') setFilterProject('all');
@@ -641,6 +690,7 @@ export default function TasksPage() {
     setShowDone(false);
     setOnlyCompleted(false);
     setSearch('');
+    setSelectedIds(new Set());
   }
 
   // ─── Grouped Tasks ───────────────────────────────────────────────────────
@@ -695,28 +745,6 @@ export default function TasksPage() {
     return 'bg-muted-foreground';
   }
 
-  // ─── Calendar Data ───────────────────────────────────────────────────────
-
-  const calendarDays = useMemo(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = now.getMonth();
-    const firstDay = new Date(year, month, 1).getDay();
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    const days: { day: number; tasks: Task[]; content: CalendarContentItem[]; financial: CalendarFinancialEntry[] }[] = [];
-    for (let i = 0; i < firstDay; i++) days.push({ day: 0, tasks: [], content: [], financial: [] });
-    for (let d = 1; d <= daysInMonth; d++) {
-      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-      days.push({
-        day: d,
-        tasks: sortedTasks.filter(t => t.dueDate === dateStr),
-        content: linkedContent.filter(c => c.scheduledDate === dateStr),
-        financial: calendarFinancial.filter(f => f.dueDate === dateStr && f.status !== 'paid'),
-      });
-    }
-    return days;
-  }, [sortedTasks, linkedContent, calendarFinancial]);
-
   // ─── Render Card ─────────────────────────────────────────────────────────
 
   function renderTaskCard(task: Task) {
@@ -735,7 +763,7 @@ export default function TasksPage() {
             else openEdit(task);
           }}
           className={cn(
-            'work-item-card group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing border-l-3',
+            'work-item-card task-kanban-card group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing border-l-3',
             draggedId === task.id && 'opacity-50 scale-95',
             isOverdue(task) && 'border-destructive/50',
             priorityConfig[task.priority].borderColor,
@@ -746,7 +774,7 @@ export default function TasksPage() {
           <CardContent className={cn('p-4', dense && 'p-2')}>
             <div className="flex items-start gap-2">
               {bulkMode ? (
-                <button className="mt-0.5 shrink-0" aria-label={isSelected ? `Desmarcar ${task.title}` : `Selecionar ${task.title}`}>
+                <button onClick={event => { event.stopPropagation(); toggleSelect(task.id); }} className="task-selection-target shrink-0" aria-label={isSelected ? `Desmarcar ${task.title}` : `Selecionar ${task.title}`}>
                   {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
                 </button>
               ) : (
@@ -755,10 +783,11 @@ export default function TasksPage() {
               {!bulkMode && (
                 <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="work-check min-h-11 min-w-11 shrink-0" disabled={busyTasks.has(task.id)} title={isTaskCompleted(task, stages) ? "Reabrir tarefa" : "Concluir tarefa"} aria-label={isTaskCompleted(task, stages) ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
                   {isTaskCompleted(task, stages) ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className={cn("h-4 w-4", isOverdue(task) ? 'text-destructive' : 'text-muted-foreground hover:text-foreground')} />}
+                  <span>{isTaskCompleted(task, stages) ? 'Reabrir' : 'Concluir'}</span>
                 </button>
               )}
               <div className="flex-1 min-w-0">
-                <button onClick={event => { event.stopPropagation(); if (bulkMode) toggleSelect(task.id); else openEdit(task); }} className={cn(dense ? 'text-xs' : 'text-sm', 'work-card-title text-left font-semibold leading-relaxed', isTaskCompleted(task, stages) && 'line-through text-muted-foreground')}>{task.title}</button>
+                <button disabled={busyTasks.has(task.id)} onClick={event => { event.stopPropagation(); openEdit(task); }} className={cn(dense ? 'text-xs' : 'text-sm', 'work-card-title text-left font-semibold leading-relaxed', isTaskCompleted(task, stages) && 'line-through text-muted-foreground')}>{task.title}</button>
                 {!dense && task.professionalWorkId && <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground"><span>{task.workType === 'agent' ? 'Trabalho de agente' : task.workType === 'decision' ? 'Decisão' : task.workType === 'dependency' ? 'Dependência' : 'Tarefa humana'}{task.responsible ? ` · ${task.responsible}` : ''}</span><a href="/profissional" className="text-primary hover:underline" onClick={event => event.stopPropagation()}>Abrir briefing</a></p>}
                 {!dense && task.nextAction && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">Próximo passo: {task.nextAction}</p>}
                 {!dense && task.description && (
@@ -785,7 +814,7 @@ export default function TasksPage() {
                   {(task.tags ?? []).length > (dense ? 0 : 2) && (
                     <Badge variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>+{(task.tags ?? []).length - (dense ? 0 : 2)}</Badge>
                   )}
-                  {task.checklist?.length > 0 && (
+                  {dense && task.checklist?.length > 0 && (
                     <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', 'gap-1')}>
                       <ListChecks className="h-2.5 w-2.5" /> {task.checklist.filter(c => c.done).length}/{task.checklist.length}
                     </Badge>
@@ -806,11 +835,6 @@ export default function TasksPage() {
                       </Badge>
                     ) : null;
                   })()}
-                  {task.dueDate && (
-                    <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', 'gap-1', isOverdue(task) ? 'border-destructive text-destructive' : 'text-muted-foreground')}>
-                      <CalendarDays className="h-2.5 w-2.5" /> {new Date(task.dueDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
-                    </Badge>
-                  )}
                   {isTaskCompleted(task, stages) && task.completedAt && <Badge variant="outline" className="text-xs text-money">Concluída {new Date(task.completedAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Badge>}
                   {task.recurring && (
                     <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
@@ -822,7 +846,7 @@ export default function TasksPage() {
               {!bulkMode && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button onClick={event => event.stopPropagation()} variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="work-more shrink-0">
+                    <Button disabled={busyTasks.has(task.id)} onClick={event => event.stopPropagation()} variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="work-more shrink-0">
                       <MoreHorizontal className="h-3.5 w-3.5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -843,6 +867,11 @@ export default function TasksPage() {
               )}
             </div>
           </CardContent>
+          <div className="task-kanban-fields" onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()}>
+            <label><span>Etapa</span><select className="task-cell-select" aria-label={`Etapa no quadro de ${task.title}`} value={task.status} disabled={busyTasks.has(task.id)} onChange={event => void handleQuickPatch(task.id, { status: event.target.value })}>{stages.map(stage => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select></label>
+            <label><span>Prioridade</span><select className={cn('task-cell-select', `task-priority-${task.priority}`)} aria-label={`Prioridade no quadro de ${task.title}`} value={task.priority} disabled={busyTasks.has(task.id)} onChange={event => void handleQuickPatch(task.id, { priority: event.target.value as Task['priority'] })}>{Object.entries(priorityConfig).map(([key, cfg]) => <option key={key} value={key}>{cfg.label}</option>)}</select></label>
+            <DeadlineCell task={task} busy={busyTasks.has(task.id)} completed={isTaskCompleted(task, stages)} onPatch={handleQuickPatch} />
+          </div>
         </Card>
       </motion.div>
     );
@@ -850,41 +879,47 @@ export default function TasksPage() {
 
   // ─── Kanban Column ───────────────────────────────────────────────────────
 
+  function toggleColumn(key: string, items: Task[]) {
+    setCollapsedColumns(current => { const next = new Set(current); if (next.has(key)) next.delete(key); else next.add(key); return next; });
+    setSelectedIds(current => { const next = new Set(current); items.forEach(task => next.delete(task.id)); return next; });
+  }
+
   function renderColumn(status: string, taskList: Task[]) {
     const cfg = getStage(status);
     return (
-      <div key={status} className="work-board-column" onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
+      <div key={status} className={cn('work-board-column task-kanban-column', draggedId && 'task-kanban-droppable', collapsedColumns.has(status) && 'task-kanban-collapsed')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
         <div className="flex items-center gap-2 mb-3 px-1">
+          <button type="button" className="task-column-toggle" aria-expanded={!collapsedColumns.has(status)} aria-label={`${collapsedColumns.has(status) ? 'Expandir' : 'Recolher'} coluna ${getStatusLabel(status)}`} onClick={() => toggleColumn(status, taskList)}>{collapsedColumns.has(status) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
           <div className={cn('h-2.5 w-2.5 rounded-full', cfg?.dot || 'bg-muted-foreground')} />
           <h3 className="text-sm font-medium">{getStatusLabel(status)}</h3>
           <Badge variant="secondary" className="ml-auto text-xs">{taskList.length}</Badge>
-          {bulkMode && taskList.length > 0 && (
+          {bulkMode && taskList.length > 0 && !collapsedColumns.has(status) && (
             <Button variant="ghost" size="sm" className="h-5 text-xs px-1.5" onClick={() => selectAll(status)}>Todos</Button>
           )}
         </div>
-        <div className="work-board-lane space-y-3">
-          <AnimatePresence>{taskList.map(renderTaskCard)}</AnimatePresence>
+        {!collapsedColumns.has(status) && <><p className="task-column-summary">{taskList.filter(isOverdue).length} atrasadas · {taskList.filter(task => task.priority === 'urgent').length} urgentes</p><div className="task-column-meter" aria-hidden="true"><span style={{ width: `${sortedTasks.length ? taskList.length / sortedTasks.length * 100 : 0}%` }} /></div><div className="work-board-lane space-y-3">
+          {taskList.map(renderTaskCard)}
           {taskList.length === 0 && quickAddStatus !== status && (
             <div className="flex items-center justify-center h-24 text-xs text-muted-foreground/50">Solte aqui</div>
           )}
           {quickAddStatus === status ? (
             <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
               <Card><CardContent className="p-2">
-                <Input autoFocus value={quickAddTitle} onChange={(e) => setQuickAddTitle(e.target.value)} placeholder="Título da tarefa..." className="h-8 text-sm border-0 bg-transparent"
+                <Input autoFocus disabled={quickAddBusy} aria-label={`Nova tarefa em ${getStatusLabel(status)}`} value={quickAddTitle} onChange={(e) => setQuickAddTitle(e.target.value)} placeholder="Título da tarefa..." className="h-11 text-sm border-0 bg-transparent"
                   onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(status); if (e.key === 'Escape') { setQuickAddStatus(null); setQuickAddTitle(''); } }}
                   onBlur={() => { if (!quickAddTitle.trim()) setQuickAddStatus(null); }} />
                 <div className="flex gap-1 mt-1">
-                  <Button size="sm" className="h-6 text-xs px-2" onClick={() => handleQuickAdd(status)}>Adicionar</Button>
-                  <Button size="sm" variant="ghost" className="h-6 text-xs px-2" onClick={() => { setQuickAddStatus(null); setQuickAddTitle(''); }}>Cancelar</Button>
+                  <Button size="sm" disabled={quickAddBusy || !quickAddTitle.trim()} className="min-h-11 text-xs px-2" onClick={() => handleQuickAdd(status)}>{quickAddBusy ? 'Salvando…' : 'Adicionar'}</Button>
+                  <Button size="sm" disabled={quickAddBusy} variant="ghost" className="min-h-11 text-xs px-2" onClick={() => { setQuickAddStatus(null); setQuickAddTitle(''); }}>Cancelar</Button>
                 </div>
               </CardContent></Card>
             </motion.div>
           ) : (
-            <Button variant="ghost" className="w-full justify-start gap-2 text-muted-foreground/50 hover:text-muted-foreground text-xs" onClick={() => { setQuickAddStatus(status); setQuickAddTitle(''); }}>
+            <Button disabled={quickAddBusy} variant="ghost" className="w-full justify-start gap-2 text-muted-foreground/50 hover:text-muted-foreground text-xs" onClick={() => { setQuickAddStatus(status); setQuickAddTitle(''); }}>
               <Plus className="h-3 w-3" /> Adicionar tarefa
             </Button>
           )}
-        </div>
+        </div></>}
       </div>
     );
   }
@@ -907,16 +942,17 @@ export default function TasksPage() {
           {grouped.groupKeys.map(key => {
             const items = grouped.groups.get(key) || [];
             return (
-              <div key={key} className="work-board-column">
+              <div key={key} className="work-board-column task-kanban-column">
                 <div className="flex items-center gap-2 mb-3 px-1">
+                  <button type="button" className="task-column-toggle" aria-expanded={!collapsedColumns.has(key)} aria-label={`${collapsedColumns.has(key) ? 'Expandir' : 'Recolher'} coluna ${getGroupLabel(key)}`} onClick={() => toggleColumn(key, items)}>{collapsedColumns.has(key) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
                   <div className={cn('h-2.5 w-2.5 rounded-full', getGroupDot(key))} />
                   <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
                   <Badge variant="secondary" className="ml-auto text-xs">{items.length}</Badge>
                 </div>
-                <div className="work-board-lane space-y-3">
-                  <AnimatePresence>{items.map(renderTaskCard)}</AnimatePresence>
+                {!collapsedColumns.has(key) && <div className="work-board-lane space-y-3">
+                  {items.map(renderTaskCard)}
                   {items.length === 0 && <div className="flex flex-col items-center justify-center py-8 text-muted-foreground"><p className="text-xs">Nenhum item</p></div>}
-                </div>
+                </div>}
               </div>
             );
           })}
@@ -926,93 +962,33 @@ export default function TasksPage() {
   }
 
   function renderList() {
-    return (
-      <div className="space-y-4">
-        {Array.from(grouped.groups.entries()).map(([key, items]) => {
-          if (items.length === 0) return null;
-          return (
-            <div key={key}>
-              <div className="flex items-center gap-2 mb-2 px-1">
-                <div className={cn('h-2.5 w-2.5 rounded-full', getGroupDot(key))} />
-                <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
-                <Badge variant="secondary" className="text-xs">{items.length}</Badge>
-              </div>
-              <div className="space-y-1">
-                {items.map(renderTaskCard)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
+    return <TaskWorkspaceTable
+      groups={Array.from(grouped.groups.entries()).map(([id, items]) => ({ id, label: getGroupLabel(id), dot: getGroupDot(id), items }))}
+      stages={stages} projects={projects} selectedIds={selectedIds} busyIds={busyTasks} dense={dense}
+      onSelect={toggleSelect}
+      onSelectVisible={(ids, selected) => setSelectedIds(current => { const next = new Set(current); ids.forEach(id => selected ? next.add(id) : next.delete(id)); return next; })}
+      onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }}
+      onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }}
+      onPatch={handleQuickPatch}
+      onDuplicate={id => { const task = tasks.find(item => item.id === id); if (task) void handleDuplicate(task); }}
+      onDelete={handleDelete}
+    />;
   }
 
-  function renderCalendar() {
-    const now = new Date();
-    const monthName = now.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-    const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
-    return (
-      <div>
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-          <h3 className="text-lg font-medium capitalize">{monthName} · Prazos</h3>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span className="flex items-center gap-1"><Circle className="h-2 w-2 fill-current" /> Tarefa</span>
-            <span className="flex items-center gap-1"><FileText className="h-2.5 w-2.5" /> Conteúdo</span>
-            <span className="flex items-center gap-1"><Wallet className="h-2.5 w-2.5" /> Financeiro</span>
-          </div>
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {weekDays.map(d => <div key={d} className="text-center text-xs font-medium text-muted-foreground py-2">{d}</div>)}
-          {calendarDays.map((day, i) => {
-            const totalItems = day.tasks.length + day.content.length + day.financial.length;
-            return (
-            <div key={i} className={cn('min-h-[80px] rounded-lg border p-1.5', day.day === 0 ? 'border-transparent' : day.day === now.getDate() ? 'border-primary/50 bg-primary/5' : 'border-border/50 bg-muted/10')}>
-              {day.day > 0 && (
-                <>
-                  <span className={cn('text-xs font-medium', day.day === now.getDate() ? 'text-primary font-bold' : 'text-muted-foreground')}>{day.day}</span>
-                  <div className="mt-1 space-y-0.5">
-                    {day.tasks.slice(0, 2).map(task => (
-                      <div key={task.id} className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1"
-                        style={{ backgroundColor: priorityConfig[task.priority]?.color?.replace('bg-', '') ? `var(--${priorityConfig[task.priority].color.replace('bg-', '')})` + '20' : undefined }}
-                        onClick={() => openEdit(task)}>
-                        {isTaskCompleted(task, stages) ? <CheckCircle2 className="h-2 w-2 text-money shrink-0" /> : <Circle className="h-2 w-2 shrink-0" style={{ color: priorityConfig[task.priority]?.dot === 'bg-destructive' ? '#ef4444' : priorityConfig[task.priority]?.dot === 'bg-primary' ? '#8b5cf6' : '#64748b' }} />}
-                        {task.title}
-                      </div>
-                    ))}
-                    {day.content.slice(0, 2).map(item => (
-                      <Link key={item.id} href="/conteudo" className="rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1 bg-purple-500/10 text-purple-400">
-                        <FileText className="h-2 w-2 shrink-0" /> {item.title}
-                      </Link>
-                    ))}
-                    {day.financial.slice(0, 2).map(entry => (
-                      <Link key={entry.id} href="/financeiro" className={cn('rounded px-1 py-0.5 text-xs cursor-pointer hover:opacity-80 transition-opacity truncate flex items-center gap-1', entry.type === 'income' ? 'bg-money/10 text-money' : 'bg-destructive/10 text-destructive')}>
-                        <Wallet className="h-2 w-2 shrink-0" /> {entry.description || entry.category}
-                      </Link>
-                    ))}
-                    {totalItems > 6 && <span className="text-xs text-muted-foreground">+{totalItems - 6}</span>}
-                  </div>
-                </>
-              )}
-            </div>
-          );})}
-        </div>
-      </div>
-    );
+  function renderDates(mode: 'calendar' | 'timeline') {
+    return <TaskRichDates mode={mode} month={calendarMonth} onMonth={setCalendarMonth} tasks={sortedTasks} stages={stages} projects={projects} content={linkedContent} financial={calendarFinancial} busyIds={busyTasks} onPatch={handleQuickPatch}
+      onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }}
+      onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }}
+      onCreate={date => { openCreate(); setNewDueDate(date); }} />;
   }
 
   // ─── Main Render ──────────────────────────────────────────────────────────
 
   return (
-    <motion.div className="work-page work-tasks p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
+    <motion.div className="work-page work-tasks task-observatory p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       {/* Header */}
       <motion.div className="mb-6" variants={fade}>
-        <WorkspaceHeading eyebrow="Seu espaço de execução" title="Tarefas" description="Do que precisa acontecer ao que já está em movimento. Um passo de cada vez.">
-          <div className="work-metrics">
-            <WorkspaceMetric label="No seu radar" value={filteredTasks.length} detail="tarefas nesta visualização" />
-            <WorkspaceMetric label="Em movimento" value={tasks.filter(task => task.status === 'doing').length} tone="primary" detail="tarefas em execução" />
-            <WorkspaceMetric label="Pedem atenção" value={overdueCount} tone={overdueCount ? 'warning' : 'default'} detail="tarefas com prazo vencido" />
-          </div>
-        </WorkspaceHeading>
+        <header className="task-observatory-heading"><div className="task-heading-orbit" aria-hidden="true"><span /><i /></div><div><p className="task-eyebrow"><Orbit className="h-3.5 w-3.5" />Seu espaço de execução</p><h1 className="font-display">Tarefas</h1><p className="task-heading-description">Organize o próximo passo. Mude os campos sem sair do trabalho.</p></div><div className="task-radar"><span><strong>{filteredTasks.length}</strong> nesta visão</span><button type="button" aria-pressed={filterOverdue} onClick={() => { setFilterOverdue(value => !value); setSelectedIds(new Set()); }} className={overdueCount ? 'task-overdue' : ''}><strong>{overdueCount}</strong> atrasadas</button><Button onClick={openCreate}><Plus className="h-4 w-4" />Nova tarefa</Button></div></header>
 
         {/* Pipeline Stats */}
         <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
@@ -1023,10 +999,10 @@ export default function TasksPage() {
           ))}
         </div>
         <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Situação das tarefas">
-          <Button size="sm" variant={!showDone ? 'default' : 'outline'} aria-pressed={!showDone} onClick={() => { setShowDone(false); setOnlyCompleted(false); }}>Em aberto</Button>
-          <Button size="sm" variant={onlyCompleted ? 'default' : 'outline'} aria-pressed={onlyCompleted} aria-label={`Mostrar concluídas (${completedCount})`} onClick={() => { setShowDone(true); setOnlyCompleted(true); setFilterOverdue(false); setFilterPriority('all'); setFilterProject('all'); setFilterPillar('all'); setSearch(''); setView('list'); setSortBy('completedAt'); }}>Concluídas ({completedCount})</Button>
-          <Button size="sm" variant={showDone && !onlyCompleted ? 'default' : 'outline'} aria-pressed={showDone && !onlyCompleted} onClick={() => { setShowDone(true); setOnlyCompleted(false); }}>Todas</Button>
-          <span className="text-xs text-muted-foreground">Clique no título para abrir. O círculo conclui ou reabre.{search.trim() ? ' A busca inclui concluídas.' : ''}</span>
+          <Button size="sm" variant={!showDone ? 'default' : 'outline'} aria-pressed={!showDone} onClick={() => { setShowDone(false); setOnlyCompleted(false); setSelectedIds(new Set()); }}>Em aberto</Button>
+          <Button size="sm" variant={onlyCompleted ? 'default' : 'outline'} aria-pressed={onlyCompleted} aria-label={`Mostrar concluídas (${completedCount})`} onClick={() => { setShowDone(true); setOnlyCompleted(true); setSelectedIds(new Set()); setFilterOverdue(false); setFilterPriority('all'); setFilterProject('all'); setFilterPillar('all'); setSearch(''); setView('list'); setSortBy('completedAt'); }}>Concluídas ({completedCount})</Button>
+          <Button size="sm" variant={showDone && !onlyCompleted ? 'default' : 'outline'} aria-pressed={showDone && !onlyCompleted} onClick={() => { setShowDone(true); setOnlyCompleted(false); setSelectedIds(new Set()); }}>Todas</Button>
+          <span className="task-interaction-hint text-xs text-muted-foreground">Título abre detalhes. Concluir é uma ação separada.{search.trim() ? ' A busca inclui concluídas.' : ''}</span>
         </div>
 
         {/* Filter Chips */}
@@ -1041,19 +1017,10 @@ export default function TasksPage() {
 
         {/* Toolbar */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          {bulkMode ? (
-            <>
-              <Badge variant="secondary">{selectedIds.size} selecionada{selectedIds.size !== 1 ? 's' : ''}</Badge>
-              <Button variant="outline" size="sm" onClick={() => handleBulkStatus(taskCompletionStatus(stages))}><CheckCircle2 className="mr-1 h-4 w-4" /> Concluir</Button>
-              <Button variant="outline" size="sm" onClick={() => handleBulkStatus(taskReopenStatus(stages))}><Circle className="mr-1 h-4 w-4" /> Reabrir</Button>
-              <Button variant="destructive" size="sm" onClick={handleBulkDelete} disabled={selectedIds.size === 0}><Trash2 className="mr-1 h-4 w-4" /> Excluir ({selectedIds.size})</Button>
-              <Button variant="ghost" size="sm" onClick={() => { setBulkMode(false); setSelectedIds(new Set()); }}><X className="mr-1 h-4 w-4" /> Cancelar</Button>
-            </>
-          ) : (
             <>
               <div className="relative w-full shrink-0 sm:flex-1 lg:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar tarefas..." className="pl-9 h-9" />
+                <Input value={search} onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()); }} aria-label="Buscar tarefas" placeholder="Buscar tarefas..." className="pl-9 h-11" />
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
@@ -1067,7 +1034,7 @@ export default function TasksPage() {
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <Label className="text-xs">Agrupar por</Label>
-                      <Select value={groupBy} onValueChange={(v) => setGroupBy(v as GroupBy)}>
+                      <Select value={groupBy} onValueChange={(v) => { setGroupBy(v as GroupBy); setSelectedIds(new Set()); setCollapsedColumns(new Set()); }}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="status">Estágio</SelectItem>
@@ -1094,7 +1061,7 @@ export default function TasksPage() {
                     <Separator />
                     <div className="space-y-2">
                       <Label className="text-xs">Prioridade</Label>
-                      <Select value={filterPriority} onValueChange={setFilterPriority}>
+                      <Select value={filterPriority} onValueChange={value => { setFilterPriority(value); setSelectedIds(new Set()); }}>
                         <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">Todas</SelectItem>
@@ -1107,7 +1074,7 @@ export default function TasksPage() {
                     {projects.length > 0 && (
                       <div className="space-y-2">
                         <Label className="text-xs">Projeto</Label>
-                        <Select value={filterProject} onValueChange={setFilterProject}>
+                      <Select value={filterProject} onValueChange={value => { setFilterProject(value); setSelectedIds(new Set()); }}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
@@ -1119,7 +1086,7 @@ export default function TasksPage() {
                     {pillars.length > 0 && (
                       <div className="space-y-2">
                         <Label className="text-xs">Pilar</Label>
-                        <Select value={filterPillar} onValueChange={setFilterPillar}>
+                      <Select value={filterPillar} onValueChange={value => { setFilterPillar(value); setSelectedIds(new Set()); }}>
                           <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
                           <SelectContent>
                             <SelectItem value="all">Todos</SelectItem>
@@ -1142,7 +1109,7 @@ export default function TasksPage() {
                 <div className="mt-3 flex flex-wrap items-center gap-2">
               {/* Saved Views */}
               <div className="flex flex-wrap items-center gap-1">
-                {savedViews.slice(0, 2).map(v => (
+                {savedViews.map(v => (
                   <Button key={v.id} variant={activeViewId === v.id ? 'secondary' : 'ghost'} size="sm" className="h-9 text-xs gap-1" onClick={() => applyView(v)}>
                     <Bookmark className="h-3 w-3" /> {v.name}
                   </Button>
@@ -1189,18 +1156,20 @@ export default function TasksPage() {
                   { id: 'list' as const, icon: Rows3, label: 'Lista' },
                   { id: 'week' as const, icon: CalendarDays, label: 'Semana' },
                   { id: 'calendar' as const, icon: Calendar, label: 'Calendário' },
+                  { id: 'timeline' as const, icon: GanttChart, label: 'Linha do tempo' },
+                  { id: 'focus' as const, icon: Crosshair, label: 'Foco' },
+                  { id: 'load' as const, icon: ChartNoAxesColumnIncreasing, label: 'Carga' },
                 ].map(v => (
-                  <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" aria-label={`Visualização: ${v.label}`} title={v.label} className="h-8 px-3" onClick={() => setView(v.id)}>
-                    <v.icon className="h-4 w-4" />
+                  <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" aria-label={`Visualização: ${v.label}`} aria-pressed={view === v.id} title={v.label} className="h-8 px-3" onClick={() => { setView(v.id); setSelectedIds(new Set()); }}>
+                    <v.icon className="h-4 w-4" /><span className="task-view-label">{v.id === 'kanban' ? 'Quadro' : v.label}</span>
                   </Button>
                 ))}
               </div>
 
-              <Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" /> Nova</Button>
               </div>
             </>
-          )}
         </div>
+        {selectedIds.size > 0 && <section className="task-bulk-bar" aria-label="Ações das tarefas selecionadas"><span><strong>{selectedIds.size}</strong> selecionadas</span><Button variant="outline" size="sm" disabled={bulkBusy || busyTasks.size > 0} aria-label="Concluir selecionadas" onClick={() => void handleBulkStatus(taskCompletionStatus(stages))}><CheckCircle2 className="h-4 w-4" />Concluir</Button><Button variant="outline" size="sm" disabled={bulkBusy || busyTasks.size > 0} onClick={() => void handleBulkStatus(taskReopenStatus(stages))}>Reabrir</Button><select aria-label="Mover selecionadas para etapa" className="task-cell-select" value="" disabled={bulkBusy || busyTasks.size > 0} onChange={event => void handleBulkStatus(event.target.value)}><option value="" disabled>Mover para…</option>{stages.filter(stage => !stage.historical).map(stage => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select><Button variant="ghost" size="sm" disabled={bulkBusy || busyTasks.size > 0} onClick={() => setBulkDeleteOpen(true)}><Trash2 className="h-4 w-4" />Excluir</Button><Button variant="ghost" size="sm" disabled={bulkBusy} onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }}>Limpar seleção</Button>{bulkBusy && <span role="status">Salvando…</span>}</section>}
       </motion.div>
 
       {/* Content */}
@@ -1215,7 +1184,7 @@ export default function TasksPage() {
             </div>
           ))}
         </div>
-      ) : filteredTasks.length === 0 && view !== 'week' ? (
+      ) : filteredTasks.length === 0 && (view === 'list' || view === 'kanban') ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted"><CheckCircle2 className="h-6 w-6 text-muted-foreground" /></div>
@@ -1227,26 +1196,31 @@ export default function TasksPage() {
         <motion.div variants={fade}>
           {view === 'kanban' && renderKanban()}
           {view === 'list' && renderList()}
-          {view === 'week' && <><p className="mb-3 text-xs text-muted-foreground">Agenda integrada de todas as tarefas. Os filtros acima se aplicam ao quadro, lista e prazos.</p><PlanningWorkspace embedded refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} /></>}
-          {view === 'calendar' && renderCalendar()}
+          {view === 'week' && <><p className="mb-3 text-xs text-muted-foreground">Agenda integrada de todas as tarefas. Os filtros acima se aplicam às outras visões.</p><PlanningWorkspace embedded onOpenTask={(_id, task) => { setTasks(current => current.map(item => item.id === task.id ? task : item)); openEdit(task); }} refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} /></>}
+          {view === 'calendar' && renderDates('calendar')}
+          {view === 'timeline' && renderDates('timeline')}
+          {(view === 'focus' || view === 'load') && (() => {
+            const Component = view === 'focus' ? TaskFocus : TaskLoad;
+            return <Component tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />;
+          })()}
         </motion.div>
       )}
 
       {/* Editor Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
+      <Dialog open={isDialogOpen} onOpenChange={value => { if (!editorBusy) setIsDialogOpen(value); }}>
+        <DialogContent className="task-detail-panel flex flex-col overflow-hidden translate-x-0 translate-y-0" onEscapeKeyDown={event => { if (editorBusy) event.preventDefault(); }}>
           <DialogHeader className="shrink-0">
             <DialogTitle>{editingTask ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
             <DialogDescription>{editingTask ? 'Altere os detalhes da tarefa' : 'Crie uma nova tarefa'}</DialogDescription>
           </DialogHeader>
-          <div className="flex-1 space-y-4 overflow-y-auto py-2 pr-1">
+          <fieldset disabled={editorBusy} className="task-detail-body flex-1 space-y-4 overflow-y-auto py-2 pr-1" aria-busy={editorBusy}>
             <div className="grid gap-2">
               <Label>Título</Label>
-              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="O que precisa ser feito?" autoFocus />
+              <Input aria-label="Título da tarefa" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="O que precisa ser feito?" autoFocus />
             </div>
             <div className="grid gap-2">
               <Label>Descrição</Label>
-              <Textarea value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Detalhes, notas, links..." rows={3} />
+              <Textarea aria-label="Descrição da tarefa" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Detalhes, notas, links..." rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="grid gap-2">
@@ -1367,14 +1341,15 @@ export default function TasksPage() {
                 />
               </div>
             )}
-          </div>
+          </fieldset>
           <DialogFooter className="shrink-0 gap-2 border-t pt-4">
-            {editingTask && <Button variant="destructive" onClick={() => handleDelete(editingTask.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!newTitle.trim()}>{editingTask ? 'Salvar' : 'Criar'}</Button>
+            {editingTask && <Button variant="destructive" disabled={editorBusy} onClick={() => handleDelete(editingTask.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
+            <Button variant="outline" disabled={editorBusy} onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!newTitle.trim() || editorBusy}>{editorBusy ? 'Salvando…' : editingTask ? 'Salvar' : 'Criar'}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <Dialog open={bulkDeleteOpen} onOpenChange={value => { if (!bulkBusy) setBulkDeleteOpen(value); }}><DialogContent><DialogHeader><DialogTitle>Excluir tarefas selecionadas</DialogTitle><DialogDescription>Confirme a exclusão de {selectedIds.size} tarefas. Tarefas com eventos espelhados precisam do fluxo individual de exclusão para remover o evento corretamente.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={bulkBusy} onClick={() => setBulkDeleteOpen(false)}>Cancelar</Button><Button variant="destructive" disabled={bulkBusy} onClick={() => void handleBulkDelete()}>{bulkBusy ? 'Excluindo…' : 'Confirmar exclusão'}</Button></DialogFooter></DialogContent></Dialog>
 
       <StageConfigDialog
         open={stageDialogOpen}

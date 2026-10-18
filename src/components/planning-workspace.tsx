@@ -37,7 +37,7 @@ function occursOn(event: GoogleCalendarEvent, day: string) {
   return new Date(event.start) < end && new Date(event.end) > start;
 }
 
-export function PlanningWorkspace({ embedded = false, onTasksChanged, refreshKey = '' }: { embedded?: boolean; onTasksChanged?: () => void; refreshKey?: string } = {}) {
+export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask, refreshKey = '' }: { embedded?: boolean; onTasksChanged?: () => void; onOpenTask?: (id: string, task: Task) => void; refreshKey?: string } = {}) {
   const [deletionTask, setDeletionTask] = useState<Task | null>(null);
   const mutationLock = useRef(false);
   const weekGridRef = useRef<HTMLElement | null>(null);
@@ -182,7 +182,7 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, refreshKey
     return <div key={task.id} data-testid={`planning-task-${task.id}`} draggable
       onDragStart={event => event.dataTransfer.setData('text/plain', task.id)}
       className={cn('work-planning-card rounded-xl border bg-card px-4 py-3 shadow-sm', task.priority === 'urgent' ? 'border-l-2 border-l-rose-500' : 'border-border/70')}>
-      <p className="break-words text-sm font-semibold leading-relaxed">{task.title}</p>
+      {onOpenTask ? <button type="button" disabled={saving} className="task-row-title text-left" onClick={() => { if (!mutationLock.current) onOpenTask(task.id, task); }}>{task.title}</button> : <Link href={`/tarefas?open=${encodeURIComponent(task.id)}`} aria-disabled={saving} tabIndex={saving ? -1 : undefined} onClick={event => { if (saving) event.preventDefault(); }} className="block break-words text-sm font-semibold leading-relaxed hover:text-primary">{task.title}</Link>}
       {task.planning?.startAt && <p className="mt-2 text-xs font-medium text-primary">{new Date(task.planning.startAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} – {new Date(task.planning.endAt!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · Bloco de foco</p>}
       {task.planning?.syncToGoogle && <div className="mt-2 text-[11px] text-muted-foreground">
         {task.planning.syncState === 'synced' ? 'Espelhado no Google' : task.planning.syncState === 'pending' ? 'Sincronização pendente' : task.planning.syncError || 'Falha ao sincronizar'}
@@ -219,6 +219,7 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, refreshKey
     </div>
 
     <details className="mb-4 text-xs text-muted-foreground"><summary className="cursor-pointer">Horários locais · {Intl.DateTimeFormat().resolvedOptions().timeZone} · 08h–20h</summary><p className="mt-2 max-w-2xl leading-relaxed">Os intervalos livres consideram seus blocos e compromissos na agenda principal do Google. Eventos de dia inteiro não reservam horários.</p></details>
+    {embedded && <section className="task-week-distribution" aria-label="Distribuição semanal"><div><h3>Ritmo da semana</h3><p>Quantidade de prioridades por dia. Somente os blocos com horário reservam tempo.</p></div><div className="task-week-bars">{days.map(({ date, key }) => { const items = weekTasks.filter(task => plannedDay(task) === key); const timed = items.filter(task => task.planning?.startAt).length; return <button type="button" key={key} aria-label={`Focar ${date.toLocaleDateString('pt-BR', { weekday: 'long' })}: ${items.length} tarefas, ${timed} blocos`} onClick={() => { setActiveDay(key); requestAnimationFrame(() => weekGridRef.current?.querySelector(`[data-day="${key}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center' })); }}><span>{items.length}</span><i style={{ height: `${8 + Math.min(items.length, 8) * 7}px` }} /><small>{date.toLocaleDateString('pt-BR', { weekday: 'short' })}</small><small>{timed} blocos</small></button>; })}</div></section>}
     <nav aria-label="Escolher dia" className="mb-4 grid grid-cols-7 gap-1">{days.map(({date, key}) => <button key={key} aria-pressed={key === mobileDay} onClick={() => { setActiveDay(key); requestAnimationFrame(() => weekGridRef.current?.querySelector(`[data-day="${key}"]`)?.scrollIntoView({ block: 'nearest', inline: 'center' })); }} className="min-h-14 rounded-xl border text-xs aria-pressed:border-primary aria-pressed:bg-primary/10 aria-pressed:text-primary"><span className="block text-[10px] uppercase">{date.toLocaleDateString('pt-BR', {weekday:'short'})}</span><span className="mt-1 block text-lg">{date.getDate()}</span></button>)}</nav>
     <div className="grid min-w-0 items-start gap-5 xl:grid-cols-[minmax(0,1fr)_280px]">
       <section ref={weekGridRef} id="planning-week-days" aria-label="Dias da semana" className="work-week-grid min-w-0 scroll-mt-24">
