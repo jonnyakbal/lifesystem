@@ -16,7 +16,7 @@ Atualização: 17/10/2026. Este arquivo concentra o backlog atual. Planos e aná
 3. Privacidade do histórico Git: a candidata de reescrita precisa ser refeita sobre o main atual; reescrita pública só com aprovação específica.
 4. Ensaio de restauração com o backup privado real.
 5. Edital LIC-SM 2027 (prazo 26/10/2026, 17h): conferir o registro existente no app antes de cadastrar.
-6. Recibo de publicação Hostinger de `4d674a2` ou posterior.
+6. Recibo de publicação Hostinger de `4d674a2` ou posterior. Em 18/10: push `4d674a2..d8eee97`; [CI 39163703188](https://github.com/jonnyakbal/lifesystem/actions/runs/39163703188) concluiu com success às 20:48Z. O app público respondeu 200 em `/login`, mas a mudança de `4e5e39d` é só do MCP de saúde, atrás de autenticação. Por isso, a publicação Hostinger **não está certificada**: falta o recibo do hPanel ou uma chamada autenticada a `get_health_daily_brief` mostrando `calendar.workWindow`.
 
 ## Cloudflare híbrido — 02/10 (branch `claude/serene-bell-usq5xy`, não publicado)
 
