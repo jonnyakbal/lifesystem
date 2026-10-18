@@ -5,6 +5,7 @@ import type { Indicator, Pillar, StageConfig, Task } from '@/types';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { listGoogleCalendarEvents, type GoogleCalendarEvent } from '@/lib/google-calendar';
 import { clockLabel, freeIntervals } from '@/lib/planning-availability';
+import { DEFAULT_PLANNING_PREFERENCES, planningPreferencesSchema, workWindowOnDay } from '@/lib/planning-preferences';
 import { saveTaskPlanning } from '@/lib/task-planning';
 import { healthContextSchema, healthObservationSchema, proposalInputSchema, type HealthActor, type HealthContext, type HealthContextData, type HealthLedger, type HealthObservation, type HealthObservationInput, type HealthProposal, type HealthProposalInput, type HealthReceipt } from './schemas';
 import { readHealthLedger, transactHealthLedger } from './store';
@@ -333,12 +334,16 @@ export async function getHealthDailyBrief(date: string, timezone: string, depend
   const tasks = allowed.size ? allTasks.filter(task => task.pillarId && allowed.has(task.pillarId) && !terminal.has(task.status) && (task.dueDate === date || task.planning?.date === date)).map(task => ({ id: task.id, title: task.title, dueDate: task.dueDate || null, plannedStartAt: task.planning?.startAt || null, status: task.status })) : [];
   const goals = indicators.filter(item => allowed.has(item.pillarId) && item.targetValue !== undefined).map(item => ({ id: item.id, pillarId: item.pillarId, name: item.name, targetValue: item.targetValue, unit: item.unit || null, frequency: item.frequency, source: 'configured-target' as const }));
   const pendingConfirmations = pending.map(item => ({ id: item.id, operation: item.input.operation, expiresAt: item.expiresAt, approved: Boolean(item.approvedAt) }));
-  let calendar: { status: 'verified' | 'unavailable'; freeWindows: { start: string; end: string }[] | null; busyBlocks: number | null };
+  const stored = await storage.getById<{ id: string; preferences: unknown }>('planning_preferences', 'default');
+  const parsedPreferences = planningPreferencesSchema.safeParse(stored?.preferences);
+  const window = workWindowOnDay(date, parsedPreferences.success ? parsedPreferences.data : DEFAULT_PLANNING_PREFERENCES);
+  const workWindow = window ? { start: clockLabel(window.start), end: clockLabel(window.end) } : null;
+  let calendar: { status: 'verified' | 'unavailable'; workWindow: { start: string; end: string } | null; freeWindows: { start: string; end: string }[] | null; busyBlocks: number | null };
   try {
     const center = Date.parse(`${date}T00:00:00Z`);
     const events = await (dependencies.calendar || listGoogleCalendarEvents)(new Date(center - 86_400_000).toISOString(), new Date(center + 2 * 86_400_000).toISOString());
     const busy = events.filter(event => !event.allDay && event.busy !== false && localDate(event.start, timezone) <= date && localDate(event.end, timezone) >= date).map(event => ({ start: localDate(event.start, timezone) < date ? 0 : localClock(event.start, timezone), end: localDate(event.end, timezone) > date ? 1440 : localClock(event.end, timezone) })).filter(item => item.end > item.start);
-    calendar = { status: 'verified', freeWindows: freeIntervals(busy, 8 * 60, 20 * 60).map(item => ({ start: clockLabel(item.start), end: clockLabel(item.end) })), busyBlocks: busy.length };
-  } catch { calendar = { status: 'unavailable', freeWindows: null, busyBlocks: null }; }
+    calendar = { status: 'verified', workWindow, freeWindows: (window ? freeIntervals(busy, window.start, window.end) : []).map(item => ({ start: clockLabel(item.start), end: clockLabel(item.end) })), busyBlocks: busy.length };
+  } catch { calendar = { status: 'unavailable', workWindow, freeWindows: null, busyBlocks: null }; }
   return { date, timezone, context: { objectives: context.data.objectives, preferences: context.data.preferences, routines: context.data.routines, reviewedAt: context.reviewedAt, unknown: context.unknown }, observations, summary, goals, pendingConfirmations, tasks: { status: allowed.size ? 'configured' : 'unconfigured', items: tasks }, calendar };
 }

@@ -1,5 +1,7 @@
 # Continuidade do LifeSystem no Claude na nuvem — 02/10/2026
 
+> **Atualização 17/10/2026:** E1–E4, o piloto HTTP, a trava do ledger de saúde, o manifesto de backup e a janela configurável do brief de saúde já estão em main. As tabelas abaixo registram o estado de 02/10; o backlog atual está em [ROADMAP — Estado em 17/10](ROADMAP.md#estado-em-17102026). Não reimplementar o que já foi entregue.
+
 Esta é a entrada atual da sessão. Jonny autorizou consolidar as pendências e publicar a documentação no GitHub para continuar no Claude na nuvem. A entrega desta rodada é documentação: as melhorias descritas continuam por implementar. Leia [AGENTS](../AGENTS.md), [handoff completo](HANDOFF-CLAUDE.md), [roadmap](ROADMAP.md) e [plano das melhorias da estação](superpowers/plans/2026-10-02-office-lifesystem-followups.md).
 
 ## Divisão de responsabilidades

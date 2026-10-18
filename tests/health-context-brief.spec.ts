@@ -43,6 +43,17 @@ test('explicit health context is versioned, approved and filters daily tasks by 
     ] });
     expect(occupied.calendar.freeWindows).toEqual([{ start: '08:00', end: '12:00' }, { start: '13:00', end: '20:00' }]);
     expect(JSON.stringify(occupied)).not.toContain('Private');
+    expect(occupied.calendar.workWindow).toEqual({ start: '08:00', end: '20:00' });
+    await storage.transact<{ id: string; preferences: unknown }, void>('planning_preferences', records => { records.push({ id: 'default', preferences: { workStart: '09:30', workEnd: '18:00', workingDays: [1, 2, 3, 4, 5], timeZone: 'America/Sao_Paulo' } }); });
+    const configured = await getHealthDailyBrief('2026-09-30', 'America/Sao_Paulo', { calendar: async () => [
+      { id: 'busy', title: 'Private', start: '2026-09-30T12:00:00-03:00', end: '2026-09-30T13:00:00-03:00', allDay: false },
+    ] });
+    expect(configured.calendar.workWindow).toEqual({ start: '09:30', end: '18:00' });
+    expect(configured.calendar.freeWindows).toEqual([{ start: '09:30', end: '12:00' }, { start: '13:00', end: '18:00' }]);
+    const weekend = await getHealthDailyBrief('2026-10-04', 'America/Sao_Paulo', { calendar: async () => [] });
+    expect(weekend.calendar).toMatchObject({ status: 'verified', workWindow: null, freeWindows: [] });
+    const offlineConfigured = await getHealthDailyBrief('2026-09-30', 'America/Sao_Paulo', { calendar: async () => { throw new Error('offline'); } });
+    expect(offlineConfigured.calendar).toMatchObject({ status: 'unavailable', workWindow: { start: '09:30', end: '18:00' }, freeWindows: null });
 
     const change = await proposeHealthChange({ operation: 'context', context: { ...body, preferences: ['Treinar de manhã quando possível'] }, expectedRevision: 1, idempotencyKey: 'context-proposal-001' }, agent);
     const pending = await getHealthDailyBrief('2026-09-30', 'America/Sao_Paulo', { calendar: async () => [] });

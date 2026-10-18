@@ -1,6 +1,22 @@
 # Roadmap e estado do LIFESYSTEM
 
-Atualização: 02/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
+Atualização: 17/10/2026. Este arquivo concentra o backlog atual. Planos e análises datados documentam a entrega da época; não são listas de pendências atuais.
+
+## Estado em 17/10/2026
+
+- A branch `claude/serene-bell-usq5xy` foi integrada em main pelos PRs #2–#8 (main `4d674a2`). As seções de 02/10 abaixo que dizem "não publicado" descrevem aquele momento. Uma publicação na Hostinger só conta como confirmada com recibo próprio.
+- **Concluídos no código:** E1–E4 da estação, piloto HTTP sintético de Órion/Sirius (`tests/agent-contract-http.spec.ts`), trava do ledger de saúde com dono (`cd44084`), manifesto SHA-256 do backup e exportação D1.
+- **Concluído nesta rodada:** `get_health_daily_brief` usa a jornada de Planejar (`planning_preferences`) em vez de 08–20 fixo. O retorno ganha `calendar.workWindow`; em dia fora da jornada, `workWindow=null` e `freeWindows=[]`. Sem preferências salvas, o padrão continua 08–20. A mudança é aditiva no contrato Órion 1.2.
+- **Limpeza local:** as alterações antigas do worktree Orion e o stash de 18/09 foram preservados nas branches locais `archive/orion-worktree-2026-10-17` e `archive/stash-2026-09-18`. Arquivos ignorados foram copiados para a pasta privada de evidências, fora do Git.
+
+### Ainda aberto
+
+1. Agenda v2: fases B–F.
+2. Etapas operacionais (exigem autorização e sessão própria): credenciais reais dos agentes em produção, voz local no Hermes, redirecionamento Sirius → Arco Leads, ativação D1/Workers AI na Hostinger.
+3. Privacidade do histórico Git: a candidata de reescrita precisa ser refeita sobre o main atual; reescrita pública só com aprovação específica.
+4. Ensaio de restauração com o backup privado real.
+5. Edital LIC-SM 2027 (prazo 26/10/2026, 17h): conferir o registro existente no app antes de cadastrar.
+6. Recibo de publicação Hostinger de `4d674a2` ou posterior.
 
 ## Cloudflare híbrido — 02/10 (branch `claude/serene-bell-usq5xy`, não publicado)
 
