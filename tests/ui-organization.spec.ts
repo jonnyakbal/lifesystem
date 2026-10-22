@@ -4,15 +4,11 @@ test('controles secundários de tarefas ficam acessíveis sem ocupar a primeira 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/tarefas');
 
-  const advanced = page.locator('details', { hasText: 'Mais opções de organização' });
-  await expect(advanced).not.toHaveAttribute('open');
-  await advanced.locator('summary').click();
-  await expect(advanced).toHaveAttribute('open');
-
+  await expect(page.getByRole('button', { name: 'Editar etapas' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'Filtros', exact: true }).click();
   await page.getByRole('button', { name: 'Editar etapas' }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
 });
-
 test('conteúdo usa título neutro e mantém visões salvas em opções avançadas', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/conteudo');

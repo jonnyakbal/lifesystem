@@ -243,8 +243,9 @@ test('modo de seleção preserva abertura pelo título sem concluir', async ({ p
   const task = await create(request, 'Abrir detalhes com seleção ativa');
   try {
     await page.goto('/tarefas');
-    await page.locator('details', { hasText: 'Mais opções de organização' }).locator('summary').click();
+    await page.getByRole('button', { name: 'Filtros', exact: true }).click();
     await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+    await page.keyboard.press('Escape');
     await page.getByRole('checkbox', { name: `Selecionar ${task.title}`, exact: true }).check();
     await page.getByRole('button', { name: task.title, exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Editar Tarefa' })).toBeVisible();

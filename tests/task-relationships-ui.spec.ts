@@ -29,14 +29,12 @@ test('editor, lista e foco deixam os vínculos visíveis e preservam tarefa em f
     await expect(page.getByRole('region', { name: 'Tarefa em foco' }).getByText('90 min previstos')).toBeVisible();
   } finally { await request.delete(`/api/tasks/${child.id}`); await request.delete(`/api/tasks/${base.id}`); }
 });
-test('jornada de Carga é editável e calendário mantém previsão separada de horas livres', async ({ page, request }) => {
+test('jornada continua editável na Semana sem criar planejamento na tarefa', async ({ page, request }) => {
   const task = await create(request, 'QA esforço futuro', { dueDate: '2027-01-04', estimatedMinutes: 90 });
   const original = await (await request.get('/api/planning-preferences')).json();
   try {
     await page.goto('/tarefas'); await page.getByPlaceholder('Buscar tarefas...').fill(task.title);
-    await page.getByRole('button', { name: 'Visualização: Carga', exact: true }).click();
-    await page.getByLabel('Semana da carga', { exact: true }).fill('2027-01-04');
-    await expect(page.getByText('Esforço previsto', { exact: true }).locator('..').locator('strong')).toHaveText('1,5h');
+    await page.getByRole('button', { name: 'Visualização: Semana', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Configurar capacidade', exact: true })).toBeVisible();
     expect((await (await request.get(`/api/tasks/${task.id}`)).json()).planning).toBeUndefined();
   } finally { await request.put('/api/planning-preferences', { data: original }); await request.delete(`/api/tasks/${task.id}`); }

@@ -46,7 +46,7 @@ O [handoff](HANDOFF-CLAUDE.md) contém a checklist detalhada. Não reduzir o bac
 6. Agenda v2 em fases A–F, conforme [especificação](agenda-expansion-contracts.md): projeção, blocos extras, seleção de agendas, espelhos com consentimento/outbox, sync incremental e worker opt-in. Documentação não equivale a implementação; preservar primário v1 e não criar Gantt.
 7. Varredura funcional e visual das demais rotas, priorizando produtividade, falhas recuperáveis, acessibilidade e conexões úteis; conferir o código atual antes de implementar specs antigas de Fontes ou outras áreas.
 
-Decisões invariantes: título de tarefa abre detalhes, Concluir é explícito com recuperação; dia de Planejar é o prazo, sem duas datas concorrentes; Foco/Carga incluídos e Gantt excluído; previsto financeiro não é pago; identidade da intenção, não texto/valor, protege duplicação. Leituras health/professional não têm ACL isolada por agente no mesmo domínio pessoal; não prometer isso.
+Decisões invariantes: título de tarefa abre detalhes, Concluir é explícito com recuperação; dia de Planejar é o prazo, sem duas datas concorrentes; Foco incluído; Carga e Linha do tempo removidas em 22/10/2026 a pedido do Jonny; Gantt excluído; previsto financeiro não é pago; identidade da intenção, não texto/valor, protege duplicação. Leituras health/professional não têm ACL isolada por agente no mesmo domínio pessoal; não prometer isso.
 
 ## O que a nuvem tem e o que continua local
 

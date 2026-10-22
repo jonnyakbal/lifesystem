@@ -17,7 +17,7 @@ Atualização de 02/10: Jonny autorizou publicar as pendências/documentação p
 - O repasse de 01/10 foi documental e local; a atualização de 02/10 autoriza publicar esses documentos e o plano cloud. Isso não autoriza reescrita pública: ela exige autorização específica para referências, candidata e janela após revisão privada.
 - Não altere Hermes ou Arco CRM nesta continuidade sem nova autorização que mude explicitamente esse escopo. Nunca altere/reinicie a instalação Hermes empresarial Dona Maria. Consulte referências privadas somente quando necessárias e sem copiar seus dados para o Git.
 - Não consulte/imprima `.env`, tokens, credenciais, registros financeiros ou relatos pessoais reais durante QA. Testes e builds usam dados sintéticos e diretórios temporários; não reutilize o servidor pessoal.
-- Preserve os pedidos do usuário: título de tarefa abre detalhes, conclusão tem controle explícito e recuperação; prazo e dia planejado são a mesma data; Foco/Carga estão incluídos e Gantt está excluído; previsto financeiro não é pagamento realizado.
+- Preserve os pedidos do usuário: título de tarefa abre detalhes, conclusão tem controle explícito e recuperação; prazo e dia planejado são a mesma data; Foco está incluído; Carga e Linha do tempo foram removidas a pedido do Jonny em 22/10/2026 (polimento visual de Tarefas) e Gantt segue excluído; previsto financeiro não é pagamento realizado.
 - Toda entrega deve registrar comandos/resultados reais, nomes/schemas/escopos MCP afetados, aprovações/recibos e evidência de publicação separada da CI. Não marcar preparação, conversa ou telemetria como execução profissional certificada.
 
 ## Production deploy memory

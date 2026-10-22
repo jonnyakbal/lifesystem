@@ -41,26 +41,6 @@ test('calendário revela todas as tarefas do dia e cria com o prazo escolhido', 
   }
 });
 
-test('linha do tempo apresenta prazos e permite editar sem inventar duração', async ({ page, request }) => {
-  const task = await create(request, 'Marco em janeiro', { dueDate: '2027-01-12' });
-  const undated = await create(request, 'Marco sem prazo');
-  try {
-    await page.goto('/tarefas');
-    await page.getByRole('button', { name: 'Visualização: Linha do tempo' }).click();
-    await page.getByLabel('Mês da linha do tempo').fill('2027-01');
-    const timeline = page.getByRole('region', { name: 'Linha do tempo de prazos' });
-    await expect(timeline.getByRole('button', { name: `Abrir marco ${task.title}`, exact: true })).toBeVisible();
-    await expect(page.getByRole('region', { name: 'Tarefas sem prazo' }).getByRole('button', { name: undated.title, exact: true })).toBeVisible();
-    await timeline.getByRole('button', { name: `Prazo de ${task.title}`, exact: true }).click();
-    await page.getByLabel('Novo prazo').fill('2027-02-01');
-    await page.getByRole('button', { name: 'Salvar prazo', exact: true }).click();
-    await expect(timeline.getByRole('button', { name: `Abrir marco ${task.title}`, exact: true })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Próximo mês' }).click();
-    await expect(timeline.getByRole('button', { name: `Abrir marco ${task.title}`, exact: true })).toBeVisible();
-    expect((await (await request.get(`/api/tasks/${task.id}`)).json()).status).toBe('todo');
-  } finally { for (const item of [task, undated]) await request.delete(`/api/tasks/${item.id}`); }
-});
-
 test('semana abre os detalhes sem reservar horário ou concluir', async ({ page, request }) => {
   const task = await create(request, 'Detalhes na semana');
   try {
@@ -80,8 +60,9 @@ test('quadro recolhido e troca de visão não mantêm seleção oculta', async (
     await page.getByRole('checkbox', { name: `Selecionar ${task.title}`, exact: true }).check();
     await page.getByRole('button', { name: 'Visualização: Quadro Kanban' }).click();
     await expect(page.getByRole('region', { name: 'Ações das tarefas selecionadas' })).toHaveCount(0);
-    await page.locator('details', { hasText: 'Mais opções de organização' }).locator('summary').click();
+    await page.getByRole('button', { name: 'Filtros', exact: true }).click();
     await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: `Selecionar ${task.title}`, exact: true }).click();
     await page.getByRole('button', { name: 'Recolher coluna A fazer', exact: true }).click();
     await expect(page.getByRole('region', { name: 'Ações das tarefas selecionadas' })).toHaveCount(0);
@@ -151,9 +132,9 @@ test('visões ricas são utilizáveis em desktop e celular, claro e escuro', asy
       await page.goto('/tarefas');
       await page.getByPlaceholder('Buscar tarefas...').fill('Rico QA');
       await page.evaluate(t => { document.documentElement.classList.remove('light', 'dark'); document.documentElement.classList.add(t); }, theme);
-      for (const [label, slug] of [['Quadro Kanban', 'kanban'], ['Calendário', 'calendar'], ['Linha do tempo', 'timeline'], ['Semana', 'week']]) {
+      for (const [label, slug] of [['Quadro Kanban', 'kanban'], ['Calendário', 'calendar'], ['Semana', 'week']]) {
         await page.getByRole('button', { name: `Visualização: ${label}`, exact: true }).click();
-        if (slug === 'calendar' || slug === 'timeline') { await page.getByLabel(slug === 'calendar' ? 'Mês do calendário' : 'Mês da linha do tempo').fill('2027-01'); }
+        if (slug === 'calendar') await page.getByLabel('Mês do calendário').fill('2027-01');
         if (slug === 'calendar') await page.getByRole('button', { name: 'Ver dia 12/01/2027', exact: true }).click();
         if (slug === 'kanban') await expect(page.getByRole('combobox', { name: `Etapa no quadro de ${tasks[0].title}` })).toBeVisible();
         if (slug === 'week') {
@@ -183,8 +164,9 @@ test('trocar agrupamento elimina seleção que volta para coluna recolhida', asy
     await group('Prioridade');
     await page.getByRole('button', { name: 'Recolher coluna Urgente', exact: true }).click();
     await group('Estágio');
-    await page.locator('details', { hasText: 'Mais opções de organização' }).locator('summary').click();
+    await page.getByRole('button', { name: 'Filtros', exact: true }).click();
     await page.getByRole('button', { name: 'Selecionar', exact: true }).click();
+    await page.keyboard.press('Escape');
     await page.getByRole('button', { name: `Selecionar ${task.title}`, exact: true }).click();
     await expect(page.getByRole('region', { name: 'Ações das tarefas selecionadas' })).toBeVisible();
     await group('Prioridade');

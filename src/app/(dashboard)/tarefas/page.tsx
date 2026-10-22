@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { DeadlineCell, TaskWorkspaceTable, type TaskCellPatch } from '@/components/tasks/task-workspace-table';
 import { TaskRichDates } from '@/components/tasks/task-rich-dates';
-import { TaskFocus, TaskLoad } from '@/components/tasks/task-focus-load';
+import { TaskFocus } from '@/components/tasks/task-focus-load';
 import { TaskRelationships } from '@/components/tasks/task-relationships';
 import { TaskDeleteDialog } from '@/components/task-delete-dialog';
 import { PlanningWorkspace } from '@/components/planning-workspace';
@@ -14,7 +14,7 @@ import {
   GripVertical, CalendarDays, X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
-  ArrowRight, Repeat, Edit2, Orbit, ChevronDown, ChevronRight, GanttChart, Crosshair, ChartNoAxesColumnIncreasing
+  ArrowRight, Repeat, Edit2, ChevronDown, ChevronRight, Crosshair
 } from 'lucide-react';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
@@ -95,7 +95,8 @@ interface Pillar {
   color?: string;
 }
 
-type ViewMode = 'kanban' | 'list' | 'week' | 'calendar' | 'timeline' | 'focus' | 'load';
+type ViewMode = 'kanban' | 'list' | 'week' | 'calendar' | 'focus';
+const VIEW_MODES: ViewMode[] = ['kanban', 'list', 'week', 'calendar', 'focus'];
 
 // Lightweight shapes for the two other entity types the unified calendar
 // overlays alongside Task — just enough fields to plot + link out, not a
@@ -351,7 +352,7 @@ export default function TasksPage() {
 
   function applyView(v: SavedView) {
     setActiveViewId(v.id);
-    setView(v.view);
+    setView(VIEW_MODES.includes(v.view) ? v.view : 'list');
     setGroupBy(v.groupBy);
     setSortBy(v.sortBy);
     setSearch(v.search);
@@ -668,10 +669,6 @@ export default function TasksPage() {
 
   const overdueCount = tasks.filter(isOverdue).length;
 
-  // Pipeline stats
-  const pipelineStats = useMemo(() => {
-    return stages.map(s => ({ ...s, count: tasks.filter(t => t.status === s.id).length }));
-  }, [tasks, stages]);
   const completedCount = tasks.filter(task => isTaskCompleted(task, stages)).length;
 
   // Active filters
@@ -988,8 +985,8 @@ export default function TasksPage() {
     />;
   }
 
-  function renderDates(mode: 'calendar' | 'timeline') {
-    return <TaskRichDates mode={mode} month={calendarMonth} onMonth={setCalendarMonth} tasks={sortedTasks} stages={stages} projects={projects} content={linkedContent} financial={calendarFinancial} busyIds={busyTasks} onPatch={handleQuickPatch}
+  function renderDates() {
+    return <TaskRichDates month={calendarMonth} onMonth={setCalendarMonth} tasks={sortedTasks} stages={stages} projects={projects} content={linkedContent} financial={calendarFinancial} busyIds={busyTasks} onPatch={handleQuickPatch}
       onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }}
       onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }}
       onCreate={date => { openCreate(); setNewDueDate(date); }} />;
@@ -1000,188 +997,153 @@ export default function TasksPage() {
   return (
     <motion.div className="work-page work-tasks task-observatory p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       {/* Header */}
-      <motion.div className="mb-6" variants={fade}>
-        <header className="task-observatory-heading"><div className="task-heading-orbit" aria-hidden="true"><span /><i /></div><div><p className="task-eyebrow"><Orbit className="h-3.5 w-3.5" />Seu espaço de execução</p><h1 className="font-display">Tarefas</h1><p className="task-heading-description">Organize o próximo passo. Mude os campos sem sair do trabalho.</p></div><div className="task-radar"><span><strong>{filteredTasks.length}</strong> nesta visão</span><button type="button" aria-pressed={filterOverdue} onClick={() => { setFilterOverdue(value => !value); setSelectedIds(new Set()); }} className={overdueCount ? 'task-overdue' : ''}><strong>{overdueCount}</strong> atrasadas</button><Button onClick={openCreate}><Plus className="h-4 w-4" />Nova tarefa</Button></div></header>
+      <motion.div className="mb-5" variants={fade}>
+        <header className="task-head">
+          <h1 className="font-display">Tarefas</h1>
+          {overdueCount > 0 && <button type="button" aria-pressed={filterOverdue} onClick={() => { setFilterOverdue(value => !value); setSelectedIds(new Set()); }} className="task-head-overdue"><strong>{overdueCount}</strong> atrasadas</button>}
+          <Button onClick={openCreate} className="ml-auto"><Plus className="h-4 w-4" />Nova tarefa</Button>
+        </header>
 
-        {/* Pipeline Stats */}
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-          {pipelineStats.map(s => (
-            <span key={s.id} className="flex shrink-0 items-center gap-1.5 rounded-full border border-border/50 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <span className={cn('h-2 w-2 rounded-full', s.dot)} />{s.label}<span className="font-mono-num">{s.count}</span>
-            </span>
-          ))}
-        </div>
-        <div className="mb-4 flex flex-wrap items-center gap-2" aria-label="Situação das tarefas">
-          <Button size="sm" variant={!showDone ? 'default' : 'outline'} aria-pressed={!showDone} onClick={() => { setShowDone(false); setOnlyCompleted(false); setSelectedIds(new Set()); }}>Em aberto</Button>
-          <Button size="sm" variant={onlyCompleted ? 'default' : 'outline'} aria-pressed={onlyCompleted} aria-label={`Mostrar concluídas (${completedCount})`} onClick={() => { setShowDone(true); setOnlyCompleted(true); setSelectedIds(new Set()); setFilterOverdue(false); setFilterPriority('all'); setFilterProject('all'); setFilterPillar('all'); setSearch(''); setView('list'); setSortBy('completedAt'); }}>Concluídas ({completedCount})</Button>
-          <Button size="sm" variant={showDone && !onlyCompleted ? 'default' : 'outline'} aria-pressed={showDone && !onlyCompleted} onClick={() => { setShowDone(true); setOnlyCompleted(false); setSelectedIds(new Set()); }}>Todas</Button>
-          <span className="task-interaction-hint text-xs text-muted-foreground">Título abre detalhes. Concluir é uma ação separada.{search.trim() ? ' A busca inclui concluídas.' : ''}</span>
+        {/* Toolbar */}
+        <div className="task-toolbar">
+          <div className="task-toolbar-search">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input value={search} onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()); }} aria-label="Buscar tarefas" placeholder="Buscar tarefas..." className="pl-9 h-9" />
+          </div>
+
+          <div className="task-segmented" role="group" aria-label="Situação das tarefas">
+            <button type="button" aria-pressed={!showDone} onClick={() => { setShowDone(false); setOnlyCompleted(false); setSelectedIds(new Set()); }}>Em aberto</button>
+            <button type="button" aria-pressed={onlyCompleted} aria-label={`Mostrar concluídas (${completedCount})`} onClick={() => { setShowDone(true); setOnlyCompleted(true); setSelectedIds(new Set()); setFilterOverdue(false); setFilterPriority('all'); setFilterProject('all'); setFilterPillar('all'); setSearch(''); setView('list'); setSortBy('completedAt'); }}>Concluídas</button>
+            <button type="button" aria-pressed={showDone && !onlyCompleted} onClick={() => { setShowDone(true); setOnlyCompleted(false); setSelectedIds(new Set()); }}>Todas</button>
+          </div>
+
+          <div className="task-segmented task-views" role="group" aria-label="Visualizações">
+            {[
+              { id: 'kanban' as const, icon: Layers, label: 'Quadro Kanban' },
+              { id: 'list' as const, icon: Rows3, label: 'Lista' },
+              { id: 'week' as const, icon: CalendarDays, label: 'Semana' },
+              { id: 'calendar' as const, icon: Calendar, label: 'Calendário' },
+              { id: 'focus' as const, icon: Crosshair, label: 'Foco' },
+            ].map(v => (
+              <button type="button" key={v.id} aria-label={`Visualização: ${v.label}`} aria-pressed={view === v.id} title={v.label} onClick={() => { setView(v.id); setSelectedIds(new Set()); }}>
+                <v.icon className="h-4 w-4" />{view === v.id && <span className="task-view-label">{v.id === 'kanban' ? 'Quadro' : v.label}</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Filters Panel */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" aria-label="Filtros" className="work-filter h-9 gap-1.5"><SlidersHorizontal className="h-4 w-4" /><span className="task-view-label">Filtros</span>{activeFilters.length > 0 && <span className="task-filter-count">{activeFilters.length}</span>}</Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72" align="end">
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Agrupar por</Label>
+                    <Select value={groupBy} onValueChange={(v) => { setGroupBy(v as GroupBy); setSelectedIds(new Set()); setCollapsedColumns(new Set()); }}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="status">Estágio</SelectItem>
+                        <SelectItem value="priority">Prioridade</SelectItem>
+                        <SelectItem value="project">Projeto</SelectItem>
+                        <SelectItem value="pillar">Pilar</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Ordenar por</Label>
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date">Data de criação</SelectItem>
+                        <SelectItem value="completedAt">Conclusões recentes</SelectItem>
+                        <SelectItem value="dueDate">Prazo</SelectItem>
+                        <SelectItem value="title">Título</SelectItem>
+                        <SelectItem value="priority">Prioridade</SelectItem>
+                        <SelectItem value="status">Estágio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Prioridade</Label>
+                  <Select value={filterPriority} onValueChange={value => { setFilterPriority(value); setSelectedIds(new Set()); }}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas</SelectItem>
+                      <SelectItem value="urgent">Urgente</SelectItem>
+                      <SelectItem value="important">Importante</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {projects.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Projeto</Label>
+                    <Select value={filterProject} onValueChange={value => { setFilterProject(value); setSelectedIds(new Set()); }}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {projects.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {pillars.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Pilar</Label>
+                    <Select value={filterPillar} onValueChange={value => { setFilterPillar(value); setSelectedIds(new Set()); }}>
+                      <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">Todos</SelectItem>
+                        {pillars.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">Modo denso</Label>
+                  <Switch checked={dense} onCheckedChange={setDense} />
+                </div>
+                <Separator />
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Visões salvas</Label>
+                  {savedViews.map(v => (
+                    <div key={v.id} className="flex items-center justify-between group">
+                      <button className={cn('flex items-center gap-1.5 text-xs', activeViewId === v.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground')} onClick={() => applyView(v)}><Bookmark className="h-3 w-3" />{v.name}</button>
+                      <Button variant="ghost" size="icon" aria-label={`Excluir visão ${v.name}`} className="h-6 w-6 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={() => deleteView(v.id)}><Trash2 className="h-3 w-3" /></Button>
+                    </div>
+                  ))}
+                  <div className="flex gap-2">
+                    <Input id="task-view-name" aria-label="Nome da visão" placeholder="Nome da visão" className="h-8 text-xs" />
+                    <Button size="sm" variant="outline" className="h-8 gap-1 text-xs" onClick={() => { const input = document.getElementById('task-view-name') as HTMLInputElement; if (input?.value.trim()) saveCurrentView(input.value.trim()); }}><Save className="h-3 w-3" />Salvar visão</Button>
+                  </div>
+                </div>
+                <Separator />
+                <div className="flex gap-2">
+                  <Button variant={bulkMode ? 'secondary' : 'outline'} size="sm" className="flex-1" onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}>
+                    <CheckSquare className="mr-1 h-4 w-4" />Selecionar
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1" aria-label="Editar etapas" onClick={() => setStageDialogOpen(true)}>
+                    <Edit2 className="mr-1 h-4 w-4" />Etapas
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Filter Chips */}
         <AnimatePresence>
           {activeFilters.length > 0 && (
-            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex flex-wrap items-center gap-1.5 mb-3">
+            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="flex flex-wrap items-center gap-1.5 mt-3">
               {activeFilters.map(f => <FilterChip key={f.key} label={f.label} value={f.value} onRemove={() => removeFilter(f.key)} />)}
               <button onClick={clearAllFilters} className="text-xs text-muted-foreground hover:text-foreground transition-colors ml-1">limpar tudo</button>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Toolbar */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <>
-              <div className="relative w-full shrink-0 sm:flex-1 lg:w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input value={search} onChange={(e) => { setSearch(e.target.value); setSelectedIds(new Set()); }} aria-label="Buscar tarefas" placeholder="Buscar tarefas..." className="pl-9 h-11" />
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-
-              {/* Filters Panel */}
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" size="sm" aria-label="Filtros" className="work-filter h-9 gap-1.5"><SlidersHorizontal className="h-3.5 w-3.5" /><span>Filtros</span></Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64" align="end">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Agrupar por</Label>
-                      <Select value={groupBy} onValueChange={(v) => { setGroupBy(v as GroupBy); setSelectedIds(new Set()); setCollapsedColumns(new Set()); }}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="status">Estágio</SelectItem>
-                          <SelectItem value="priority">Prioridade</SelectItem>
-                          <SelectItem value="project">Projeto</SelectItem>
-                          <SelectItem value="pillar">Pilar</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">Ordenar por</Label>
-                      <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortBy)}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="date">Data de criação</SelectItem>
-                          <SelectItem value="completedAt">Conclusões recentes</SelectItem>
-                          <SelectItem value="dueDate">Prazo</SelectItem>
-                          <SelectItem value="title">Título</SelectItem>
-                          <SelectItem value="priority">Prioridade</SelectItem>
-                          <SelectItem value="status">Estágio</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Separator />
-                    <div className="space-y-2">
-                      <Label className="text-xs">Prioridade</Label>
-                      <Select value={filterPriority} onValueChange={value => { setFilterPriority(value); setSelectedIds(new Set()); }}>
-                        <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todas" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          <SelectItem value="urgent">Urgente</SelectItem>
-                          <SelectItem value="important">Importante</SelectItem>
-                          <SelectItem value="normal">Normal</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {projects.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs">Projeto</Label>
-                      <Select value={filterProject} onValueChange={value => { setFilterProject(value); setSelectedIds(new Set()); }}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            {projects.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    {pillars.length > 0 && (
-                      <div className="space-y-2">
-                        <Label className="text-xs">Pilar</Label>
-                      <Select value={filterPillar} onValueChange={value => { setFilterPillar(value); setSelectedIds(new Set()); }}>
-                          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Todos" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Todos</SelectItem>
-                            {pillars.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    )}
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <Label className="text-xs">Modo denso</Label>
-                      <Switch checked={dense} onCheckedChange={setDense} />
-                    </div>
-                  </div>
-                </PopoverContent>
-              </Popover>
-
-              <details className="order-last w-full rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-                <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">Mais opções de organização</summary>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-              {/* Saved Views */}
-              <div className="flex flex-wrap items-center gap-1">
-                {savedViews.map(v => (
-                  <Button key={v.id} variant={activeViewId === v.id ? 'secondary' : 'ghost'} size="sm" className="h-9 text-xs gap-1" onClick={() => applyView(v)}>
-                    <Bookmark className="h-3 w-3" /> {v.name}
-                  </Button>
-                ))}
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button variant="ghost" size="sm" className="h-9 text-xs gap-1"><Save className="h-3 w-3" /> Salvar visão</Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-56" align="end">
-                    <div className="space-y-2">
-                      <Label className="text-xs">Salvar visão atual</Label>
-                      <div className="flex gap-2">
-                        <Input id="task-view-name" placeholder="Nome da visão" className="h-8 text-xs" />
-                        <Button size="sm" className="h-8" onClick={() => { const input = document.getElementById('task-view-name') as HTMLInputElement; if (input?.value.trim()) saveCurrentView(input.value.trim()); }}>Salvar</Button>
-                      </div>
-                      {savedViews.length > 0 && (
-                        <div className="space-y-1 pt-2 border-t">
-                          {savedViews.map(v => (
-                            <div key={v.id} className="flex items-center justify-between group">
-                              <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => applyView(v)}>{v.name}</button>
-                              <Button variant="ghost" size="icon" aria-label={`Excluir visão ${v.name}`} className="h-5 w-5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" onClick={() => deleteView(v.id)}><Trash2 className="h-3 w-3" /></Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <Button variant={bulkMode ? 'secondary' : 'outline'} size="sm" onClick={() => { setBulkMode(!bulkMode); setSelectedIds(new Set()); }}>
-                <CheckSquare className="mr-1 h-4 w-4" /> Selecionar
-              </Button>
-
-              <Button variant="outline" size="sm" aria-label="Editar etapas" title="Editar etapas" onClick={() => setStageDialogOpen(true)}>
-                <Edit2 className="h-4 w-4" />
-              </Button>
-                </div>
-              </details>
-
-              <div className="flex rounded-lg border border-border bg-muted/30 p-0.5">
-                {[
-                  { id: 'kanban' as const, icon: Layers, label: 'Quadro Kanban' },
-                  { id: 'list' as const, icon: Rows3, label: 'Lista' },
-                  { id: 'week' as const, icon: CalendarDays, label: 'Semana' },
-                  { id: 'calendar' as const, icon: Calendar, label: 'Calendário' },
-                  { id: 'timeline' as const, icon: GanttChart, label: 'Linha do tempo' },
-                  { id: 'focus' as const, icon: Crosshair, label: 'Foco' },
-                  { id: 'load' as const, icon: ChartNoAxesColumnIncreasing, label: 'Carga' },
-                ].map(v => (
-                  <Button key={v.id} variant={view === v.id ? 'secondary' : 'ghost'} size="sm" aria-label={`Visualização: ${v.label}`} aria-pressed={view === v.id} title={v.label} className="h-8 px-3" onClick={() => { setView(v.id); setSelectedIds(new Set()); }}>
-                    <v.icon className="h-4 w-4" /><span className="task-view-label">{v.id === 'kanban' ? 'Quadro' : v.label}</span>
-                  </Button>
-                ))}
-              </div>
-
-              </div>
-            </>
-        </div>
         {selectedIds.size > 0 && <section className="task-bulk-bar" aria-label="Ações das tarefas selecionadas"><span><strong>{selectedIds.size}</strong> selecionadas</span><Button variant="outline" size="sm" disabled={bulkBusy || busyTasks.size > 0} aria-label="Concluir selecionadas" onClick={() => void handleBulkStatus(taskCompletionStatus(stages))}><CheckCircle2 className="h-4 w-4" />Concluir</Button><Button variant="outline" size="sm" disabled={bulkBusy || busyTasks.size > 0} onClick={() => void handleBulkStatus(taskReopenStatus(stages))}>Reabrir</Button><select aria-label="Mover selecionadas para etapa" className="task-cell-select" value="" disabled={bulkBusy || busyTasks.size > 0} onChange={event => void handleBulkStatus(event.target.value)}><option value="" disabled>Mover para…</option>{stages.filter(stage => !stage.historical).map(stage => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select><Button variant="ghost" size="sm" disabled={bulkBusy || busyTasks.size > 0} onClick={() => setBulkDeleteOpen(true)}><Trash2 className="h-4 w-4" />Excluir</Button><Button variant="ghost" size="sm" disabled={bulkBusy} onClick={() => { setSelectedIds(new Set()); setBulkMode(false); }}>Limpar seleção</Button>{bulkBusy && <span role="status">Salvando…</span>}</section>}
       </motion.div>
 
@@ -1209,13 +1171,9 @@ export default function TasksPage() {
         <motion.div variants={fade}>
           {view === 'kanban' && renderKanban()}
           {view === 'list' && renderList()}
-          {view === 'week' && <><p className="mb-3 text-xs text-muted-foreground">Agenda integrada de todas as tarefas. Os filtros acima se aplicam às outras visões.</p><PlanningWorkspace embedded onOpenTask={(_id, task) => { setTasks(current => current.map(item => item.id === task.id ? task : item)); openEdit(task); }} refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} /></>}
-          {view === 'calendar' && renderDates('calendar')}
-          {view === 'timeline' && renderDates('timeline')}
-          {(view === 'focus' || view === 'load') && (() => {
-            const Component = view === 'focus' ? TaskFocus : TaskLoad;
-            return <Component allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />;
-          })()}
+          {view === 'week' && <><PlanningWorkspace embedded onOpenTask={(_id, task) => { setTasks(current => current.map(item => item.id === task.id ? task : item)); openEdit(task); }} refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} /></>}
+          {view === 'calendar' && renderDates()}
+          {view === 'focus' && <TaskFocus allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />}
         </motion.div>
       )}
 
