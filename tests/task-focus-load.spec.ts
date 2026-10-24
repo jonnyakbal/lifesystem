@@ -18,7 +18,7 @@ test('Foco salva checklist, separa título de conclusão e permite desfazer', as
     await expect.poll(async () => (await (await request.get(`/api/tasks/${task.id}`)).json()).checklist[0].done).toBe(true);
     await focus.getByRole('button', { name: task.title, exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Editar Tarefa' })).toBeVisible();
-    await page.getByRole('button', { name: 'Cancelar', exact: true }).click();
+    await page.getByRole('button', { name: 'Fechar', exact: true }).click();
     expect((await (await request.get(`/api/tasks/${task.id}`)).json()).status).toBe('todo');
     await focus.getByRole('button', { name: 'Concluir tarefa em foco', exact: true }).click();
     await expect(page.getByText('Nenhuma tarefa em aberto nesta seleção.', { exact: true })).toBeVisible();

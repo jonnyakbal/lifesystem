@@ -14,7 +14,7 @@ import {
   X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
-  ArrowRight, Repeat, Edit2, Crosshair
+  ArrowRight, Repeat, Edit2, Crosshair, CalendarDays, Flag, FolderOpen
 } from 'lucide-react';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
@@ -22,11 +22,9 @@ import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { toast } from 'sonner';
@@ -34,6 +32,7 @@ import { apiFetch, showError } from '@/lib/api';
 import { StageConfigDialog } from '@/components/stage-config-dialog';
 import type { StageDef, TaskPlanning } from '@/types';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
+import { parseQuickAdd } from '@/lib/task-quick-add';
 import { spawnNextOccurrenceIfRecurring, RECURRING_LABELS, type RecurringFrequency } from '@/lib/recurring';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -261,6 +260,9 @@ export default function TasksPage() {
   const [newEstimate, setNewEstimate] = useState('');
   const [newRecurring, setNewRecurring] = useState(false);
   const [newRecurringFrequency, setNewRecurringFrequency] = useState<RecurringFrequency>('daily');
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  const editorBaseline = useRef('');
 
   // Quick add
   const [quickAddStatus, setQuickAddStatus] = useState<Task['status'] | null>(null);
@@ -276,6 +278,18 @@ export default function TasksPage() {
     // For the unified Calendar view (Fase 5) — Conteúdo agendado e contas a
     // vencer plotados junto das tarefas em vez de precisar abrir 3 telas.
     void apiFetch<CalendarFinancialEntry[]>('/api/financial').then(setCalendarFinancial).catch(() => {});
+  }, []);
+
+  // Tecla N abre a criação rápida (fora de campos de texto).
+  useEffect(() => {
+    function onKey(event: KeyboardEvent) {
+      if (event.key.toLowerCase() !== 'n' || event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')) return;
+      event.preventDefault(); openCreate();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
   }, []);
 
   // Deep-link support: ⌘K search results for tasks land here with ?open=<id>
@@ -399,6 +413,7 @@ export default function TasksPage() {
     setNewParentId(''); setNewDependencies([]); setNewEstimate('');
     setNewRecurring(false);
     setNewRecurringFrequency('daily');
+    setMoreOpen(false);
     setIsDialogOpen(true);
   }
 
@@ -417,22 +432,26 @@ export default function TasksPage() {
     setNewParentId(task.parentId || ''); setNewDependencies(task.dependsOnIds || []); setNewEstimate(task.estimatedMinutes?.toString() || '');
     setNewRecurring(task.recurring || false);
     setNewRecurringFrequency(task.recurringFrequency || 'daily');
+    setMoreOpen(Boolean(task.recurring || task.pillarId || task.parentId || task.dependsOnIds?.length || task.estimatedMinutes));
+    editorBaseline.current = JSON.stringify([task.title, task.description || '', task.priority, task.status, task.dueDate || '', [...(task.tags ?? [])], task.checklist?.map(c => ({ ...c })) || [], task.projectId || '', task.pillarId || '', task.parentId || '', task.dependsOnIds || [], task.estimatedMinutes?.toString() || '', task.recurring || false, task.recurringFrequency || 'daily']);
     setIsDialogOpen(true);
   }
 
-  async function handleSave() {
+  async function handleSave(close: boolean | React.MouseEvent = true) {
+    const shouldClose = close !== false;
     if (editorPending.current || !newTitle.trim() || (editingTask && pendingTaskIds.current.has(editingTask.id))) return;
     editorPending.current = true; setEditorBusy(true);
     try {
+      const quick = editingTask ? null : quickParse;
       const payload = {
-        title: newTitle || 'Sem título',
+        title: (quick ? quick.title : newTitle) || 'Sem título',
         description: newDescription,
-        priority: newPriority,
+        priority: quick?.priority || newPriority,
         status: newStatus,
-        dueDate: newDueDate || (editingTask ? null : undefined),
-        tags: newTags,
+        dueDate: quick?.dueDate || newDueDate || (editingTask ? null : undefined),
+        tags: quick ? [...new Set([...newTags, ...quick.tags])] : newTags,
         checklist: newChecklist,
-        projectId: newProjectId,
+        projectId: quick?.projectId || newProjectId,
         pillarId: newPillarId,
         parentId: newParentId || null,
         dependsOnIds: newDependencies,
@@ -449,12 +468,13 @@ export default function TasksPage() {
         } else if (isTaskCompleted(editingTask, stages) && !isTaskCompleted(updated, stages)) {
           toast.success('Tarefa reaberta');
         }
+        if (!shouldClose) { setEditingTask(updated); editorBaseline.current = editorSnapshot; return; }
       } else {
         await apiFetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       }
       setIsDialogOpen(false);
       loadTasks();
-      toast.success(editingTask ? 'Tarefa atualizada!' : 'Tarefa criada!');
+      if (!editingTask) toast.success('Tarefa criada!');
     } catch (err) {
       toast.error(showError(err));
     } finally { editorPending.current = false; setEditorBusy(false); }
@@ -626,6 +646,26 @@ export default function TasksPage() {
     } catch (err) {
       toast.error(showError(err));
     } finally { quickAddPending.current = false; setQuickAddBusy(false); }
+  }
+
+  const editorSnapshot = JSON.stringify([newTitle, newDescription, newPriority, newStatus, newDueDate, newTags, newChecklist, newProjectId, newPillarId, newParentId, newDependencies, newEstimate, newRecurring, newRecurringFrequency]);
+  const editorDirty = Boolean(editingTask) && editorSnapshot !== editorBaseline.current;
+  const quickParse = useMemo(() => parseQuickAdd(newTitle, projects), [newTitle, projects]);
+  const quickTokens = quickParse.labels;
+
+  // Edição salva sozinha depois de uma pausa; concluir/reabrir fica para ações explícitas.
+  const saveRef = useRef<(close: boolean) => Promise<void>>(async () => {});
+  useEffect(() => { saveRef.current = handleSave; });
+  useEffect(() => {
+    if (!isDialogOpen || !editingTask || !editorDirty || editorBusy || !newTitle.trim()) return;
+    if (isTaskCompleted(editingTask, stages) !== isTaskCompleted({ status: newStatus }, stages)) return;
+    const timer = setTimeout(() => { void saveRef.current(false); }, 1200);
+    return () => clearTimeout(timer);
+  }, [editorSnapshot, isDialogOpen, editingTask, editorDirty, editorBusy, newTitle, newStatus, stages]);
+
+  async function closeEditor() {
+    if (editingTask && editorDirty && newTitle.trim()) { await saveRef.current(true); return; }
+    setIsDialogOpen(false);
   }
 
   function addTag() { const tag = newTagInput.trim(); if (tag && !newTags.includes(tag)) { setNewTags([...newTags, tag]); setNewTagInput(''); } }
@@ -1104,152 +1144,142 @@ export default function TasksPage() {
           {view === 'kanban' && renderKanban()}
           {view === 'list' && renderList()}
           {view === 'calendar' && renderDates()}
-          {view === 'focus' && <TaskFocus allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />}
+          {view === 'focus' && <TaskFocus focusId={focusTaskId} allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />}
         </motion.div>
       )}
 
-      {/* Editor Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={value => { if (!editorBusy) setIsDialogOpen(value); }}>
+      {/* Editor: painel de documento — sem rótulos/caixas; propriedades em pílulas. */}
+      <Dialog open={isDialogOpen} onOpenChange={value => { if (editorBusy) return; if (!value) closeEditor(); else setIsDialogOpen(true); }}>
         <DialogContent className="task-detail-panel flex flex-col overflow-hidden translate-x-0 translate-y-0" onEscapeKeyDown={event => { if (editorBusy) event.preventDefault(); }}>
-          <DialogHeader className="shrink-0">
+          <DialogHeader className="sr-only">
             <DialogTitle>{editingTask ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
-            <DialogDescription>{editingTask ? 'Altere os detalhes da tarefa' : 'Crie uma nova tarefa'}</DialogDescription>
+            <DialogDescription>{editingTask ? 'Detalhes da tarefa, salvos automaticamente' : 'Crie uma nova tarefa'}</DialogDescription>
           </DialogHeader>
-          <fieldset disabled={editorBusy} className="task-detail-body flex-1 space-y-4 overflow-y-auto py-2 pr-1" aria-busy={editorBusy}>
-            <div className="grid gap-2">
-              <Label>Título</Label>
-              <Input aria-label="Título da tarefa" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="O que precisa ser feito?" autoFocus />
-            </div>
-            <div className="grid gap-2">
-              <Label>Descrição</Label>
-              <Textarea aria-label="Descrição da tarefa" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Detalhes, notas, links..." rows={3} />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Status</Label>
-                <Select value={newStatus} onValueChange={(v) => setNewStatus(v as Task['status'])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {stages.map(s => <SelectItem key={s.id} value={s.id}><span className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', s.dot)} />{getStatusLabel(s.id)}</span></SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Prioridade</Label>
-                <Select value={newPriority} onValueChange={(v) => setNewPriority(v as Task['priority'])}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="important">Importante</SelectItem>
-                    <SelectItem value="urgent">Urgente</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Prazo</Label>
-              <Input type="date" value={newDueDate} disabled={Boolean(editingTask?.planning?.startAt)} onChange={(e) => setNewDueDate(e.target.value)} className="max-w-[200px]" />
-              {editingTask?.planning?.startAt && <p className="text-xs text-muted-foreground">Esta tarefa já tem um bloco de horário. Mova a data em <Link href="/planejar" className="text-primary underline">Planejar</Link> para manter o Google Agenda sincronizado.</p>}
-              <div className="flex flex-wrap gap-1">
-                {[{ label: 'Hoje', offset: 0 }, { label: 'Amanhã', offset: 1 }, { label: '2 dias', offset: 2 }, { label: 'Fim de semana', offset: (6 - new Date().getDay() + 7) % 7 || 7 }].map(s => (
-                  <Button key={s.label} variant="outline" size="sm" disabled={Boolean(editingTask?.planning?.startAt)} className="h-6 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
-                ))}
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between rounded-lg border px-3 py-2">
-                <Label className="flex items-center gap-1.5 text-sm font-normal">
-                  <Repeat className="h-3.5 w-3.5 text-muted-foreground" /> Tarefa recorrente
-                </Label>
-                <Switch checked={newRecurring} onCheckedChange={setNewRecurring} />
-              </div>
-              {newRecurring && (
-                <Select value={newRecurringFrequency} onValueChange={(v) => setNewRecurringFrequency(v as RecurringFrequency)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {(Object.keys(RECURRING_LABELS) as RecurringFrequency[]).map(f => (
-                      <SelectItem key={f} value={f}>{RECURRING_LABELS[f]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              {newRecurring && (
-                <p className="text-xs text-muted-foreground">Ao concluir, uma nova tarefa é criada automaticamente com o próximo prazo.</p>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label>Projeto</Label>
-                <Select value={newProjectId} onValueChange={setNewProjectId}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
-                    {projects.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid gap-2">
-                <Label>Pilar</Label>
-                <Select value={newPillarId} onValueChange={setNewPillarId}>
-                  <SelectTrigger><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="">Nenhum</SelectItem>
-                    {pillars.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label>Tags</Label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {newTags.map(tag => (
-                  <Badge key={tag} variant="secondary" className="gap-1"><Tag className="h-3 w-3" /> {tag}<button onClick={() => removeTag(tag)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button></Badge>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <Input value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} placeholder="Nova tag..." onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())} />
-                <Button type="button" variant="outline" size="sm" onClick={addTag}><Tag className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <TaskRelationships taskId={editingTask?.id} tasks={tasks} stages={stages} parentId={newParentId} onParent={setNewParentId} dependencies={newDependencies} onDependencies={setNewDependencies} estimate={newEstimate} onEstimate={setNewEstimate} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} />
-              <Label>Checklist</Label>
-              <div className="space-y-1.5 mb-2">
-                {newChecklist.map(item => (
-                  <div key={item.id} className="flex items-center gap-2 group">
-                    <button onClick={() => toggleChecklistItem(item.id)}>
-                      {item.done ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
-                    </button>
-                    <span className={cn('flex-1 text-sm', item.done && 'line-through text-muted-foreground')}>{item.text}</span>
-                    <button onClick={() => removeChecklistItem(item.id)} className="opacity-0 group-hover:opacity-100 hover:text-destructive"><X className="h-3 w-3 text-muted-foreground" /></button>
-                  </div>
-                ))}
-              </div>
-              {newChecklist.length > 0 && <Progress value={Math.round((newChecklist.filter(c => c.done).length / newChecklist.length) * 100)} className="h-1.5 mb-2" />}
-              <div className="flex gap-2">
-                <Input value={newChecklistInput} onChange={(e) => setNewChecklistInput(e.target.value)} placeholder="Novo item..." onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addChecklistItem())} />
-                <Button type="button" variant="outline" size="sm" onClick={addChecklistItem}><Plus className="h-4 w-4" /></Button>
-              </div>
-            </div>
-            {editingTask && getTaskBacklinks(editingTask.id).length > 0 && (
-              <div className="grid gap-2">
-                <Label>Vínculos</Label>
-                <p className="text-xs text-muted-foreground">Notas e conteúdos que apontam pra essa tarefa.</p>
-                <LinkedItemsPanel
-                  readOnly
-                  linkableTypes={[]}
-                  linkedIds={{}}
-                  onChange={() => {}}
-                  backlinks={getTaskBacklinks(editingTask.id)}
-                />
-              </div>
+          <div className="task-sheet-top">
+            {editingTask ? (
+              <button type="button" className={cn('task-sheet-done', isTaskCompleted({ status: newStatus }, stages) && 'is-done')} disabled={editorBusy} onClick={() => setNewStatus(isTaskCompleted({ status: newStatus }, stages) ? taskReopenStatus(stages) : taskCompletionStatus(stages))}>
+                {isTaskCompleted({ status: newStatus }, stages) ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                {isTaskCompleted({ status: newStatus }, stages) ? 'Concluída' : 'Marcar como concluída'}
+              </button>
+            ) : <span className="task-sheet-kicker">Nova tarefa</span>}
+            <span className="task-sheet-state" role="status">{editorBusy ? 'Salvando…' : editingTask ? (editorDirty ? 'Alterações pendentes' : 'Salvo') : ''}</span>
+            {editingTask && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><button type="button" className="task-sheet-icon" aria-label="Mais ações da tarefa"><MoreHorizontal className="h-4 w-4" /></button></DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleDuplicate(editingTask)}><Copy className="mr-2 h-4 w-4" />Duplicar</DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(editingTask.id)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
+            <button type="button" className="task-sheet-icon" aria-label="Fechar" disabled={editorBusy} onClick={closeEditor}><X className="h-4 w-4" /></button>
+          </div>
+
+          <fieldset disabled={editorBusy} className="task-detail-body task-sheet flex-1 overflow-y-auto" aria-busy={editorBusy}>
+            <Textarea aria-label="Título da tarefa" value={newTitle} rows={1} autoFocus={!editingTask}
+              onChange={(e) => setNewTitle(e.target.value.replace(/\n/g, ' '))}
+              onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (!editingTask) void handleSave(); } }}
+              placeholder={editingTask ? 'Sem título' : 'O que precisa ser feito?  #projeto  !alta  @amanhã'} className="task-sheet-title" />
+            {!editingTask && quickTokens.length > 0 && <div className="task-sheet-tokens" aria-label="Atalhos reconhecidos">{quickTokens.map(token => <span key={token}>{token}</span>)}</div>}
+
+            <div className="task-sheet-props">
+              <Select value={newStatus} onValueChange={(v) => setNewStatus(v as Task['status'])}>
+                <SelectTrigger aria-label="Status" className="task-pill"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {stages.map(s => <SelectItem key={s.id} value={s.id}><span className="flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', s.dot)} />{getStatusLabel(s.id)}</span></SelectItem>)}
+                </SelectContent>
+              </Select>
+              <Select value={newPriority} onValueChange={(v) => setNewPriority(v as Task['priority'])}>
+                <SelectTrigger aria-label="Prioridade" className={cn('task-pill', `task-priority-${newPriority}`, newPriority === 'normal' && 'is-empty')}><Flag className="h-3.5 w-3.5" /><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="normal">Normal</SelectItem>
+                  <SelectItem value="important">Importante</SelectItem>
+                  <SelectItem value="urgent">Urgente</SelectItem>
+                </SelectContent>
+              </Select>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button type="button" aria-label="Prazo" className={cn('task-pill', !newDueDate && 'is-empty', newDueDate && newDueDate < todayStr() && !isTaskCompleted({ status: newStatus }, stages) && 'is-overdue')}>
+                    <CalendarDays className="h-3.5 w-3.5" />{newDueDate ? new Date(`${newDueDate}T12:00:00`).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'short' }) : 'Prazo'}
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 space-y-3" align="start">
+                  {editingTask?.planning?.startAt ? <p className="text-xs text-muted-foreground">Esta tarefa já tem um bloco de horário. Mova a data em <Link href="/planejar" className="text-primary underline">Planejar</Link> para manter o Google Agenda sincronizado.</p> : <>
+                    <Input type="date" aria-label="Data do prazo" value={newDueDate} onChange={(e) => setNewDueDate(e.target.value)} />
+                    <div className="flex flex-wrap gap-1">
+                      {[{ label: 'Hoje', offset: 0 }, { label: 'Amanhã', offset: 1 }, { label: '+1 semana', offset: 7 }, { label: 'Fim de semana', offset: (6 - new Date().getDay() + 7) % 7 || 7 }].map(s => (
+                        <Button key={s.label} variant="outline" size="sm" className="h-7 text-xs px-2" onClick={() => { const d = new Date(); d.setDate(d.getDate() + s.offset); setNewDueDate(formatDateISO(d)); }}>{s.label}</Button>
+                      ))}
+                    </div>
+                    {newDueDate && <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setNewDueDate('')}>Remover prazo</Button>}
+                  </>}
+                </PopoverContent>
+              </Popover>
+              <Select value={newProjectId || '__none'} onValueChange={value => setNewProjectId(value === '__none' ? '' : value)}>
+                <SelectTrigger aria-label="Projeto" className={cn('task-pill', !newProjectId && 'is-empty')}><FolderOpen className="h-3.5 w-3.5" /><SelectValue placeholder="Projeto" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Sem projeto</SelectItem>
+                  {projects.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
+                </SelectContent>
+              </Select>
+              {newTags.map(tag => (
+                <span key={tag} className="task-pill task-pill-tag"><Tag className="h-3 w-3" />{tag}<button type="button" aria-label={`Remover tag ${tag}`} onClick={() => removeTag(tag)}><X className="h-3 w-3" /></button></span>
+              ))}
+              <input value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} aria-label="Nova tag" placeholder="+ tag" className="task-pill-input"
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); } }} onBlur={addTag} />
+            </div>
+
+            <Textarea aria-label="Descrição da tarefa" value={newDescription} onChange={(e) => setNewDescription(e.target.value)} placeholder="Notas, contexto, links…" rows={3} className="task-sheet-notes" />
+
+            <section className="task-sheet-checks" aria-label="Checklist">
+              {newChecklist.length > 0 && <div className="task-sheet-progress"><span>{newChecklist.filter(c => c.done).length}/{newChecklist.length}</span><i style={{ width: `${Math.round(newChecklist.filter(c => c.done).length / newChecklist.length * 100)}%` }} /></div>}
+              {newChecklist.map(item => (
+                <div key={item.id} className={cn('task-sheet-check', item.done && 'is-done')}>
+                  <button type="button" aria-label={`${item.done ? 'Desmarcar' : 'Marcar'} ${item.text}`} onClick={() => toggleChecklistItem(item.id)}>{item.done ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}</button>
+                  <span>{item.text}</span>
+                  <button type="button" className="task-sheet-check-remove" aria-label={`Remover ${item.text}`} onClick={() => removeChecklistItem(item.id)}><X className="h-3 w-3" /></button>
+                </div>
+              ))}
+              <div className="task-sheet-check task-sheet-check-new"><Plus className="h-4 w-4" /><input value={newChecklistInput} onChange={(e) => setNewChecklistInput(e.target.value)} aria-label="Novo passo" placeholder="Adicionar passo e Enter" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChecklistItem(); } }} /></div>
+            </section>
+
+            <details className="task-sheet-more" open={moreOpen} onToggle={event => setMoreOpen((event.currentTarget as HTMLDetailsElement).open)}>
+              <summary>Mais: recorrência, pilar, estrutura</summary>
+              <div className="task-sheet-more-body">
+                <div className="flex flex-wrap items-center gap-2">
+                  <label className="task-pill cursor-pointer"><Repeat className="h-3.5 w-3.5" />Recorrente<Switch checked={newRecurring} onCheckedChange={setNewRecurring} /></label>
+                  {newRecurring && (
+                    <Select value={newRecurringFrequency} onValueChange={(v) => setNewRecurringFrequency(v as RecurringFrequency)}>
+                      <SelectTrigger aria-label="Frequência da recorrência" className="task-pill"><SelectValue /></SelectTrigger>
+                      <SelectContent>{(Object.keys(RECURRING_LABELS) as RecurringFrequency[]).map(f => <SelectItem key={f} value={f}>{RECURRING_LABELS[f]}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                  <Select value={newPillarId || '__none'} onValueChange={value => setNewPillarId(value === '__none' ? '' : value)}>
+                    <SelectTrigger aria-label="Pilar" className={cn('task-pill', !newPillarId && 'is-empty')}><SelectValue placeholder="Pilar" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none">Sem pilar</SelectItem>
+                      {pillars.map(p => <SelectItem key={p.id} value={p.id}><span className="flex items-center gap-2">{p.emoji} {p.name}</span></SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <TaskRelationships taskId={editingTask?.id} tasks={tasks} stages={stages} parentId={newParentId} onParent={setNewParentId} dependencies={newDependencies} onDependencies={setNewDependencies} estimate={newEstimate} onEstimate={setNewEstimate} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} />
+                {editingTask && getTaskBacklinks(editingTask.id).length > 0 && (
+                  <LinkedItemsPanel readOnly linkableTypes={[]} linkedIds={{}} onChange={() => {}} backlinks={getTaskBacklinks(editingTask.id)} />
+                )}
+              </div>
+            </details>
           </fieldset>
-          <DialogFooter className="shrink-0 gap-2 border-t pt-4">
-            {editingTask && <Button variant="destructive" disabled={editorBusy} onClick={() => handleDelete(editingTask.id)}><Trash2 className="mr-2 h-4 w-4" /> Excluir</Button>}
-            <Button variant="outline" disabled={editorBusy} onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSave} disabled={!newTitle.trim() || editorBusy}>{editorBusy ? 'Salvando…' : editingTask ? 'Salvar' : 'Criar'}</Button>
-          </DialogFooter>
+
+          <div className="task-sheet-foot">
+            {editingTask ? <>
+              {editingTask && <Button variant="ghost" size="sm" className="gap-2" onClick={() => { const task = editingTask; void closeEditor().then(() => { setFocusTaskId(task.id); setView('focus'); }); }}><Crosshair className="h-4 w-4" />Focar</Button>}
+              {(editorDirty || editorBusy) && <Button size="sm" onClick={handleSave} disabled={!newTitle.trim() || editorBusy}>{editorBusy ? 'Salvando…' : 'Salvar'}</Button>}
+            </> : <>
+              <span className="text-xs text-muted-foreground">Enter cria</span>
+              <Button size="sm" onClick={handleSave} disabled={!newTitle.trim() || editorBusy}>{editorBusy ? 'Salvando…' : 'Criar'}</Button>
+            </>}
+          </div>
         </DialogContent>
       </Dialog>
       <Dialog open={bulkDeleteOpen} onOpenChange={value => { if (!bulkBusy) setBulkDeleteOpen(value); }}><DialogContent><DialogHeader><DialogTitle>Excluir tarefas selecionadas</DialogTitle><DialogDescription>Confirme a exclusão de {selectedIds.size} tarefas. Tarefas com eventos espelhados precisam do fluxo individual de exclusão para remover o evento corretamente.</DialogDescription></DialogHeader><DialogFooter><Button variant="outline" disabled={bulkBusy} onClick={() => setBulkDeleteOpen(false)}>Cancelar</Button><Button variant="destructive" disabled={bulkBusy} onClick={() => void handleBulkDelete()}>{bulkBusy ? 'Excluindo…' : 'Confirmar exclusão'}</Button></DialogFooter></DialogContent></Dialog>

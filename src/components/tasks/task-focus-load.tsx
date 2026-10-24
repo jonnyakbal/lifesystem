@@ -14,6 +14,7 @@ interface Props {
   tasks: TaskListRecord[]; stages: StageDef[]; projects: { id: string; name: string }[]; pillars: { id: string; name: string }[];
   busyIds: Set<string>; onOpen: (id: string) => void; onComplete: (id: string) => void;
   onPatch: (id: string, patch: TaskCellPatch) => Promise<boolean>; onCreate: () => void;
+  focusId?: string | null;
 }
 const priorityLabels = { urgent: 'Urgente', important: 'Importante', normal: 'Normal' };
 function formatDay(date: string) { return new Date(`${date}T12:00:00`).toLocaleDateString('pt-BR'); }
@@ -22,7 +23,7 @@ export function TaskFocus(props: Props) {
   const { stages, busyIds, onOpen, onComplete, onPatch } = props;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const queue = props.tasks.filter(task => !isTaskCompleted(task, stages));
-  const task = queue.find(item => item.id === selectedId) || queue[0];
+  const task = queue.find(item => item.id === (selectedId ?? props.focusId)) || queue[0];
   const index = task ? queue.findIndex(item => item.id === task.id) : -1;
   const busy = task && busyIds.has(task.id);
   const checks = task?.checklist || [];

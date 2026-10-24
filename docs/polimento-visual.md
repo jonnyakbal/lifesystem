@@ -239,7 +239,10 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
    - Arrastar tarefa para outro dia muda o prazo (Semana e Mês); tarefa com bloco de horário não move (continua em Planejar).
    - Botão "Agenda" (desligado por padrão): na Semana mostra a agenda completa com Google; no Mês mostra conteúdo e contas.
    - Sem prazo virou uma linha recolhível. Celular: mês vira mapa com barrinhas; tocar no dia mostra a lista.
-4. [ ] Painel da tarefa + criação rápida (T9)
+4. [x] Painel da tarefa + criação rápida (T9) — 24/10, branch, não publicado.
+   - Painel lateral de documento (560px): título grande editável, propriedades em pílulas (status, prioridade, prazo com atalhos, projeto, tags), notas livres, checklist com Enter/progresso/riscar; recorrência, pilar e estrutura em "Mais" (abre sozinho se usados).
+   - Edição salva sozinha (~1,2s de pausa; "Salvo" no topo); fechar salva o que falta. Concluir/reabrir não salva sozinho: botão "Marcar como concluída" + Salvar, preservando desfazer/recorrência. Excluir/Duplicar no ⋯. Botão "Focar" leva a tarefa ao Foco.
+   - Criação rápida: tecla N ou Nova tarefa; "#projeto !alta @sex #tag" vira projeto, prioridade, prazo e tag (mostra o que reconheceu); Enter cria. Lógica em src/lib/task-quick-add.ts + testes.
 5. [ ] Modo Foco imersivo (T7)
 
 ## Continuidade (22/10/2026 → Codex)

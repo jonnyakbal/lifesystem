@@ -167,7 +167,7 @@
 .task-detail-panel > button:last-child { min-width: 44px; min-height: 44px; top: 12px; right: 12px; }
 .task-detail-panel > div:first-child { padding-right: 40px; }
 .task-detail-body { min-height: 0; }
-.task-detail-body input, .task-detail-body select, .task-detail-body button { min-height: 44px; }
+
 .task-calendar-nav { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .task-calendar-entry { min-height: 44px; width: 100%; overflow-wrap: anywhere; }
 @media (max-width: 1190px) and (min-width: 701px) { .task-workspace-table .task-title-cell { min-width: 210px; } }
@@ -1257,3 +1257,64 @@ html.lenis, html.lenis body {
   .task-month-preview .task-cal-item > * { display: none; }
   .task-month-preview .task-date-more { font-size: 10px; padding: 0 2px; }
 }
+
+/* Painel da tarefa: documento sem rótulos; propriedades em pílulas; salva sozinho. */
+.task-detail-panel { width: min(560px, 100vw) !important; gap: 0 !important; padding: 0 !important; background: var(--color-card) !important; border-left: 1px solid var(--color-border) !important; box-shadow: -24px 0 60px -30px rgb(0 0 0 / .6); }
+.task-detail-panel > button:last-child { display: none; }
+.task-detail-panel[data-state='open'] { animation: task-sheet-in .22s cubic-bezier(.2, .8, .2, 1) !important; }
+@keyframes task-sheet-in { from { transform: translateX(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .task-detail-panel[data-state='open'] { animation: none !important; } }
+.task-sheet-top { display: flex; align-items: center; gap: 6px; padding: 12px 14px 6px 20px; }
+.task-sheet-kicker { font-size: 12px; color: var(--color-muted-foreground); }
+.task-sheet-done { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; color: var(--color-muted-foreground); border: 1px solid var(--color-border); }
+.task-sheet-done:hover { color: var(--color-money); border-color: var(--color-money); }
+.task-sheet-done.is-done { color: var(--color-money); border-color: color-mix(in srgb, var(--color-money) 50%, transparent); background: color-mix(in srgb, var(--color-money) 10%, transparent); }
+.task-sheet-state { margin-left: auto; font-size: 11px; color: var(--color-muted-foreground); }
+.task-sheet-icon { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; color: var(--color-muted-foreground); }
+.task-sheet-icon:hover { background: color-mix(in srgb, var(--color-muted) 60%, transparent); color: var(--color-foreground); }
+.task-sheet { display: flex; flex-direction: column; gap: 14px; padding: 4px 20px 24px; }
+.task-detail-body.task-sheet input, .task-detail-body.task-sheet button, .task-detail-body.task-sheet select { min-height: 0; }
+.task-sheet-title { min-height: 0 !important; resize: none; field-sizing: content; border: 0 !important; box-shadow: none !important; background: transparent !important; padding: 4px 0 !important; font-size: 22px !important; font-weight: 650; line-height: 1.3; letter-spacing: -.01em; }
+.task-sheet-title:focus-visible { outline: none; }
+.task-sheet-tokens { display: flex; flex-wrap: wrap; gap: 6px; margin-top: -8px; }
+.task-sheet-tokens span { font-size: 11px; padding: 2px 8px; border-radius: 999px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.task-sheet-props { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.task-pill { display: inline-flex !important; align-items: center; gap: 6px; width: auto !important; height: 28px !important; min-height: 28px !important; padding: 0 10px !important; border-radius: 999px !important; border: 1px solid var(--color-border) !important; background: transparent !important; font-size: 12px !important; color: var(--color-foreground); box-shadow: none !important; white-space: nowrap; }
+.task-pill:hover { border-color: color-mix(in srgb, var(--color-primary) 50%, var(--color-border)) !important; background: color-mix(in srgb, var(--color-primary) 6%, transparent) !important; }
+.task-pill > svg:last-child:not(:first-child) { display: none; }
+.task-pill.is-empty { color: var(--color-muted-foreground); border-style: dashed !important; }
+.task-pill.is-overdue { color: var(--color-critical); border-color: color-mix(in srgb, var(--color-critical) 50%, transparent) !important; }
+.task-pill.task-priority-urgent { color: var(--color-destructive); }
+.task-pill.task-priority-important { color: var(--color-primary); }
+.task-pill-tag { background: color-mix(in srgb, var(--color-muted) 50%, transparent) !important; border-color: transparent !important; }
+.task-pill-tag button { display: inline-flex; color: var(--color-muted-foreground); }
+.task-pill-tag button:hover { color: var(--color-destructive); }
+.task-pill-input { width: 70px; height: 28px; padding: 0 8px; border-radius: 999px; font-size: 12px; background: transparent; border: 1px dashed transparent; color: var(--color-foreground); }
+.task-pill-input::placeholder { color: var(--color-muted-foreground); }
+.task-pill-input:focus { outline: none; width: 130px; border-color: var(--color-border); }
+.task-sheet-notes { min-height: 72px !important; resize: none; field-sizing: content; border: 0 !important; box-shadow: none !important; background: transparent !important; padding: 8px 0 !important; font-size: 14px !important; line-height: 1.6; color: var(--color-foreground); border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent) !important; border-radius: 0 !important; }
+.task-sheet-notes:focus-visible { outline: none; }
+.task-sheet-checks { display: flex; flex-direction: column; gap: 2px; }
+.task-sheet-progress { position: relative; display: flex; align-items: center; justify-content: flex-end; height: 18px; margin-bottom: 4px; font-size: 11px; color: var(--color-muted-foreground); }
+.task-sheet-progress::before { content: ''; position: absolute; left: 0; right: 36px; height: 3px; border-radius: 3px; background: var(--color-border); }
+.task-sheet-progress i { position: absolute; left: 0; height: 3px; max-width: calc(100% - 36px); border-radius: 3px; background: var(--color-money); transition: width .3s ease; }
+.task-sheet-check { display: flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 6px; border-radius: 8px; font-size: 14px; }
+.task-sheet-check:hover { background: color-mix(in srgb, var(--color-muted) 40%, transparent); }
+.task-sheet-check > button:first-child { display: flex; color: var(--color-muted-foreground); }
+.task-sheet-check > button:first-child:hover { color: var(--color-money); }
+.task-sheet-check.is-done > button:first-child { color: var(--color-money); }
+.task-sheet-check > span { flex: 1; transition: color .2s; }
+.task-sheet-check.is-done > span { text-decoration: line-through; color: var(--color-muted-foreground); }
+.task-sheet-check-remove { opacity: 0; color: var(--color-muted-foreground); }
+.task-sheet-check:hover .task-sheet-check-remove, .task-sheet-check-remove:focus-visible { opacity: 1; }
+.task-sheet-check-new { color: var(--color-muted-foreground); }
+.task-sheet-check-new input { flex: 1; height: 32px; background: transparent; border: 0; font-size: 14px; color: var(--color-foreground); }
+.task-sheet-check-new input:focus { outline: none; }
+.task-sheet-more { border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent); padding-top: 10px; }
+.task-sheet-more summary { cursor: pointer; font-size: 12px; color: var(--color-muted-foreground); padding: 4px 0; }
+.task-sheet-more summary:hover { color: var(--color-foreground); }
+.task-sheet-more-body { display: flex; flex-direction: column; gap: 12px; margin-top: 10px; }
+.task-sheet-more-body .task-pill [role='switch'] { transform: scale(.75); margin-right: -6px; }
+.task-sheet-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; min-height: 52px; padding: 10px 20px; border-top: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent); }
+.task-sheet-foot > :first-child { margin-right: auto; }
+@media (max-width: 700px) { .task-detail-panel { width: 100vw !important; } .task-sheet { padding-inline: 16px; } .task-sheet-title { font-size: 20px !important; } }
