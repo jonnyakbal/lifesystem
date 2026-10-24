@@ -67,3 +67,23 @@ test('Foco em celular/desktop, claro/escuro sem transbordamento', async ({ page,
     expect(errors).toEqual([]);
   } finally { await request.delete(`/api/tasks/${task.id}`); }
 });
+
+test('Modo Foco guarda ideia sem sair e Esc volta para a lista', async ({ page, request }) => {
+  const task = await create(request, 'Foco imersivo QA');
+  let captured = '';
+  await page.route('**/api/captures', route => { if (route.request().method() === 'POST') { captured = route.request().postDataJSON().content; return route.fulfill({ status: 201, json: { id: 'qa-capture' } }); } return route.continue(); });
+  try {
+    await page.goto('/tarefas'); await page.getByPlaceholder('Buscar tarefas...').fill(task.title);
+    await page.getByRole('button', { name: 'Visualização: Foco', exact: true }).click();
+    await expect(page.getByRole('region', { name: 'Tarefa em foco' }).getByRole('button', { name: task.title, exact: true })).toBeVisible();
+    await page.keyboard.press('i');
+    await page.getByLabel('Capturar ideia sem sair do foco').fill('Ideia sintética do foco');
+    await page.getByLabel('Capturar ideia sem sair do foco').press('Enter');
+    await expect.poll(() => captured).toBe('Ideia sintética do foco');
+    await page.getByRole('button', { name: 'Iniciar timer', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Pausar timer', exact: true })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('region', { name: 'Tarefa em foco' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Visualização: Lista', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  } finally { await request.delete(`/api/tasks/${task.id}`); }
+});

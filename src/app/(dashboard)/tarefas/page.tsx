@@ -1144,7 +1144,7 @@ export default function TasksPage() {
           {view === 'kanban' && renderKanban()}
           {view === 'list' && renderList()}
           {view === 'calendar' && renderDates()}
-          {view === 'focus' && <TaskFocus focusId={focusTaskId} allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />}
+          {view === 'focus' && <TaskFocus focusId={focusTaskId} onExit={() => { setView('list'); setFocusTaskId(null); }} allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />}
         </motion.div>
       )}
 

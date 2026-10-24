@@ -243,7 +243,11 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
    - Painel lateral de documento (560px): título grande editável, propriedades em pílulas (status, prioridade, prazo com atalhos, projeto, tags), notas livres, checklist com Enter/progresso/riscar; recorrência, pilar e estrutura em "Mais" (abre sozinho se usados).
    - Edição salva sozinha (~1,2s de pausa; "Salvo" no topo); fechar salva o que falta. Concluir/reabrir não salva sozinho: botão "Marcar como concluída" + Salvar, preservando desfazer/recorrência. Excluir/Duplicar no ⋯. Botão "Focar" leva a tarefa ao Foco.
    - Criação rápida: tecla N ou Nova tarefa; "#projeto !alta @sex #tag" vira projeto, prioridade, prazo e tag (mostra o que reconheceu); Enter cria. Lógica em src/lib/task-quick-add.ts + testes.
-5. [ ] Modo Foco imersivo (T7)
+5. [x] Modo Foco imersivo (T7) — 24/10, branch, não publicado.
+   - Tela cheia com céu/órbitas lentas; só a tarefa no centro (projeto, título grande, checklist animado).
+   - Timer em anel (25/50 min ou livre), Espaço pausa; som ambiente gerado no navegador (sem serviço externo); som curto + explosão de partículas ao concluir.
+   - Captura de ideia sem sair (tecla I → Caixa de entrada); fila em uma linha no rodapé; P próxima, C concluir, Esc sai; resumo "N concluídas · X min focado".
+   - Pendente: teste da tecla N (criação rápida) é instável na bateria completa (passa isolado).
 
 ## Continuidade (22/10/2026 → Codex)
 
