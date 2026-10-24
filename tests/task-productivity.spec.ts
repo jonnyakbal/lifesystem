@@ -59,7 +59,8 @@ test('status terminal pela célula usa conclusão, desfazer e recorrência', asy
   const task = await create(request, 'Recorrência pela lista', { status: 'doing', dueDate: '2026-11-01', recurring: true, recurringFrequency: 'daily' });
   try {
     await page.goto('/tarefas');
-    await page.getByRole('combobox', { name: `Status de ${task.title}`, exact: true }).selectOption('done');
+    await page.getByRole('button', { name: `Mais ações para ${task.title}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Mover para Concluída', exact: true }).click();
     await expect.poll(async () => (await (await request.get('/api/tasks')).json()).filter((item: { title: string }) => item.title === task.title).length).toBe(2);
     await page.locator('[data-sonner-toast]').getByRole('button', { name: 'Reabrir', exact: true }).click();
     await expect.poll(async () => (await (await request.get(`/api/tasks/${task.id}`)).json()).status).toBe('doing');
@@ -121,7 +122,8 @@ test('mover uma selecionada para grupo recolhido retira a tarefa do lote', async
     await page.goto('/tarefas');
     await page.getByRole('checkbox', { name: `Selecionar ${task.title}`, exact: true }).check();
     await page.getByRole('button', { name: /^Recolher grupo Fazendo/ }).click();
-    await page.getByRole('combobox', { name: `Status de ${task.title}`, exact: true }).selectOption('doing');
+    await page.getByRole('button', { name: `Mais ações para ${task.title}`, exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Mover para Fazendo', exact: true }).click();
     await expect.poll(async () => (await (await request.get(`/api/tasks/${task.id}`)).json()).status).toBe('doing');
     await expect(page.getByRole('button', { name: task.title, exact: true })).toHaveCount(0);
     await expect(page.getByRole('region', { name: 'Ações das tarefas selecionadas' })).toHaveCount(0);

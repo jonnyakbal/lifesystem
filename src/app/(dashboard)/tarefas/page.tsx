@@ -11,10 +11,10 @@ import { PlanningWorkspace } from '@/components/planning-workspace';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   Plus, CheckCircle2, Circle, Trash2, Search, Copy,
-  GripVertical, CalendarDays, X, Tag,
+  CalendarDays, X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
-  ArrowRight, Repeat, Edit2, ChevronDown, ChevronRight, Crosshair
+  ArrowRight, Repeat, Edit2, Crosshair
 } from 'lucide-react';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
@@ -758,11 +758,15 @@ export default function TasksPage() {
 
   function renderTaskCard(task: Task) {
     const isSelected = selectedIds.has(task.id);
-    const checkProgress = task.checklist?.length > 0 ? Math.round((task.checklist.filter(c => c.done).length / task.checklist.length) * 100) : 0;
+    const done = isTaskCompleted(task, stages);
+    const busy = busyTasks.has(task.id);
+    const checks = task.checklist ?? [];
+    const project = task.projectId ? projects.find(p => p.id === task.projectId) : undefined;
+    const tags = task.tags ?? [];
 
     return (
-      <motion.div key={task.id} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} transition={{ type: 'spring', stiffness: 500, damping: 35 }}>
-        <Card
+      <motion.div key={task.id} layout="position" initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }} transition={{ type: 'spring', stiffness: 500, damping: 35 }}>
+        <div
           draggable={!bulkMode}
           onDragStart={(e) => { dragClickRef.current = true; handleDragStart(e, task.id); }}
           onDragEnd={handleDragEnd}
@@ -772,116 +776,60 @@ export default function TasksPage() {
             else openEdit(task);
           }}
           className={cn(
-            'work-item-card task-kanban-card group cursor-grab transition-all hover:border-primary/50 hover:shadow-md hover:shadow-primary/5 active:cursor-grabbing border-l-3',
-            draggedId === task.id && 'opacity-50 scale-95',
-            isOverdue(task) && 'border-destructive/50',
-            priorityConfig[task.priority].borderColor,
-            isSelected && 'border-primary bg-primary/5 ring-1 ring-primary/30',
-            bulkMode && 'cursor-pointer'
+            'task-card group',
+            draggedId === task.id && 'is-dragging',
+            isOverdue(task) && 'is-overdue',
+            done && 'is-done',
+            isSelected && 'is-selected',
+            `task-card-${task.priority}`,
           )}
         >
-          <CardContent className={cn('p-4', dense && 'p-2')}>
-            <div className="flex items-start gap-2">
-              {bulkMode ? (
-                <button onClick={event => { event.stopPropagation(); toggleSelect(task.id); }} className="task-selection-target shrink-0" aria-label={isSelected ? `Desmarcar ${task.title}` : `Selecionar ${task.title}`}>
-                  {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4 text-muted-foreground" />}
-                </button>
-              ) : (
-                <GripVertical className="hidden" aria-hidden="true" />
-              )}
-              {!bulkMode && (
-                <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="work-check min-h-11 min-w-11 shrink-0" disabled={busyTasks.has(task.id)} title={isTaskCompleted(task, stages) ? "Reabrir tarefa" : "Concluir tarefa"} aria-label={isTaskCompleted(task, stages) ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
-                  {isTaskCompleted(task, stages) ? <CheckCircle2 className="h-4 w-4 text-money" /> : <Circle className={cn("h-4 w-4", isOverdue(task) ? 'text-destructive' : 'text-muted-foreground hover:text-foreground')} />}
-                  <span>{isTaskCompleted(task, stages) ? 'Reabrir' : 'Concluir'}</span>
-                </button>
-              )}
-              <div className="flex-1 min-w-0">
-                <button disabled={busyTasks.has(task.id)} onClick={event => { event.stopPropagation(); openEdit(task); }} className={cn(dense ? 'text-xs' : 'text-sm', 'work-card-title text-left font-semibold leading-relaxed', isTaskCompleted(task, stages) && 'line-through text-muted-foreground')}>{task.title}</button>
-                {!dense && task.professionalWorkId && <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground"><span>{task.workType === 'agent' ? 'Trabalho de agente' : task.workType === 'decision' ? 'Decisão' : task.workType === 'dependency' ? 'Dependência' : 'Tarefa humana'}{task.responsible ? ` · ${task.responsible}` : ''}</span><a href="/profissional" className="text-primary hover:underline" onClick={event => event.stopPropagation()}>Abrir briefing</a></p>}
-                {!dense && task.nextAction && <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">Próximo passo: {task.nextAction}</p>}
-                {!dense && task.description && (
-                  <p className="mt-1 text-xs text-muted-foreground line-clamp-1 flex items-center gap-1">
-                    <Subtitles className="h-3 w-3" /> {task.description.slice(0, 40)}
-                  </p>
-                )}
-                {!dense && task.checklist?.length > 0 && (
-                  <div className="flex items-center gap-1.5 mt-1.5">
-                    <CheckSquare className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-xs text-muted-foreground">{task.checklist.filter(c => c.done).length}/{task.checklist.length}</span>
-                    <Progress value={checkProgress} className="h-1 flex-1" />
-                  </div>
-                )}
-                <div className={cn('flex flex-wrap items-center gap-1', dense ? 'mt-1' : 'mt-2')}>
-                  {task.priority !== 'normal' && <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', priorityConfig[task.priority].textColor)}>
-                    {priorityConfig[task.priority].label}
-                  </Badge>}
-                  {(task.tags ?? []).slice(0, dense ? 0 : 2).map(tag => (
-                    <Badge key={tag} variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
-                      <Tag className="mr-1 h-2.5 w-2.5" /> {tag}
-                    </Badge>
-                  ))}
-                  {(task.tags ?? []).length > (dense ? 0 : 2) && (
-                    <Badge variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>+{(task.tags ?? []).length - (dense ? 0 : 2)}</Badge>
-                  )}
-                  {dense && task.checklist?.length > 0 && (
-                    <Badge variant="outline" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0', 'gap-1')}>
-                      <ListChecks className="h-2.5 w-2.5" /> {task.checklist.filter(c => c.done).length}/{task.checklist.length}
-                    </Badge>
-                  )}
-                  {!dense && task.projectId && (() => {
-                    const proj = projects.find(p => p.id === task.projectId);
-                    return proj ? (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-border bg-muted/30">
-                        {proj.emoji || '📁'} {proj.name}
-                      </Badge>
-                    ) : null;
-                  })()}
-                  {!dense && !task.projectId && task.pillarId && (() => {
-                    const pil = pillars.find(p => p.id === task.pillarId);
-                    return pil ? (
-                      <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 border-border bg-muted/30">
-                        {pil.emoji || '🏛️'} {pil.name}
-                      </Badge>
-                    ) : null;
-                  })()}
-                  {isTaskCompleted(task, stages) && task.completedAt && <Badge variant="outline" className="text-xs text-money">Concluída {new Date(task.completedAt).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</Badge>}
-                  {task.recurring && (
-                    <Badge variant="outline" className="text-xs px-1.5 py-0 gap-1 text-muted-foreground">
-                      <Repeat className="h-2.5 w-2.5" /> {RECURRING_LABELS[task.recurringFrequency || 'daily']}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              {!bulkMode && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button disabled={busyTasks.has(task.id)} onClick={event => event.stopPropagation()} variant="ghost" size="icon" aria-label={`Mais ações para ${task.title}`} className="work-more shrink-0">
-                      <MoreHorizontal className="h-3.5 w-3.5" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>
-                    <DropdownMenuItem onClick={() => openEdit(task)}><Subtitles className="mr-2 h-4 w-4" /> Abrir</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleToggleDone(task)}><CheckCircle2 className="mr-2 h-4 w-4" /> {isTaskCompleted(task, stages) ? 'Reabrir' : 'Concluir'}</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => handleDuplicate(task)}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {stages.filter(s => s.id !== task.status).map(s => (
-                      <DropdownMenuItem key={s.id} onClick={() => handleQuickStatus(task.id, s.id)}>
-                        <ArrowRight className="mr-2 h-4 w-4" /> {getStatusLabel(s.id)}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
+          {bulkMode ? (
+            <button onClick={event => { event.stopPropagation(); toggleSelect(task.id); }} className="task-card-check" aria-label={isSelected ? `Desmarcar ${task.title}` : `Selecionar ${task.title}`}>
+              {isSelected ? <CheckSquare className="h-4 w-4 text-primary" /> : <Square className="h-4 w-4" />}
+            </button>
+          ) : (
+            <button onClick={(e) => { e.stopPropagation(); handleToggleDone(task); }} className="task-card-check" disabled={busy} title={done ? 'Reabrir tarefa' : 'Concluir tarefa'} aria-label={done ? `Reabrir ${task.title}` : `Concluir ${task.title}`}>
+              {done ? <CheckCircle2 className="h-[18px] w-[18px] text-money" /> : <Circle className="h-[18px] w-[18px]" />}
+            </button>
+          )}
+          <div className="task-card-body">
+            <button disabled={busy} onClick={event => { event.stopPropagation(); openEdit(task); }} className="task-card-title">{task.title}</button>
+            <div className="task-card-meta" onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()}>
+              {task.dueDate && <DeadlineCell task={task} busy={busy} completed={done} onPatch={handleQuickPatch} />}
+              {project && <span className="task-card-project">{project.emoji ? `${project.emoji} ` : ''}{project.name}</span>}
+              {!dense && tags.slice(0, 2).map(tag => <span key={tag} className="task-card-tag">{tag}</span>)}
+              {!dense && tags.length > 2 && <span className="task-card-tag">+{tags.length - 2}</span>}
+              {checks.length > 0 && <span className="task-card-checks"><ListChecks className="h-3 w-3" />{checks.filter(c => c.done).length}/{checks.length}</span>}
+              {task.recurring && <span className="task-card-icon" title={RECURRING_LABELS[task.recurringFrequency || 'daily']}><Repeat className="h-3 w-3" /></span>}
+              {task.description && <span className="task-card-icon" title="Tem anotações"><Subtitles className="h-3 w-3" /></span>}
+              <select className={cn('task-card-priority', `task-priority-${task.priority}`)} aria-label={`Prioridade no quadro de ${task.title}`} value={task.priority} disabled={busy} onChange={event => void handleQuickPatch(task.id, { priority: event.target.value as Task['priority'] })}>{Object.entries(priorityConfig).map(([key, cfg]) => <option key={key} value={key}>{cfg.label}</option>)}</select>
+              <select className="sr-only" aria-label={`Etapa no quadro de ${task.title}`} value={task.status} disabled={busy} onChange={event => void handleQuickPatch(task.id, { status: event.target.value })}>{stages.map(stage => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select>
             </div>
-          </CardContent>
-          <div className="task-kanban-fields" onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()}>
-            <label><span>Etapa</span><select className="task-cell-select" aria-label={`Etapa no quadro de ${task.title}`} value={task.status} disabled={busyTasks.has(task.id)} onChange={event => void handleQuickPatch(task.id, { status: event.target.value })}>{stages.map(stage => <option key={stage.id} value={stage.id}>{stage.label}</option>)}</select></label>
-            <label><span>Prioridade</span><select className={cn('task-cell-select', `task-priority-${task.priority}`)} aria-label={`Prioridade no quadro de ${task.title}`} value={task.priority} disabled={busyTasks.has(task.id)} onChange={event => void handleQuickPatch(task.id, { priority: event.target.value as Task['priority'] })}>{Object.entries(priorityConfig).map(([key, cfg]) => <option key={key} value={key}>{cfg.label}</option>)}</select></label>
-            <DeadlineCell task={task} busy={busyTasks.has(task.id)} completed={isTaskCompleted(task, stages)} onPatch={handleQuickPatch} />
           </div>
-        </Card>
+          {!bulkMode && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button disabled={busy} onClick={event => event.stopPropagation()} aria-label={`Mais ações para ${task.title}`} className="task-card-more">
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={event => event.stopPropagation()}>
+                <DropdownMenuItem onClick={() => openEdit(task)}><Subtitles className="mr-2 h-4 w-4" /> Abrir</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleToggleDone(task)}><CheckCircle2 className="mr-2 h-4 w-4" /> {done ? 'Reabrir' : 'Concluir'}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleDuplicate(task)}><Copy className="mr-2 h-4 w-4" /> Duplicar</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {stages.filter(s => s.id !== task.status).map(s => (
+                  <DropdownMenuItem key={s.id} onClick={() => handleQuickStatus(task.id, s.id)}>
+                    <ArrowRight className="mr-2 h-4 w-4" /> {getStatusLabel(s.id)}
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleDelete(task.id)} className="text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Excluir</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       </motion.div>
     );
   }
@@ -893,42 +841,39 @@ export default function TasksPage() {
     setSelectedIds(current => { const next = new Set(current); items.forEach(task => next.delete(task.id)); return next; });
   }
 
-  function renderColumn(status: string, taskList: Task[]) {
-    const cfg = getStage(status);
+  function renderColumnShell(key: string, label: string, dot: string, items: Task[], droppable: boolean) {
+    // Etapas terminais (Concluída) começam recolhidas; clicar inverte.
+    const collapsed = droppable && getStage(key)?.isTerminal ? !collapsedColumns.has(key) : collapsedColumns.has(key);
+    const overdue = items.filter(isOverdue).length;
     return (
-      <div key={status} className={cn('work-board-column task-kanban-column', draggedId && 'task-kanban-droppable', collapsedColumns.has(status) && 'task-kanban-collapsed')} onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, status)}>
-        <div className="flex items-center gap-2 mb-3 px-1">
-          <button type="button" className="task-column-toggle" aria-expanded={!collapsedColumns.has(status)} aria-label={`${collapsedColumns.has(status) ? 'Expandir' : 'Recolher'} coluna ${getStatusLabel(status)}`} onClick={() => toggleColumn(status, taskList)}>{collapsedColumns.has(status) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
-          <div className={cn('h-2.5 w-2.5 rounded-full', cfg?.dot || 'bg-muted-foreground')} />
-          <h3 className="text-sm font-medium">{getStatusLabel(status)}</h3>
-          <Badge variant="secondary" className="ml-auto text-xs">{taskList.length}</Badge>
-          {bulkMode && taskList.length > 0 && !collapsedColumns.has(status) && (
-            <Button variant="ghost" size="sm" className="h-5 text-xs px-1.5" onClick={() => selectAll(status)}>Todos</Button>
+      <div key={key} className={cn('task-col', collapsed && 'is-collapsed', !collapsed && items.length === 0 && 'is-empty', droppable && draggedId && 'is-droppable')}
+        onDragOver={droppable ? handleDragOver : undefined} onDrop={droppable ? (e) => handleDrop(e, key) : undefined}>
+        <div className="task-col-head">
+          <button type="button" className="task-col-toggle" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expandir' : 'Recolher'} coluna ${label}`} onClick={() => toggleColumn(key, items)}>
+            <span className={cn('h-2 w-2 shrink-0 rounded-full', dot)} />
+            <span className="task-col-name">{label}</span>
+            <span className="task-col-count">{items.length}</span>
+            {overdue > 0 && <span className="task-col-overdue" title={`${overdue} atrasadas`}>{overdue}</span>}
+          </button>
+          {bulkMode && items.length > 0 && !collapsed && (
+            <Button variant="ghost" size="sm" className="h-6 text-xs px-1.5" onClick={() => selectAll(key)}>Todos</Button>
           )}
         </div>
-        {!collapsedColumns.has(status) && <><p className="task-column-summary">{taskList.filter(isOverdue).length} atrasadas · {taskList.filter(task => task.priority === 'urgent').length} urgentes</p><div className="task-column-meter" aria-hidden="true"><span style={{ width: `${sortedTasks.length ? taskList.length / sortedTasks.length * 100 : 0}%` }} /></div><div className="work-board-lane space-y-3">
-          {taskList.map(renderTaskCard)}
-          {taskList.length === 0 && quickAddStatus !== status && (
-            <div className="flex items-center justify-center h-24 text-xs text-muted-foreground/50">Solte aqui</div>
-          )}
-          {quickAddStatus === status ? (
-            <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
-              <Card><CardContent className="p-2">
-                <Input autoFocus disabled={quickAddBusy} aria-label={`Nova tarefa em ${getStatusLabel(status)}`} value={quickAddTitle} onChange={(e) => setQuickAddTitle(e.target.value)} placeholder="Título da tarefa..." className="h-11 text-sm border-0 bg-transparent"
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(status); if (e.key === 'Escape') { setQuickAddStatus(null); setQuickAddTitle(''); } }}
-                  onBlur={() => { if (!quickAddTitle.trim()) setQuickAddStatus(null); }} />
-                <div className="flex gap-1 mt-1">
-                  <Button size="sm" disabled={quickAddBusy || !quickAddTitle.trim()} className="min-h-11 text-xs px-2" onClick={() => handleQuickAdd(status)}>{quickAddBusy ? 'Salvando…' : 'Adicionar'}</Button>
-                  <Button size="sm" disabled={quickAddBusy} variant="ghost" className="min-h-11 text-xs px-2" onClick={() => { setQuickAddStatus(null); setQuickAddTitle(''); }}>Cancelar</Button>
-                </div>
-              </CardContent></Card>
-            </motion.div>
+        {!collapsed && <div className="task-col-lane">
+          {items.map(renderTaskCard)}
+          {droppable && (quickAddStatus === key ? (
+            <div className="task-card-quickadd">
+              <Input autoFocus disabled={quickAddBusy} aria-label={`Nova tarefa em ${label}`} value={quickAddTitle} onChange={(e) => setQuickAddTitle(e.target.value)} placeholder="Título e Enter…" className="h-9 text-sm border-0 bg-transparent shadow-none focus-visible:ring-0"
+                onKeyDown={(e) => { if (e.key === 'Enter') handleQuickAdd(key); if (e.key === 'Escape') { setQuickAddStatus(null); setQuickAddTitle(''); } }}
+                onBlur={() => { if (!quickAddTitle.trim()) setQuickAddStatus(null); }} />
+              <Button size="sm" disabled={quickAddBusy || !quickAddTitle.trim()} className="sr-only" onClick={() => handleQuickAdd(key)}>Adicionar</Button>
+            </div>
           ) : (
-            <Button disabled={quickAddBusy} variant="ghost" className="w-full justify-start gap-2 text-muted-foreground/50 hover:text-muted-foreground text-xs" onClick={() => { setQuickAddStatus(status); setQuickAddTitle(''); }}>
-              <Plus className="h-3 w-3" /> Adicionar tarefa
-            </Button>
-          )}
-        </div></>}
+            <button type="button" disabled={quickAddBusy} className="task-col-add" onClick={() => { setQuickAddStatus(key); setQuickAddTitle(''); }}>
+              <Plus className="h-3.5 w-3.5" /> Adicionar tarefa
+            </button>
+          ))}
+        </div>}
       </div>
     );
   }
@@ -938,33 +883,17 @@ export default function TasksPage() {
   function renderKanban() {
     if (groupBy === 'status') {
       return (
-        <div className="work-board" aria-label="Quadro de tarefas por etapa">
+        <div className="task-board" aria-label="Quadro de tarefas por etapa">
           <LayoutGroup id="task-kanban">
-            {stages.map(s => renderColumn(s.id, sortedTasks.filter(t => t.status === s.id)))}
+            {stages.map(s => renderColumnShell(s.id, getStatusLabel(s.id), s.dot || 'bg-muted-foreground', sortedTasks.filter(t => t.status === s.id), true))}
           </LayoutGroup>
         </div>
       );
     }
     return (
-      <div className="work-board">
+      <div className="task-board">
         <LayoutGroup id="task-kanban-grouped">
-          {grouped.groupKeys.map(key => {
-            const items = grouped.groups.get(key) || [];
-            return (
-              <div key={key} className="work-board-column task-kanban-column">
-                <div className="flex items-center gap-2 mb-3 px-1">
-                  <button type="button" className="task-column-toggle" aria-expanded={!collapsedColumns.has(key)} aria-label={`${collapsedColumns.has(key) ? 'Expandir' : 'Recolher'} coluna ${getGroupLabel(key)}`} onClick={() => toggleColumn(key, items)}>{collapsedColumns.has(key) ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}</button>
-                  <div className={cn('h-2.5 w-2.5 rounded-full', getGroupDot(key))} />
-                  <h3 className="text-sm font-medium">{getGroupLabel(key)}</h3>
-                  <Badge variant="secondary" className="ml-auto text-xs">{items.length}</Badge>
-                </div>
-                {!collapsedColumns.has(key) && <div className="work-board-lane space-y-3">
-                  {items.map(renderTaskCard)}
-                  {items.length === 0 && <div className="flex flex-col items-center justify-center py-8 text-muted-foreground"><p className="text-xs">Nenhum item</p></div>}
-                </div>}
-              </div>
-            );
-          })}
+          {grouped.groupKeys.map(key => renderColumnShell(key, getGroupLabel(key), getGroupDot(key), grouped.groups.get(key) || [], false))}
         </LayoutGroup>
       </div>
     );
@@ -974,7 +903,7 @@ export default function TasksPage() {
     return <TaskWorkspaceTable
       allTasks={tasks}
       groups={Array.from(grouped.groups.entries()).map(([id, items]) => ({ id, label: getGroupLabel(id), dot: getGroupDot(id), items }))}
-      stages={stages} projects={projects} selectedIds={selectedIds} busyIds={busyTasks} dense={dense}
+      stages={stages} projects={projects} selectedIds={selectedIds} busyIds={busyTasks} dense={dense} hideStatus={groupBy === 'status'}
       onSelect={toggleSelect}
       onSelectVisible={(ids, selected) => setSelectedIds(current => { const next = new Set(current); ids.forEach(id => selected ? next.add(id) : next.delete(id)); return next; })}
       onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }}

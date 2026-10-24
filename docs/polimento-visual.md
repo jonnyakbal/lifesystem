@@ -228,7 +228,10 @@ Extraídas de Tarefas — viram o padrão das próximas telas:
 Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `feat/polimento-tarefas` (repo `lifesystem`, a partir da main).
 
 1. [x] Remover Carga e Linha do tempo + cabeçalho/controles enxutos (T1, T6, T8) — 22/10, local, não publicado.
-2. [ ] Card do Quadro e linha da Lista compactos (T2, T3)
+2. [x] Card do Quadro e linha da Lista compactos (T2, T3) — 24/10, branch, não publicado.
+   - Quadro: card de ~3 linhas (círculo, título até 2 linhas, ⋯ no hover; prazo · projeto · tags · checklist · ícones; prioridade só se ≠ Normal). Sem caixa na coluna, sem "x atrasadas · y urgentes"/barra; atrasadas viram um número vermelho no cabeçalho. Concluída começa recolhida; colunas vazias estreitas. Etapa segue acessível por teclado (select oculto) e pelo ⋯.
+   - Lista: linha única (círculo de concluir à esquerda, título, 📝 se tem nota, tags); colunas Projeto · Prazo · Prioridade; Status some quando agrupado por status (mover pelo ⋯ "Mover para…"); Checklist só aparece se alguma tarefa tiver. "Normal"/"Sem projeto" invisíveis até o hover. Seleção e ⋯ aparecem no hover. Sem a faixa "8 tarefas · edição por campo"; Colunas virou ícone no cabeçalho.
+   - Celular: campos mantêm 16px (sem zoom do iOS), só desenhados menores.
 3. [ ] Semana + Calendário (T4, T5)
 4. [ ] Painel da tarefa + criação rápida (T9)
 5. [ ] Modo Foco imersivo (T7)

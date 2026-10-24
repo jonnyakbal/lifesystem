@@ -123,7 +123,7 @@ test.describe('Hoje: abrir, concluir e recuperar tarefas', () => {
       try {
         await page.goto(`/${screen}`);
         if (screen === 'tarefas') await page.getByRole('button', { name: 'Visualização: Quadro Kanban', exact: true }).click();
-        const scope = screen === 'hoje' ? page : page.locator('.work-board-column').filter({ has: page.getByRole('heading', { name: 'Fazendo', exact: true }) });
+        const scope = screen === 'hoje' ? page : page.locator('.task-col').filter({ has: page.getByRole('button', { name: 'Recolher coluna Fazendo', exact: true }) });
         const complete = scope.getByRole('button', { name: `${screen === 'hoje' ? 'Concluir tarefa' : 'Concluir'} ${title}`, exact: true });
         await complete.click();
         await page.locator('[data-sonner-toast]').getByRole('button', { name: 'Reabrir', exact: true }).click();
