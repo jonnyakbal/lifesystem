@@ -6,6 +6,8 @@ export const taskPayloadSchema = z.object({
   workType: z.enum(['human', 'agent', 'decision', 'dependency']).optional(),
   responsible: z.string().max(500).optional(),
   nextAction: z.string().max(10000).optional(),
+  // GTD: tarefa delegada fica "Aguardando" esta pessoa; vazio/null = próxima ação minha.
+  waitingFor: z.string().trim().max(200).nullable().optional(),
   title: z.string().trim().max(300).optional(),
   description: z.string().max(10000).optional(),
   priority: z.enum(['urgent', 'important', 'normal']).optional(),

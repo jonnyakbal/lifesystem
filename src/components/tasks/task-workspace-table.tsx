@@ -2,7 +2,7 @@
 
 import { useState, Fragment } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ChevronRight, CalendarDays, CheckCircle2, Circle, MoreHorizontal, Pencil, Copy, Trash2, ListChecks, Columns3, Loader2, StickyNote, ArrowRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, CalendarDays, CheckCircle2, Circle, MoreHorizontal, Pencil, Copy, Trash2, ListChecks, Columns3, Loader2, StickyNote, ArrowRight, Hourglass } from 'lucide-react';
 import type { StageDef, TaskPlanning } from '@/types';
 import { cn, todayStr } from '@/lib/utils';
 import { isTaskCompleted } from '@/lib/task-stages';
@@ -16,7 +16,7 @@ import { TaskStructureSummary } from './task-structure-summary';
 export interface TaskListRecord {
   id: string; title: string; status: string; priority: 'normal' | 'important' | 'urgent';
   dueDate?: string; projectId?: string; pillarId?: string; completedAt?: string; planning?: TaskPlanning;
-  description?: string; nextAction?: string; responsible?: string; tags?: string[];
+  description?: string; nextAction?: string; responsible?: string; tags?: string[]; waitingFor?: string | null;
   checklist?: { id: string; text: string; done: boolean }[];
   parentId?: string; dependsOnIds?: string[]; estimatedMinutes?: number;
 }
@@ -96,6 +96,7 @@ export function TaskWorkspaceTable(props: Props) {
             <td className="task-title-cell"><div className="task-row-main">
               <button type="button" className="task-row-check" aria-label={`${done ? 'Reabrir' : 'Concluir'} ${task.title}`} title={done ? 'Reabrir' : 'Concluir'} disabled={busy} onClick={() => onComplete(task.id)}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : done ? <CheckCircle2 className="h-[18px] w-[18px]" /> : <Circle className="h-[18px] w-[18px]" />}</button>
               <button type="button" className="task-row-title" disabled={busy} onClick={() => onOpen(task.id)}>{task.title}</button>
+              {task.waitingFor && <span className="task-waiting" title={`Aguardando ${task.waitingFor}`}><Hourglass className="h-3 w-3" />{task.waitingFor}</span>}
               {(task.description || task.nextAction) && <StickyNote className="task-row-note h-3.5 w-3.5" aria-label="Tem anotações" />}
               {!dense && tags.slice(0, 2).map(tag => <span key={tag} className="task-row-tag">{tag}</span>)}
               {!dense && tags.length > 2 && <span className="task-row-tag">+{tags.length - 2}</span>}

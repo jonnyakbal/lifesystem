@@ -14,7 +14,7 @@ import {
   X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
-  ArrowRight, Repeat, Edit2, Crosshair, CalendarDays, Flag, FolderOpen
+  ArrowRight, Repeat, Edit2, Crosshair, CalendarDays, Flag, FolderOpen, Hourglass
 } from 'lucide-react';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
@@ -56,6 +56,7 @@ interface Task {
   workType?: 'human' | 'agent' | 'decision' | 'dependency';
   responsible?: string;
   nextAction?: string;
+  waitingFor?: string | null;
   professionalWorkId?: string;
   id: string;
   title: string;
@@ -261,6 +262,7 @@ export default function TasksPage() {
   const [newRecurring, setNewRecurring] = useState(false);
   const [newRecurringFrequency, setNewRecurringFrequency] = useState<RecurringFrequency>('daily');
   const [moreOpen, setMoreOpen] = useState(false);
+  const [newWaitingFor, setNewWaitingFor] = useState('');
   const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
   const editorBaseline = useRef('');
 
@@ -414,6 +416,7 @@ export default function TasksPage() {
     setNewRecurring(false);
     setNewRecurringFrequency('daily');
     setMoreOpen(false);
+    setNewWaitingFor('');
     setIsDialogOpen(true);
   }
 
@@ -432,8 +435,9 @@ export default function TasksPage() {
     setNewParentId(task.parentId || ''); setNewDependencies(task.dependsOnIds || []); setNewEstimate(task.estimatedMinutes?.toString() || '');
     setNewRecurring(task.recurring || false);
     setNewRecurringFrequency(task.recurringFrequency || 'daily');
+    setNewWaitingFor(task.waitingFor || '');
     setMoreOpen(Boolean(task.recurring || task.pillarId || task.parentId || task.dependsOnIds?.length || task.estimatedMinutes));
-    editorBaseline.current = JSON.stringify([task.title, task.description || '', task.priority, task.status, task.dueDate || '', [...(task.tags ?? [])], task.checklist?.map(c => ({ ...c })) || [], task.projectId || '', task.pillarId || '', task.parentId || '', task.dependsOnIds || [], task.estimatedMinutes?.toString() || '', task.recurring || false, task.recurringFrequency || 'daily']);
+    editorBaseline.current = JSON.stringify([task.title, task.description || '', task.priority, task.status, task.dueDate || '', [...(task.tags ?? [])], task.checklist?.map(c => ({ ...c })) || [], task.projectId || '', task.pillarId || '', task.parentId || '', task.dependsOnIds || [], task.estimatedMinutes?.toString() || '', task.recurring || false, task.recurringFrequency || 'daily', task.waitingFor || '']);
     setIsDialogOpen(true);
   }
 
@@ -458,6 +462,7 @@ export default function TasksPage() {
         estimatedMinutes: newEstimate ? Number(newEstimate) : null,
         recurring: newRecurring,
         recurringFrequency: newRecurring ? newRecurringFrequency : undefined,
+        waitingFor: newWaitingFor.trim() || (editingTask ? null : undefined),
       };
       if (editingTask) {
         const updated = await apiFetch<Task>(`/api/tasks/${editingTask.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -648,7 +653,7 @@ export default function TasksPage() {
     } finally { quickAddPending.current = false; setQuickAddBusy(false); }
   }
 
-  const editorSnapshot = JSON.stringify([newTitle, newDescription, newPriority, newStatus, newDueDate, newTags, newChecklist, newProjectId, newPillarId, newParentId, newDependencies, newEstimate, newRecurring, newRecurringFrequency]);
+  const editorSnapshot = JSON.stringify([newTitle, newDescription, newPriority, newStatus, newDueDate, newTags, newChecklist, newProjectId, newPillarId, newParentId, newDependencies, newEstimate, newRecurring, newRecurringFrequency, newWaitingFor]);
   const editorDirty = Boolean(editingTask) && editorSnapshot !== editorBaseline.current;
   const quickParse = useMemo(() => parseQuickAdd(newTitle, projects), [newTitle, projects]);
   const quickTokens = quickParse.labels;
@@ -838,6 +843,7 @@ export default function TasksPage() {
           <div className="task-card-body">
             <button disabled={busy} onClick={event => { event.stopPropagation(); openEdit(task); }} className="task-card-title">{task.title}</button>
             <div className="task-card-meta" onClick={event => event.stopPropagation()} onPointerDown={event => event.stopPropagation()}>
+              {task.waitingFor && <span className="task-waiting" title={`Aguardando ${task.waitingFor}`}><Hourglass className="h-3 w-3" />{task.waitingFor}</span>}
               {task.dueDate && <DeadlineCell task={task} busy={busy} completed={done} onPatch={handleQuickPatch} />}
               {project && <span className="task-card-project">{project.emoji ? `${project.emoji} ` : ''}{project.name}</span>}
               {!dense && tags.slice(0, 2).map(tag => <span key={tag} className="task-card-tag">{tag}</span>)}
@@ -1226,6 +1232,7 @@ export default function TasksPage() {
               {newTags.map(tag => (
                 <span key={tag} className="task-pill task-pill-tag"><Tag className="h-3 w-3" />{tag}<button type="button" aria-label={`Remover tag ${tag}`} onClick={() => removeTag(tag)}><X className="h-3 w-3" /></button></span>
               ))}
+              <label className={cn('task-pill', !newWaitingFor && 'is-empty')}><Hourglass className="h-3.5 w-3.5" /><input aria-label="Aguardando quem" value={newWaitingFor} onChange={e => setNewWaitingFor(e.target.value)} placeholder="Aguardando…" className="task-pill-bare" /></label>
               <input value={newTagInput} onChange={(e) => setNewTagInput(e.target.value)} aria-label="Nova tag" placeholder="+ tag" className="task-pill-input"
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(); } }} onBlur={addTag} />
             </div>

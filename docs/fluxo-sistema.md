@@ -56,7 +56,31 @@ Captura vira **global**: botão fixo + tecla (ex. `Q`) em qualquer tela, sempre 
 9. **Arquivo** único para concluídos/arquivados (busca continua achando).
 10. **Visão geral** vira painel do ciclo: itens na caixa · próximas ações hoje · projetos parados · dias desde a última revisão.
 
-## Perguntas para o Jonny
+## Decisões do Jonny (24/10/2026)
+
+- **Pilares viram Áreas** (PARA).
+- **Aguardando/Delegado**: sim, como estado de tarefa (com quem).
+- **Algum dia/Talvez = backlog**: tarefas sem prazo. Sem lista separada.
+- **Revisão semanal na segunda**, com rotina programada que o Jonny vai criar em seguida.
+- **Começar pela Caixa de entrada / Esclarecer.**
+
+## Execução
+
+1. [x] **Caixa de entrada → Esclarecer** (24/10, branch `feat/polimento-tarefas`, não publicado)
+   - Modo padrão mostra **um item por vez** com a pergunta GTD e 6 decisões: Descartar (com desfazer) · Guardar como nota · Fazer agora (< 2 min, nasce concluída) · Virar tarefa · Delegar · Virar projeto; "Outro destino" abre a conversão antiga (conteúdo, edital, financeiro, evento); Pular manda pro fim. Teclas 1–7 e S.
+   - Virar tarefa pede a próxima ação concreta e aceita atalhos (#projeto !alta @sex); sem prazo vai pro backlog.
+   - Delegar cria tarefa com **Aguardando** (campo novo `waitingFor`), que aparece no card do Quadro, na Lista e no painel (editável).
+   - Caixa zerada vira uma tela de recompensa com atalho para Hoje. Modo Lista mantém a busca e a visão de tudo.
+   - API: `POST /api/captures/:id/convert` aceita `task` (title, dueDate, priority, projectId, tags, waitingFor, doneNow). Schema de tarefa aceita `waitingFor`.
+2. [ ] Navegação por etapa (Agora · Capturar · Organizar · Áreas · Refletir · Sistema)
+3. [ ] Hoje enxuto (3 prioridades + agenda + começar Foco; sem Aguardando/backlog)
+4. [ ] Revisão semanal guiada de segunda (caixa → calendário → projetos sem próxima ação → aguardando → backlog → 3 prioridades)
+5. [ ] Projetos com próxima ação obrigatória (alerta)
+6. [ ] Pilares → Áreas (página da área com projetos, tarefas, metas, notas)
+7. [ ] Notas no modelo CODE (capturada · destilada · usada)
+8. [ ] Visão geral como painel do ciclo
+
+## Perguntas originais
 
 - Os 6 Pilares devem virar as **Áreas** do PARA (e Dona Maria / ARCO entram como áreas ou projetos)?
 - Quer o estado **Aguardando/Delegado** (útil para a equipe da Dona Maria)?

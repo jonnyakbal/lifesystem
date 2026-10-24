@@ -29,13 +29,14 @@ test('nova tarefa pela tecla N usa os atalhos e cria com os campos certos', asyn
   try {
     await page.goto('/tarefas');
     await page.getByRole('button', { name: 'Visualização: Lista', exact: true }).waitFor();
-    await page.keyboard.press('n');
     const dialog = page.getByRole('dialog', { name: 'Nova Tarefa' });
-    await dialog.getByLabel('Título da tarefa', { exact: true }).fill(`${title} !urgente @amanhã #qa`);
+    // O atalho só existe depois da hidratação; repetir a tecla até o painel abrir.
+    await expect(async () => { await page.keyboard.press('n'); await expect(dialog).toBeVisible({ timeout: 1000 }); }).toPass({ timeout: 20000 });
+    await dialog.getByLabel('Título da tarefa', { exact: true }).fill(`${title} !urgente @amanhã #zzsemprojeto`);
     await expect(dialog.getByLabel('Atalhos reconhecidos')).toContainText('Urgente');
     await dialog.getByLabel('Título da tarefa', { exact: true }).press('Enter');
     await expect(dialog).toHaveCount(0);
-    await expect.poll(async () => (await (await request.get('/api/tasks')).json()).find((item: { title: string }) => item.title === title)).toMatchObject({ priority: 'urgent', tags: ['qa'] });
+    await expect.poll(async () => (await (await request.get('/api/tasks')).json()).find((item: { title: string }) => item.title === title)).toMatchObject({ priority: 'urgent', tags: ['zzsemprojeto'] });
   } finally {
     const all = await (await request.get('/api/tasks')).json();
     for (const item of all.filter((item: { title: string }) => item.title === title)) await request.delete(`/api/tasks/${item.id}`);

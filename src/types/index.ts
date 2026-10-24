@@ -106,6 +106,8 @@ export interface Task extends BaseEntity {
   workType?: 'human' | 'agent' | 'decision' | 'dependency';
   responsible?: string;
   nextAction?: string;
+  /** GTD: delegada, aguardando esta pessoa. */
+  waitingFor?: string | null;
   professionalWorkId?: string;
   professionalProjectionVersion?: number;
   planning?: TaskPlanning;

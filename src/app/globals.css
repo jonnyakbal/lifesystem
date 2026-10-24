@@ -1362,3 +1362,70 @@ html.lenis, html.lenis body {
   .focus-capture { flex-basis: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .focus-sky i, .focus-orbit, .focus-task, .focus-burst i { animation: none !important; } }
+
+/* Caixa de entrada: Esclarecer (GTD) — um item por vez, uma decisão por toque. */
+.inbox-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.inbox-head h1 { font-size: 26px; line-height: 1.2; letter-spacing: -.02em; }
+.inbox-count { min-width: 28px; height: 26px; padding: 0 9px; display: inline-grid; place-items: center; border-radius: 999px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--color-primary-foreground); background: var(--color-primary); }
+.inbox-count.is-zero { color: var(--color-money); background: color-mix(in srgb, var(--color-money) 14%, transparent); font-weight: 500; }
+.inbox-head-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.inbox-capture { display: flex; align-items: center; gap: 10px; height: 52px; padding: 0 8px 0 16px; border-radius: 14px; border: 1px solid var(--color-border); background: var(--color-card); color: var(--color-muted-foreground); transition: border-color .15s, box-shadow .15s; }
+.inbox-capture:focus-within { border-color: var(--color-primary); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent); }
+.inbox-capture input { flex: 1; min-width: 0; height: 100%; background: transparent; border: 0; font-size: 15px; color: var(--color-foreground); }
+.inbox-capture input:focus { outline: none; }
+.inbox-search { display: flex; align-items: center; gap: 8px; max-width: 320px; height: 34px; margin: 16px 0 0; padding: 0 10px; border-radius: 9px; color: var(--color-muted-foreground); background: color-mix(in srgb, var(--color-muted) 35%, transparent); }
+.inbox-search input { flex: 1; min-width: 0; background: transparent; border: 0; font-size: 13px; color: var(--color-foreground); }
+.inbox-search input:focus { outline: none; }
+.inbox-card { margin-top: 18px; padding: clamp(20px, 4vw, 36px); border-radius: 20px; border: 1px solid var(--color-border); background: linear-gradient(160deg, color-mix(in srgb, var(--color-primary) 6%, var(--color-card)), var(--color-card) 55%); animation: inbox-in .35s cubic-bezier(.2, .8, .2, 1); }
+@keyframes inbox-in { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: none; } }
+.inbox-card-top { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--color-muted-foreground); }
+.inbox-card-title { margin-top: 14px; font-size: clamp(22px, 3vw, 30px); font-weight: 650; line-height: 1.25; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.inbox-card-body { margin-top: 10px; max-height: 180px; overflow-y: auto; white-space: pre-wrap; font-size: 15px; line-height: 1.6; color: var(--color-muted-foreground); overflow-wrap: anywhere; }
+.inbox-question { margin: 26px 0 12px; font-size: 13px; color: var(--color-muted-foreground); }
+.inbox-decisions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.inbox-decision { position: relative; display: flex; align-items: center; gap: 12px; min-height: 64px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--color-border); text-align: left; background: var(--color-card); transition: transform .15s, border-color .15s, background .15s; }
+.inbox-decision:hover { transform: translateY(-1px); border-color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 7%, var(--color-card)); }
+.inbox-decision:disabled { opacity: .5; transform: none; }
+.inbox-decision > svg { flex-shrink: 0; color: var(--color-primary); }
+.inbox-decision.is-muted > svg { color: var(--color-muted-foreground); }
+.inbox-decision.is-go > svg { color: var(--color-money); }
+.inbox-decision.is-go:hover { border-color: var(--color-money); background: color-mix(in srgb, var(--color-money) 8%, var(--color-card)); }
+.inbox-decision strong { display: block; font-size: 14px; font-weight: 600; }
+.inbox-decision small { display: block; font-size: 12px; color: var(--color-muted-foreground); }
+.inbox-decision kbd, .inbox-card-foot kbd { margin-left: auto; font: inherit; font-size: 10px; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--color-border); color: var(--color-muted-foreground); }
+.inbox-card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 14px; }
+.inbox-card-foot button { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 8px; border-radius: 8px; font-size: 12px; color: var(--color-muted-foreground); }
+.inbox-card-foot button:hover { color: var(--color-foreground); background: color-mix(in srgb, var(--color-muted) 45%, transparent); }
+.inbox-step { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; animation: inbox-in .25s ease; }
+.inbox-step label { font-size: 13px; color: var(--color-muted-foreground); }
+.inbox-step input { height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--color-primary); background: var(--color-background); font-size: 16px; color: var(--color-foreground); }
+.inbox-step input:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent); }
+.inbox-step .task-sheet-tokens { margin-top: 0; min-height: 22px; }
+.inbox-step .task-sheet-tokens .is-muted { color: var(--color-muted-foreground); background: color-mix(in srgb, var(--color-muted) 50%, transparent); }
+.inbox-step-hint { font-size: 12px; color: var(--color-muted-foreground); }
+.inbox-step-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.inbox-zero { position: relative; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 18px; padding: 56px 20px; border-radius: 20px; text-align: center; color: var(--color-money); overflow: hidden; border: 1px dashed color-mix(in srgb, var(--color-money) 35%, transparent); }
+.inbox-zero h2 { font-size: 24px; font-weight: 650; color: var(--color-foreground); }
+.inbox-zero p { max-width: 380px; font-size: 14px; color: var(--color-muted-foreground); }
+.inbox-zero-orb { position: absolute; width: 360px; height: 360px; top: -180px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--color-money) 18%, transparent), transparent 70%); pointer-events: none; }
+.inbox-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 48px 16px; color: var(--color-muted-foreground); text-align: center; }
+.inbox-empty h2 { font-size: 18px; color: var(--color-foreground); }
+.inbox-list { margin-top: 12px; }
+.inbox-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent); }
+.inbox-row-main { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 12px; min-height: 48px; padding: 8px 4px; text-align: left; }
+.inbox-row-main:hover .inbox-row-title { color: var(--color-primary); }
+.inbox-row-title { flex: 1; min-width: 0; font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-row-meta { flex-shrink: 0; font-size: 12px; color: var(--color-muted-foreground); }
+@media (max-width: 700px) {
+  .inbox-head h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .inbox-head-actions { margin-left: 0; width: 100%; justify-content: space-between; }
+  .inbox-decisions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .inbox-decision { min-height: 72px; padding: 10px; gap: 8px; }
+  .inbox-decision kbd, .inbox-card-foot kbd { display: none; }
+  .inbox-search { max-width: none; }
+}
+@media (prefers-reduced-motion: reduce) { .inbox-card, .inbox-step { animation: none; } }
+.task-waiting { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; padding: 0 7px; border-radius: 999px; line-height: 18px; font-size: 11px; color: hsl(38 92% 62%); background: hsl(38 92% 55% / .12); }
+.light .task-waiting { color: hsl(30 80% 35%); }
+.task-pill-bare { width: 96px; background: transparent; border: 0; font-size: 12px; color: inherit; }
+.task-pill-bare:focus { outline: none; width: 140px; }
