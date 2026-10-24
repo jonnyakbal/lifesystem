@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { DeadlineCell, TaskWorkspaceTable, type TaskCellPatch } from '@/components/tasks/task-workspace-table';
-import { TaskRichDates } from '@/components/tasks/task-rich-dates';
+import { TaskRichDates, type CalendarMode } from '@/components/tasks/task-rich-dates';
 import { TaskFocus } from '@/components/tasks/task-focus-load';
 import { TaskRelationships } from '@/components/tasks/task-relationships';
 import { TaskDeleteDialog } from '@/components/task-delete-dialog';
@@ -11,7 +11,7 @@ import { PlanningWorkspace } from '@/components/planning-workspace';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
   Plus, CheckCircle2, Circle, Trash2, Search, Copy,
-  CalendarDays, X, Tag,
+  X, Tag,
   MoreHorizontal, ListChecks, Subtitles, CheckSquare, Square,
   Save, SlidersHorizontal, Bookmark, Layers, Rows3, Calendar,
   ArrowRight, Repeat, Edit2, Crosshair
@@ -95,8 +95,8 @@ interface Pillar {
   color?: string;
 }
 
-type ViewMode = 'kanban' | 'list' | 'week' | 'calendar' | 'focus';
-const VIEW_MODES: ViewMode[] = ['kanban', 'list', 'week', 'calendar', 'focus'];
+type ViewMode = 'kanban' | 'list' | 'calendar' | 'focus';
+const VIEW_MODES: ViewMode[] = ['kanban', 'list', 'calendar', 'focus'];
 
 // Lightweight shapes for the two other entity types the unified calendar
 // overlays alongside Task — just enough fields to plot + link out, not a
@@ -200,6 +200,8 @@ export default function TasksPage() {
   // View state
   const [deletionTask, setDeletionTask] = useState<Task | null>(null);
   const [view, setView] = useState<ViewMode>('list');
+  const [calendarMode, setCalendarMode] = useState<CalendarMode>('month');
+  const [showAgenda, setShowAgenda] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
   const [collapsedColumns, setCollapsedColumns] = useState(new Set<string>());
   const [quickAddBusy, setQuickAddBusy] = useState(false);
@@ -352,7 +354,7 @@ export default function TasksPage() {
 
   function applyView(v: SavedView) {
     setActiveViewId(v.id);
-    setView(VIEW_MODES.includes(v.view) ? v.view : 'list');
+    setView(VIEW_MODES.includes(v.view) ? v.view : (v.view as string) === 'week' ? 'calendar' : 'list');
     setGroupBy(v.groupBy);
     setSortBy(v.sortBy);
     setSearch(v.search);
@@ -915,7 +917,9 @@ export default function TasksPage() {
   }
 
   function renderDates() {
-    return <TaskRichDates month={calendarMonth} onMonth={setCalendarMonth} tasks={sortedTasks} stages={stages} projects={projects} content={linkedContent} financial={calendarFinancial} busyIds={busyTasks} onPatch={handleQuickPatch}
+    return <TaskRichDates mode={calendarMode} onMode={setCalendarMode} agenda={showAgenda} onAgenda={setShowAgenda}
+      agendaView={<PlanningWorkspace embedded onOpenTask={(_id, task) => { setTasks(current => current.map(item => item.id === task.id ? task : item)); openEdit(task); }} refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} />}
+      month={calendarMonth} onMonth={setCalendarMonth} tasks={sortedTasks} stages={stages} projects={projects} content={linkedContent} financial={calendarFinancial} busyIds={busyTasks} onPatch={handleQuickPatch}
       onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }}
       onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }}
       onCreate={date => { openCreate(); setNewDueDate(date); }} />;
@@ -950,7 +954,6 @@ export default function TasksPage() {
             {[
               { id: 'kanban' as const, icon: Layers, label: 'Quadro Kanban' },
               { id: 'list' as const, icon: Rows3, label: 'Lista' },
-              { id: 'week' as const, icon: CalendarDays, label: 'Semana' },
               { id: 'calendar' as const, icon: Calendar, label: 'Calendário' },
               { id: 'focus' as const, icon: Crosshair, label: 'Foco' },
             ].map(v => (
@@ -1100,7 +1103,6 @@ export default function TasksPage() {
         <motion.div variants={fade}>
           {view === 'kanban' && renderKanban()}
           {view === 'list' && renderList()}
-          {view === 'week' && <><PlanningWorkspace embedded onOpenTask={(_id, task) => { setTasks(current => current.map(item => item.id === task.id ? task : item)); openEdit(task); }} refreshKey={tasks.map(task => task.id + task.updatedAt).join(',')} onTasksChanged={() => void loadTasks()} /></>}
           {view === 'calendar' && renderDates()}
           {view === 'focus' && <TaskFocus allTasks={tasks} tasks={sortedTasks} stages={stages} projects={projects} pillars={pillars} busyIds={busyTasks} onCreate={openCreate} onPatch={handleQuickPatch} onOpen={id => { const task = tasks.find(item => item.id === id); if (task) openEdit(task); }} onComplete={id => { const task = tasks.find(item => item.id === id); if (task) void handleToggleDone(task); }} />}
         </motion.div>

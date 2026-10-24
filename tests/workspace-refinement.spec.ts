@@ -82,7 +82,9 @@ test('cinco telas com dados sintéticos permanecem utilizáveis em desktop e mob
 
  test('semana integrada preserva criação por pilar', async ({ page }) => {
   await page.goto('/tarefas');
-  await page.getByRole('button', { name: 'Visualização: Semana', exact: true }).click();
+  await page.getByRole('button', { name: 'Visualização: Calendário', exact: true }).click();
+  await page.getByRole('button', { name: 'Semana', exact: true }).click();
+  await page.getByRole('button', { name: 'Agenda', exact: true }).click();
   await page.getByRole('button', { name: 'Criar por pilar', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Fechar ritual', exact: true })).toBeVisible();
  });

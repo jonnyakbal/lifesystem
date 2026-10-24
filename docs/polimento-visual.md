@@ -232,7 +232,13 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
    - Quadro: card de ~3 linhas (círculo, título até 2 linhas, ⋯ no hover; prazo · projeto · tags · checklist · ícones; prioridade só se ≠ Normal). Sem caixa na coluna, sem "x atrasadas · y urgentes"/barra; atrasadas viram um número vermelho no cabeçalho. Concluída começa recolhida; colunas vazias estreitas. Etapa segue acessível por teclado (select oculto) e pelo ⋯.
    - Lista: linha única (círculo de concluir à esquerda, título, 📝 se tem nota, tags); colunas Projeto · Prazo · Prioridade; Status some quando agrupado por status (mover pelo ⋯ "Mover para…"); Checklist só aparece se alguma tarefa tiver. "Normal"/"Sem projeto" invisíveis até o hover. Seleção e ⋯ aparecem no hover. Sem a faixa "8 tarefas · edição por campo"; Colunas virou ícone no cabeçalho.
    - Celular: campos mantêm 16px (sem zoom do iOS), só desenhados menores.
-3. [ ] Semana + Calendário (T4, T5)
+3. [x] Semana + Calendário (T4, T5) — 24/10, branch, não publicado.
+   - Uma visão só, "Calendário", com Semana | Mês. Abas de Tarefas agora: Quadro · Lista · Calendário · Foco.
+   - Semana: 7 colunas só com tarefas pelo prazo; hoje destacado; ‹ › e Hoje; + por dia. Saíram jornada, capacidade, ritmo, contagens, fuso, lembretes e a fila de dias duplicada.
+   - Mês: tarefas legíveis com círculo de concluir, atrasadas em vermelho, prioridade na borda; clicar no vazio do dia cria tarefa com aquela data; número do dia abre o detalhe embaixo (sem painel lateral cortado); "semana" abre a semana daquele dia.
+   - Arrastar tarefa para outro dia muda o prazo (Semana e Mês); tarefa com bloco de horário não move (continua em Planejar).
+   - Botão "Agenda" (desligado por padrão): na Semana mostra a agenda completa com Google; no Mês mostra conteúdo e contas.
+   - Sem prazo virou uma linha recolhível. Celular: mês vira mapa com barrinhas; tocar no dia mostra a lista.
 4. [ ] Painel da tarefa + criação rápida (T9)
 5. [ ] Modo Foco imersivo (T7)
 

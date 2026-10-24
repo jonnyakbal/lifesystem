@@ -20,7 +20,9 @@ test('semana de Tarefas usa agenda integrada, intervalos reais e seletor móvel'
   ] }));
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/tarefas');
-  await page.getByRole('button', { name: 'Visualização: Semana', exact: true }).click();
+  await page.getByRole('button', { name: 'Visualização: Calendário', exact: true }).click();
+  await page.getByRole('button', { name: 'Semana', exact: true }).click();
+  await page.getByRole('button', { name: 'Agenda', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Sua semana' })).toBeVisible();
   await expect(page.getByText('10h sem blocos · 08:00–20:00')).toBeVisible();
   await page.screenshot({ path: 'screenshots/agenda-unified-desktop.png' });

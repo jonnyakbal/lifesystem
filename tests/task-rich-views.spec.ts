@@ -42,11 +42,12 @@ test('calendário revela todas as tarefas do dia e cria com o prazo escolhido', 
 });
 
 test('semana abre os detalhes sem reservar horário ou concluir', async ({ page, request }) => {
-  const task = await create(request, 'Detalhes na semana');
+  const task = await create(request, 'Detalhes na semana', { dueDate: await page.evaluate(() => new Date().toLocaleDateString('en-CA')) });
   try {
     await page.goto('/tarefas');
-    await page.getByRole('button', { name: 'Visualização: Semana' }).click();
-    await page.getByRole('region', { name: 'Planejamento integrado' }).getByRole('button', { name: task.title, exact: true }).click();
+    await page.getByRole('button', { name: 'Visualização: Calendário' }).click();
+    await page.getByRole('button', { name: 'Semana', exact: true }).click();
+    await page.getByRole('button', { name: task.title, exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Editar Tarefa' })).toBeVisible();
     const saved = await (await request.get(`/api/tasks/${task.id}`)).json();
     expect(saved.status).toBe('todo'); expect(saved.planning).toBeUndefined();
@@ -83,6 +84,7 @@ test('calendário filtra vínculos e protege prazo com bloco reservado', async (
     await page.goto('/tarefas');
     await page.getByRole('button', { name: 'Visualização: Calendário' }).click();
     await page.getByLabel('Mês do calendário').fill('2027-01');
+    await page.getByRole('button', { name: 'Agenda', exact: true }).click();
     await page.getByRole('button', { name: 'Ver dia 12/01/2027', exact: true }).click();
     const day = page.getByRole('region', { name: 'Detalhes do dia' });
     await expect(day.getByRole('link', { name: 'Conteúdo · Vínculo de conteúdo QA' })).toBeVisible();
@@ -132,14 +134,16 @@ test('visões ricas são utilizáveis em desktop e celular, claro e escuro', asy
       await page.goto('/tarefas');
       await page.getByPlaceholder('Buscar tarefas...').fill('Rico QA');
       await page.evaluate(t => { document.documentElement.classList.remove('light', 'dark'); document.documentElement.classList.add(t); }, theme);
-      for (const [label, slug] of [['Quadro Kanban', 'kanban'], ['Calendário', 'calendar'], ['Semana', 'week']]) {
+      for (const [label, slug] of [['Quadro Kanban', 'kanban'], ['Calendário', 'calendar'], ['Calendário', 'week']]) {
         await page.getByRole('button', { name: `Visualização: ${label}`, exact: true }).click();
+        if (slug === 'calendar') await page.getByRole('button', { name: 'Mês', exact: true }).click();
         if (slug === 'calendar') await page.getByLabel('Mês do calendário').fill('2027-01');
         if (slug === 'calendar') await page.getByRole('button', { name: 'Ver dia 12/01/2027', exact: true }).click();
         if (slug === 'kanban') await expect(page.getByRole('combobox', { name: `Etapa no quadro de ${tasks[0].title}` })).toBeVisible();
         if (slug === 'week') {
-          await expect(page.getByRole('region', { name: 'Distribuição semanal' })).toBeVisible();
-          await expect(page.getByRole('region', { name: 'Planejamento integrado' }).getByRole('button', { name: tasks[2].title, exact: true })).toBeVisible();
+          await page.getByRole('button', { name: 'Semana', exact: true }).click();
+          await page.getByText('Sem prazo', { exact: false }).first().click();
+          await expect(page.getByRole('button', { name: tasks[2].title, exact: true })).toBeVisible();
         }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
         await page.evaluate(() => { if (document.activeElement instanceof HTMLElement) document.activeElement.blur(); window.scrollTo(0, 0); });
