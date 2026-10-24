@@ -15,20 +15,14 @@ import { PilaresContent } from '@/components/pilares-content';
 import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { apiFetch, showError } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
+import { DEFAULT_STAGES } from '@/lib/default-stages';
+import type { Project, StageConfig, StageDef } from '@/types';
 
 interface VisionDocument {
   id: string;
   section: string;
   title: string;
   content: string;
-}
-
-interface Project {
-  id: string;
-  name: string;
-  status: 'active' | 'development' | 'paused' | 'idea';
-  createdAt: string;
-  updatedAt?: string;
 }
 
 const defaultSections = [
@@ -77,12 +71,21 @@ function VisaoWorkspace() {
   const [isSaving, setIsSaving] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [projectStages, setProjectStages] = useState<StageDef[]>(DEFAULT_STAGES.projects);
   const [isLoading, setIsLoading] = useState(true);
   const [visionError, setVisionError] = useState('');
   const [projectsError, setProjectsError] = useState('');
   const [projectsLoading, setProjectsLoading] = useState(true);
 
-  useEffect(() => { loadDocuments(); loadProjects(); }, []);
+  useEffect(() => {
+    loadDocuments();
+    loadProjects();
+    void apiFetch<StageConfig>('/api/stage-configs/projects')
+      .then(config => {
+        if (Array.isArray(config?.stages)) setProjectStages(config.stages);
+      })
+      .catch(() => { /* Default labels and neutral fallbacks keep the plan readable. */ });
+  }, []);
 
   useEffect(() => {
     const doc = documents.find(d => d.section === activeSection);
@@ -328,12 +331,16 @@ function VisaoWorkspace() {
                 ) : (
                   <div className="space-y-3">
                     {projects.map((project, index) => {
+                      const stage = projectStages.find(item => item?.id === project.status);
                       const statusConfig = {
-                        active: { label: 'Ativo', color: 'bg-money', textColor: 'text-money', borderColor: 'border-money/30' },
-                        development: { label: 'Desenvolvimento', color: 'bg-primary', textColor: 'text-primary', borderColor: 'border-primary/30' },
-                        paused: { label: 'Pausado', color: 'bg-critical', textColor: 'text-critical', borderColor: 'border-critical/30' },
-                        idea: { label: 'Ideia', color: 'bg-muted-foreground', textColor: 'text-muted-foreground', borderColor: 'border-muted-foreground/30' },
-                      }[project.status];
+                        label: stage?.label || project.status || 'Sem etapa',
+                        color: stage?.dot || 'bg-muted-foreground',
+                        textColor: stage?.color || 'text-muted-foreground',
+                        borderColor: project.status === 'active' ? 'border-money/30'
+                          : project.status === 'development' ? 'border-primary/30'
+                            : project.status === 'paused' ? 'border-critical/30'
+                              : 'border-muted-foreground/30',
+                      };
 
                       const startDate = new Date(project.createdAt);
                       const endDate = project.status === 'active' || project.status === 'development' 

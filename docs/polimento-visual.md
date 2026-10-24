@@ -193,6 +193,14 @@ Proposta (a validar) — estilo Linear/Things/Notion:
 ### T8 — Carga: REMOVER
 **Decisão do Jonny:** visão Carga é inútil → sai das abas de Tarefas (código, testes e CSS dela também).
 
+## Visão — erro de carregamento (22/10/2026)
+
+- Print recebido: `/visao` cai no error boundary com `Cannot read properties of undefined (reading 'borderColor')`.
+- Causa confirmada no código e reproduzida com dados fictícios: a timeline indexava quatro estados fixos, embora `ProjectStatus` aceite etapas configuráveis. Uma etapa terminal/personalizada ou removida deixava a apresentação indefinida.
+- Correção funcional local, separada do polimento visual: usar o tipo compartilhado de Projeto, consultar as etapas cadastradas e garantir rótulo/cores neutros para etapas desconhecidas ou vazias. Não migra nem modifica projetos existentes. A branch continua `feat/polimento-tarefas`, sem merge/deploy.
+- Regressões em `tests/vision-project-stages.spec.ts`: etapas terminais/personalizadas/removidas, configuração indisponível, rótulo renomeado e navegação mobile entre Plano/Pilares. Teste falhou com o mesmo TypeError antes da correção; depois, 13 testes de Visão/Cultivar passaram (2.3m, zero retries) em cópia de código isolada, Chrome local e dados sintéticos. Tipos e lint dos arquivos alterados passaram. Build de produção webpack aprovado; os três cenários novos também passaram contra `next start`, com login sintético e middleware ativos (36.1s, zero retries).
+- Observação independente: testes existentes do Diário com relógio fixado em setembro emitiram aviso de hidratação por diferença com a data SSR de outubro, mas passaram. Não é o erro de `borderColor`; revisar separadamente se persistir sem relógio de teste. Playwright Chromium não estava instalado nesta máquina; QA usou Chrome instalado, sem baixar dependências.
+
 ## Próximas telas
 - Hoje / Visão
 - Planejar
