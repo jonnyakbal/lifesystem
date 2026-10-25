@@ -199,7 +199,7 @@ export default function TasksPage() {
 
   // View state
   const [deletionTask, setDeletionTask] = useState<Task | null>(null);
-  const [view, setView] = useState<ViewMode>('list');
+  const [view, setView] = useState<ViewMode>(() => { const requested = searchParams.get('view') as ViewMode | null; return requested && VIEW_MODES.includes(requested) ? requested : 'list'; });
   const [calendarMode, setCalendarMode] = useState<CalendarMode>('month');
   const [showAgenda, setShowAgenda] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
@@ -263,7 +263,7 @@ export default function TasksPage() {
   const [newRecurringFrequency, setNewRecurringFrequency] = useState<RecurringFrequency>('daily');
   const [moreOpen, setMoreOpen] = useState(false);
   const [newWaitingFor, setNewWaitingFor] = useState('');
-  const [focusTaskId, setFocusTaskId] = useState<string | null>(null);
+  const [focusTaskId, setFocusTaskId] = useState<string | null>(() => searchParams.get('view') === 'focus' ? searchParams.get('open') : null);
   const editorBaseline = useRef('');
 
   // Quick add
@@ -301,7 +301,8 @@ export default function TasksPage() {
     if (!openId || tasks.length === 0) return;
     const task = tasks.find(t => t.id === openId);
     if (task) {
-      openEdit(task);
+      // Vindo do Hoje com "Focar": abre a tarefa no Foco, não no editor.
+      if (searchParams.get('view') !== 'focus') openEdit(task);
       const remaining = new URLSearchParams(searchParams.toString()); remaining.delete('open');
       router.replace(`/tarefas${remaining.size ? `?${remaining}` : ''}`, { scroll: false });
     }

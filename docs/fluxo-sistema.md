@@ -73,7 +73,7 @@ Captura vira **global**: botão fixo + tecla (ex. `Q`) em qualquer tela, sempre 
    - Caixa zerada vira uma tela de recompensa com atalho para Hoje. Modo Lista mantém a busca e a visão de tudo.
    - API: `POST /api/captures/:id/convert` aceita `task` (title, dueDate, priority, projectId, tags, waitingFor, doneNow). Schema de tarefa aceita `waitingFor`.
 2. [x] Navegação por etapa (24/10, branch): Agora · Capturar · Organizar sempre visíveis; Áreas · Refletir · Sistema recolhíveis. Contador da Caixa no menu. Pilares seguem como aba de Visão (em Refletir).
-3. [ ] Hoje enxuto (3 prioridades + agenda + começar Foco; sem Aguardando/backlog)
+3. [x] Hoje enxuto (24/10, branch): 3 prioridades (urgente → importante → normal, atrasadas primeiro), "Também para hoje" compacto, Aguardando fora (só um atalho), agenda + metas + diário na lateral, Começar Foco abre /tarefas?view=focus na prioridade 1.
 4. [ ] Revisão semanal guiada de segunda (caixa → calendário → projetos sem próxima ação → aguardando → backlog → 3 prioridades)
 5. [ ] Projetos com próxima ação obrigatória (alerta)
 6. [ ] Pilares → Áreas (página da área com projetos, tarefas, metas, notas)
