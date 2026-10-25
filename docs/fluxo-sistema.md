@@ -77,8 +77,8 @@ Captura vira **global**: botão fixo + tecla (ex. `Q`) em qualquer tela, sempre 
 4. [x] Revisão semanal guiada (24/10, branch): Caixa → Atrasadas (amanhã/+7/backlog) → Projetos sem próxima ação (cria a ação ali) → Aguardando → Backlog (entra na semana?) → Direção (metas + visão) → Pronto. Hoje mostra "Revisão semanal pendente" a partir de segunda até concluir. Cabeçalho de 1 linha.
 5. [x] Projetos com próxima ação (24/10, branch): card mostra a próxima ação (tarefa aberta mais prioritária, sem Aguardando), progresso e aguardando; ativo/desenvolvimento sem próxima ação fica em destaque com campo para criar o passo. Cabeçalho de 1 linha com "N sem próxima ação".
 6. [x] Pilares → Áreas (24/10, branch): rota /areas com um card por pilar (próxima ação, atrasadas, abertas, feitas na semana, metas, aguardando) e página da área (?id=) com próximas ações, aguardando, projetos, metas e editais. Edição de pilares segue em Visão → Pilares.
-7. [~] Notas no modelo CODE (24/10, branch, **sem testes Playwright nem prints ainda**): filtro Capturada/Destilada/Usada no cabeçalho, "Destilar a essência…" (1–3 linhas, aparece no card), "Virar conteúdo" e "Marcar como usada" no menu da nota. Campos novos `codeStage` e `essence` na captura. Falta: QA visual, testes e cabeçalho final.
-8. [ ] Visão geral como painel do ciclo
+7. [x] Notas no modelo CODE (25/10, branch): filtro Capturada/Destilada/Usada, "Destilar a essência…" (aparece no card), "Virar conteúdo" (cria ideia em Conteúdo e marca usada), "Marcar como usada"; cards sem faixa vazia; campos `codeStage` e `essence`.
+8. [x] Visão geral como painel do ciclo (25/10, branch): 5 passos (Capturar, Organizar, Agir, Aguardando, Revisar) com número, cor e atalho; abaixo captura rápida, Próximos passos (+ caixa), Financeiro, Projetos com próxima ação e Diário. Saíram métricas repetidas, Pilares e Conteúdo.
 
 ## Perguntas originais
 

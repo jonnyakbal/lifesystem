@@ -39,8 +39,7 @@ test('mobile oferece destinos cotidianos, captura e menu agrupado sem transborda
 
 test('hero oferece caminhos pertinentes entre áreas com links nativos', async ({ page }) => {
   await page.goto('/financeiro');
-  const hero = page.locator('.work-heading').first();
-  const paths = hero.getByRole('navigation', { name: 'Continue pelo seu espaço' });
+  const paths = page.getByRole('navigation', { name: 'Continue pelo seu espaço' });
   await expect(paths.getByRole('link', { name: 'Planejar' })).toHaveAttribute('href', '/planejar');
   await expect(paths.getByRole('link', { name: 'Metas' })).toHaveAttribute('href', '/indicadores');
   await paths.getByRole('link', { name: 'Planejar' }).click();

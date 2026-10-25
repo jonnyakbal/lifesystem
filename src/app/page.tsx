@@ -2,17 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Calendar, CheckSquare, Inbox, Layers, Plus, RefreshCw, Wallet, BookOpen, FolderKanban, Newspaper } from 'lucide-react';
+import { ArrowRight, Calendar, CheckSquare, Inbox, Plus, RefreshCw, Wallet, BookOpen, FolderKanban } from 'lucide-react';
 import { apiFetch, showError } from '@/lib/api';
 import { cn, todayStr } from '@/lib/utils';
 import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { summarizeFinancialMonth } from '@/lib/financial-period';
-import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import type { Task, Capture, FinancialEntry, JournalEntry, Project, Pillar, Indicator, Content, Budget, StageDef } from '@/types';
 
@@ -24,7 +21,6 @@ interface DashboardData {
 }
 const empty: DashboardData = { tasks: [], captures: [], financial: [], journal: [], projects: [], pillars: [], indicators: [], content: [], budgets: [] };
 const sourceLabels: Record<string, string> = { tasks: 'Tarefas', captures: 'Caixa de entrada', financial: 'Financeiro', journal: 'Diário', projects: 'Projetos', pillars: 'Pilares', indicators: 'Metas', content: 'Conteúdo', budgets: 'Orçamentos', taskStages: 'Etapas de tarefas', projectStages: 'Etapas de projetos' };
-const stageLabels: Record<string, string> = { idea: 'Ideias', draft: 'Roteiros', review: 'Em produção', scheduled: 'Agendados', published: 'Publicados', archived: 'Arquivados' };
 const moods: Record<string, string> = { great: 'Ótimo', good: 'Bom', neutral: 'Neutro', bad: 'Ruim', terrible: 'Péssimo' };
 const money = (value: number) => `R$ ${value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })}`;
 
@@ -47,6 +43,8 @@ export default function HomePage() {
   const [quickTitle, setQuickTitle] = useState('');
   const [adding, setAdding] = useState(false);
   const saving = useRef(false);
+  const [reviewAge, setReviewAge] = useState<number | null>(null);
+  useEffect(() => { queueMicrotask(() => { try { const last = localStorage.getItem('lifesystem-last-weekly-review'); if (last) setReviewAge(Math.max(0, Math.floor((Date.now() - new Date(last).getTime()) / 86400000))); } catch { /* sem armazenamento */ } }); }, []);
   const loadAll = useCallback(async () => {
     setLoading(true);
     const results = await Promise.allSettled(sources.map(async source => {
@@ -101,26 +99,45 @@ export default function HomePage() {
     finally { saving.current = false; setAdding(false); }
   }
 
-  return <div className="work-page mx-auto max-w-[1600px] space-y-6 p-4 pb-24 lg:p-8">
-    <WorkspaceHeading eyebrow="Seu espaço" title="Seu dia em órbita" description={loading ? 'Seu próximo passo começa aqui.' : new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} actions={<><Button asChild><Link href="/hoje"><Calendar className="h-4 w-4" />Abrir meu dia</Link></Button><Button variant="outline" asChild><Link href="/planejar">Planejar semana<ArrowRight className="h-4 w-4" /></Link></Button></>}>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <WorkspaceMetric label="Para hoje" value={loading || unavailableTasks ? '—' : dueToday.length} detail="Próximos passos" tone="primary" />
-        <WorkspaceMetric label="Para decidir" value={loading || failed('captures') ? '—' : queue.length} detail="Na caixa de entrada" />
-        <WorkspaceMetric label="Em andamento" value={loading || unavailableProjects ? '—' : activeProjects.length} detail="Projetos em movimento" />
-        <WorkspaceMetric label="Para replanejar" value={loading || unavailableTasks ? '—' : overdue.length} detail="Prazos anteriores a hoje" tone={overdue.length ? 'warning' : 'default'} />
-      </div>
-    </WorkspaceHeading>
+  const open = activeTasks.filter(task => !task.waitingFor);
+  const waiting = activeTasks.filter(task => task.waitingFor);
+  const backlog = open.filter(task => !task.dueDate);
+  const nextSteps = [...overdue.filter(task => !task.waitingFor), ...dueToday.filter(task => !task.waitingFor)];
+  const stalled = activeProjects.filter(project => !open.some(task => task.projectId === project.id));
+  const cycle = [
+    { key: 'capturar', step: '1', title: 'Capturar', value: queue.length, unit: queue.length === 1 ? 'item para esclarecer' : 'itens para esclarecer', href: '/inbox', action: queue.length ? 'Esclarecer' : 'Caixa zerada', tone: queue.length ? 'attention' : 'ok', unavailable: failed('captures') },
+    { key: 'organizar', step: '2', title: 'Organizar', value: stalled.length, unit: stalled.length === 1 ? 'projeto sem próxima ação' : 'projetos sem próxima ação', detail: backlog.length ? `${backlog.length} no backlog` : undefined, detailTone: 'muted', href: '/projetos', action: stalled.length ? 'Definir próximos passos' : 'Tudo com próximo passo', tone: stalled.length ? 'attention' : 'ok', unavailable: unavailableProjects || unavailableTasks },
+    { key: 'agir', step: '3', title: 'Agir', unit: dueToday.length === 1 ? 'para hoje' : 'para hoje', value: dueToday.length, detail: overdue.length ? `+ ${overdue.length} atrasada${overdue.length > 1 ? 's' : ''}` : undefined, detailTone: 'late', href: '/hoje', action: 'Abrir o dia', tone: overdue.length ? 'late' : 'neutral', unavailable: unavailableTasks },
+    { key: 'aguardando', step: '4', title: 'Aguardando', value: waiting.length, unit: waiting.length === 1 ? 'com outra pessoa' : 'com outras pessoas', href: '/tarefas', action: 'Ver quem', tone: 'neutral', unavailable: unavailableTasks },
+    { key: 'revisar', step: '5', title: 'Revisar', value: reviewAge === null ? '—' : reviewAge, unit: reviewAge === null ? 'nenhuma revisão ainda' : reviewAge === 1 ? 'dia desde a revisão' : 'dias desde a revisão', href: '/revisao', action: 'Revisão semanal', tone: reviewAge === null || reviewAge > 7 ? 'attention' : 'ok', unavailable: false },
+  ];
+
+  return <div className="work-page mx-auto max-w-[1280px] space-y-6 p-4 pb-24 lg:p-8">
+    <header className="today-head">
+      <div><p className="today-date" suppressHydrationWarning>{loading ? ' ' : new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p><h1 className="font-display">Seu dia em órbita</h1></div>
+      <Button asChild className="ml-auto"><Link href="/hoje"><Calendar className="h-4 w-4" />Abrir meu dia</Link></Button>
+    </header>
     {errors.length > 0 && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/25 bg-destructive/5 p-4 text-sm"><p>Não foi possível atualizar: {errors.map(source => sourceLabels[source]).join(', ')}. As outras áreas continuam disponíveis.</p><Button variant="outline" onClick={loadAll} disabled={loading}><RefreshCw className="h-4 w-4" />Tentar novamente</Button></div>}
-    <form onSubmit={event => { event.preventDefault(); void addTask(); }} className="work-toolbar flex items-center gap-2 rounded-2xl border bg-card p-3">
-      <Plus className="ml-1 h-4 w-4 shrink-0 text-primary" /><Input aria-label="Adicionar tarefa rápida" placeholder="Adicionar tarefa rápida..." value={quickTitle} onChange={event => setQuickTitle(event.target.value)} disabled={adding || loading || errors.includes('taskStages')} className="min-w-0 border-0 bg-transparent shadow-none" />
-      <Button type="submit" disabled={!quickTitle.trim() || adding || loading || errors.includes('taskStages')} className="shrink-0">{adding ? 'Salvando…' : 'Adicionar'}</Button>
+
+    <nav className="cycle" aria-label="Ciclo do sistema">
+      {cycle.map(item => <Link key={item.key} href={item.href} className={cn('cycle-step', `is-${item.tone}`)}>
+        <span className="cycle-head"><span className="cycle-num">{item.step}</span>{item.title}</span>
+        <strong className="cycle-value">{loading || item.unavailable ? '—' : item.value}</strong>
+        <span className="cycle-unit">{item.unit}</span>
+        {item.detail && !loading && <span className={cn('cycle-detail', item.detailTone === 'muted' && 'is-muted')}>{item.detail}</span>}
+        <span className="cycle-action">{item.action}<ArrowRight className="h-3.5 w-3.5" /></span>
+      </Link>)}
+    </nav>
+
+    <form onSubmit={event => { event.preventDefault(); void addTask(); }} className="inbox-capture">
+      <Plus className="h-4 w-4" /><input aria-label="Adicionar tarefa rápida" placeholder="Adicionar tarefa rápida..." value={quickTitle} onChange={event => setQuickTitle(event.target.value)} disabled={adding || loading || errors.includes('taskStages')} />
+      <Button type="submit" size="sm" disabled={!quickTitle.trim() || adding || loading || errors.includes('taskStages')}>{adding ? 'Salvando…' : 'Adicionar'}</Button>
     </form>
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
-      <Section title="Próximos passos" href="/tarefas" icon={<CheckSquare className="h-4 w-4 text-primary" />}>
-        {loading ? <Skeleton className="h-32" /> : unavailableTasks ? <Unavailable /> : <>
-          {overdue.length > 0 && <Link href="/planejar" className="mb-3 flex min-h-11 items-center justify-between gap-2 rounded-xl bg-destructive/8 px-3 py-2 text-sm text-destructive"><span>{overdue.length} prazo{overdue.length !== 1 ? 's' : ''} para rever</span><ArrowRight className="h-4 w-4 shrink-0" /></Link>}
-          {dueToday.length ? <div className="divide-y">{dueToday.slice(0, 5).map(task => <Link key={task.id} href={`/tarefas?open=${encodeURIComponent(task.id)}`} className="group flex min-h-16 items-center gap-3 py-3"><span className={cn('h-2 w-2 shrink-0 rounded-full', task.priority === 'urgent' ? 'bg-destructive' : 'bg-primary')} /><div className="min-w-0 flex-1"><p className="text-sm font-medium group-hover:text-primary">{task.title}</p><p className="mt-1 text-xs text-muted-foreground">{stages.find(stage => stage.id === task.status)?.label || task.status}{task.projectId && ` · ${data.projects.find(project => project.id === task.projectId)?.name || 'Projeto'}`}</p></div><ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" /></Link>)}</div> : <div className="space-y-3 py-5"><p className="font-display text-2xl">Um espaço para escolher.</p><p className="text-sm text-muted-foreground">Nenhuma tarefa planejada para hoje. Reserve tempo para o que importa.</p><Link href="/planejar" className="work-action-link">Escolher tarefas para o dia<ArrowRight className="h-4 w-4" /></Link></div>}
-        </>}
+
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
+      <Section title="Próximos passos" href="/hoje" icon={<CheckSquare className="h-4 w-4 text-primary" />}>
+        {loading ? <Skeleton className="h-32" /> : unavailableTasks ? <Unavailable /> : nextSteps.length ? <div className="divide-y">{nextSteps.slice(0, 5).map(task => <Link key={task.id} href={`/tarefas?open=${encodeURIComponent(task.id)}`} className="group flex min-h-12 items-center gap-3 py-2"><span className={cn('h-2 w-2 shrink-0 rounded-full', task.priority === 'urgent' ? 'bg-destructive' : task.priority === 'important' ? 'bg-primary' : 'bg-muted-foreground/40')} /><span className="min-w-0 flex-1 truncate text-sm font-medium group-hover:text-primary">{task.title}</span>{task.dueDate && task.dueDate < today && <span className="shrink-0 text-xs text-destructive">atrasada</span>}</Link>)}{nextSteps.length > 5 && <p className="pt-2 text-xs text-muted-foreground">+{nextSteps.length - 5} no Hoje</p>}</div> : <p className="py-4 text-sm text-muted-foreground">Nada para hoje. Escolha algo do backlog ou descanse.</p>}
+        {!loading && !failed('captures') && queue.length > 0 && <div className="mt-4 border-t pt-3"><p className="mb-1 text-xs text-muted-foreground">Na caixa de entrada</p>{queue.slice(0, 3).map(capture => <Link key={capture.id} href="/inbox" className="flex min-h-9 items-center gap-2 text-sm hover:text-primary"><Inbox className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><span className="truncate">{capture.title || capture.content.replace(/<[^>]*>/g, '').trim().slice(0, 90)}</span></Link>)}</div>}
       </Section>
       <Section title="Financeiro" label="Resumo financeiro do mês" href="/financeiro" icon={<Wallet className="h-4 w-4 text-money" />}>
         {loading ? <Skeleton className="h-32" /> : failed('financial') ? <Unavailable /> : <div className="space-y-4">
@@ -130,28 +147,15 @@ export default function HomePage() {
           {!failed('budgets') && data.budgets.some(budget => budget.month === today.slice(0, 7) && budget.spent > budget.monthlyLimit) && <p className="text-xs text-destructive">Há orçamentos acima do limite. Revise no Financeiro.</p>}
         </div>}
       </Section>
-      <Section title="Caixa de entrada" href="/inbox" icon={<Inbox className="h-4 w-4 text-primary" />}>
-        {loading ? <Skeleton className="h-24" /> : failed('captures') ? <Unavailable /> : queue.length ? <div className="divide-y">{queue.slice(0, 3).map(capture => <Link key={capture.id} href="/inbox" className="group flex min-h-14 items-center justify-between gap-3 py-3"><span className="min-w-0 text-sm group-hover:text-primary">{capture.title || capture.content.replace(/<[^>]*>/g, '').trim().slice(0, 90)}</span><ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" /></Link>)}</div> : <p className="py-5 text-sm text-muted-foreground">Nada esperando uma decisão. Capture uma ideia quando surgir.</p>}
+      <Section title="Projetos em movimento" href="/projetos" icon={<FolderKanban className="h-4 w-4 text-primary" />}>
+        {loading ? <Skeleton className="h-24" /> : unavailableProjects ? <Unavailable /> : activeProjects.length ? <div className="divide-y">{activeProjects.slice(0, 5).map(project => {
+          const next = open.find(task => task.projectId === project.id);
+          return <Link key={project.id} href="/projetos" className="group flex min-h-12 items-center gap-3 py-2"><FolderKanban className="h-4 w-4 shrink-0 text-primary" /><span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium group-hover:text-primary">{project.name}</span><span className={cn('block truncate text-xs', next ? 'text-muted-foreground' : 'text-amber-400')}>{next ? `Próxima: ${next.title}` : 'Sem próxima ação'}</span></span></Link>;
+        })}</div> : <p className="py-4 text-sm text-muted-foreground">Escolha uma ideia em Projetos e dê o próximo passo.</p>}
       </Section>
       <Section title="Diário" href="/diario" icon={<BookOpen className="h-4 w-4 text-primary" />}>
-        {loading ? <Skeleton className="h-24" /> : failed('journal') ? <Unavailable /> : <><p className="mb-4 text-sm text-muted-foreground">Um momento para perceber seu caminho.</p><div className="grid grid-cols-7 gap-1">{week.map(day => <Link key={day.date} href={`/diario?date=${day.date}`} aria-label={`Diário de ${day.date}${day.entry ? ', preenchido' : ''}`} className="flex min-h-16 flex-col items-center justify-center gap-2 rounded-xl border transition-colors hover:border-primary"><span className="text-xs text-muted-foreground">{day.label}</span><span className={cn('h-2 w-2 rounded-full', day.entry ? 'bg-primary' : 'bg-muted-foreground/25')} /></Link>)}</div><p className="mt-4 text-xs text-muted-foreground">{data.journal.find(entry => entry.entryDate === today)?.mood ? `Hoje: ${moods[data.journal.find(entry => entry.entryDate === today)!.mood!] || 'registrado'}` : 'Como foi seu dia? Escolha uma data para escrever.'}</p></>}
+        {loading ? <Skeleton className="h-24" /> : failed('journal') ? <Unavailable /> : <><div className="grid grid-cols-7 gap-1">{week.map(day => <Link key={day.date} href={`/diario?date=${day.date}`} aria-label={`Diário de ${day.date}${day.entry ? ', preenchido' : ''}`} className="flex min-h-14 flex-col items-center justify-center gap-2 rounded-xl border transition-colors hover:border-primary"><span className="text-xs text-muted-foreground">{day.label}</span><span className={cn('h-2 w-2 rounded-full', day.entry ? 'bg-primary' : 'bg-muted-foreground/25')} /></Link>)}</div><p className="mt-3 text-xs text-muted-foreground">{data.journal.find(entry => entry.entryDate === today)?.mood ? `Hoje: ${moods[data.journal.find(entry => entry.entryDate === today)!.mood!] || 'registrado'}` : 'Como foi seu dia? Escolha uma data para escrever.'}</p></>}
       </Section>
     </div>
-    <div className="grid gap-5 xl:grid-cols-3">
-      <Section title="Projetos em movimento" href="/projetos" icon={<FolderKanban className="h-4 w-4 text-primary" />}>
-        {loading ? <Skeleton className="h-24" /> : unavailableProjects ? <Unavailable /> : activeProjects.length ? <div className="space-y-2">{activeProjects.slice(0, 4).map(project => <Link key={project.id} href={`/projetos?open=${encodeURIComponent(project.id)}`} className="flex min-h-14 items-center gap-3 rounded-xl border p-3 transition-colors hover:border-primary/50"><span aria-hidden="true"><FolderKanban className="h-4 w-4 text-primary" /></span><div className="min-w-0"><p className="text-sm font-medium">{project.name}</p><p className="text-xs text-muted-foreground">{projectStages.find(stage => stage.id === project.status)?.label || project.status}</p></div></Link>)}</div> : <p className="py-5 text-sm text-muted-foreground">Escolha uma ideia em Projetos e dê o próximo passo.</p>}
-      </Section>
-      <Section title="Pilares e metas" href="/visao?tab=pilares" icon={<Layers className="h-4 w-4 text-primary" />}>
-        {loading ? <Skeleton className="h-24" /> : failed('pillars') || failed('indicators') ? <Unavailable /> : data.pillars.length ? <div className="space-y-4">{[...data.pillars].sort((a, b) => a.sortOrder - b.sortOrder).map(pillar => {
-          const indicators = data.indicators.filter(indicator => indicator.pillarId === pillar.id && (indicator.targetValue || 0) > 0);
-          const progress = indicators.length ? indicators.reduce((sum, indicator) => sum + Math.max(0, Math.min(1, (indicator.currentValue || 0) / indicator.targetValue!)), 0) / indicators.length * 100 : null;
-          return <Link key={pillar.id} href={`/indicadores?pillar=${encodeURIComponent(pillar.id)}`} className="block rounded-lg py-1"><div className="mb-2 flex items-center justify-between gap-3 text-sm"><span>{pillar.icon} {pillar.name}</span><span className="shrink-0 text-xs text-muted-foreground">{progress === null ? 'Definir metas' : `${Math.round(progress)}%`}</span></div>{progress !== null && <Progress value={progress} className="h-1.5" />}</Link>;
-        })}</div> : <p className="py-5 text-sm text-muted-foreground">Defina suas áreas de vida em Visão.</p>}
-      </Section>
-      <Section title="Conteúdo" href="/conteudo" icon={<Newspaper className="h-4 w-4 text-primary" />}>
-        {loading ? <Skeleton className="h-24" /> : failed('content') ? <Unavailable /> : data.content.length ? <div className="divide-y">{Object.entries(data.content.reduce<Record<string, number>>((counts, item) => ({ ...counts, [item.stage]: (counts[item.stage] || 0) + 1 }), {})).map(([stage, count]) => <div key={stage} className="flex min-h-11 items-center justify-between text-sm"><span className="text-muted-foreground">{stageLabels[stage] || stage}</span><span className="font-mono-num">{count}</span></div>)}</div> : <div className="space-y-3 py-5"><p className="text-sm text-muted-foreground">Transforme uma referência em uma história sua.</p><Link href="/content-hub" className="work-action-link">Explorar fontes<ArrowRight className="h-4 w-4" /></Link></div>}
-      </Section>
-    </div>
-    <Link href="/revisao" className="flex min-h-16 items-center justify-between gap-4 rounded-2xl border border-dashed p-4 text-sm transition-colors hover:border-primary"><span>Revisar a semana e ajustar a direção</span><ArrowRight className="h-4 w-4 shrink-0 text-primary" /></Link>
   </div>;
 }

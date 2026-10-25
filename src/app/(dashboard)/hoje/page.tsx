@@ -215,7 +215,7 @@ export default function HojePage() {
     <motion.div className="work-page today-page mx-auto max-w-[1180px] p-4 pb-24 lg:p-8" variants={stagger} initial="initial" animate="animate">
       <header className="today-head">
         <div>
-          <p className="today-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+          <p className="today-date" suppressHydrationWarning>{loading ? ' ' : new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           <h1 className="font-display">Hoje</h1>
         </div>
         {reviewDue && <Link href="/revisao" className="today-inbox today-review"><History className="h-4 w-4" />Revisão semanal pendente</Link>}

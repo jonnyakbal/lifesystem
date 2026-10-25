@@ -1530,3 +1530,22 @@ a.project-next:hover strong { color: var(--color-primary); }
 .note-code.is-distilled { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
 .note-code.is-expressed { color: var(--color-money); background: color-mix(in srgb, var(--color-money) 12%, transparent); }
 .note-essence { font-size: 13px; line-height: 1.5; padding-left: 10px; border-left: 2px solid var(--color-primary); }
+
+/* Visão geral: o ciclo GTD em 5 passos, cada um levando à tela que resolve. */
+.cycle { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.cycle-step { position: relative; display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-card); transition: border-color .15s, transform .15s; }
+.cycle-step:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border)); }
+.cycle-step:not(:last-child)::after { content: ''; position: absolute; top: 50%; right: -9px; width: 8px; height: 1px; background: var(--color-border); }
+.cycle-head { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--color-muted-foreground); }
+.cycle-num { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; font-size: 11px; background: color-mix(in srgb, var(--color-muted) 70%, transparent); color: var(--color-foreground); }
+.cycle-value { margin-top: 6px; font-size: 32px; font-weight: 650; line-height: 1; font-variant-numeric: tabular-nums; }
+.cycle-unit { font-size: 12px; color: var(--color-muted-foreground); }
+.cycle-detail { font-size: 12px; color: var(--color-critical); }
+.cycle-action { display: inline-flex; align-items: center; gap: 6px; margin-top: auto; padding-top: 10px; font-size: 12px; color: var(--color-primary); }
+.cycle-step.is-attention { border-color: hsl(38 92% 55% / .4); }
+.cycle-step.is-attention .cycle-value { color: hsl(38 92% 62%); }
+.cycle-step.is-late .cycle-value { color: var(--color-critical); }
+.cycle-step.is-ok .cycle-value { color: var(--color-money); }
+@media (max-width: 1000px) { .cycle { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cycle-step::after { display: none; } }
+@media (max-width: 420px) { .cycle-value { font-size: 26px; } }
+.cycle-detail.is-muted { color: var(--color-muted-foreground); }
