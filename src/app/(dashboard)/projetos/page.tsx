@@ -5,8 +5,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { motion } from 'motion/react';
 import { Plus, FolderKanban, ExternalLink, Trash2, X, Link as LinkIcon, Edit2 } from 'lucide-react';
-import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
-import { Search, LayoutGrid, Layers, ArrowUpRight, Orbit } from 'lucide-react';
+import Link from 'next/link';
+import { Search, LayoutGrid, Layers, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ interface Project {
   coverColor?: string;
 }
 
+interface ProjectTask { id: string; title: string; status: string; projectId?: string; priority: string; dueDate?: string; waitingFor?: string | null }
 interface LinkedContent { id: string; title?: string; linkedProjectIds?: string[] }
 interface LinkedCapture { id: string; title?: string; content?: string; targetType?: string; targetId?: string }
 
@@ -52,6 +53,9 @@ export default function ProjectsPage() {
   const [linkedContent, setLinkedContent] = useState<LinkedContent[]>([]);
   const [linkedCaptures, setLinkedCaptures] = useState<LinkedCapture[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [projectTasks, setProjectTasks] = useState<ProjectTask[]>([]);
+  const [taskStages, setTaskStages] = useState<StageDef[]>([]);
+  const [nextDrafts, setNextDrafts] = useState<Record<string, string>>({});
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [stages, setStages] = useState<StageDef[]>([]);
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
@@ -117,6 +121,8 @@ export default function ProjectsPage() {
     try {
       const data = await apiFetch<Project[]>('/api/projects');
       setProjects(data);
+      void apiFetch<ProjectTask[]>('/api/tasks').then(setProjectTasks).catch(() => {});
+      void apiFetch<{ stages: StageDef[] }>('/api/stage-configs/tasks').then(config => setTaskStages(config.stages || [])).catch(() => {});
     } catch (err) {
       toast.error(showError(err));
     } finally {
@@ -276,18 +282,47 @@ export default function ProjectsPage() {
 
   const visibleProjects = projects.filter(project => (activeStage === 'all' || project.status === activeStage) && `${project.name} ${project.description} ${project.tags.join(' ')}`.toLocaleLowerCase('pt-BR').includes(search.toLocaleLowerCase('pt-BR')));
 
-  function projectCard(project: Project, index: number) {
-    return <article key={project.id} draggable onDragStart={event => handleDragStart(event, project.id)} onDragEnd={handleDragEnd} className={cn('work-project-card', draggedId === project.id && 'opacity-50')}>
-      <div className="work-project-art" aria-hidden="true">
-        {project.coverUrl ? <Image src={project.coverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" /> : <div className={cn('work-project-orbits bg-gradient-to-br', project.coverColor)}><span /><span /><i /><Orbit className="h-8 w-8" /></div>}
-        <span className="work-project-index">{String(index + 1).padStart(2, '0')}</span>
-        <span className="work-project-status"><span className={cn('h-1.5 w-1.5 rounded-full', getStage(project.status)?.dot)} />{getStatusLabel(project.status)}</span>
-      </div>
-      <div className="p-5">
-        <button aria-label={`Abrir projeto ${project.name}`} onClick={() => { if (!dragClickRef.current) openEdit(project); }} className="work-project-title"><span>{project.name}</span><ArrowUpRight className="h-5 w-5 shrink-0 text-primary" /></button>
-        <p className="mt-3 min-h-10 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{project.description || 'Um novo espaço para construir o que vem a seguir.'}</p>
-        <div className="mt-4 flex min-h-6 flex-wrap gap-1.5">{project.tags.slice(0, 3).map(tag => <Badge key={tag} variant="secondary" className="text-[11px] font-normal">{tag}</Badge>)}{project.tags.length > 3 && <span className="text-xs text-muted-foreground">+{project.tags.length - 3}</span>}</div>
-        {project.links.length > 0 && <div className="mt-5 flex flex-wrap gap-3 border-t border-border/50 pt-4">{project.links.slice(0, 2).map(link => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer" className="flex min-h-8 items-center gap-1.5 text-xs text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" />{link.label}</a>)}</div>}
+  // GTD: projeto ativo sem tarefa aberta (que dependa de mim) está parado.
+  const activeStatuses = new Set(['active', 'development']);
+  const terminalTaskIds = new Set(taskStages.filter(stage => stage.isTerminal).map(stage => stage.id).concat(taskStages.length ? [] : ['done']));
+  const priorityRank: Record<string, number> = { urgent: 0, important: 1, normal: 2 };
+  function projectWork(projectId: string) {
+    const items = projectTasks.filter(task => task.projectId === projectId);
+    const open = items.filter(task => !terminalTaskIds.has(task.status));
+    const mine = open.filter(task => !task.waitingFor).sort((a, b) => (priorityRank[a.priority] ?? 2) - (priorityRank[b.priority] ?? 2) || (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+    return { total: items.length, done: items.length - open.length, next: mine[0], waiting: open.length - mine.length };
+  }
+  const stalled = projects.filter(project => activeStatuses.has(project.status) && !projectWork(project.id).next);
+
+  async function addNextAction(project: Project) {
+    const title = (nextDrafts[project.id] || '').trim();
+    if (!title) return;
+    try {
+      const created = await apiFetch<ProjectTask>('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, projectId: project.id, status: taskStages.find(stage => !stage.isTerminal)?.id || 'todo', priority: 'normal' }) });
+      setProjectTasks(current => [...current, created]);
+      setNextDrafts(current => ({ ...current, [project.id]: '' }));
+      toast.success('Próxima ação definida.');
+    } catch (error) { toast.error(showError(error)); }
+  }
+
+  function projectCard(project: Project) {
+    const work = projectWork(project.id);
+    const isActive = activeStatuses.has(project.status);
+    return <article key={project.id} draggable onDragStart={event => handleDragStart(event, project.id)} onDragEnd={handleDragEnd} className={cn('work-project-card project-card', draggedId === project.id && 'opacity-50', isActive && !work.next && 'is-stalled')}>
+      {(project.coverUrl || project.coverColor) && <div className="project-card-band" aria-hidden="true">{project.coverUrl ? <Image src={project.coverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" /> : <div className={cn('h-full w-full bg-gradient-to-br', project.coverColor)} />}</div>}
+      <div className="project-card-body">
+        <div className="project-card-top"><span className="project-card-status"><span className={cn('h-1.5 w-1.5 rounded-full', getStage(project.status)?.dot)} />{getStatusLabel(project.status)}</span>{work.total > 0 && <span className="project-card-count">{work.done}/{work.total}</span>}</div>
+        <button aria-label={`Abrir projeto ${project.name}`} onClick={() => { if (!dragClickRef.current) openEdit(project); }} className="project-card-title"><span>{project.name}</span><ArrowUpRight className="h-4 w-4 shrink-0" /></button>
+        {project.description && <p className="project-card-desc">{project.description}</p>}
+        {work.total > 0 && <div className="project-card-bar" aria-hidden="true"><i style={{ width: `${work.done / work.total * 100}%` }} /></div>}
+        {work.next ? <Link href={`/tarefas?open=${encodeURIComponent(work.next.id)}`} className="project-next"><span>Próxima ação</span><strong>{work.next.title}</strong></Link>
+          : isActive ? <form className="project-next is-missing" onSubmit={event => { event.preventDefault(); void addNextAction(project); }}>
+            <span>Sem próxima ação</span>
+            <input aria-label={`Próxima ação de ${project.name}`} value={nextDrafts[project.id] || ''} onChange={event => setNextDrafts(current => ({ ...current, [project.id]: event.target.value }))} placeholder="Qual o próximo passo? Enter" onPointerDown={event => event.stopPropagation()} />
+          </form> : null}
+        {work.waiting > 0 && <p className="project-card-waiting">{work.waiting} aguardando outras pessoas</p>}
+        {project.tags.length > 0 && <div className="project-card-tags">{project.tags.slice(0, 3).map(tag => <span key={tag}>{tag}</span>)}{project.tags.length > 3 && <span>+{project.tags.length - 3}</span>}</div>}
+        {project.links.length > 0 && <div className="project-card-links">{project.links.slice(0, 2).map(link => <a key={link.url} href={link.url} target="_blank" rel="noopener noreferrer"><ExternalLink className="h-3.5 w-3.5" />{link.label}</a>)}</div>}
       </div>
     </article>;
   }
@@ -299,7 +334,10 @@ export default function ProjectsPage() {
       initial="initial"
       animate="animate"
     >
-      <WorkspaceHeading eyebrow="Seu universo em construção" title="Projetos" description="Cada projeto é uma possibilidade. Encontre seu próximo movimento." actions={<>
+      <header className="today-head">
+        <h1 className="font-display">Projetos</h1>
+        {stalled.length > 0 && <button type="button" className="today-inbox today-review" onClick={() => { setActiveStage('active'); }}>{stalled.length} sem próxima ação</button>}
+        <div className="ml-auto flex items-center gap-2">
         <Button variant="outline" size="sm" onClick={() => setStageDialogOpen(true)} title="Editar etapas" aria-label="Editar etapas">
           <Edit2 className="h-4 w-4" />
         </Button>
@@ -341,20 +379,15 @@ export default function ProjectsPage() {
             </form>
           </DialogContent>
         </Dialog>
-      </>}>
-        <div className="work-metrics">
-          <WorkspaceMetric label="Constelação" value={projects.length} detail="projetos no seu espaço" />
-          <WorkspaceMetric label="Ativos" value={projects.filter(project => project.status === 'active').length} tone="primary" detail="projetos em operação" />
-          <WorkspaceMetric label="Em desenvolvimento" value={projects.filter(project => project.status === 'development').length} detail="possibilidades tomando forma" />
         </div>
-      </WorkspaceHeading>
+      </header>
       <div className="work-project-controls">
         <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Buscar projetos" placeholder="Encontre um projeto…" value={search} onChange={event => setSearch(event.target.value)} className="h-11 pl-10" /></div>
         <div className="work-view-switch" aria-label="Visualização de projetos"><Button variant={viewMode === 'gallery' ? 'secondary' : 'ghost'} aria-pressed={viewMode === 'gallery'} onClick={() => setViewMode('gallery')}><LayoutGrid className="mr-2 h-4 w-4" />Galeria</Button><Button variant={viewMode === 'board' ? 'secondary' : 'ghost'} aria-pressed={viewMode === 'board'} onClick={() => setViewMode('board')}><Layers className="mr-2 h-4 w-4" />Quadro</Button></div>
       </div>
       <nav aria-label="Etapas dos projetos" className="work-stage-tabs"><button aria-pressed={activeStage === 'all'} onClick={() => setActiveStage('all')}>Todos <span>{projects.length}</span></button>{stages.map(stage => <button key={stage.id} aria-label={stage.label} aria-pressed={activeStage === stage.id} onClick={() => setActiveStage(stage.id)}><i className={stage.dot} />{stage.label}<span>{projects.filter(project => project.status === stage.id).length}</span></button>)}</nav>
 
-      {isLoading ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map(index => <Skeleton key={index} className="h-80 rounded-2xl" />)}</div> : viewMode === 'gallery' ? <motion.div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3" variants={stagger}>{visibleProjects.map(projectCard)}</motion.div> : <div className="work-board">{stages.map(stage => <section key={stage.id} className="work-board-column" onDragOver={handleDragOver} onDrop={event => handleDrop(event, stage.id)}><div className="mb-4 flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', stage.dot)} /><h2 className="text-sm font-semibold">{stage.label}</h2><Badge variant="secondary" className="ml-auto">{visibleProjects.filter(project => project.status === stage.id).length}</Badge></div><div className="work-board-lane space-y-4">{visibleProjects.filter(project => project.status === stage.id).map(projectCard)}</div></section>)}</div>}
+      {isLoading ? <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map(index => <Skeleton key={index} className="h-80 rounded-2xl" />)}</div> : viewMode === 'gallery' ? <motion.div className="grid items-start gap-5 md:grid-cols-2 xl:grid-cols-3" variants={stagger}>{visibleProjects.map(project => projectCard(project))}</motion.div> : <div className="work-board">{stages.map(stage => <section key={stage.id} className="work-board-column" onDragOver={handleDragOver} onDrop={event => handleDrop(event, stage.id)}><div className="mb-4 flex items-center gap-2"><span className={cn('h-2 w-2 rounded-full', stage.dot)} /><h2 className="text-sm font-semibold">{stage.label}</h2><Badge variant="secondary" className="ml-auto">{visibleProjects.filter(project => project.status === stage.id).length}</Badge></div><div className="work-board-lane space-y-4">{visibleProjects.filter(project => project.status === stage.id).map(project => projectCard(project))}</div></section>)}</div>}
       {!isLoading && visibleProjects.length === 0 && <div className="work-empty"><FolderKanban className="h-7 w-7 text-primary" /><p>Nenhum projeto nesta seleção</p><span>Experimente outra busca ou escolha uma etapa diferente.</span><Button variant="outline" onClick={() => { setSearch(''); setActiveStage('all'); }}>Limpar filtros</Button></div>}
 
       {/* Edit Modal */}
