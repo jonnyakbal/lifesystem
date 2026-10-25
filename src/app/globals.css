@@ -1475,3 +1475,4 @@ html.lenis, html.lenis body {
 .today-links { padding: 8px; }
 @media (max-width: 960px) { .today-grid { grid-template-columns: 1fr; } }
 @media (max-width: 700px) { .today-head h1 { font-size: 24px; } .today-head > a.ml-auto, .today-head > .ml-auto { width: 100%; margin-left: 0; } }
+.today-review { color: hsl(38 92% 62%); background: hsl(38 92% 55% / .12); }

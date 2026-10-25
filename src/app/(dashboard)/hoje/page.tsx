@@ -9,7 +9,7 @@ import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'motion/react';
 import {
-  CheckCircle2, Circle, Sparkles, FileText, Inbox, Crosshair, Hourglass, Wand2,
+  CheckCircle2, Circle, Sparkles, FileText, Inbox, Crosshair, Hourglass, Wand2, History,
   Wallet, BookOpen, ArrowRight, Plus, Minus, PartyPopper, Repeat,
 } from 'lucide-react';
 import type { StageDef } from '@/types';
@@ -76,6 +76,17 @@ export default function HojePage() {
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  // Revisão semanal combinada para segunda: lembrar até ela ser feita na semana.
+  const [reviewDue, setReviewDue] = useState(false);
+  useEffect(() => {
+    queueMicrotask(() => {
+      try {
+        const now = new Date(); const monday = new Date(now); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        const last = localStorage.getItem('lifesystem-last-weekly-review');
+        setReviewDue(!last || new Date(last) < monday);
+      } catch { /* sem armazenamento, sem lembrete */ }
+    });
+  }, []);
   const [configuredStages, setStages] = useState<StageDef[]>(DEFAULT_STAGES.tasks);
   const stages = resolveTaskStages(configuredStages, tasks);
   const pendingTaskIds = useRef(new Set<string>());
@@ -207,6 +218,7 @@ export default function HojePage() {
           <p className="today-date">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
           <h1 className="font-display">Hoje</h1>
         </div>
+        {reviewDue && <Link href="/revisao" className="today-inbox today-review"><History className="h-4 w-4" />Revisão semanal pendente</Link>}
         {inboxCount > 0 && <Link href="/inbox" className="today-inbox"><Inbox className="h-4 w-4" />{inboxCount} na caixa para esclarecer</Link>}
         <Button asChild className="ml-auto"><Link href={priorities[0] ? `/tarefas?view=focus&open=${encodeURIComponent(priorities[0].id)}` : '/tarefas?view=focus'}><Crosshair className="h-4 w-4" />Começar Foco</Link></Button>
       </header>

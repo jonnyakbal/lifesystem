@@ -115,7 +115,6 @@ test('revisão encaminha tarefas com horário para Planejar e ignora etapas conc
   ] }));
   await page.goto('/revisao');
   await page.getByRole('button', { name: 'Próximo', exact: true }).click();
-  await page.getByRole('button', { name: 'Próximo', exact: true }).click();
   await expect(page.getByText('Bloco sintético', { exact: true })).toBeVisible();
   await expect(page.getByText('Não está atrasada', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('link', { name: 'Replanejar Bloco sintético' })).toHaveAttribute('href', '/planejar');

@@ -49,7 +49,7 @@ test('mobile percorre captura, conversão, planejamento, conclusão e revisão',
     expect(saved.status).toBe('done');
     expect(saved.dueDate).toBe(today);
     await page.goto('/revisao');
-    for (let step = 0; step < 3; step++) await page.getByRole('button', { name: 'Próximo', exact: true }).click();
+    for (let step = 0; step < 5; step++) await page.getByRole('button', { name: 'Próximo', exact: true }).click();
     await page.getByRole('button', { name: 'Concluir revisão', exact: true }).click();
     await expect(page.getByText('Revisão concluída!', { exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(360);
