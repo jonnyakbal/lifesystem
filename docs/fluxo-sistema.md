@@ -76,7 +76,7 @@ Captura vira **global**: botão fixo + tecla (ex. `Q`) em qualquer tela, sempre 
 3. [x] Hoje enxuto (24/10, branch): 3 prioridades (urgente → importante → normal, atrasadas primeiro), "Também para hoje" compacto, Aguardando fora (só um atalho), agenda + metas + diário na lateral, Começar Foco abre /tarefas?view=focus na prioridade 1.
 4. [x] Revisão semanal guiada (24/10, branch): Caixa → Atrasadas (amanhã/+7/backlog) → Projetos sem próxima ação (cria a ação ali) → Aguardando → Backlog (entra na semana?) → Direção (metas + visão) → Pronto. Hoje mostra "Revisão semanal pendente" a partir de segunda até concluir. Cabeçalho de 1 linha.
 5. [x] Projetos com próxima ação (24/10, branch): card mostra a próxima ação (tarefa aberta mais prioritária, sem Aguardando), progresso e aguardando; ativo/desenvolvimento sem próxima ação fica em destaque com campo para criar o passo. Cabeçalho de 1 linha com "N sem próxima ação".
-6. [ ] Pilares → Áreas (página da área com projetos, tarefas, metas, notas)
+6. [x] Pilares → Áreas (24/10, branch): rota /areas com um card por pilar (próxima ação, atrasadas, abertas, feitas na semana, metas, aguardando) e página da área (?id=) com próximas ações, aguardando, projetos, metas e editais. Edição de pilares segue em Visão → Pilares.
 7. [ ] Notas no modelo CODE (capturada · destilada · usada)
 8. [ ] Visão geral como painel do ciclo
 

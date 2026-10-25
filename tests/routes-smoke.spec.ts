@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 const routes = [
-  '/', '/hoje', '/inbox', '/planejar', '/tarefas', '/projetos', '/conteudo',
+  '/', '/hoje', '/inbox', '/areas', '/planejar', '/tarefas', '/projetos', '/conteudo',
   '/content-hub', '/editais', '/notas', '/indicadores', '/financeiro',
   '/diario', '/visao', '/pilares', '/revisao', '/diario-bordo', '/hermes',
 ];

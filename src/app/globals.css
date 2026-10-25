@@ -1506,3 +1506,23 @@ a.project-next:hover strong { color: var(--color-primary); }
 .project-card-tags span { font-size: 11px; padding: 0 7px; line-height: 20px; border-radius: 6px; color: var(--color-muted-foreground); background: color-mix(in srgb, var(--color-muted) 50%, transparent); }
 .project-card-links { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--color-border) 50%, transparent); }
 .project-card-links a { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-primary); }
+
+/* Áreas (PARA): um card por pilar e uma página por área. */
+.area-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); gap: 14px; }
+.area-card { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; border-radius: 16px; border: 1px solid var(--color-border); background: var(--color-card); transition: border-color .15s, transform .15s; }
+.area-card:hover { border-color: color-mix(in srgb, var(--color-primary) 55%, var(--color-border)); transform: translateY(-2px); }
+.area-card.is-quiet { opacity: .75; }
+.area-card-top { display: flex; align-items: center; gap: 10px; }
+.area-card-top strong { flex: 1; min-width: 0; font-size: 17px; font-weight: 650; }
+.area-icon { font-size: 22px; line-height: 1; }
+.area-alert { font-size: 11px; padding: 2px 8px; border-radius: 999px; color: var(--color-critical); background: color-mix(in srgb, var(--color-critical) 12%, transparent); }
+.area-next { font-size: 14px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.area-next-label { color: var(--color-primary); }
+.area-next-empty { color: var(--color-muted-foreground); }
+.today-side-row small.is-late { color: var(--color-critical); }
+.area-stats { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--color-muted-foreground); }
+.area-stats span { display: inline-flex; align-items: center; gap: 5px; }
+.area-lead { max-width: 720px; margin: -8px 0 20px; font-size: 14px; line-height: 1.6; color: var(--color-muted-foreground); }
+.area-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.area-meta { padding: 8px 4px; }
+@media (max-width: 900px) { .area-grid { grid-template-columns: 1fr; } }

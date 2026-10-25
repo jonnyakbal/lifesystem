@@ -1,4 +1,4 @@
-import { Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, History, Rss, Sunrise, Sparkles, HeartPulse, Compass, Palette, Database } from 'lucide-react';
+import { Layers, Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, History, Rss, Sunrise, Sparkles, HeartPulse, Compass, Palette, Database } from 'lucide-react';
 
 // Navegação pelo ciclo GTD: agir → capturar → organizar → cuidar das áreas → refletir.
 // Grupos "pinned" ficam sempre visíveis; os demais abrem sob demanda.
@@ -17,6 +17,7 @@ export const navigation = [
     { title: 'Notas', href: '/notas', icon: NotebookText, description: 'Referência e ideias para destilar.' },
   ] },
   { label: 'Áreas', icon: Target, prompt: 'Responsabilidades que não terminam.', items: [
+    { title: 'Todas as áreas', href: '/areas', icon: Layers, description: 'Cada pilar: próximas ações, projetos e metas.' },
     { title: 'Profissional', href: '/profissional', icon: FolderKanban, description: 'Contexto, oportunidades e entregas sob sua revisão.' },
     { title: 'Corpo & saúde', href: '/corpo', icon: HeartPulse, description: 'Registre o que viveu. Revise sem preencher lacunas.' },
     { title: 'Financeiro', href: '/financeiro', icon: Wallet, description: 'Clareza para decidir os próximos passos.' },
@@ -48,6 +49,7 @@ export function getPageContext(pathname: string) {
 const continuations: Record<string, [string, string]> = {
   '/hoje': ['/tarefas', '/diario'],
   '/inbox': ['/revisao', '/tarefas'],
+  '/areas': ['/revisao', '/projetos'],
   '/tarefas': ['/planejar', '/projetos'],
   '/planejar': ['/hoje', '/inbox'],
   '/projetos': ['/tarefas', '/profissional'],
