@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 test('Pilares é apresentado como aba de Visão, sem uma segunda rota no menu', async ({ page }) => {
   await page.goto('/visao?tab=pilares');
   const nav = page.getByRole('navigation', { name: 'Navegação principal' });
-  await expect(nav.getByRole('button', { name: 'Cultivar' })).toHaveAttribute('aria-expanded', 'true');
+  await expect(nav.getByRole('button', { name: 'Refletir' })).toHaveAttribute('aria-expanded', 'true');
   await expect(nav.getByRole('link', { name: 'Visão', exact: true })).toHaveAttribute('aria-current', 'page');
   await expect(nav.getByRole('link', { name: 'Pilares', exact: true })).toHaveCount(0);
   await expect(page.getByRole('heading', { name: 'Pilares' })).toBeVisible();
@@ -16,7 +16,7 @@ test('Fontes não repete o destino Notas no mesmo hero', async ({ page }) => {
 
 test('revisão aberta dentro da Inbox não sugere abrir outra revisão', async ({ page }) => {
   await page.goto('/inbox');
-  await page.getByRole('button', { name: /Revisar a semana|Revisão em dia/ }).click();
+  await page.getByRole('button', { name: /Revisão semanal|Revisar a semana|Revisão em dia/ }).click();
   const dialog = page.getByRole('dialog', { name: 'Revisão Semanal' });
   await expect(dialog.getByRole('heading', { name: 'Revisão Semanal', level: 1 })).toBeVisible();
   await expect(dialog.getByRole('navigation', { name: 'Continue pelo seu espaço' })).toHaveCount(0);

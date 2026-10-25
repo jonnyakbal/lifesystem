@@ -1,33 +1,39 @@
 import { Home, Inbox, NotebookText, CalendarCheck, Wand2, Target, FolderKanban, CheckSquare, FileText, BarChart3, Award, Wallet, BookOpen, ScrollText, Bot, History, Rss, Sunrise, Sparkles, HeartPulse, Compass, Palette, Database } from 'lucide-react';
 
+// Navegação pelo ciclo GTD: agir → capturar → organizar → cuidar das áreas → refletir.
+// Grupos "pinned" ficam sempre visíveis; os demais abrem sob demanda.
 export const navigation = [
-  { label: 'Seu dia', icon: Sunrise, prompt: 'Um passo de cada vez.', items: [
-    { title: 'Visão geral', href: '/', icon: Home, description: 'O que importa, em um só lugar.' },
-    { title: 'Hoje', href: '/hoje', icon: CalendarCheck, description: 'Menos ruído. Mais espaço para o que importa hoje.' },
-    { title: 'Caixa de entrada', href: '/inbox', icon: Inbox, description: 'Tire da cabeça. Organize no seu tempo.' },
+  { label: 'Agora', icon: Sunrise, pinned: true, prompt: 'Um passo de cada vez.', items: [
+    { title: 'Visão geral', href: '/', icon: Home, description: 'O ciclo inteiro, em um só lugar.' },
+    { title: 'Hoje', href: '/hoje', icon: CalendarCheck, description: 'Só o que importa hoje.' },
   ] },
-  { label: 'Construir', icon: Sparkles, prompt: 'Ideias ganham forma quando encontram espaço.', items: [
+  { label: 'Capturar', icon: Inbox, pinned: true, prompt: 'Tire da cabeça. Decida depois.', items: [
+    { title: 'Caixa de entrada', href: '/inbox', icon: Inbox, description: 'Esclareça um item por vez até zerar.' },
+  ] },
+  { label: 'Organizar', icon: Sparkles, pinned: true, prompt: 'Cada coisa no seu lugar.', items: [
+    { title: 'Tarefas', href: '/tarefas', icon: CheckSquare, description: 'Próximas ações, aguardando e backlog.' },
+    { title: 'Projetos', href: '/projetos', icon: FolderKanban, description: 'Resultados com mais de um passo.' },
+    { title: 'Planejar', href: '/planejar', icon: Wand2, description: 'Blocos de tempo para a semana.' },
+    { title: 'Notas', href: '/notas', icon: NotebookText, description: 'Referência e ideias para destilar.' },
+  ] },
+  { label: 'Áreas', icon: Target, prompt: 'Responsabilidades que não terminam.', items: [
     { title: 'Profissional', href: '/profissional', icon: FolderKanban, description: 'Contexto, oportunidades e entregas sob sua revisão.' },
-    { title: 'Tarefas', href: '/tarefas', icon: CheckSquare, description: 'Transforme intenção em próximos passos.' },
-    { title: 'Projetos', href: '/projetos', icon: FolderKanban, description: 'Dê forma às ideias que merecem acontecer.' },
-    { title: 'Planejar', href: '/planejar', icon: Wand2, description: 'Abra espaço para uma semana com intenção.' },
+    { title: 'Corpo & saúde', href: '/corpo', icon: HeartPulse, description: 'Registre o que viveu. Revise sem preencher lacunas.' },
+    { title: 'Financeiro', href: '/financeiro', icon: Wallet, description: 'Clareza para decidir os próximos passos.' },
     { title: 'Conteúdo', href: '/conteudo', icon: FileText, description: 'Da primeira ideia ao mundo.' },
-    { title: 'Fontes', href: '/content-hub', icon: Rss, description: 'RSS, sites, newsletters — tudo num só lugar.' },
     { title: 'Editais', href: '/editais', icon: Award, description: 'Encontre oportunidades. Acompanhe cada etapa.' },
   ] },
-  { label: 'Cultivar', icon: HeartPulse, prompt: 'Clareza também é uma forma de cuidado.', items: [
-    { title: 'Corpo & saúde', href: '/corpo', icon: HeartPulse, description: 'Registre o que viveu. Revise sem preencher lacunas.' },
-    { title: 'Notas', href: '/notas', icon: NotebookText, description: 'Um lugar para pensar, conectar e criar.' },
+  { label: 'Refletir', icon: History, prompt: 'Revisar o caminho ajuda a escolher o próximo.', items: [
+    { title: 'Revisão', href: '/revisao', icon: History, description: 'Toda segunda: esvaziar, revisar, escolher.' },
+    { title: 'Visão', href: '/visao', icon: Target, description: 'Seus pilares e o que move você.' },
     { title: 'Metas', href: '/indicadores', icon: BarChart3, description: 'Veja o progresso que se constrói aos poucos.' },
-    { title: 'Financeiro', href: '/financeiro', icon: Wallet, description: 'Clareza para decidir os próximos passos.' },
     { title: 'Diário', href: '/diario', icon: BookOpen, description: 'Um momento para perceber o seu caminho.' },
-    { title: 'Visão', href: '/visao', icon: Target, description: 'Lembre do que move você.' },
-  ] },
-  { label: 'Explorar', icon: Compass, prompt: 'Revisar o caminho ajuda a escolher o próximo.', items: [
-    { title: 'Revisão', href: '/revisao', icon: History, description: 'Reconheça o progresso. Ajuste a direção.' },
     { title: 'Diário de bordo', href: '/diario-bordo', icon: ScrollText, description: 'Decisões e aprendizados que ficam.' },
+  ] },
+  { label: 'Sistema', icon: Compass, prompt: 'Ferramentas por trás do seu espaço.', items: [
     { title: 'Hermes', href: '/hermes', icon: Bot, description: 'Seu assistente, conectado ao seu contexto.' },
     { title: 'Escritório', href: '/escritorio', icon: Bot, description: 'Seu time, suas fontes e o trabalho em andamento.' },
+    { title: 'Fontes', href: '/content-hub', icon: Rss, description: 'RSS, sites, newsletters — tudo num só lugar.' },
     { title: 'Design', href: '/design', icon: Palette, description: 'Marca, cores, componentes e padrões do sistema.' },
     { title: 'Banco de dados', href: '/dados', icon: Database, description: 'Onde seus dados estão guardados.' },
   ] },

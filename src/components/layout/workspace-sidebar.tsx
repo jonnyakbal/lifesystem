@@ -14,7 +14,6 @@ import { NotificationCenter } from '@/components/notification-center';
 import { useInboxCount } from '@/components/layout/nav-counts';
 import { workspaceConfig } from '@/lib/workspace-config';
 
-const mainDestinations = ['/', '/hoje', '/inbox', '/planejar', '/tarefas'];
 const mobileDestinations = ['/', '/hoje', '/inbox', '/planejar'];
 const visibleNavigation = navigation.flatMap(group => group.items).filter(item => !workspaceConfig.hiddenModules.includes(item.href));
 
@@ -31,10 +30,9 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
   const { theme, setTheme } = useTheme();
   const page = getPageContext(pathname);
   const inboxCount = useInboxCount();
-  const primaryItems = mainDestinations.flatMap(href => visibleNavigation.filter(item => item.href === href));
-  const secondaryGroups = navigation.map(group => ({
+  const groups = navigation.map(group => ({
     ...group,
-    items: group.items.filter(item => !mainDestinations.includes(item.href) && !workspaceConfig.hiddenModules.includes(item.href)),
+    items: group.items.filter(item => !workspaceConfig.hiddenModules.includes(item.href)),
   })).filter(group => group.items.length > 0);
   const expandedGroups = groupDisclosure.route === pathname ? groupDisclosure.values : {};
 
@@ -61,30 +59,24 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
         <Search size={17} />{!compact && <><span>Buscar no seu espaço</span><kbd>Ctrl K</kbd></>}
       </button>
       <nav className="workspace-navigation" aria-label={mobile ? 'Todos os destinos' : 'Navegação principal'}>
-        <div className="workspace-nav-group">
-          {!compact && <p>Seu percurso</p>}
-          {primaryItems.map(item => <Link key={item.href} href={item.href} title={compact ? item.title : undefined}
+        {groups.map(group => {
+          const renderItem = (item: (typeof group.items)[number]) => <Link key={item.href} href={item.href} title={compact ? item.title : undefined}
             aria-label={compact ? item.title : undefined} aria-current={pathname === item.href ? 'page' : undefined}
             onClick={() => setMobileOpen(false)} className={cn('workspace-nav-link', compact && 'is-compact')}>
             <item.icon size={18} strokeWidth={1.65} />{!compact && <span>{item.title}</span>}
-            {item.href === '/inbox' && inboxCount > 0 && (
-              <span className="workspace-nav-badge">{inboxCount > 99 ? '99+' : inboxCount}</span>
-            )}
+            {item.href === '/inbox' && inboxCount > 0 && <span className="workspace-nav-badge">{inboxCount > 99 ? '99+' : inboxCount}</span>}
             {pathname === item.href && !compact && <span className="workspace-nav-dot" />}
-          </Link>)}
-        </div>
-        {secondaryGroups.map(group => {
+          </Link>;
+          if (group.pinned) return <div className="workspace-nav-group workspace-nav-pinned" key={group.label}>
+            {!compact && <p>{group.label}</p>}
+            {group.items.map(renderItem)}
+          </div>;
           const isOpen = expandedGroups[group.label] ?? group.label === page?.section;
           return <div className="workspace-nav-group" key={group.label}>
             <button type="button" className={cn('workspace-nav-link workspace-nav-disclosure w-full', compact && 'is-compact')} title={compact ? group.label : undefined} aria-label={group.label} aria-expanded={isOpen} onClick={() => toggleGroup(group.label, isOpen)}>
               <group.icon size={18} strokeWidth={1.65} />{!compact && <><span>{group.label}</span><ChevronDown size={15} className={cn('ml-auto transition-transform', isOpen && 'rotate-180')} /></>}
             </button>
-            {isOpen && <div className={cn('workspace-nav-children', compact && 'is-compact')}>{group.items.map(item => <Link key={item.href} href={item.href} title={compact ? item.title : undefined}
-              aria-label={compact ? item.title : undefined} aria-current={pathname === item.href ? 'page' : undefined}
-              onClick={() => setMobileOpen(false)} className={cn('workspace-nav-link', compact && 'is-compact')}>
-              <item.icon size={18} strokeWidth={1.65} />{!compact && <span>{item.title}</span>}
-              {pathname === item.href && !compact && <span className="workspace-nav-dot" />}
-            </Link>)}</div>}
+            {isOpen && <div className={cn('workspace-nav-children', compact && 'is-compact')}>{group.items.map(renderItem)}</div>}
           </div>;
         })}
       </nav>
@@ -134,7 +126,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
 export function WorkspaceTopbar() {
   const page = getPageContext(usePathname());
   return <div className="workspace-topbar hidden lg:flex">
-    <nav aria-label="Caminho da página" className="flex min-w-0 items-center gap-2.5 text-xs"><Orbit size={16} className="shrink-0 text-primary" /><Link href="/" className="text-muted-foreground hover:text-foreground">Meu espaço</Link><span className="text-muted-foreground/40">/</span><span className="text-muted-foreground">{page?.section || 'Seu dia'}</span><span className="text-muted-foreground/40">/</span><span className="truncate" aria-current="page">{page?.title || 'LIFESYSTEM'}</span></nav>
+    <nav aria-label="Caminho da página" className="flex min-w-0 items-center gap-2.5 text-xs"><Orbit size={16} className="shrink-0 text-primary" /><Link href="/" className="text-muted-foreground hover:text-foreground">Meu espaço</Link><span className="text-muted-foreground/40">/</span><span className="text-muted-foreground">{page?.section || 'Agora'}</span><span className="text-muted-foreground/40">/</span><span className="truncate" aria-current="page">{page?.title || 'LIFESYSTEM'}</span></nav>
     <span className="workspace-topbar-phrase ml-auto text-[11px] tracking-wide text-muted-foreground">{page?.prompt || 'Um passo de cada vez.'}</span>
     <NotificationCenter />
   </div>;
