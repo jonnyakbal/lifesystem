@@ -525,7 +525,7 @@ export default function NotasPage() {
       </motion.div>
 
       {/* Category Tabs */}
-      <motion.div className="work-stage-tabs" variants={fade} aria-label="Categorias de notas">
+      {sortedCategories.length > 0 && <motion.div className="work-stage-tabs" variants={fade} aria-label="Categorias de notas">
         <button
           onClick={() => setActiveCategory('all')}
           aria-pressed={activeCategory === 'all'}
@@ -551,7 +551,7 @@ export default function NotasPage() {
             </button>
           );
         })}
-      </motion.div>
+      </motion.div>}
 
       {/* Content */}
       {isLoading ? (
@@ -588,7 +588,7 @@ export default function NotasPage() {
             <motion.div variants={fade} layout className="hidden sm:block">
               <button
                 type="button"
-                className="group flex min-h-[260px] w-full items-center justify-center rounded-2xl border border-dashed border-border bg-card/20 transition-colors hover:border-primary/50 hover:bg-card/60 focus-visible:outline-2 focus-visible:outline-primary"
+                className="group flex min-h-[180px] w-full items-center justify-center rounded-2xl border border-dashed border-border bg-card/20 transition-colors hover:border-primary/50 hover:bg-card/60 focus-visible:outline-2 focus-visible:outline-primary"
                 onClick={openCreateNew}
               >
                 <span className="flex flex-col items-center justify-center py-8">
@@ -609,17 +609,11 @@ export default function NotasPage() {
               return (
                 <motion.div key={capture.id} variants={fade} layout exit={{ opacity: 0, scale: 0.95 }}>
                   <Card
-                    className="work-item-card group cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:border-primary/50 transition-all overflow-hidden min-h-[260px]"
+                    className="work-item-card group cursor-pointer hover:shadow-lg hover:shadow-primary/5 hover:border-primary/50 transition-all overflow-hidden "
                     onClick={() => openEdit(capture)}
                   >
-                    <div className={cn('h-28 w-full bg-gradient-to-br relative', coverClass)}>
-                      {capture.coverUrl ? (
-                        <Image src={capture.coverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />
-                      ) : (
-                        <div className="absolute inset-0 flex items-center justify-center text-5xl opacity-20">
-                          {cat?.icon || '📝'}
-                        </div>
-                      )}
+                    <div className={cn('w-full bg-gradient-to-br relative', capture.coverUrl ? 'h-24' : 'h-1.5', coverClass)}>
+                      {capture.coverUrl && <Image src={capture.coverUrl} alt="" fill unoptimized sizes="(max-width: 768px) 100vw, 33vw" className="object-cover" />}
                       <div className="absolute top-2 right-2 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>

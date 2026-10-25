@@ -38,12 +38,11 @@ test('mobile oferece destinos cotidianos, captura e menu agrupado sem transborda
 });
 
 test('hero oferece caminhos pertinentes entre áreas com links nativos', async ({ page }) => {
-  await page.goto('/notas');
+  await page.goto('/financeiro');
   const hero = page.locator('.work-heading').first();
-  await expect(hero.getByRole('navigation', { name: 'Continue pelo seu espaço' }).getByRole('link', { name: 'Fontes' })).toHaveAttribute('href', '/content-hub');
-  await expect(hero.getByRole('navigation', { name: 'Continue pelo seu espaço' }).getByRole('link', { name: 'Visão' })).toHaveAttribute('href', '/visao');
-  await page.screenshot({ path: '../lifesystem-navigation-hero-local.png', animations: 'disabled' });
-  await hero.getByRole('link', { name: 'Fontes' }).click();
-  await expect(page).toHaveURL(/\/content-hub$/);
-  await expect(page.getByRole('heading', { name: 'Fontes & Refs' })).toBeVisible();
+  const paths = hero.getByRole('navigation', { name: 'Continue pelo seu espaço' });
+  await expect(paths.getByRole('link', { name: 'Planejar' })).toHaveAttribute('href', '/planejar');
+  await expect(paths.getByRole('link', { name: 'Metas' })).toHaveAttribute('href', '/indicadores');
+  await paths.getByRole('link', { name: 'Planejar' }).click();
+  await expect(page).toHaveURL(/\/planejar$/);
 });
