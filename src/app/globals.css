@@ -1549,3 +1549,21 @@ a.project-next:hover strong { color: var(--color-primary); }
 @media (max-width: 1000px) { .cycle { grid-template-columns: repeat(2, minmax(0, 1fr)); } .cycle-step::after { display: none; } }
 @media (max-width: 420px) { .cycle-value { font-size: 26px; } }
 .cycle-detail.is-muted { color: var(--color-muted-foreground); }
+
+/* Cabeçalho compartilhado no padrão de 1 linha (sobrepõe o hero antigo). */
+.work-heading { overflow: visible; margin-bottom: 20px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; animation: none; }
+.work-heading-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; }
+.work-heading-row h1 { font-size: 28px; line-height: 1.15; letter-spacing: -.02em; }
+.work-heading-row .work-heading-actions { margin-left: auto; }
+.work-heading-row .work-heading-paths { margin-top: 0; gap: 6px; }
+.work-heading-row .work-heading-paths > span { display: none; }
+.work-heading-row .work-heading-paths a { min-height: 30px; padding: 0 10px; font-size: 12px; font-weight: 500; color: var(--color-muted-foreground); background: transparent; }
+.work-heading-row .work-heading-paths a:first-of-type { color: var(--color-muted-foreground); }
+.work-heading-row .work-heading-paths a:hover { color: var(--color-primary); transform: none; }
+.work-heading-summary { margin-top: 14px; }
+.work-heading-summary .work-metrics { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 0; border-top: 0; }
+.work-heading-summary .work-metric { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--color-muted) 35%, transparent); }
+.work-heading-summary .work-metric > strong { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: 0; }
+.work-heading-summary .work-metric > p { font-size: 12px; }
+@media (max-width: 700px) { .work-heading-row h1 { font-size: 22px; } .work-heading-row .work-heading-paths { display: none; } .work-heading-row .work-heading-actions { margin-left: 0; width: 100%; } }
+.planning-period::first-letter { text-transform: uppercase; }

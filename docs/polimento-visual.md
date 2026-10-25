@@ -256,3 +256,13 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
 - Próximo: passo 2 (T2 card compacto do Quadro, T3 linha da Lista). Seguir a ordem acima e as decisões gerais.
 - O Jonny ainda não aprovou visualmente o passo 1 (recebeu prints). Confirmar com ele antes de mesclar na `main`.
 - QA visual local: servidor de dev isolado com `LIFESYSTEM_STORAGE=file` e `LIFESYSTEM_DATA_DIR`/`UPLOAD`/`BACKUP` em pasta temporária, credenciais externas vazias. Nunca usar o servidor/dados pessoais.
+
+
+## Fase 2 — demais telas (25/10, branch)
+
+- [x] Cabeçalho compartilhado (`WorkspaceHeading`) em 1 linha: título + atalhos pequenos + ações; métricas viram pílulas. Vale para Financeiro, Conteúdo, Editais, Metas, Diário, Visão, Corpo, Profissional, Hermes, Fontes, Dados.
+- [x] Financeiro: título "Financeiro" no lugar do hero.
+- [x] Planejar: sem cartões "Nesta semana/Para decidir", sem linha de fuso repetida, sem "Ritmo da semana"; tira de dias só no celular.
+- Bateria completa: 446/447; a falha (Escritório, copiar resposta longa) não tem relação e passou ao repetir.
+- [ ] Metas: pilares sem meta em uma linha só.
+- [ ] Conteúdo, Editais, Corpo, Profissional, Escritório: passada fina nos mesmos critérios.

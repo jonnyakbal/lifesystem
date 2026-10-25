@@ -1,11 +1,10 @@
 import { test, expect } from '@playwright/test';
 
-test('resumo móvel leva diretamente aos dias da semana', async ({ page }) => {
+test('no celular, escolher um dia leva aos dias da semana', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/planejar');
-  await page.getByRole('link', { name: /Nesta semana/ }).click();
-  await expect(page).toHaveURL(/#planning-week-days$/);
-  await expect(page.getByRole('region', { name: 'Dias da semana' })).toBeInViewport();
+  await page.getByRole('navigation', { name: 'Escolher dia' }).getByRole('button').first().click();
+  await expect(page.getByRole('region', { name: 'Dias da semana' })).toBeVisible();
 });
 
 test('tarefa sem data pode entrar na semana e voltar ao planejamento', async ({ page, request }) => {

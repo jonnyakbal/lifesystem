@@ -105,7 +105,7 @@ test('panorama interativo preserva realizado e leva categoria aos lançamentos',
 }) => {
   await page.goto('/financeiro');
   await expect(
-    page.getByRole('heading', { name: 'Seu dinheiro, em perspectiva.' })
+    page.getByRole('heading', { name: 'Financeiro', exact: true, level: 1 })
   ).toBeVisible();
   await expect(page.getByTestId('financial-paid-expenses')).toContainText(
     '420,00'
@@ -182,7 +182,7 @@ test('panorama e formulário funcionam no celular e teclado', async ({
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/financeiro');
   await expect(
-    page.getByRole('heading', { name: 'Seu dinheiro, em perspectiva.' })
+    page.getByRole('heading', { name: 'Financeiro', exact: true, level: 1 })
   ).toBeVisible();
   await page
     .getByRole('button', { name: 'Novo lançamento', exact: true })
@@ -210,7 +210,7 @@ test('panorama e formulário funcionam no celular e teclado', async ({
     .poll(
       async () =>
         (await page
-          .getByRole('heading', { name: 'Seu dinheiro, em perspectiva.' })
+          .getByRole('heading', { name: 'Financeiro', exact: true, level: 1 })
           .boundingBox())!.x
     )
     .toBeGreaterThanOrEqual(250);
@@ -368,10 +368,10 @@ test('prévia visual com dados sintéticos nos temas claro e escuro', async ({ p
   await expect(page.locator('.recharts-pie-sector')).toHaveCount(4);
   await page.screenshot({ path: 'screenshots/financial-redesign-preview.png' });
   await page.setViewportSize({ width: 390, height: 844 });
-  await expect.poll(async () => (await page.getByRole('heading', { name: 'Seu dinheiro, em perspectiva.' }).boundingBox())!.x).toBeLessThan(40);
+  await expect.poll(async () => (await page.getByRole('heading', { name: 'Financeiro', exact: true, level: 1 }).boundingBox())!.x).toBeLessThan(40);
   await page.screenshot({ path: 'screenshots/financial-redesign-mobile.png', fullPage: true });
   await page.evaluate(() => { document.documentElement.classList.remove('dark'); document.documentElement.classList.add('light'); });
   await page.setViewportSize({ width: 1512, height: 1160 });
-  await expect.poll(async () => (await page.getByRole('heading', { name: 'Seu dinheiro, em perspectiva.' }).boundingBox())!.x).toBeGreaterThanOrEqual(250);
+  await expect.poll(async () => (await page.getByRole('heading', { name: 'Financeiro', exact: true, level: 1 }).boundingBox())!.x).toBeGreaterThanOrEqual(250);
   await page.screenshot({ path: 'screenshots/financial-redesign-light.png', fullPage: true });
 });

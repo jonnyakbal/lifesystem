@@ -707,17 +707,9 @@ export default function FinanceiroPage() {
     >
       {/* Header */}
       <motion.div className="mb-6" variants={fade}>
-        <div className="flex flex-col gap-5">
-          <div>
-            <p className="mb-3 text-[10px] font-semibold uppercase tracking-[.25em] text-primary">
-              FINANCEIRO / LIFESYSTEM
-            </p>
-            <h1 className="font-display text-3xl tracking-tight sm:text-4xl lg:text-5xl">
-              Seu dinheiro, em perspectiva.
-            </h1>
-            <p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">
-              Clareza sobre o que passou. Espaço para o que vem.
-            </p>
+        <div className="flex flex-col gap-4">
+          <div className="work-heading-row">
+            <h1 className="font-display">Financeiro</h1>
             <WorkspaceContinuations />
           </div>
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border/60 bg-card/30 p-2">
