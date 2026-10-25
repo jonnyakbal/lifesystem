@@ -1526,3 +1526,7 @@ a.project-next:hover strong { color: var(--color-primary); }
 .area-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .area-meta { padding: 8px 4px; }
 @media (max-width: 900px) { .area-grid { grid-template-columns: 1fr; } }
+.note-code { display: inline-flex; font-size: 10px; padding: 0 6px; line-height: 18px; border-radius: 999px; color: var(--color-muted-foreground); background: color-mix(in srgb, var(--color-muted) 55%, transparent); }
+.note-code.is-distilled { color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 12%, transparent); }
+.note-code.is-expressed { color: var(--color-money); background: color-mix(in srgb, var(--color-money) 12%, transparent); }
+.note-essence { font-size: 13px; line-height: 1.5; padding-left: 10px; border-left: 2px solid var(--color-primary); }

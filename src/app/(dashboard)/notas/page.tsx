@@ -16,7 +16,8 @@ import { motion, AnimatePresence, type MotionProps } from 'motion/react';
 import {
   Plus, Trash2, FileText, Search, X, ChevronLeft, PanelRight, Square, Maximize2,
   ArrowRight, Check, Settings2, NotebookText,
-  MoreHorizontal, Copy, Type, Inbox, Rss, Network, LayoutGrid, List,
+  MoreHorizontal, Copy, Type, Rss, Network, LayoutGrid, List,
+  Sparkles, CheckCircle2,
 } from 'lucide-react';
 import { cn, escapeHtml } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,7 +31,8 @@ import { CaptureConversionDialog } from '@/components/capture-conversion-dialog'
 import { NotionEditor } from '@/components/notion-editor';
 import { LinkedItemsPanel } from '@/components/linked-items-panel';
 import { CategoryEditorDialog, type WikiCollectionItem } from '@/components/category-editor-dialog';
-import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
@@ -47,7 +49,13 @@ interface Capture {
   targetId?: string;
   linkedCaptureIds?: string[];
   coverUrl?: string;
+  /** CODE (Segundo Cérebro): capturada → destilada → usada. */
+  codeStage?: CodeStage;
+  essence?: string;
 }
+type CodeStage = 'captured' | 'distilled' | 'expressed';
+const CODE_LABELS: Record<CodeStage, string> = { captured: 'Capturada', distilled: 'Destilada', expressed: 'Usada' };
+const stageOf = (capture: { codeStage?: CodeStage }) => capture.codeStage || 'captured';
 
 interface NoteDraft {
   title: string;
@@ -425,15 +433,44 @@ export default function NotasPage() {
   // or no status field at all) would otherwise vanish from both pages — this
   // treats "not inbox, not organized" as "it's a note" rather than requiring
   // the exact string 'noted'.
+  const [codeFilter, setCodeFilter] = useState<'all' | CodeStage>('all');
+  const [distilling, setDistilling] = useState<Capture | null>(null);
+  const [essenceDraft, setEssenceDraft] = useState('');
+
+  async function patchNote(capture: Capture, patch: Partial<Capture>, message: string) {
+    try {
+      const updated = await apiFetch<Capture>(`/api/captures/${capture.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+      setCaptures(current => current.map(item => item.id === capture.id ? { ...item, ...updated } : item));
+      toast.success(message);
+      return true;
+    } catch (error) { toast.error(showError(error)); return false; }
+  }
+  async function expressAsContent(capture: Capture) {
+    try {
+      const title = getTitle(capture.content);
+      await apiFetch('/api/content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body: capture.essence || capture.content, channel: 'blog', stage: 'idea', category: 'Geral', format: '', tags: [], status: 'draft', pinned: false, checklist: [], linkedTaskIds: [], linkedProjectIds: [] }) });
+      await patchNote(capture, { codeStage: 'expressed' }, 'Virou ideia de conteúdo.');
+    } catch (error) { toast.error(showError(error)); }
+  }
+  function codeMenu(capture: Capture) {
+    return <>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={() => { setDistilling(capture); setEssenceDraft(capture.essence || ''); }}><Sparkles className="mr-2 h-4 w-4" /> Destilar a essência…</DropdownMenuItem>
+      <DropdownMenuItem onClick={() => void expressAsContent(capture)}><FileText className="mr-2 h-4 w-4" /> Virar conteúdo</DropdownMenuItem>
+      {stageOf(capture) !== 'expressed' && <DropdownMenuItem onClick={() => void patchNote(capture, { codeStage: 'expressed' }, 'Marcada como usada.')}><CheckCircle2 className="mr-2 h-4 w-4" /> Marcar como usada</DropdownMenuItem>}
+    </>;
+  }
+
   const notes = useMemo(() => captures.filter(c => c.status !== 'inbox' && c.status !== 'organized'), [captures]);
 
   const filtered = useMemo(() => {
     return notes.filter(c => {
       if (activeCategory !== 'all' && c.category !== activeCategory) return false;
+      if (codeFilter !== 'all' && stageOf(c) !== codeFilter) return false;
       if (search.trim()) return c.content.toLowerCase().includes(search.trim().toLowerCase());
       return true;
     });
-  }, [notes, activeCategory, search]);
+  }, [notes, activeCategory, search, codeFilter]);
 
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { all: notes.length };
@@ -453,16 +490,21 @@ export default function NotasPage() {
   return (
     <motion.div className="work-page p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       <CaptureConversionDialog key={converting?.id || "closed"} capture={converting} onClose={() => setConverting(null)} onConverted={loadCaptures} />
-      <WorkspaceHeading eyebrow="Sua biblioteca viva" title="Notas" description="Dê espaço às ideias que merecem ficar. Reúna referências, desenvolva pensamentos e conecte o conhecimento ao que você está construindo." actions={<>
-        <NextLink href="/inbox" className="work-action-link"><Inbox className="h-4 w-4" /> INBOX</NextLink>
-        <Button onClick={openCreateNew} className="gap-2"><Plus className="h-4 w-4" /> Nova nota</Button>
-      </>}>
-        <div className="work-metrics">
-          <WorkspaceMetric label="Na biblioteca" value={isLoading ? '—' : notes.length} detail="Ideias que já ganharam um lugar" tone="primary" />
-          <WorkspaceMetric label="Coleções" value={sortedCategories.length} detail="Temas para encontrar o que importa" />
-          <WorkspaceMetric label="Notas conectadas" value={isLoading ? '—' : notes.filter(note => note.linkedCaptureIds?.length || note.targetId).length} detail="Conhecimento que conversa entre si" />
+      <header className="today-head">
+        <h1 className="font-display">Notas</h1>
+        <div className="task-segmented" role="group" aria-label="Etapa CODE das notas">
+          {(['all', 'captured', 'distilled', 'expressed'] as const).map(stage => <button key={stage} type="button" aria-pressed={codeFilter === stage} onClick={() => setCodeFilter(stage)}>{stage === 'all' ? 'Todas' : CODE_LABELS[stage]}<span className="text-muted-foreground">{stage === 'all' ? notes.length : notes.filter(note => stageOf(note) === stage).length}</span></button>)}
         </div>
-      </WorkspaceHeading>
+        <Button onClick={openCreateNew} className="ml-auto gap-2"><Plus className="h-4 w-4" /> Nova nota</Button>
+      </header>
+      <Dialog open={!!distilling} onOpenChange={open => { if (!open) setDistilling(null); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader><DialogTitle>Destilar a essência</DialogTitle><DialogDescription>Em 1 a 3 linhas: o que vale guardar desta nota?</DialogDescription></DialogHeader>
+          <p className="line-clamp-3 rounded-lg bg-muted p-3 text-sm text-muted-foreground">{distilling ? getPreview(distilling.content) || getTitle(distilling.content) : ''}</p>
+          <Textarea autoFocus aria-label="Essência da nota" value={essenceDraft} onChange={event => setEssenceDraft(event.target.value)} rows={3} placeholder="A ideia central, com suas palavras." />
+          <DialogFooter><Button variant="ghost" onClick={() => setDistilling(null)}>Cancelar</Button><Button disabled={!essenceDraft.trim()} onClick={() => { if (distilling) void patchNote(distilling, { essence: essenceDraft.trim(), codeStage: distilling.codeStage === 'expressed' ? 'expressed' : 'distilled' }, 'Essência destilada.').then(ok => { if (ok) setDistilling(null); }); }}>Salvar essência</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
       <motion.div className="work-project-controls" variants={fade}>
           <div className="relative min-w-0 flex-1 sm:max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -597,6 +639,7 @@ export default function NotasPage() {
                           </DropdownMenuItem>
                               </>
                             )}
+                            {codeMenu(capture)}
                             <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
                               <Trash2 className="mr-2 h-4 w-4" /> Excluir
@@ -613,9 +656,10 @@ export default function NotasPage() {
                             {cat.icon} {cat.name}
                           </Badge>
                         )}
+                        <span className={cn('note-code', `is-${stageOf(capture)}`)}>{CODE_LABELS[stageOf(capture)]}</span>
                       </div>
                       <h3 className="mb-2 font-display text-xl leading-snug"><button type="button" aria-label={`Abrir nota ${title}`} className="work-card-title line-clamp-2 w-full text-left focus-visible:outline-2 focus-visible:outline-primary" onClick={event => { event.stopPropagation(); openEdit(capture); }}>{title}</button></h3>
-                      {preview && <p className="text-xs text-muted-foreground line-clamp-3">{preview}</p>}
+                      {capture.essence ? <p className="note-essence">{capture.essence}</p> : preview && <p className="text-xs text-muted-foreground line-clamp-3">{preview}</p>}
                       {capture.targetId && (
                         <NextLink
                           href={capture.targetType === 'project' ? `/projetos?open=${capture.targetId}` : `/tarefas?open=${capture.targetId}`}
@@ -652,7 +696,7 @@ export default function NotasPage() {
                       <div className="flex-1 min-w-0">
                         <button type="button" aria-label={`Abrir nota ${title}`} className="min-h-8 w-full truncate text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary" onClick={event => { event.stopPropagation(); openEdit(capture); }}>{title}</button>
                         <p className="text-xs text-muted-foreground">
-                          {cat?.name} · {new Date(capture.createdAt).toLocaleDateString('pt-BR')}
+                          <span className={cn('note-code', `is-${stageOf(capture)}`)}>{CODE_LABELS[stageOf(capture)]}</span> {cat?.name} · {new Date(capture.createdAt).toLocaleDateString('pt-BR')}
                           {capture.targetId && (
                             <>
                               {' · '}
@@ -685,6 +729,7 @@ export default function NotasPage() {
                           </DropdownMenuItem>
                             </>
                           )}
+                          {codeMenu(capture)}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleDelete(capture.id)} className="text-destructive">
                             <Trash2 className="mr-2 h-4 w-4" /> Excluir

@@ -26,6 +26,8 @@ export interface Capture extends BaseEntity {
   coverColor?: string;
   category?: string;
   linkedCaptureIds?: string[];
+  codeStage?: 'captured' | 'distilled' | 'expressed';
+  essence?: string;
 }
 
 // Pillars
