@@ -264,5 +264,6 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
 - [x] Financeiro: título "Financeiro" no lugar do hero.
 - [x] Planejar: sem cartões "Nesta semana/Para decidir", sem linha de fuso repetida, sem "Ritmo da semana"; tira de dias só no celular.
 - Bateria completa: 446/447; a falha (Escritório, copiar resposta longa) não tem relação e passou ao repetir.
-- [ ] Metas: pilares sem meta em uma linha só.
+- [x] Metas: pilares sem meta em uma linha só (clique cria a meta).
+- [x] Profissional: título "Profissional" e números em pílulas.
 - [ ] Conteúdo, Editais, Corpo, Profissional, Escritório: passada fina nos mesmos critérios.

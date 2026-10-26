@@ -1567,3 +1567,10 @@ a.project-next:hover strong { color: var(--color-primary); }
 .work-heading-summary .work-metric > p { font-size: 12px; }
 @media (max-width: 700px) { .work-heading-row h1 { font-size: 22px; } .work-heading-row .work-heading-paths { display: none; } .work-heading-row .work-heading-actions { margin-left: 0; width: 100%; } }
 .planning-period::first-letter { text-transform: uppercase; }
+.goals-empty-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 13px; color: var(--color-muted-foreground); }
+.goals-empty-row button { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px dashed var(--color-border); color: var(--color-foreground); }
+.goals-empty-row button:hover { border-color: var(--color-primary); color: var(--color-primary); }
+.work-metrics-compact { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 0; border-top: 0; }
+.work-metrics-compact .work-metric { display: inline-flex; align-items: baseline; gap: 6px; padding: 6px 12px; border-radius: 999px; background: color-mix(in srgb, var(--color-muted) 35%, transparent); }
+.work-metrics-compact .work-metric > strong { margin: 0; font-size: 15px; font-weight: 650; letter-spacing: 0; }
+.work-metrics-compact .work-metric > p { font-size: 12px; }

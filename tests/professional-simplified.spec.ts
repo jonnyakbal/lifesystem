@@ -72,6 +72,6 @@ test('the simplified area fits a phone without horizontal scrolling', async ({ p
   await mock(page, { contact: 1, opportunity: 0, campaign: 0, content: 0 });
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto('/profissional');
-  await expect(page.getByRole('heading', { name: 'Seu próximo movimento' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Profissional', exact: true, level: 1 })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });
