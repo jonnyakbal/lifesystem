@@ -46,6 +46,12 @@ O deploy do LIFESYSTEM é iniciado pela integração nativa do GitHub no hPanel 
 
 ## Evidência confirmada
 
+### Polimento visual + fluxo GTD — 29/10/2026
+
+- `7b80119` (26/10) e `1a38289` (29/10) foram enviados à `main` com CI verde, mas o hPanel mostrou **Falha na construção** nos dois: o build compilou e passou no TypeScript, e abortou em "Collecting page data using 63 workers" com `OS can't spawn worker thread: Resource temporarily unavailable (os error 11)` (hospedagem compartilhada a 93% de recursos). O site seguiu em `bab22b4`.
+- Correção `b050f44`: `experimental.cpus: 2` em `next.config.ts`. Log do hPanel: "Collecting page data using 2 workers", 61/61 páginas, rota `/areas` presente, **Concluído / Atual** às 14:55 (2m31s).
+- Conferência visual autenticada fica com o Jonny (login não automatizado). Se outro build falhar com `os error 11`, reduzir para `cpus: 1`.
+
 ### Visões ricas, Foco e Carga — 01/10/2026
 
 - Código de aplicação `8ce708d4da11cd2198771652c7793e5b8497254c`, enviado por push normal para `main`. Nenhuma configuração, credencial ou dado de produção foi alterado para essa entrega.
