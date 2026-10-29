@@ -267,3 +267,18 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
 - [x] Metas: pilares sem meta em uma linha só (clique cria a meta).
 - [x] Profissional: título "Profissional" e números em pílulas.
 - [ ] Conteúdo, Editais, Corpo, Profissional, Escritório: passada fina nos mesmos critérios.
+
+## Próximas telas (28–29/10) — decisões: 1 sim, 2 sim, 3 seguir o sistema; feito na branch feat/polimento-2
+
+### C — Conteúdo (Áreas)
+- Mesmo amontoado do T1 de Tarefas: **contagem em 4 lugares** (pílulas Biblioteca/Em criação/Publicados, abas de canal com número, chips de etapa com número, cards).
+- Duas fileiras de filtro (canal + etapa) + "Filtros" + sanfona "Mais opções de organização" = filtro em 4 lugares.
+- Cards altos e vazios (título + 2 etiquetas + "agora"); "Geral" em todos (valor padrão aparecendo).
+- Proposta: aplicar o padrão de Tarefas — 1 linha de controles (busca · canal como seletor · visões · Filtros único), etapas como colunas do quadro (como Tarefas), card compacto (título, canal por ícone, data), esconder "Geral", tirar a sanfona.
+
+### F — Fontes & Refs (Sistema)
+- Já enxuta. Só o estado vazio grande; ok. Avaliar se sai de Sistema e vai para Organizar junto de Notas (Recursos do PARA).
+
+### E — Escritório (Sistema)
+- Tem identidade própria (tema claro bege) e cabeçalho grande "Um lugar para as coisas acontecerem." + estação 3D. Destoa do resto, mas é uma decisão de marca.
+- Proposta: cabeçalho de 1 linha "Escritório" e manter a estação; perguntar ao Jonny se o tema bege fica.

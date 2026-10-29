@@ -3,14 +3,14 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence, LayoutGroup } from 'motion/react';
 import {
-  Plus, Search, Trash2, Pin, PinOff, Calendar, Clock, Eye, MoreHorizontal, X, BookOpen,
+  Plus, Search, Trash2, Pin, PinOff, Calendar, Eye, MoreHorizontal, X, BookOpen,
   Globe, MonitorPlay, Camera, ArrowRight,
   Edit3, Hash, Archive, CheckCircle2, Sparkles,
   Video, Layers, Save, SlidersHorizontal,
   LayoutGrid, Rows3, Bookmark, Copy,
   CheckSquare, Star, Edit2
 } from 'lucide-react';
-import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { WorkspaceHeading } from '@/components/workspace/workspace-heading';
 import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,7 +175,7 @@ export default function ConteudoPage() {
   const getStageLabel = useCallback((id: string) => statusLabels[id] || STAGES.find(s => s.id === id)?.label || id, [statusLabels]);
 
   // View state
-  const [view, setView] = useState<ViewMode>('grid');
+  const [view, setView] = useState<ViewMode>('kanban');
   const [activeChannel, setActiveChannel] = useState<ContentChannel | 'all'>('all');
   const [filterStage, setFilterStage] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
@@ -412,11 +412,6 @@ export default function ConteudoPage() {
     setSearch('');
   }
 
-  // Pipeline stats
-  const pipelineStats = useMemo(() => {
-    const channelItems = activeChannel === 'all' ? items : items.filter(i => i.channel === activeChannel);
-    return STAGES.map(s => ({ ...s, label: getStageLabel(s.id), count: channelItems.filter(i => i.stage === s.id).length }));
-  }, [items, activeChannel, getStageLabel]);
 
   const totalByChannel = useMemo(() => {
     return CHANNELS.map(ch => ({ ...ch, count: items.filter(i => i.channel === ch.id).length }));
@@ -528,7 +523,7 @@ export default function ConteudoPage() {
           style={lineColor ? { borderLeftColor: lineColor } : undefined}
           onClick={() => openEdit(item)}
         >
-          <CardContent className={cn('p-5', dense && 'p-2')}>
+          <CardContent className={cn('p-3', dense && 'p-2')}>
             <div className="flex items-start justify-between gap-2 mb-1.5">
               <div className="flex items-center gap-1.5 min-w-0">
                 {item.pinned && <Pin className="h-2.5 w-2.5 text-primary shrink-0" />}
@@ -562,7 +557,7 @@ export default function ConteudoPage() {
               </DropdownMenu>
             </div>
 
-            {!dense && item.body && (
+            {!dense && item.body && view !== 'kanban' && (
               <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
                 {item.body.replace(/<[^>]*>/g, '').slice(0, 100)}
               </p>
@@ -579,10 +574,9 @@ export default function ConteudoPage() {
             )}
 
             <div className="flex flex-wrap items-center gap-1.5">
-              <Badge variant="secondary" className="text-xs">{getStageLabel(item.stage)}</Badge>
-              <Badge variant="outline" className={cn('gap-0.5', dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
-                <ChIcon className={cn('h-2 w-2', ch.color)} /> {item.category}
-              </Badge>
+              <ChIcon className={cn('h-3.5 w-3.5', ch.color)} aria-label={ch.label} />
+              {view !== 'kanban' && <Badge variant="secondary" className="text-xs">{getStageLabel(item.stage)}</Badge>}
+              {item.category && item.category !== 'Geral' && <Badge variant="outline" className="text-xs px-1.5 py-0">{item.category}</Badge>}
               {item.format && (
                 <Badge variant="secondary" className={cn(dense ? 'text-xs px-1 py-0' : 'text-xs px-1.5 py-0')}>
                   {item.format}
@@ -615,9 +609,7 @@ export default function ConteudoPage() {
               </div>
             )}
 
-            <div className="mt-1.5 flex items-center gap-1 text-xs text-muted-foreground">
-              <Clock className="h-2.5 w-2.5" /> {timeAgo(item.updatedAt || item.createdAt)}
-            </div>
+
           </CardContent>
         </Card>
       </motion.div>
@@ -837,64 +829,7 @@ export default function ConteudoPage() {
     <motion.div className="work-page work-content p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
       {/* Header */}
       <motion.div className="mb-6" variants={fade}>
-        <WorkspaceHeading eyebrow="Estúdio editorial" title="Conteúdo" description="Um lugar para suas ideias ganharem forma. Crie, organize e acompanhe cada publicação.">
-          <div className="work-metrics">
-            <WorkspaceMetric label="Biblioteca" value={items.length} detail="conteúdos em todos os canais" />
-            <WorkspaceMetric label="Em criação" value={items.filter(item => !['published', 'archived'].includes(item.stage)).length} tone="primary" detail="ideias e peças em produção" />
-            <WorkspaceMetric label="Publicados" value={items.filter(item => item.stage === 'published').length} detail="peças que chegaram ao mundo" />
-          </div>
-        </WorkspaceHeading>
-
-        {/* Channel Tabs */}
-        <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1">
-          <button
-            onClick={() => setActiveChannel('all')}
-            className={cn(
-              'flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-              activeChannel === 'all' ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50'
-            )}
-          >
-            Todos
-            <Badge variant="secondary" className="text-xs px-1.5 py-0">{items.length}</Badge>
-          </button>
-          {totalByChannel.map(ch => {
-            const Icon = ch.icon;
-            return (
-              <button
-                key={ch.id}
-                onClick={() => setActiveChannel(ch.id)}
-                className={cn(
-                  'flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-all',
-                  activeChannel === ch.id
-                    ? `bg-gradient-to-r ${ch.gradient} border-current/20 ${ch.color}`
-                    : 'border-border/50 text-muted-foreground hover:bg-muted/50'
-                )}
-              >
-                <Icon className="h-4 w-4" />
-                {ch.label}
-                {ch.count > 0 && <Badge variant="secondary" className="text-xs px-1.5 py-0">{ch.count}</Badge>}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Pipeline Stats */}
-        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-          {pipelineStats.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setFilterStage(filterStage === s.id ? 'all' : s.id)}
-              className={cn(
-                'flex shrink-0 items-center gap-1.5 rounded-full border min-h-10 px-3 py-1.5 text-xs font-medium transition-all',
-                filterStage === s.id ? 'bg-primary/10 border-primary/30 text-primary' : 'border-border/50 text-muted-foreground hover:bg-muted/50'
-              )}
-            >
-              <div className={cn('h-2 w-2 rounded-full', s.dot)} />
-              {s.label}
-              <span className="font-mono-num">{s.count}</span>
-            </button>
-          ))}
-        </div>
+        <WorkspaceHeading eyebrow="Estúdio editorial" title="Conteúdo" description="Um lugar para suas ideias ganharem forma. Crie, organize e acompanhe cada publicação." actions={<Button size="sm" onClick={openCreate}><Plus className="mr-1 h-4 w-4" /> Novo</Button>} />
 
         {/* Filter Chips */}
         <AnimatePresence>
@@ -915,6 +850,11 @@ export default function ConteudoPage() {
           <div className="relative min-w-0 flex-1 basis-full lg:basis-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar conteúdo..." className="pl-9 h-9" />
+          </div>
+
+          <div className="task-segmented" role="group" aria-label="Canal">
+            <button type="button" aria-pressed={activeChannel === 'all'} onClick={() => setActiveChannel('all')}>Todos</button>
+            {totalByChannel.map(ch => { const Icon = ch.icon; return <button key={ch.id} type="button" aria-pressed={activeChannel === ch.id} aria-label={`Canal ${ch.label}`} title={ch.label} onClick={() => setActiveChannel(ch.id)}><Icon className="h-4 w-4" />{activeChannel === ch.id && <span>{ch.label}</span>}</button>; })}
           </div>
 
           {/* View switcher */}
@@ -1020,13 +960,8 @@ export default function ConteudoPage() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-            </PopoverContent>
-          </Popover>
-
-          <details className="order-last w-full rounded-lg border border-border/50 bg-muted/20 px-3 py-2">
-            <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">Mais opções de organização</summary>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
+                <Separator />
+                <div className="flex flex-wrap items-center gap-2">
           {/* Saved Views */}
           <div className="flex flex-wrap items-center gap-1">
             {savedViews.slice(0, 3).map(v => (
@@ -1071,11 +1006,11 @@ export default function ConteudoPage() {
             <Edit2 className="h-4 w-4" />
           </Button>
             </div>
-          </details>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-          <Button size="sm" onClick={openCreate}>
-            <Plus className="mr-1 h-4 w-4" /> Novo
-          </Button>
+
         </div>
       </motion.div>
 

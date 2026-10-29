@@ -1,12 +1,13 @@
 .office {
-  --ink: #283c37;
-  --muted: #65736b;
-  --line: #d9ded3;
-  --paper: #f6f4ec;
+  /* Segue o tema do sistema (claro/escuro) em vez do papel bege próprio. */
+  --ink: var(--color-foreground);
+  --muted: var(--color-muted-foreground);
+  --line: var(--color-border);
+  --paper: transparent;
   background: var(--paper);
   color: var(--ink);
-  border-radius: 24px;
-  padding: 32px;
+  border-radius: 0;
+  padding: 16px;
   max-width: 1660px;
   margin: 0 auto;
   font-size: 14px;
@@ -28,8 +29,9 @@
 .heading {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 24px;
-  margin-bottom: 30px;
+  margin-bottom: 16px;
 }
 .eyebrow {
   font-family: var(--font-mono, monospace);
@@ -40,8 +42,8 @@
   color: var(--muted);
 }
 .heading h1 {
-  font-family: "Fraunces Variable", Georgia, serif;
-  font-size: clamp(30px, 3.1vw, 49px);
+  font-family: var(--font-display, "Fraunces Variable", Georgia, serif);
+  font-size: 28px;
   line-height: 1.13;
   letter-spacing: -1.6px;
   font-weight: 450;
@@ -49,7 +51,7 @@
 }
 .heading h1 em {
   font-style: italic;
-  color: #708579;
+  color: var(--color-primary);
 }
 .heading p:last-child {
   color: var(--muted);
@@ -57,7 +59,7 @@
 }
 .connectionLink {
   align-self: flex-start;
-  border-bottom: 1px solid #a6b2a6;
+  border-bottom: 1px solid var(--color-border);
   padding: 5px 0;
   font-size: 12px;
   white-space: nowrap;
@@ -110,7 +112,7 @@
 }
 .toggles {
   display: flex;
-  background: #e5e8df;
+  background: color-mix(in srgb, var(--color-muted) 45%, transparent);
   padding: 4px;
   border-radius: 9px;
   gap: 3px;
@@ -121,7 +123,7 @@
   border-radius: 6px;
 }
 .toggles button[aria-pressed="true"] {
-  background: #fffdf7;
+  background: var(--color-card);
   box-shadow: 0 1px 3px #23362712;
 }
 .layout {
@@ -262,8 +264,8 @@
 }
 .crewControls button:first-child {
   color: #0e1b23;
-  background: #c1d3d5;
-  border-color: #c1d3d5;
+  background: var(--color-border);
+  border-color: var(--color-border);
 }
 .sceneFoot {
   display: flex;
@@ -347,7 +349,7 @@
   bottom: 15px;
   padding: 8px 12px;
   border-radius: 7px;
-  background: #faf8efdb;
+  background: color-mix(in srgb, var(--color-card) 90%, transparent);
   font-size: 11px;
   z-index: 2;
 }
@@ -355,7 +357,7 @@
   position: absolute;
   bottom: 20px;
   left: 20px;
-  color: #58685b;
+  color: var(--color-muted-foreground);
   font-size: 10px;
   pointer-events: none;
 }
@@ -364,13 +366,13 @@
   grid-template-columns: 6px auto;
   align-items: center;
   gap: 1px 6px;
-  background: #f6f4ebe8;
+  background: color-mix(in srgb, var(--color-card) 92%, transparent);
   padding: 5px 9px;
-  border: 1px solid #ffffffa8;
+  border: 1px solid var(--color-border);
   border-radius: 6px;
   box-shadow: 0 3px 10px #2c3a3020;
   font-size: 11px;
-  color: #283c37;
+  color: var(--color-foreground);
   white-space: nowrap;
 }
 .sceneLabel > span {
@@ -381,7 +383,7 @@
 .sceneLabel small {
   grid-column: 2;
   font-size: 8px;
-  color: #65736b;
+  color: var(--color-muted-foreground);
 }
 .sceneSelected {
   outline: 2px solid #466554;
@@ -405,8 +407,8 @@
   transition: background 0.15s;
 }
 .roster button[aria-pressed="true"] {
-  background: #e4e9dd;
-  border-color: #9eae98;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
+  border-color: var(--color-border);
 }
 .roster strong {
   display: block;
@@ -420,7 +422,7 @@
 .roster em {
   display: block;
   font-size: 9px;
-  color: #76816d;
+  color: var(--color-muted-foreground);
   font-style: normal;
   margin-top: 3px;
 }
@@ -430,12 +432,12 @@
   min-width: 32px;
   height: 36px;
   border-radius: 10px 10px 13px 13px;
-  color: #334139;
+  color: var(--color-foreground);
   font-family: Georgia, serif;
   font-size: 19px;
 }
 .sheet {
-  background: #fffdf8;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
   border: 1px solid var(--line);
   border-radius: 15px;
   padding: 22px;
@@ -473,19 +475,19 @@
 }
 .status {
   font-size: 9px;
-  background: #eef0e8;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
   padding: 4px 8px;
   border-radius: 20px;
   margin-top: 4px;
 }
 .summary {
   font-size: 12px;
-  color: #596a5f;
+  color: var(--color-muted-foreground);
   margin: 18px 0 8px;
 }
 .provenance {
   font-size: 10px;
-  color: #8b795b;
+  color: var(--color-muted-foreground);
   border-bottom: 1px solid var(--line);
   padding-bottom: 16px;
 }
@@ -511,7 +513,7 @@
 }
 .principle a {
   font-size: 9px;
-  color: #7b8273;
+  color: var(--color-muted-foreground);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
@@ -523,7 +525,7 @@
 }
 .sources article,
 .actions article {
-  background: #f4f5ed;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
   border-radius: 8px;
   padding: 12px;
 }
@@ -536,14 +538,14 @@
 .sources p,
 .actions p {
   font-size: 11px;
-  color: #657064;
+  color: var(--color-muted-foreground);
   line-height: 1.6;
 }
 .kind {
   font: 8px monospace;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #7d826b;
+  color: var(--color-muted-foreground);
 }
 .sources details {
   margin-top: 8px;
@@ -563,13 +565,13 @@
 .actions small {
   display: block;
   font-size: 9px;
-  color: #7a806f;
+  color: var(--color-muted-foreground);
   margin-top: 9px;
 }
 .actionState {
   display: inline-block;
-  background: #e4e8db;
-  color: #6a715b;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
+  color: var(--color-muted-foreground);
   border-radius: 4px;
   padding: 3px 6px;
   font-size: 9px;
@@ -583,26 +585,26 @@
     italic 11px Georgia,
     serif;
   margin: 12px 0;
-  border-left: 2px solid #cbd1be;
+  border-left: 2px solid var(--color-border);
   padding-left: 9px;
-  color: #5e705d;
+  color: var(--color-muted-foreground);
 }
 .actions button {
   font-size: 10px;
-  color: #3c6051;
-  border-bottom: 1px solid #a8b69f;
+  color: var(--color-muted-foreground);
+  border-bottom: 1px solid var(--color-border);
   padding: 3px 0;
 }
 .footnote {
   font-size: 9px;
-  color: #7d8374;
+  color: var(--color-muted-foreground);
   margin-top: 12px;
 }
 .run {
   display: grid;
   gap: 3px;
   font-size: 10px;
-  background: #eaf0e2;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
   padding: 10px;
   border-radius: 7px;
 }
@@ -650,7 +652,7 @@
 }
 .notice {
   font-size: 12px;
-  background: #eee6d5;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
   border-radius: 7px;
   padding: 12px;
   margin: 0 0 14px;
@@ -660,7 +662,7 @@
 }
 .listIntro {
   padding: 50px 25px;
-  background: #e6e9df;
+  background: color-mix(in srgb, var(--color-muted) 40%, var(--color-card));
   border-radius: 15px;
 }
 .listIntro h2 {
@@ -819,4 +821,8 @@
 @media (pointer: coarse) {
   .office button,
   .office a { min-height: 40px; }
+}
+
+@media (min-width: 1024px) {
+  .office { padding: 32px; }
 }

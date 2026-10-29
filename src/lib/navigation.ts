@@ -15,6 +15,7 @@ export const navigation = [
     { title: 'Projetos', href: '/projetos', icon: FolderKanban, description: 'Resultados com mais de um passo.' },
     { title: 'Planejar', href: '/planejar', icon: Wand2, description: 'Blocos de tempo para a semana.' },
     { title: 'Notas', href: '/notas', icon: NotebookText, description: 'Referência e ideias para destilar.' },
+    { title: 'Fontes', href: '/content-hub', icon: Rss, description: 'Referências que você acompanha: sites, blogs, newsletters.' },
   ] },
   { label: 'Áreas', icon: Target, prompt: 'Responsabilidades que não terminam.', items: [
     { title: 'Todas as áreas', href: '/areas', icon: Layers, description: 'Cada pilar: próximas ações, projetos e metas.' },
@@ -34,7 +35,6 @@ export const navigation = [
   { label: 'Sistema', icon: Compass, prompt: 'Ferramentas por trás do seu espaço.', items: [
     { title: 'Hermes', href: '/hermes', icon: Bot, description: 'Seu assistente, conectado ao seu contexto.' },
     { title: 'Escritório', href: '/escritorio', icon: Bot, description: 'Seu time, suas fontes e o trabalho em andamento.' },
-    { title: 'Fontes', href: '/content-hub', icon: Rss, description: 'RSS, sites, newsletters — tudo num só lugar.' },
     { title: 'Design', href: '/design', icon: Palette, description: 'Marca, cores, componentes e padrões do sistema.' },
     { title: 'Banco de dados', href: '/dados', icon: Database, description: 'Onde seus dados estão guardados.' },
   ] },

@@ -507,7 +507,7 @@ test("office renders 3D, authenticates presence and explains every agent", async
   await page.setViewportSize({ width: 1500, height: 1050 });
   await page.goto("/escritorio");
   await expect(
-    page.getByRole("heading", { name: /Um lugar para/ }),
+    page.getByRole("heading", { name: "Escritório", exact: true, level: 1 }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Focalizar Hermes", exact: true })
@@ -515,7 +515,7 @@ test("office renders 3D, authenticates presence and explains every agent", async
   await expect(page.getByLabel("Ficha de Hermes")).toBeVisible();
   await expect(page.locator("canvas")).toBeVisible({ timeout: 60000 });
   expect(
-    (await page.getByRole("heading", { name: /Um lugar para/ }).boundingBox())!
+    (await page.getByRole("heading", { name: "Escritório", exact: true, level: 1 }).boundingBox())!
       .x,
   ).toBeGreaterThanOrEqual(248);
   // The roster is a labeled div; select by label to avoid duplicate scene buttons.

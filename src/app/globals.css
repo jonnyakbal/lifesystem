@@ -433,9 +433,9 @@
 .work-more:hover, .work-more:focus-visible { opacity: 1; }
 .work-page [aria-label^="Visualização:"] { min-height: 40px; min-width: 40px; }
 .work-page input.h-9 { min-height: 44px; }
-.work-content-card { position: relative; overflow: hidden; min-height: 180px; }
-.work-content-card::before { content: ''; display: block; height: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--color-primary) 55%, transparent), color-mix(in srgb, var(--color-stellar) 30%, transparent), transparent); }
-.work-content-card .work-card-title { min-height: 44px; }
+.work-content-card { position: relative; overflow: hidden; }
+.work-content-card::before { content: none; }
+.work-content-card .work-card-title { min-height: 0; font-size: 14px; line-height: 1.35; }
 .work-project-controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-bottom: 18px; }
 .work-view-switch { display: flex; padding: 3px; border: 1px solid var(--color-border); background: var(--color-card); border-radius: 12px; }
 .work-view-switch button { min-height: 40px; font-size: 12px; }

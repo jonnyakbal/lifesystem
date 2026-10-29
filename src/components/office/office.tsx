@@ -353,16 +353,7 @@ export default function Office() {
     <main className={styles.office}>
       <header className={styles.heading}>
         <div>
-          <p className={styles.eyebrow}>LIFESYSTEM / CENTRO DE OPERAÇÕES</p>
-          <h1>
-            Um lugar para
-            <br />
-            <em>as coisas acontecerem.</em>
-          </h1>
-          <p>
-            Seu universo em movimento. Explore projetos, cuide dos seus pilares
-            e encontre o próximo destino com sua tripulação.
-          </p>
+          <h1>Escritório</h1>
         </div>
         <Link href="/hermes" className={styles.connectionLink}>
           Configuração do Hermes ↗
