@@ -16,6 +16,7 @@ export const colors: Record<string, string> = {
   orion: "#99b99a",
   astro: "#b5a0cd",
   cosmo: "#df967b",
+  antares: "#df6f65",
 };
 const availability = {
   verified: "Verificada",

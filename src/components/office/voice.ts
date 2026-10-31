@@ -95,6 +95,7 @@ const personas: Record<AgentId, { gender: "m" | "f"; pitch: number; rate: number
   orion: { gender: "m", pitch: 0.94, rate: 1.02, slot: 2 },
   astro: { gender: "f", pitch: 1.02, rate: 1.04, slot: 1 },
   cosmo: { gender: "f", pitch: 1.04, rate: 1.12, slot: 2 },
+  antares: { gender: "m", pitch: 0.98, rate: 1.07, slot: 3 },
 };
 
 const maleNames = /antonio|daniel|donato|fabio|f[aá]bio|humberto|julio|j[uú]lio|nicolau|valerio|val[eé]rio|thiago|duarte|male|masculin/i;

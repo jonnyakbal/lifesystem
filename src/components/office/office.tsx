@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { catalogSchema, emptyOffice, type AgentId } from "@/lib/office/schema";
-import localCatalog from "@/lib/office/catalog.json";
+import { reference } from "@/lib/office/reference";
 import { projectOffice, stateLabels, type OfficeView } from "@/lib/office/view";
 import { AgentSheet, colors } from "./agent-sheet";
 import { AgentChat } from "./agent-chat";
@@ -27,7 +27,6 @@ const Scene = dynamic(() => import("./scene"), {
     <div className={styles.sceneLoading}>Preparando o escritório…</div>
   ),
 });
-const reference = catalogSchema.parse(localCatalog);
 class SceneBoundary extends Component<
   { children: ReactNode; onFailure: () => void },
   { failed: boolean }
@@ -327,14 +326,13 @@ export default function Office() {
     };
   }, []);
   const catalog = view.catalog || reference;
-  const profile =
-    catalog.profiles.find((p) => p.id === selected) ||
-    reference.profiles.find((p) => p.id === selected)!;
+  const receivedProfile = catalog.profiles.find((p) => p.id === selected);
+  const profile = receivedProfile || reference.profiles.find((p) => p.id === selected)!;
   const presence = view.agents.find((a) => a.id === selected)!;
   const sheetCatalog = {
-    state: view.catalogState,
-    revision: view.catalogRevision,
-    receivedAt: view.catalogReceivedAt,
+    state: receivedProfile ? view.catalogState : "local" as const,
+    revision: receivedProfile ? view.catalogRevision : reference.revision,
+    receivedAt: receivedProfile ? view.catalogReceivedAt : null,
   };
   // Each crew member opens the destinations of its own domain.
   const agentDestinations = allDestinations.filter((node) => {
@@ -459,7 +457,7 @@ export default function Office() {
                 <small>
                   {mapMode
                     ? "UM UNIVERSO · SUA TRIPULAÇÃO · PRÓXIMOS AVANÇOS"
-                    : `SETOR ${alternate ? "02 / ÓRBITA ÂMBAR" : "01 / ÓRBITA BOREAL"} · 06 UNIDADES`}
+                    : `SETOR ${alternate ? "02 / ÓRBITA ÂMBAR" : "01 / ÓRBITA BOREAL"} · ${String(crew.length).padStart(2, "0")} UNIDADES`}
                 </small>
               </div>
               <div
