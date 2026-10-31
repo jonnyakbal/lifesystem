@@ -2,7 +2,7 @@
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { Group } from "three";
-import { crew, stationPoint } from "./orbital-model";
+import { crew, stationPoint, stationAngle } from "./orbital-model";
 import { Panel, Ring, Orb, Tag } from "./orbital-parts";
 export function Space({
   animate,
@@ -83,7 +83,7 @@ function Console({ index, onSelect }: { index: number; onSelect: () => void }) {
   return (
     <group
       position={stationPoint(index)}
-      rotation={[0, (index * Math.PI) / 3 + Math.PI / 6, 0]}
+      rotation={[0, stationAngle(index), 0]}
       onClick={(e) => {
         e.stopPropagation();
         onSelect();
@@ -207,7 +207,7 @@ function Orrery({
     if (hub.current) hub.current.rotation.y = time.current * 0.2;
     if (packets.current)
       packets.current.children.forEach((child, i) => {
-        const a = (i * Math.PI) / 3 + Math.PI / 6,
+        const a = stationAngle(i),
           r = 1.4 + ((time.current * 0.45 + i * 0.19) % 1) * 3.6;
         child.position.set(Math.sin(a) * r, 0.2, Math.cos(a) * r);
       });
@@ -322,7 +322,7 @@ export function OrbitalWorld({
         </group>
       ))}
       {crew.map((c, i) => (
-        <group key={c.id} rotation={[0, (i * Math.PI) / 3 + Math.PI / 6, 0]}>
+        <group key={c.id} rotation={[0, stationAngle(i), 0]}>
           <Panel
             position={[0, 0.017, 4.5]}
             size={[0.017, 0.012, 5.25]}

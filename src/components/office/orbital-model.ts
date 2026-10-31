@@ -55,12 +55,23 @@ export const crew: {
     specialty: "LABORATÓRIO",
     line: "Tenho uma ideia: encontrar uma forma inesperada de contar isso.",
   },
+  {
+    id: "antares",
+    name: "Antares",
+    code: "AN-07",
+    accent: "#df6f65",
+    specialty: "COMERCIAL",
+    line: "Primeiro a evidência. Depois, uma boa conversa e um próximo passo.",
+  },
 ];
+export function stationAngle(index: number): number {
+  return (index * Math.PI * 2) / crew.length + Math.PI / 6;
+}
 export function stationPoint(
   index: number,
   radius = 5.7,
 ): [number, number, number] {
-  const angle = (index * Math.PI) / 3 + Math.PI / 6;
+  const angle = stationAngle(index);
   return [Math.sin(angle) * radius, 0, Math.cos(angle) * radius];
 }
 // Decorative choreography only. Real runs always stay at their operational station.
@@ -74,8 +85,7 @@ export function robotPose(
   const visiting = !working && (meeting || phase > 23);
   const radius = working ? 4.65 : visiting ? 2.3 : 4.65;
   const angle =
-    (index * Math.PI) / 3 +
-    Math.PI / 6 +
+    stationAngle(index) +
     (!meeting && !working && phase > 18 && phase < 23
       ? Math.sin(((phase - 18) / 5) * Math.PI) * 0.13
       : 0);

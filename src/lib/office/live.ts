@@ -1,5 +1,5 @@
 import { z } from "zod";
-import catalog from "./catalog.json";
+import { reference as catalog } from "./reference";
 import { agentIds, type AgentId } from "./schema";
 import { chatCompletion, type ChatMessage, type ProviderFailure } from "@/lib/ai";
 

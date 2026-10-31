@@ -15,6 +15,7 @@ const sky: Record<AgentId, { stars: Pt[]; lines: [number, number][]; bright: num
   orion: { role: 'Corpo e saúde', meaning: 'O caçador: ombros, cinturão de três estrelas e passos firmes.', stars: [[6, 3], [18, 4], [10, 11], [12, 12], [14, 13], [6, 21], [18, 20]], lines: [[0, 2], [1, 4], [2, 3], [3, 4], [2, 5], [4, 6]], bright: 3 },
   astro: { role: 'Mente e aprendizado', meaning: 'Um halo de ideias em volta de um centro calmo.', stars: [[3, 15], [6, 8], [12, 5], [18, 8], [21, 15], [12, 15]], lines: [[0, 1], [1, 2], [2, 3], [3, 4]], bright: 5 },
   cosmo: { role: 'Conteúdo e criação', meaning: 'Uma espiral: ordem nascendo do caos criativo.', stars: [[12, 12], [15, 10], [16, 15], [10, 17], [6, 11], [10, 5], [18, 4]], lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]], bright: 0 },
+  antares: { role: 'Comercial e prospecção', meaning: 'Um farol para investigar caminhos comerciais com evidência.', stars: [[4, 5], [8, 9], [12, 12], [16, 14], [19, 18], [16, 21], [11, 20]], lines: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6]], bright: 2 },
 };
 
 export const agentSky = sky;

@@ -6,6 +6,7 @@ export const agentIds = [
   "orion",
   "astro",
   "cosmo",
+  "antares",
 ] as const;
 export type AgentId = (typeof agentIds)[number];
 const id = z
@@ -55,12 +56,14 @@ export const catalogSchema = z
   .object({
     revision: id,
     provenance: z.enum(["local", "deployed"]),
-    profiles: z.array(profileSchema).length(6),
+    profiles: z.array(profileSchema).min(6).max(agentIds.length),
   })
   .strict()
   .superRefine((c, ctx) => {
-    if (new Set(c.profiles.map((p) => p.id)).size !== 6)
+    if (new Set(c.profiles.map((p) => p.id)).size !== c.profiles.length)
       ctx.addIssue({ code: "custom", message: "Perfis duplicados" });
+    if (agentIds.filter((agent) => agent !== "antares").some((agent) => !c.profiles.some((profile) => profile.id === agent)))
+      ctx.addIssue({ code: "custom", message: "Perfil obrigatório ausente" });
     for (const p of c.profiles)
       for (const rule of p.principles)
         if (!p.sources.some((s) => s.id === rule.sourceId))
@@ -90,7 +93,7 @@ export const runSchema = z
 export type OfficeRun = z.infer<typeof runSchema>;
 const snapshotSchema = z
   .object({
-    monitored: z.array(z.enum(agentIds)).max(6),
+    monitored: z.array(z.enum(agentIds)).max(agentIds.length),
     runs: z.array(runSchema).max(4),
     catalogRevision: id.nullable(),
     gap: z.boolean(),
