@@ -2,10 +2,13 @@ import { test, expect } from "@playwright/test";
 import { agentIds, catalogSchema, eventSchema } from "../src/lib/office/schema";
 import { reference as catalog } from "../src/lib/office/reference";
 import { crew, stationPoint, robotPose } from "../src/components/office/orbital-model";
+import { livePersona } from "../src/lib/office/live";
 import { agentSky } from "../src/components/brand/sigils";
 
 test("Antares extends the roster while old six-profile publishers remain valid", () => {
   expect(agentIds).toContain("antares");
+  expect(livePersona("antares")).toContain("Você é Antares");
+  expect(livePersona("antares")).toContain("Nunca diga que registrou");
   expect(catalogSchema.safeParse(catalog).success).toBe(true);
   const legacy = { ...catalog, profiles: catalog.profiles.filter((p) => p.id !== "antares") };
   expect(catalogSchema.safeParse(legacy).success).toBe(true);
