@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sun, Moon, Download, Upload, Settings } from 'lucide-react';
+import { Sun, Moon, Download, Upload, Settings, Orbit, Gamepad2 } from 'lucide-react';
 import { todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -60,8 +60,36 @@ export function useTheme() {
   return { theme, setTheme };
 }
 
+export type Skin = 'astral' | 'retro';
+
+function readSkin(): Skin {
+  try { return localStorage.getItem('lifesystem-skin') === 'retro' ? 'retro' : 'astral'; }
+  catch { return document.documentElement.dataset.skin === 'retro' ? 'retro' : 'astral'; }
+}
+
+/** Visual do sistema: Astral (padrão) ou Retrô (pixel art e terminal retrofuturista).
+ * É independente do tema claro/escuro; o script do layout aplica antes da pintura. */
+export function useSkin() {
+  const [skin, setSkinState] = useState<Skin>('astral');
+  useEffect(() => {
+    const sync = () => { const stored = readSkin(); document.documentElement.dataset.skin = stored; setSkinState(stored); };
+    queueMicrotask(sync);
+    window.addEventListener('storage', sync);
+    window.addEventListener('lifesystem-skin-change', sync);
+    return () => { window.removeEventListener('storage', sync); window.removeEventListener('lifesystem-skin-change', sync); };
+  }, []);
+  function setSkin(next: Skin) {
+    setSkinState(next);
+    document.documentElement.dataset.skin = next;
+    try { localStorage.setItem('lifesystem-skin', next); } catch { /* Vale nesta sessão mesmo com armazenamento bloqueado. */ }
+    window.dispatchEvent(new Event('lifesystem-skin-change'));
+  }
+  return { skin, setSkin };
+}
+
 export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { theme, setTheme } = useTheme();
+  const { skin, setSkin } = useSkin();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const dataLock = useRef(false);
@@ -199,6 +227,23 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                   aria-pressed={theme === opt.value}
                   onClick={() => setTheme(opt.value)}
                 >
+                  <opt.icon className="h-4 w-4" />
+                  {opt.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Skin */}
+          <div>
+            <p className="text-sm font-medium mb-3">Visual</p>
+            <div className="flex flex-wrap gap-2">
+              {([
+                { value: 'astral', label: 'Astral', icon: Orbit },
+                { value: 'retro', label: 'Retrô pixel', icon: Gamepad2 },
+              ] as const).map(opt => (
+                <Button key={opt.value} variant={skin === opt.value ? 'secondary' : 'outline'} size="sm" className="flex-1 gap-2"
+                  aria-pressed={skin === opt.value} onClick={() => setSkin(opt.value)}>
                   <opt.icon className="h-4 w-4" />
                   {opt.label}
                 </Button>

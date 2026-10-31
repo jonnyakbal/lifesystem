@@ -282,3 +282,16 @@ Status: **Tarefas fechada para anotação** (T1–T9). Execução na branch `fea
 ### E — Escritório (Sistema)
 - Tem identidade própria (tema claro bege) e cabeçalho grande "Um lugar para as coisas acontecerem." + estação 3D. Destoa do resto, mas é uma decisão de marca.
 - Proposta: cabeçalho de 1 linha "Escritório" e manter a estação; perguntar ao Jonny se o tema bege fica.
+
+## Visual Retrô pixel (31/10) — branch feat/retro-pixel
+
+Pedido: "incorporar bibliotecas mais aesthetic, retrofuturista e pixel art". Decisão de produto: **opt-in**, sem trocar o padrão Astral.
+
+- **Onde liga:** Configurações → Visual (Astral / Retrô pixel) ou botão de controle de videogame no rodapé do menu. Salvo em `localStorage` (`lifesystem-skin`) e aplicado por script no `<head>` antes da pintura (sem piscar). Combina com tema escuro, claro e sistema.
+- **Bibliotecas (versões fixas):** `pixelarticons@2.4.1` (ícones pixel, importados um a um por `pixelarticons/react/<Nome>`), `@fontsource-variable/pixelify-sans` (títulos), `@fontsource/silkscreen` (rótulos, botões primários, atalhos), `@fontsource/vt323` (números/terminal). Texto corrido continua em Inter para não cansar a leitura.
+- **Escuro:** fliperama noturno — índigo `#0d0a1c`, ciano fósforo `#5ef2d6`, magenta neon `#ff6ad5` (acento de Tarefas/Foco no lugar do violeta). **Claro:** papel de manual `#f4ecd9`, tinta roxa e verde de monitor.
+- **Linguagem:** cantos de 2–6px, bordas de 2px, sombra deslocada dura (sprite), botões que "afundam" ao clicar, cursor de seleção piscando no item ativo do menu, grade de pixels no fundo e scanlines de CRT só no escuro (sem interceptar cliques; somem na impressão). Animações respeitam `prefers-reduced-motion`.
+- **Pixel art própria:** `src/components/brand/pixel-sprite.tsx` (planeta, foguete, estrela 16×16, cores pelos tokens do tema). Planeta substitui a marca no menu; foguete na **Caixa zerada**, estrela no **dia livre** de Hoje — recompensa visual dos momentos de fechamento do ciclo GTD.
+- **Ícones:** `NavIcon` (`src/components/brand/pixel-icons.tsx`) desenha Lucide + pixel e o CSS mostra só o do visual ativo; destinos sem par pixel mantêm o Lucide.
+- **Arquivos:** `src/app/retro.css` (tudo sob `[data-skin="retro"]`), `settings.tsx` (`useSkin`), `layout.tsx` (fontes + script), `button.tsx` (`data-variant` para estilizar por variante), menu/dock.
+- **Teste:** `tests/retro-skin.spec.ts` — liga pelo menu, troca ícones, persiste após recarregar com fonte pixel no título, volta ao Astral.

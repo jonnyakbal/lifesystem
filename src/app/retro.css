@@ -1,0 +1,193 @@
+/* Visual Retrô: pixel art e terminal retrofuturista, opt-in por data-skin="retro"
+   no <html> (Configurações → Visual). Vale para os temas escuro e claro; o texto
+   corrido continua em Inter para a leitura não cansar. Fontes pixel ficam nos
+   títulos, rótulos e números, onde dão identidade sem custar legibilidade. */
+
+.skin-retro-only { display: none !important; }
+[data-skin="retro"] .skin-retro-only { display: revert !important; }
+[data-skin="retro"] .skin-astral-only { display: none !important; }
+
+[data-skin="retro"] {
+  --font-pixel: "Pixelify Sans Variable", var(--font-ui), system-ui, sans-serif;
+  --font-label: "Silkscreen", var(--font-code), monospace;
+  --font-terminal: "VT323", var(--font-code), monospace;
+  --font-display: var(--font-pixel);
+  --radius: 4px;
+  --radius-sm: 2px; --radius-md: 3px; --radius-lg: 4px; --radius-xl: 5px; --radius-2xl: 6px;
+  --retro-shadow: 3px 3px 0 0 color-mix(in srgb, var(--color-primary) 30%, #000);
+  --retro-grid: color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+/* Escuro: noite de fliperama — índigo profundo, ciano fósforo e magenta neon. */
+[data-skin="retro"].dark {
+  --color-background: #0d0a1c;
+  --color-foreground: #eae6ff;
+  --color-card: #161130;
+  --color-card-foreground: #eae6ff;
+  --color-popover: #1b1539;
+  --color-popover-foreground: #eae6ff;
+  --color-primary: #5ef2d6;
+  --color-primary-foreground: #08201b;
+  --color-secondary: #221a47;
+  --color-secondary-foreground: #e4defd;
+  --color-muted: #1d173c;
+  --color-muted-foreground: #a69dd0;
+  --color-accent: #2a1f57;
+  --color-accent-foreground: #ffd2f3;
+  --color-border: #3a2f6e;
+  --color-input: #463a80;
+  --color-ring: #ff6ad5;
+  --color-stellar: #ff6ad5;
+  --retro-glow: #fff3a6;
+}
+/* Claro: papel de manual antigo, tinta roxa e verde de monitor. */
+[data-skin="retro"].light {
+  --color-background: #f4ecd9;
+  --color-foreground: #241a3a;
+  --color-card: #fbf6ea;
+  --color-card-foreground: #241a3a;
+  --color-popover: #fbf6ea;
+  --color-popover-foreground: #241a3a;
+  --color-primary: #0b7a6c;
+  --color-primary-foreground: #fbf6ea;
+  --color-secondary: #e9dfc6;
+  --color-secondary-foreground: #241a3a;
+  --color-muted: #ece2cb;
+  --color-muted-foreground: #5e5277;
+  --color-accent: #e3f0e6;
+  --color-accent-foreground: #0b4d45;
+  --color-border: #241a3a;
+  --color-input: #3d3058;
+  --color-ring: #c2329a;
+  --color-stellar: #c2329a;
+  --retro-shadow: 3px 3px 0 0 #241a3a;
+  --retro-grid: #241a3a0d;
+  --retro-glow: #e2a21a;
+}
+
+/* Fundo: grade de pixels discreta + scanlines de CRT. Não intercepta cliques. */
+[data-skin="retro"] body {
+  background-image:
+    linear-gradient(var(--retro-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--retro-grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+[data-skin="retro"].dark body::after {
+  content: ""; position: fixed; inset: 0; z-index: 100; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, transparent 0 2px, #00000026 2px 3px);
+  mix-blend-mode: multiply;
+}
+@media print { [data-skin="retro"] body::after { display: none; } }
+
+/* Tipografia */
+[data-skin="retro"] h1, [data-skin="retro"] h2, [data-skin="retro"] .font-display { font-family: var(--font-pixel); letter-spacing: 0; }
+[data-skin="retro"] .workspace-page h1, [data-skin="retro"] .task-head h1 { font-weight: 600; letter-spacing: .01em; text-shadow: 2px 2px 0 color-mix(in srgb, var(--color-stellar) 45%, transparent); }
+[data-skin="retro"] h3 { font-family: var(--font-pixel); font-weight: 550; }
+[data-skin="retro"] .workspace-nav-group > p,
+[data-skin="retro"] .task-eyebrow,
+[data-skin="retro"] .work-metric p,
+[data-skin="retro"] kbd,
+[data-skin="retro"] .workspace-brand strong,
+[data-skin="retro"] .workspace-nav-badge { font-family: var(--font-label); font-weight: 400; letter-spacing: .04em; }
+[data-skin="retro"] .workspace-brand small { font-family: var(--font-terminal); font-size: 14px; letter-spacing: .03em; }
+[data-skin="retro"] .font-mono-num,
+[data-skin="retro"] .work-metric strong,
+[data-skin="retro"] .task-col-count,
+[data-skin="retro"] .task-filter-count { font-family: var(--font-terminal); font-size: 1.2em; line-height: 1; letter-spacing: .02em; }
+[data-skin="retro"] .work-metric strong { font-size: 22px; color: var(--color-primary); }
+
+/* Superfícies: cantos quase retos, borda dura e sombra deslocada de sprite. */
+[data-skin="retro"] .astral-card,
+[data-skin="retro"] .task-card,
+[data-skin="retro"] .area-card,
+[data-skin="retro"] .business-card,
+[data-skin="retro"] .inbox-card,
+[data-skin="retro"] .indicator-card,
+[data-skin="retro"] .project-card,
+[data-skin="retro"] .today-card,
+[data-skin="retro"] .work-card,
+[data-skin="retro"] .work-content-card,
+[data-skin="retro"] .work-item-card,
+[data-skin="retro"] .work-planning-card,
+[data-skin="retro"] .work-project-card,
+[data-skin="retro"] .workspace-search {
+  border-width: 2px; border-color: var(--color-border); border-radius: var(--radius-lg);
+  box-shadow: var(--retro-shadow); backdrop-filter: none;
+}
+[data-skin="retro"] .task-card:hover, [data-skin="retro"] .project-card:hover, [data-skin="retro"] .area-card:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 0 var(--color-primary); }
+[data-skin="retro"] [role="dialog"] { border: 2px solid var(--color-border); box-shadow: 6px 6px 0 0 color-mix(in srgb, var(--color-stellar) 45%, #000); }
+
+/* Botões: pressionam como tecla de fliperama. */
+[data-skin="retro"] button[data-variant="default"],
+[data-skin="retro"] a[data-variant="default"],
+[data-skin="retro"] .workspace-capture {
+  border: 2px solid color-mix(in srgb, var(--color-primary) 55%, #000);
+  box-shadow: 3px 3px 0 0 color-mix(in srgb, var(--color-primary) 35%, #000);
+  font-family: var(--font-label); font-weight: 400; letter-spacing: .03em; font-size: 12px;
+  transition: transform .06s steps(2), box-shadow .06s steps(2);
+}
+[data-skin="retro"] button[data-variant="default"]:active,
+[data-skin="retro"] .workspace-capture:active { transform: translate(3px, 3px); box-shadow: 0 0 0 0 transparent; }
+[data-skin="retro"] button[data-variant="outline"] { border-width: 2px; box-shadow: 2px 2px 0 0 var(--color-border); }
+[data-skin="retro"] button[data-variant="outline"]:active { transform: translate(2px, 2px); box-shadow: none; }
+
+/* Navegação: item ativo com cursor de seleção piscando, como menu de jogo. */
+[data-skin="retro"] .workspace-sidebar { border-right-width: 2px; }
+[data-skin="retro"] .workspace-nav-link[aria-current="page"] { background: color-mix(in srgb, var(--color-primary) 14%, transparent); box-shadow: inset 3px 0 0 var(--color-primary); }
+[data-skin="retro"] .workspace-nav-link[aria-current="page"] .workspace-nav-dot { width: 0; height: 0; border-radius: 0; background: none; border-left: 6px solid var(--color-primary); border-block: 5px solid transparent; animation: retro-blink 1s steps(1) infinite; }
+[data-skin="retro"] .workspace-nav-link svg { image-rendering: pixelated; }
+[data-skin="retro"] .workspace-mobile-dock { border-top-width: 2px; }
+[data-skin="retro"] .workspace-mobile-dock span { font-family: var(--font-label); font-size: 8px; letter-spacing: 0; max-width: 100%; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+[data-skin="retro"] .workspace-mobile-dock [aria-current="page"] { box-shadow: inset 0 -3px 0 var(--color-primary); border-radius: 2px; }
+.workspace-brand-sprite { width: 40px; height: 40px; flex-shrink: 0; }
+[data-skin="retro"] .workspace-brand-sprite { animation: retro-bob 2.4s steps(2) infinite; }
+
+/* Cabeçalho das telas: sem a órbita suave do Astral; um sublinhado de pixels. */
+[data-skin="retro"] .work-heading-orbit { display: none; }
+[data-skin="retro"] .work-heading h1::after { content: "_"; margin-left: 4px; color: var(--color-primary); animation: retro-blink 1.1s steps(1) infinite; text-shadow: none; }
+
+/* Foco: contorno tracejado bem visível, coerente com a estética. */
+[data-skin="retro"] :focus-visible { outline: 2px dashed var(--color-ring); outline-offset: 3px; }
+
+/* Barras de progresso viram blocos. */
+[data-skin="retro"] [role="progressbar"] { border-radius: 0; border: 2px solid var(--color-border); }
+[data-skin="retro"] [role="progressbar"] > * { border-radius: 0; background-image: repeating-linear-gradient(90deg, transparent 0 6px, #0003 6px 8px); }
+
+/* Seleção de texto e barra de rolagem no tom neon. */
+[data-skin="retro"] ::selection { background: var(--color-stellar); color: #0d0a1c; }
+[data-skin="retro"] ::-webkit-scrollbar-thumb { border-radius: 0; background: var(--color-border); }
+
+@keyframes retro-blink { 50% { opacity: 0; } }
+@keyframes retro-bob { 50% { transform: translateY(-2px); } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-skin="retro"] .workspace-brand-sprite,
+  [data-skin="retro"] .work-heading h1::after,
+  [data-skin="retro"] .workspace-nav-dot { animation: none !important; }
+}
+
+/* Tarefas e Foco têm acento próprio no Astral (violeta); no Retrô viram magenta neon. */
+[data-skin="retro"].dark .task-observatory, [data-skin="retro"].dark .task-detail-panel, [data-skin="retro"] .focus-mode {
+  --color-primary: #ff6ad5; --color-primary-foreground: #2a0820; --color-ring: #ff6ad5;
+  --color-card: #161130; --color-border: #3a2f6e; --color-muted-foreground: #a69dd0;
+}
+[data-skin="retro"].light .task-observatory, [data-skin="retro"].light .task-detail-panel {
+  --color-primary: #b0288a; --color-primary-foreground: #fbf6ea; --color-ring: #b0288a;
+  --color-card: #fbf6ea; --color-border: #241a3a; --color-muted-foreground: #5e5277;
+}
+[data-skin="retro"] .focus-mode { background: radial-gradient(ellipse at 50% 35%, #2a1450 0%, #0d0a1c 65%), #0d0a1c; }
+[data-skin="retro"] * { scrollbar-color: var(--color-border) transparent; }
+/* Recompensas do ciclo (caixa zerada, dia livre): sprite que pula. */
+.retro-reward { width: 56px; height: 56px; margin-inline: auto; }
+[data-skin="retro"] .retro-reward { animation: retro-bob 1.2s steps(2) infinite; }
+@media (prefers-reduced-motion: reduce) { [data-skin="retro"] .retro-reward { animation: none; } }
+/* Decisões do Esclarecer viram teclas: o atalho numérico já existe, agora parece. */
+[data-skin="retro"] .inbox-decision, [data-skin="retro"] .cycle-step, [data-skin="retro"] .today-task, [data-skin="retro"] .inbox-capture {
+  border-width: 2px; border-radius: var(--radius-md); box-shadow: 2px 2px 0 0 var(--color-border);
+}
+[data-skin="retro"] .inbox-decision { transition: transform .06s steps(2), box-shadow .06s steps(2); }
+[data-skin="retro"] .inbox-decision:hover { box-shadow: 3px 3px 0 0 var(--color-primary); transform: translate(-1px, -1px); }
+[data-skin="retro"] .inbox-decision:active { transform: translate(2px, 2px); box-shadow: none; }
+[data-skin="retro"] .inbox-decision kbd { border: 2px solid currentColor; border-radius: 2px; box-shadow: 0 2px 0 currentColor; }
+[data-skin="retro"] .inbox-card-title, [data-skin="retro"] .today-task-title { font-family: var(--font-pixel); font-weight: 500; letter-spacing: .01em; }
+[data-skin="retro"] [data-sonner-toast] { border: 2px solid var(--color-border) !important; border-radius: var(--radius-md) !important; box-shadow: 4px 4px 0 0 color-mix(in srgb, var(--color-stellar) 45%, #000) !important; }

@@ -7,6 +7,7 @@ import { apiFetch, showError } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { parseQuickAdd } from '@/lib/task-quick-add';
 import { Button } from '@/components/ui/button';
+import { PixelSprite } from '@/components/brand/pixel-sprite';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -169,7 +170,7 @@ export default function InboxPage() {
         </li>)}</ul>)
       : !current ? <section className="inbox-zero" aria-label="Caixa zerada">
           <div className="inbox-zero-orb" aria-hidden="true" />
-          <CheckCircle2 className="h-9 w-9" />
+          <CheckCircle2 className="h-9 w-9 skin-astral-only" /><PixelSprite name="rocket" className="retro-reward skin-retro-only" />
           <h2>Caixa zerada</h2>
           <p>{clearedThisSession > 0 ? `${clearedThisSession} ${clearedThisSession === 1 ? 'decisão tomada' : 'decisões tomadas'} agora. Cabeça livre.` : 'Nada esperando decisão. Capture qualquer coisa acima antes de esquecer.'}</p>
           <div className="flex flex-wrap justify-center gap-2"><Button variant="outline" asChild><Link href="/hoje">Ir para Hoje<ArrowRight className="h-4 w-4" /></Link></Button><Button variant="ghost" asChild><Link href="/tarefas">Ver tarefas</Link></Button></div>

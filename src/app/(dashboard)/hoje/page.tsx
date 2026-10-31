@@ -17,6 +17,7 @@ import { DEFAULT_STAGES } from '@/lib/default-stages';
 import { isTaskCompleted, resolveTaskStages, taskCompletionStatus, taskReopenStatus } from '@/lib/task-stages';
 import { cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { PixelSprite } from '@/components/brand/pixel-sprite';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
@@ -227,7 +228,7 @@ export default function HojePage() {
         <div className="today-grid">
           <section className="today-main" aria-label="Prioridades de hoje">
             {priorities.length === 0 ? <div className="today-clear">
-              <PartyPopper className="h-8 w-8" />
+              <PartyPopper className="h-8 w-8 skin-astral-only" /><PixelSprite name="star" className="retro-reward skin-retro-only" />
               <h2>Tudo em dia!</h2>
               <p>Nada pendente pra hoje. Puxe algo do backlog ou descanse.</p>
               <Link href="/tarefas" className="work-action-link">Abrir tarefas<ArrowRight className="h-4 w-4" /></Link>
