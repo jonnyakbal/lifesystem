@@ -103,4 +103,6 @@ test("the agent sheet states the provenance it receives, without upgrading it", 
   await expect(page.getByRole("complementary", { name: "Ficha de Sirius" })).toContainText(
     "Referência local · nenhum catálogo recebido da instalação.",
   );
+  // A estação continua sondando; sem isto a sonda em voo vaza para o próximo teste.
+  await page.unrouteAll({ behavior: "ignoreErrors" });
 });

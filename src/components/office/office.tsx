@@ -21,6 +21,8 @@ import { DestinationPanel, StarDirectory } from "./stellar-panel";
 import { activityByAgent, useMissionBoard } from "./missions";
 import { MissionsPanel } from "./missions-panel";
 import stellar from "./stellar.module.css";
+import { StoryCampaign, useStoryProgress } from "./story/campaign";
+import story from "./story/story.module.css";
 const Scene = dynamic(() => import("./scene"), {
   ssr: false,
   loading: () => (
@@ -98,6 +100,23 @@ export default function Office() {
   const activity = useMemo(() => activityByAgent(missions.board), [missions.board]);
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [speaking, setSpeaking] = useState<AgentId | null>(null);
+  const [storyOpen, setStoryOpen] = useState(false);
+  const [storyStart, setStoryStart] = useState<string | null>(null);
+  const [briefingHidden, setBriefingHidden] = useState(true);
+  const { done: storyDone } = useStoryProgress();
+  useEffect(() => {
+    queueMicrotask(() => {
+      try { setBriefingHidden(localStorage.getItem("lifesystem-office-briefing") === "hidden"); } catch { setBriefingHidden(false); }
+    });
+  }, []);
+  function openStory(start: string | null) {
+    setStoryStart(start);
+    setStoryOpen(true);
+  }
+  function hideBriefing() {
+    setBriefingHidden(true);
+    try { localStorage.setItem("lifesystem-office-briefing", "hidden"); } catch { /* Vale nesta sessão. */ }
+  }
   const waitingDecisions = missions.board.decisions.filter((d) => !d.approved).length;
   const activeMissions = Object.values(activity).reduce((sum, a) => sum + (a?.active || 0), 0);
   // Game-like cues: a new decision or a finished mission is announced once.
@@ -422,8 +441,20 @@ export default function Office() {
           >
             Lista
           </button>
+          <button aria-pressed={storyOpen} aria-label="Modo história" onClick={() => openStory(null)} title="A doutrina da estação em cenas curtas">
+            ▶ História
+          </button>
         </div>
       </div>
+      {!briefingHidden && !storyDone.includes("prologo") && !storyOpen && (
+        <aside className={story.briefing} aria-label="Briefing da estação">
+          <span aria-hidden="true">▶</span>
+          <p><b>Transmissão recebida · Hermes</b>Novo na estação? A tripulação explica o sistema em cenas de um minuto.</p>
+          <button type="button" data-primary onClick={() => openStory("prologo")}>Assistir prólogo</button>
+          <button type="button" onClick={hideBriefing}>Agora não</button>
+        </aside>
+      )}
+      <StoryCampaign open={storyOpen} startWith={storyStart} onClose={() => setStoryOpen(false)} />
       {error && (
         <p role="status" className={styles.notice}>
           {error}

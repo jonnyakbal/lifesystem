@@ -295,3 +295,15 @@ Pedido: "incorporar bibliotecas mais aesthetic, retrofuturista e pixel art". Dec
 - **Ícones:** `NavIcon` (`src/components/brand/pixel-icons.tsx`) desenha Lucide + pixel e o CSS mostra só o do visual ativo; destinos sem par pixel mantêm o Lucide.
 - **Arquivos:** `src/app/retro.css` (tudo sob `[data-skin="retro"]`), `settings.tsx` (`useSkin`), `layout.tsx` (fontes + script), `button.tsx` (`data-variant` para estilizar por variante), menu/dock.
 - **Teste:** `tests/retro-skin.spec.ts` — liga pelo menu, troca ícones, persiste após recarregar com fonte pixel no título, volta ao Astral.
+
+## Escritório — Modo História (31/10) — branch feat/retro-pixel
+
+Pedido: "upgrade de navegabilidade, relação entre os elementos e principalmente animações pra explicar a doutrina, como pequenas cenas de filme, diálogos, interfaces… como um videogame moderno".
+
+- **Entrada:** botão `▶ História` na barra do Escritório (abre a Campanha) e, na primeira visita, uma "Transmissão recebida · Hermes" flutuante convidando ao prólogo. Ela é `position: fixed` de propósito: um banner no fluxo empurrava os controles durante a hidratação e fazia cliques errarem o alvo (pego pelos testes de Missões).
+- **Campanha:** 7 capítulos com progresso, conquista por capítulo e "próximo" destacado — Prólogo (tripulação e ciclo), Tire da cabeça (capturar), Esclarecer (árvore de decisão + teclas 1–7), Organizar (projeto com próxima ação, áreas com projetos em órbita, nota destilada), Refletir (revisão de segunda em 7 passos), Agir (3 prioridades + Foco), O pacto (proposta → aprovação na tela → recibo). Cada fim de capítulo leva à tela real (Caixa, Projetos, Revisão, Hoje).
+- **Cena:** faixas de cinema, cartão de título, diálogo com retrato (constelação do agente), plaqueta de nome, texto digitado; palco com mini-interface animada (`motion/react`) que avança junto com a fala. Espaço/Enter/→ completa e avança, ← volta, Esc sai para o menu. Leitor de tela recebe a fala inteira (`aria-live`); movimento reduzido mostra a fala inteira e corta animações.
+- **Honestidade:** o roteiro descreve o sistema real — o mapa de teclas espelha `inbox/page.tsx` (comentado nos dois lados) e "O pacto" segue o contrato de propostas/aprovação/recibo. Progresso fica só no navegador (`lifesystem-office-story`): guia, não registro.
+- **Arquivos:** `src/components/office/story/{chapters.ts,cutscene.tsx,stage-props.tsx,campaign.tsx,story.module.css}`, integração em `office.tsx`. No visual Retrô as cenas usam fonte pixel e bordas duras.
+- **Testes:** `tests/office-story.spec.ts` (prólogo pelo convite até a conquista, Esc volta ao menu, ← volta fala, "Agora não" persiste). `office-provenance` passou a encerrar suas rotas (`unrouteAll`) porque a sonda em voo vazava para o teste seguinte.
+- **Próximos passos possíveis:** destacar na estação 3D o agente que fala; "relação entre elementos" — ao focar um agente, ligar visualmente às áreas/projetos dele; simplificar as duas listas de tripulação e os 5 botões do palco num único HUD.
