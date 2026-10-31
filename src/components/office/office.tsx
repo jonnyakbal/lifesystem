@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { catalogSchema, emptyOffice, type AgentId } from "@/lib/office/schema";
+import { emptyOffice, type AgentId } from "@/lib/office/schema";
 import { reference } from "@/lib/office/reference";
 import { projectOffice, stateLabels, type OfficeView } from "@/lib/office/view";
 import { AgentSheet, colors } from "./agent-sheet";
