@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { AgentSigil } from "@/components/brand/sigils";
 import { colors } from "../agent-sheet";
+import type { AgentId } from "@/lib/office/schema";
 import type { Chapter, Speaker } from "./chapters";
 import { StageProp } from "./stage-props";
 import s from "./story.module.css";
@@ -18,8 +19,8 @@ type Phase = "title" | "play" | "end";
 /** Cena de cinema: cartão de título, falas digitadas com adereço animado no
  * palco e cartão final com a conquista e o caminho para a tela real.
  * Espaço/Enter/→ avançam (o 1º toque completa a fala), ← volta, Esc sai. */
-export function Cutscene({ chapter, next, onComplete, onClose, onNext }: {
-  chapter: Chapter; next?: Chapter; onComplete: (id: string) => void; onClose: () => void; onNext: (id: string) => void;
+export function Cutscene({ chapter, next, onComplete, onClose, onNext, onMeet }: {
+  chapter: Chapter; next?: Chapter; onComplete: (id: string) => void; onClose: () => void; onNext: (id: string) => void; onMeet?: (agent: AgentId) => void;
 }) {
   const reduce = useReducedMotion();
   const [phase, setPhase] = useState<Phase>("title");
@@ -121,6 +122,7 @@ export function Cutscene({ chapter, next, onComplete, onClose, onNext }: {
               {chapter.cta && <Link href={chapter.cta.href} className={s.primary}>{chapter.cta.label} →</Link>}
               {next ? <button type="button" className={chapter.cta ? s.secondary : s.primary} onClick={() => onNext(next.id)}>Próximo: {next.title}</button>
                 : <button type="button" className={s.secondary} onClick={onClose}>Voltar à estação</button>}
+              {onMeet && <button type="button" className={s.secondary} onClick={() => onMeet(chapter.host)}>Ver {names[chapter.host]} na estação</button>}
             </div>
           </motion.div>
         )}

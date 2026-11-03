@@ -26,6 +26,8 @@ export type Chapter = {
   title: string;
   tagline: string;
   badge: string;
+  /** Anfitrião do capítulo: ao terminar, a estação focaliza este agente. */
+  host: AgentId;
   beats: Beat[];
   cta?: { label: string; href: string };
 };
@@ -33,6 +35,7 @@ export type Chapter = {
 export const chapters: Chapter[] = [
   {
     id: "prologo",
+    host: "hermes",
     number: 0,
     title: "A estação",
     tagline: "Quem está a bordo e para que serve tudo isso.",
@@ -46,6 +49,7 @@ export const chapters: Chapter[] = [
   },
   {
     id: "capturar",
+    host: "cosmo",
     number: 1,
     title: "Tire da cabeça",
     tagline: "Capturar: tudo entra por uma porta só.",
@@ -60,6 +64,7 @@ export const chapters: Chapter[] = [
   },
   {
     id: "esclarecer",
+    host: "sirius",
     number: 2,
     title: "Esclarecer",
     tagline: "Um item por vez: o que é isso e o que pede?",
@@ -75,6 +80,7 @@ export const chapters: Chapter[] = [
   },
   {
     id: "organizar",
+    host: "sirius",
     number: 3,
     title: "Organizar",
     tagline: "Cada coisa no seu lugar: projetos, áreas e referência.",
@@ -90,6 +96,7 @@ export const chapters: Chapter[] = [
   },
   {
     id: "refletir",
+    host: "astro",
     number: 4,
     title: "Refletir",
     tagline: "Toda segunda, a revisão que mantém o sistema confiável.",
@@ -103,6 +110,7 @@ export const chapters: Chapter[] = [
   },
   {
     id: "agir",
+    host: "sirius",
     number: 5,
     title: "Agir",
     tagline: "Hoje: no máximo três prioridades, e foco em uma.",
@@ -116,6 +124,7 @@ export const chapters: Chapter[] = [
   },
   {
     id: "pacto",
+    host: "orion",
     number: 6,
     title: "O pacto",
     tagline: "Os agentes propõem. Você decide.",

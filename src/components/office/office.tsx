@@ -454,7 +454,16 @@ export default function Office() {
           <button type="button" onClick={hideBriefing}>Agora não</button>
         </aside>
       )}
-      <StoryCampaign open={storyOpen} startWith={storyStart} onClose={() => setStoryOpen(false)} />
+      <StoryCampaign
+        open={storyOpen}
+        startWith={storyStart}
+        onClose={() => setStoryOpen(false)}
+        onMeet={(id) => {
+          setStoryOpen(false);
+          selectAgent(id);
+          canvasWrap.current?.scrollIntoView({ block: "center", behavior: motion ? "smooth" : "auto" });
+        }}
+      />
       {error && (
         <p role="status" className={styles.notice}>
           {error}
@@ -589,6 +598,7 @@ export default function Office() {
                       activity={activity}
                       speaking={speaking}
                       selected={selected}
+                      links={agentPanel && !destination ? agentDestinations.map((n) => n.id) : []}
                       onSelect={selectAgent}
                       animate={motion && visible && inView && !paused}
                       meeting={meeting}

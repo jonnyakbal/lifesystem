@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import type { AgentId } from "@/lib/office/schema";
 import { chapterById, chapters } from "./chapters";
 import { Cutscene } from "./cutscene";
 import s from "./story.module.css";
@@ -38,7 +39,7 @@ export function useStoryProgress() {
 }
 
 /** Seleção de capítulos (como um menu de campanha) + o player da cena. */
-export function StoryCampaign({ open, onClose, startWith }: { open: boolean; onClose: () => void; startWith?: string | null }) {
+export function StoryCampaign({ open, onClose, startWith, onMeet }: { open: boolean; onClose: () => void; startWith?: string | null; onMeet?: (agent: AgentId) => void }) {
   const { done, complete, reset } = useStoryProgress();
   const [playing, setPlaying] = useState<string | null>(null);
   const [opened, setOpened] = useState(false);
@@ -94,7 +95,7 @@ export function StoryCampaign({ open, onClose, startWith }: { open: boolean; onC
         </motion.div>
       )}
       {open && current && (
-        <Cutscene key={current.id} chapter={current} next={after} onComplete={complete} onNext={setPlaying} onClose={() => (startWith ? onClose() : setPlaying(null))} />
+        <Cutscene key={current.id} chapter={current} next={after} onComplete={complete} onNext={setPlaying} onMeet={onMeet} onClose={() => (startWith ? onClose() : setPlaying(null))} />
       )}
     </AnimatePresence>
   );

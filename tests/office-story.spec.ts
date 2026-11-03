@@ -58,3 +58,16 @@ test("‘Agora não’ esconde o briefing de vez", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Modo história", exact: true })).toBeVisible();
   await expect(page.getByRole("complementary", { name: "Briefing da estação" })).toHaveCount(0);
 });
+
+test("fim de capítulo leva ao anfitrião na estação", async ({ page }) => {
+  await page.getByRole("button", { name: "Modo história", exact: true }).click();
+  await page.getByRole("dialog", { name: "Modo história" }).getByRole("button", { name: "Assistir capítulo 6: O pacto" }).click();
+  const scene = page.getByRole("dialog", { name: "Cena: O pacto" });
+  await expect(async () => {
+    await scene.press("Space");
+    await expect(scene.getByText("Conquista desbloqueada")).toBeVisible({ timeout: 500 });
+  }).toPass({ timeout: 20000 });
+  await scene.getByRole("button", { name: "Ver Órion na estação" }).click();
+  await expect(page.getByRole("dialog", { name: /^Cena:|Modo história/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: /^Comando de Órion/ })).toBeVisible();
+});

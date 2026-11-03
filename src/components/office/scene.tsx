@@ -1,6 +1,6 @@
 "use client";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls } from "@react-three/drei";
+import { Line, OrbitControls } from "@react-three/drei";
 import { useRef, useEffect } from "react";
 import { Vector3 } from "three";
 import type { OrbitControls as Controls } from "three-stdlib";
@@ -12,6 +12,43 @@ import { OrbitalRobot } from "./orbital-robot";
 import type { AgentActivity } from "./missions";
 import { StellarWorld } from "./stellar-world";
 import type { Destination } from "./stellar-data";
+// Relação entre elementos: o agente em foco se liga, por feixes tracejados que
+// correm em direção ao destino, às áreas e projetos que ele cuida.
+function AgentLinks({ from, targets, color, animate }: {
+  from: number;
+  targets: Destination[];
+  color: string;
+  animate: boolean;
+}) {
+  const lines = useRef<({ material: { dashOffset: number } } | null)[]>([]);
+  useFrame((_, dt) => {
+    if (!animate) return;
+    for (const line of lines.current) if (line) line.material.dashOffset -= dt * 1.2;
+  });
+  const [x, , z] = stationPoint(from, 4.65);
+  return (
+    <group>
+      {targets.map((node, i) => {
+        const [tx, ty, tz] = node.position;
+        const mid: [number, number, number] = [(x + tx) / 2, Math.max(ty, 1.2) + 3, (z + tz) / 2];
+        return (
+          <Line
+            key={node.id}
+            ref={(el) => { lines.current[i] = el as unknown as { material: { dashOffset: number } } | null; }}
+            points={[[x, 1.2, z], mid, [tx, ty, tz]]}
+            color={color}
+            lineWidth={1.6}
+            dashed
+            dashSize={0.5}
+            gapSize={0.35}
+            transparent
+            opacity={0.85}
+          />
+        );
+      })}
+    </group>
+  );
+}
 function ContextGuard({ onFailure }: { onFailure: () => void }) {
   const gl = useThree((state) => state.gl);
   useEffect(() => {
@@ -135,6 +172,7 @@ export default function Scene({
   destinations = [],
   selectedDestination = null,
   onSelectDestination = () => {},
+  links = [],
 }: {
   agents: AgentPresence[];
   activity?: Partial<Record<AgentId, AgentActivity>>;
@@ -154,6 +192,8 @@ export default function Scene({
   destinations?: Destination[];
   selectedDestination?: string | null;
   onSelectDestination?: (node: Destination) => void;
+  /** Destinos ligados ao agente em foco. */
+  links?: string[];
 }) {
   useEffect(
     () => () => {
@@ -203,6 +243,14 @@ export default function Scene({
           />
         ))}
       </group>
+      {links.length > 0 && !meeting && (
+        <AgentLinks
+          from={crew.findIndex((c) => c.id === selected)}
+          targets={destinations.filter((n) => links.includes(n.id))}
+          color={crew.find((c) => c.id === selected)?.accent || "#63d9f2"}
+          animate={animate}
+        />
+      )}
       {destinations.length > 0 && (
         <StellarWorld
           nodes={destinations}
