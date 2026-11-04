@@ -340,3 +340,15 @@ Leitura feita pelo Claude: dados sintéticos no servidor local + produção vist
 - R7/B4: passo 7 "Sua semana" — até 3 prioridades + resumo da sessão; ao concluir grava no servidor e mostra as escolhidas + Planejar a semana. Hoje mostra a linha "Semana" com elas até a próxima segunda.
 - R8: o aviso "Revisão semanal pendente" de Hoje já existia; passou a usar a data do servidor.
 - Testes: `tests/weekly-review.spec.ts` (API, captura sem texto, fluxo com passo vazio pulado e prioridades, atalho A). Ajustados `core-workflow`, `system-experience` e `review-recovery`, que fixavam o fluxo antigo.
+
+## Configurações (04/11) — aguardando aprovação do Jonny
+
+Hoje é um diálogo pequeno (`src/components/layout/settings.tsx`) com Tema, Visual, Dados e Atalhos. Lido no servidor local com dados sintéticos.
+
+- **S1 — Atalhos incompletos e com a tecla errada:** mostra ⌘ (Mac) num PC Windows; faltam Ctrl+D (Metas), Ctrl+B (Diário de bordo), Ctrl+E (Editais), Ctrl+Shift+H (Hermes) e os de tela (N nova tarefa, 1–7 e S na Caixa, A/S/B/C na Revisão, 1–6 tripulação no Escritório, Espaço/P/C/I no Foco). Nomes em inglês ("Command Palette", "INBOX"). Proposta: lista em português, gerada do mesmo mapa que a paleta usa (não diverge mais), com Ctrl ou ⌘ conforme o aparelho, agrupada por tela.
+- **S2 — Jornada e fuso moram em Planejar:** pela regra geral, ficam em Configurações. Proposta: seção "Jornada" com início/fim, dias e fuso; Planejar mostra só "Jornada 08–20 · editar".
+- **S3 — Fuso é texto livre** ("America/Sao_Paulo" digitado à mão). Proposta: lista de fusos com o do aparelho sugerido.
+- **S4 — Parágrafo de ajuda em Dados** (4 linhas). Proposta: uma linha ("Exporta as áreas principais; não substitui o backup do servidor").
+- **S5 — Subtítulo "Personalize o LIFESYSTEM"** não diz nada. Proposta: tirar.
+- **S6 — Com mais seções o diálogo fica longo.** Proposta: abas Aparência · Jornada · Dados · Atalhos, e link direto (abrir Configurações já na aba Jornada a partir de Planejar).
+- **S7 — Dia da revisão fixo na segunda.** Proposta: escolher o dia em Jornada; o aviso de Hoje e a pílula da Revisão seguem esse dia.
