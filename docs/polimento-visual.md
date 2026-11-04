@@ -308,7 +308,7 @@ Pedido: "upgrade de navegabilidade, relação entre os elementos e principalment
 - **Testes:** `tests/office-story.spec.ts` (prólogo pelo convite até a conquista, Esc volta ao menu, ← volta fala, "Agora não" persiste). `office-provenance` passou a encerrar suas rotas (`unrouteAll`) porque a sonda em voo vazava para o teste seguinte.
 - **Ponte cena → estação (03/11):** cada capítulo tem um anfitrião (`host`); o cartão final oferece "Ver {agente} na estação", que fecha a campanha e focaliza o agente com o painel de comando aberto.
 - **Relação entre elementos (03/11):** com um agente em foco, a estação 3D desenha feixes tracejados animados (`AgentLinks` em `scene.tsx`) do posto dele até cada destino da sua área (os mesmos de "Abrir área de trabalho"). Somem na reunião de equipe e congelam com animações pausadas ou movimento reduzido.
-- **HUD único: não feito.** Conferindo o código, as listas de tripulação não se repetem ao mesmo tempo (uma é do modo mapa, outra do modo ampliado) e os nomes acessíveis dos 5 controles são usados por dezenas de testes. Unificar exige uma decisão de layout do Jonny antes.
+- **HUD único (04/11, aprovado pelo Jonny):** os 5 controles do palco viraram ícones (nome em dica e para leitor de tela, mesmos nomes acessíveis) na faixa da doca da tripulação — ao lado dela a partir de 1400px, na faixa sob ela abaixo disso (acima, o painel do agente os cobriria), no alto do palco no celular. Missões mantém o nome por causa dos avisos. A grade "Selecionar agente" saiu do mapa 3D e ficou só na Lista. Saiu o texto de ajuda "arraste para orbitar…"; as teclas 1–6 vão para Configurações → Atalhos.
 
 ## Revisão (03/11) — branch feat/polimento-revisao — aprovada inteira e implementada
 

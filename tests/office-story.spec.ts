@@ -60,13 +60,15 @@ test("‘Agora não’ esconde o briefing de vez", async ({ page }) => {
 });
 
 test("fim de capítulo leva ao anfitrião na estação", async ({ page }) => {
+  test.setTimeout(90000); // Cena completa digitada + compilação do servidor de desenvolvimento.
   await page.getByRole("button", { name: "Modo história", exact: true }).click();
   await page.getByRole("dialog", { name: "Modo história" }).getByRole("button", { name: "Assistir capítulo 6: O pacto" }).click();
   const scene = page.getByRole("dialog", { name: "Cena: O pacto" });
+  // A troca da última fala pelo cartão final tem animação de saída: folga maior por toque.
   await expect(async () => {
     await scene.press("Space");
-    await expect(scene.getByText("Conquista desbloqueada")).toBeVisible({ timeout: 500 });
-  }).toPass({ timeout: 20000 });
+    await expect(scene.getByText("Conquista desbloqueada")).toBeVisible({ timeout: 1500 });
+  }).toPass({ timeout: 40000 });
   await scene.getByRole("button", { name: "Ver Órion na estação" }).click();
   await expect(page.getByRole("dialog", { name: /^Cena:|Modo história/ })).toHaveCount(0);
   await expect(page.getByRole("region", { name: /^Comando de Órion/ })).toBeVisible();

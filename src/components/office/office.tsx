@@ -1,6 +1,7 @@
 "use client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { ListChecks, LocateFixed, Maximize2, Minimize2, Orbit, Pause, Play } from "lucide-react";
 import {
   Component,
   useEffect,
@@ -501,7 +502,7 @@ export default function Office() {
                 </small>
               </div>
               <div
-                className={styles.sceneControls}
+                className={`${styles.sceneControls} ${mapMode ? stellar.hudControls : ""}`}
                 aria-label="Controles da estação"
               >
                 <button
@@ -517,11 +518,14 @@ export default function Office() {
                         : "Câmera de volta à visão geral do universo.",
                     );
                   }}
+                  title="Visão geral"
                 >
-                  Visão geral
+                  <LocateFixed aria-hidden="true" />
+                  <span className={stellar.hudLabel}>Visão geral</span>
                 </button>
                 <button
                   aria-pressed={tour}
+                  title={tour ? "Parar passeio" : "Passeio orbital"}
                   onClick={() => {
                     if (!tour && !(motion && !paused)) {
                       announce(
@@ -543,16 +547,19 @@ export default function Office() {
                     );
                   }}
                 >
-                  {tour ? "Parar passeio" : "Passeio orbital"}
+                  <Orbit aria-hidden="true" />
+                  <span className={stellar.hudLabel}>{tour ? "Parar passeio" : "Passeio orbital"}</span>
                 </button>
                 <button
+                  title={paused ? "Retomar animações" : "Pausar animações"}
                   onClick={() => {
                     setPaused((v) => !v);
                     if (!paused) setTour(false);
                     announce(paused ? "Animações retomadas." : "Animações pausadas.");
                   }}
                 >
-                  {paused ? "Retomar animações" : "Pausar animações"}
+                  {paused ? <Play aria-hidden="true" /> : <Pause aria-hidden="true" />}
+                  <span className={stellar.hudLabel}>{paused ? "Retomar animações" : "Pausar animações"}</span>
                 </button>
                 {mapMode && (
                   <button
@@ -564,6 +571,7 @@ export default function Office() {
                       setDestinationId(null);
                     }}
                   >
+                    <ListChecks aria-hidden="true" />
                     Missões
                     {activeMissions > 0 && (
                       <span className={stellar.hudBadge} data-kind="active">{activeMissions}</span>
@@ -573,8 +581,9 @@ export default function Office() {
                     )}
                   </button>
                 )}
-                <button onClick={() => setExpanded((v) => !v)}>
-                  {expanded ? "Sair da visão ampliada" : "Ampliar estação"}
+                <button onClick={() => setExpanded((v) => !v)} title={expanded ? "Sair da visão ampliada" : "Ampliar estação"}>
+                  {expanded ? <Minimize2 aria-hidden="true" /> : <Maximize2 aria-hidden="true" />}
+                  <span className={stellar.hudLabel}>{expanded ? "Sair da visão ampliada" : "Ampliar estação"}</span>
                 </button>
               </div>
               <p
@@ -779,10 +788,6 @@ export default function Office() {
                       </strong>{" "}
                       · {allDestinations.length} destinos no índice
                     </span>
-                    <span>
-                      Selecione um destino · teclas 1–6 escolhem a tripulação ·
-                      arraste para orbitar · role para aproximar
-                    </span>
                   </div>
                 </>
               ) : (
@@ -873,7 +878,8 @@ export default function Office() {
               </p>
             </div>
           )}
-          <div className={styles.roster} aria-label="Selecionar agente">
+          {/* No mapa a doca da tripulação já escolhe o agente; a grade fica para a Lista. */}
+          {!mapMode && <div className={styles.roster} aria-label="Selecionar agente">
             {catalog.profiles.map((p) => {
               const a = view.agents.find((item) => item.id === p.id)!;
               return (
@@ -896,7 +902,7 @@ export default function Office() {
                 </button>
               );
             })}
-          </div>
+          </div>}
           <section className={styles.activity}>
             <div>
               <p className={styles.eyebrow}>MOVIMENTO DO ESCRITÓRIO</p>

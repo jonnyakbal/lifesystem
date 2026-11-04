@@ -435,10 +435,8 @@ test("orbital station offers crew interactions without sending commands to agent
   await expect(
     page.getByText("Animação de ambiente", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByLabel("Selecionar agente", { exact: true })
-    .getByRole("button", { name: /Cosmo/ })
-    .click();
+  // No mapa 3D a doca da tripulação substitui a grade de cartões.
+  await page.getByRole("button", { name: "Focalizar Cosmo", exact: true }).click();
   await expect(
     page.getByRole("region", { name: "Comando de Cosmo" }),
   ).toBeVisible();
@@ -518,11 +516,8 @@ test("office renders 3D, authenticates presence and explains every agent", async
     (await page.getByRole("heading", { name: "Escritório", exact: true, level: 1 }).boundingBox())!
       .x,
   ).toBeGreaterThanOrEqual(248);
-  // The roster is a labeled div; select by label to avoid duplicate scene buttons.
-  await page
-    .getByLabel("Selecionar agente", { exact: true })
-    .getByRole("button", { name: /Sirius/ })
-    .click();
+  // In the 3D map the crew dock replaces the roster grid.
+  await page.getByRole("button", { name: "Focalizar Sirius", exact: true }).click();
   await expect(page.getByLabel("Ficha de Sirius")).toBeVisible();
   await expect(
     page.getByText("Integração pendente", { exact: true }),

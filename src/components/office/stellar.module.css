@@ -397,7 +397,8 @@
   z-index: 7;
   bottom: 51px;
   left: 22px;
-  right: 22px;
+  /* Espaço para os controles da estação, na mesma faixa (HUD único). */
+  right: 316px;
   display: flex;
   gap: 7px;
   padding: 9px;
@@ -883,4 +884,52 @@
   background: transparent;
   border: 1px solid #66869660;
   border-radius: 999px;
+}
+
+/* HUD único: os controles da estação viram ícones ao lado da doca. */
+.hudControls {
+  top: auto !important;
+  bottom: 51px;
+  right: 22px !important;
+  left: auto !important;
+  z-index: 7;
+  max-width: none !important;
+  flex-wrap: nowrap !important;
+  align-items: stretch;
+  gap: 4px;
+  padding: 9px;
+  background: #0a1723ed;
+  border: 1px solid #66869640;
+  border-radius: 12px;
+  backdrop-filter: blur(12px);
+}
+.hudControls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 40px;
+  min-height: 44px;
+  padding: 0 10px !important;
+}
+.hudControls svg { width: 16px; height: 16px; flex-shrink: 0; }
+.hudControls .hudLabel {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+}
+/* Abaixo de 1400px a tripulação precisa da largura toda: os ícones descem para a faixa sob a doca. */
+@media (max-width: 1400px) {
+  .crewDock { right: 22px; }
+  /* Na faixa sob a doca: acima dela o painel do agente cobriria os controles. */
+  .hudControls { bottom: 4px; padding: 3px; }
+  .hudControls button { min-height: 40px; }
+}
+@media (max-width: 700px) {
+  .crewDock { right: auto; }
+  .hudControls {
+    bottom: auto;
+    top: 99px !important;
+    right: 14px !important;
+    left: auto !important;
+    backdrop-filter: none;
+  }
 }
