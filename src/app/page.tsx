@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import type { Task, Capture, FinancialEntry, JournalEntry, Project, Pillar, Indicator, Content, Budget, StageDef } from '@/types';
+import { useLastReview } from '@/lib/use-last-review';
+import { daysSince } from '@/lib/weekly-review';
 
 const sources = ['tasks', 'captures', 'financial', 'journal', 'projects', 'pillars', 'indicators', 'content', 'budgets'] as const;
 type Source = typeof sources[number];
@@ -43,8 +45,8 @@ export default function HomePage() {
   const [quickTitle, setQuickTitle] = useState('');
   const [adding, setAdding] = useState(false);
   const saving = useRef(false);
-  const [reviewAge, setReviewAge] = useState<number | null>(null);
-  useEffect(() => { queueMicrotask(() => { try { const last = localStorage.getItem('lifesystem-last-weekly-review'); if (last) setReviewAge(Math.max(0, Math.floor((Date.now() - new Date(last).getTime()) / 86400000))); } catch { /* sem armazenamento */ } }); }, []);
+  const { lastCompletedAt } = useLastReview();
+  const reviewAge = lastCompletedAt ? daysSince(lastCompletedAt) : null;
   const loadAll = useCallback(async () => {
     setLoading(true);
     const results = await Promise.allSettled(sources.map(async source => {

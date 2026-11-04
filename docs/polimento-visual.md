@@ -310,7 +310,7 @@ Pedido: "upgrade de navegabilidade, relação entre os elementos e principalment
 - **Relação entre elementos (03/11):** com um agente em foco, a estação 3D desenha feixes tracejados animados (`AgentLinks` em `scene.tsx`) do posto dele até cada destino da sua área (os mesmos de "Abrir área de trabalho"). Somem na reunião de equipe e congelam com animações pausadas ou movimento reduzido.
 - **HUD único: não feito.** Conferindo o código, as listas de tripulação não se repetem ao mesmo tempo (uma é do modo mapa, outra do modo ampliado) e os nomes acessíveis dos 5 controles são usados por dezenas de testes. Unificar exige uma decisão de layout do Jonny antes.
 
-## Revisão (03/11) — branch feat/polimento-revisao — aguardando aprovação do Jonny
+## Revisão (03/11) — branch feat/polimento-revisao — aprovada inteira e implementada
 
 Leitura feita pelo Claude: dados sintéticos no servidor local + produção vista no Chrome do Jonny (só navegação, nenhuma ação). Produção: "última revisão há 33 dias"; caixa 7, atrasadas 8, projetos sem próxima ação 2, aguardando 0, backlog 2.
 
@@ -329,3 +329,14 @@ Leitura feita pelo Claude: dados sintéticos no servidor local + produção vist
 - **R6 — Direção longa e com caixa dentro de caixa:** um cartão por meta. Proposta: uma linha por área com barrinhas, e só as metas atrasadas em destaque.
 - **R7 — Final:** "Concluir revisão" no passo 6 e o passo 7 "Pronto" só um parabéns. Proposta: o passo 7 vira "Semana": escolher até 3 prioridades (resolve B4), resumo do que foi feito ("7 esclarecidas · 5 reagendadas") e botão Planejar.
 - **R8 — Lembrete:** nada avisa que a revisão está atrasada. Proposta: em Hoje, nas segundas ou após 7 dias, um cartão "Dia de revisão".
+
+### Feito (03/11)
+- B1 também protegido na Caixa (`clarify-card.tsx`) e no diálogo de conversão; teste com captura sem texto pela API.
+- B2: `POST/GET /api/weekly-review` (coleção `weekly_reviews`, histórico completo). Revisão, Hoje e Visão geral leem do servidor; a data antiga do navegador vale só até a primeira revisão nova.
+- B3/R6: Direção em uma linha por área, metas abaixo de 50% em âmbar, seções da Visão com nome legível.
+- R1/R2/R5: cabeçalho de 1 linha com pílula de idade; régua de pontos com a contagem no ponto (✓ quando zerado, bússola/estrela em Direção/Semana); abre no primeiro passo com trabalho e pula passos vazios.
+- R3: o Esclarecer da Caixa virou componente (`ClarifyCard`) usado também no passo 1, com as teclas 1–7 e S.
+- R4: atrasadas em linha única, "há N d", ações no hover (sempre visíveis no toque) e teclas A/S/B/C na linha focada; tarefa com horário mantém "Replanejar horário".
+- R7/B4: passo 7 "Sua semana" — até 3 prioridades + resumo da sessão; ao concluir grava no servidor e mostra as escolhidas + Planejar a semana. Hoje mostra a linha "Semana" com elas até a próxima segunda.
+- R8: o aviso "Revisão semanal pendente" de Hoje já existia; passou a usar a data do servidor.
+- Testes: `tests/weekly-review.spec.ts` (API, captura sem texto, fluxo com passo vazio pulado e prioridades, atalho A). Ajustados `core-workflow`, `system-experience` e `review-recovery`, que fixavam o fluxo antigo.

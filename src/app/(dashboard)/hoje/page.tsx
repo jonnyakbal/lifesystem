@@ -22,6 +22,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
+import { useLastReview } from '@/lib/use-last-review';
+import { isReviewDue } from '@/lib/weekly-review';
 
 interface Task {
   id: string; title: string; status: string; completedAt?: string;
@@ -78,16 +80,8 @@ export default function HojePage() {
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   // Revisão semanal combinada para segunda: lembrar até ela ser feita na semana.
-  const [reviewDue, setReviewDue] = useState(false);
-  useEffect(() => {
-    queueMicrotask(() => {
-      try {
-        const now = new Date(); const monday = new Date(now); monday.setHours(0, 0, 0, 0); monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
-        const last = localStorage.getItem('lifesystem-last-weekly-review');
-        setReviewDue(!last || new Date(last) < monday);
-      } catch { /* sem armazenamento, sem lembrete */ }
-    });
-  }, []);
+  const lastReview = useLastReview();
+  const reviewDue = lastReview.loaded && isReviewDue(lastReview.lastCompletedAt);
   const [configuredStages, setStages] = useState<StageDef[]>(DEFAULT_STAGES.tasks);
   const stages = resolveTaskStages(configuredStages, tasks);
   const pendingTaskIds = useRef(new Set<string>());
@@ -184,6 +178,8 @@ export default function HojePage() {
     return rank[a.priority] - rank[b.priority] || late || (a.dueDate || '').localeCompare(b.dueDate || '');
   });
   const priorities = ordered.slice(0, 3);
+  // Escolhidas no fim da revisão desta semana.
+  const weekPriorities = reviewDue || !lastReview.review ? [] : lastReview.review.priorities.map(id => tasks.find(task => task.id === id)).filter((task): task is Task => Boolean(task));
   const others = ordered.slice(3);
   // The persisted domain value is `daily`; accept the historical Portuguese
   // label too so older records keep appearing in the daily cockpit.
@@ -223,6 +219,10 @@ export default function HojePage() {
         {inboxCount > 0 && <Link href="/inbox" className="today-inbox"><Inbox className="h-4 w-4" />{inboxCount} na caixa para esclarecer</Link>}
         <Button asChild className="ml-auto"><Link href={priorities[0] ? `/tarefas?view=focus&open=${encodeURIComponent(priorities[0].id)}` : '/tarefas?view=focus'}><Crosshair className="h-4 w-4" />Começar Foco</Link></Button>
       </header>
+      {weekPriorities.length > 0 && <nav className="today-week" aria-label="Prioridades da semana">
+        <span>Semana</span>
+        {weekPriorities.map(task => <Link key={task.id} href={`/tarefas?open=${encodeURIComponent(task.id)}`} className={cn(isTaskCompleted(task, stages) && 'is-done')}>{task.title}</Link>)}
+      </nav>}
 
       {loading ? <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div> : (
         <div className="today-grid">

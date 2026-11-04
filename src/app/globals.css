@@ -1437,6 +1437,11 @@ html.lenis, html.lenis body {
 .today-date::first-letter { text-transform: uppercase; }
 .today-inbox { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 999px; font-size: 12px; color: var(--color-primary); background: color-mix(in srgb, var(--color-primary) 10%, transparent); }
 .today-inbox:hover { background: color-mix(in srgb, var(--color-primary) 18%, transparent); }
+.today-week { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: -6px 0 18px; font-size: 13px; }
+.today-week > span { font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--color-muted-foreground); }
+.today-week a { color: var(--color-foreground); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--color-primary) 45%, transparent); text-underline-offset: 3px; }
+.today-week a:hover { text-decoration-color: var(--color-primary); }
+.today-week a.is-done { color: var(--color-muted-foreground); text-decoration: line-through; }
 .today-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 28px; align-items: start; }
 .today-label { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--color-muted-foreground); margin-bottom: 10px; }
 .today-task { display: flex; align-items: center; gap: 6px; min-height: 52px; padding: 4px 8px 4px 4px; border-radius: 12px; border-bottom: 1px solid color-mix(in srgb, var(--color-border) 45%, transparent); }

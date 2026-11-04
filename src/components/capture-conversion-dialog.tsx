@@ -18,7 +18,7 @@ export const conversionTargets: { value: ConversionTarget; label: string }[] = [
 ];
 
 export function CaptureConversionDialog({ capture, onClose, onConverted }: {
-  capture: { id: string; content: string; title?: string } | null;
+  capture: { id: string; content?: string; title?: string } | null;
   onClose: () => void; onConverted: () => void;
 }) {
   const [target, setTarget] = useState<ConversionTarget>('task');
@@ -51,7 +51,7 @@ export function CaptureConversionDialog({ capture, onClose, onConverted }: {
   return <Dialog open={!!capture} onOpenChange={open => { if (!open && !busy) onClose(); }}>
     <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-lg">
       <DialogHeader><DialogTitle>Dar um destino à captura</DialogTitle><DialogDescription>O conteúdo original será preservado. Escolha como continuar.</DialogDescription></DialogHeader>
-      <p className="line-clamp-3 rounded-lg bg-muted p-3 text-sm">{capture?.title || capture?.content.replace(/<[^>]*>/g, ' ')}</p>
+      <p className="line-clamp-3 rounded-lg bg-muted p-3 text-sm">{capture?.title || (capture?.content ?? '').replace(/<[^>]*>/g, ' ')}</p>
       <form onSubmit={submit} className="space-y-4">
         <fieldset disabled={busy} className="space-y-4">
           <label className="block space-y-2 text-sm">Destino<select className="h-12 w-full rounded-md border bg-background px-3" value={target} onChange={e => { setTarget(e.target.value as ConversionTarget); setError(''); }}>
