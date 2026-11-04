@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { DEFAULT_STAGES } from '../src/lib/default-stages';
 
 const createdAt = '2026-09-30T12:00:00Z';
@@ -35,6 +35,12 @@ const fixtures: Record<string, unknown> = {
   '/api/hermes/status': { mcpConfigured: true, mcpMode: 'scoped', mcpKeyCount: 1, lastCallAt: createdAt, lastCallClientId: 'sirius-qa', lastSuccessAt: createdAt, recentFailures: 0, auditAvailable: true, heartbeat: { clientId: 'sirius-qa', status: 'online', lastSeenAt: createdAt }, nousConfigured: false },
   '/api/hermes/logs': [{ id: 'log-qa', tool: 'get_professional_overview', clientId: 'sirius-qa', success: true, createdAt }],
 };
+
+// Exportar/Importar ficam na aba Dados de Configurações.
+async function openDataSettings(page: Page) {
+  await page.getByRole('button', { name: 'Abrir configurações', exact: true }).click();
+  await page.getByRole('dialog').getByRole('tab', { name: 'Dados', exact: true }).click();
+}
 
 test('todas as telas com conteúdo sintético em desktop, mobile e tema claro', async ({ page }) => {
   test.setTimeout(240000);
@@ -99,7 +105,7 @@ test('todas as telas com conteúdo sintético em desktop, mobile e tema claro', 
 test('exportação interrompe em erro de leitura e importação não afirma sucesso em HTTP 500', async ({ page }) => {
   await page.route('**/api/financial', route => route.fulfill({ status: 500, json: { error: 'Falha sintética de leitura' } }));
   await page.goto('/inbox');
-  await page.getByRole('button', { name: 'Abrir configurações', exact: true }).click();
+  await openDataSettings(page);
   let downloads = 0;
   page.on('download', () => { downloads++; });
   await page.getByRole('button', { name: 'Exportar JSON', exact: true }).click();
@@ -121,7 +127,7 @@ test('importação detecta conflitos de diário e visão antes de gravar qualque
     return route.fulfill({ json: path === '/api/vision' ? [{ id: 'existing', section: 'identity', content: 'Texto atual preservado' }] : path === '/api/journal' ? [{ id: 'existing-journal', entryDate: '2026-09-30', content: 'Dia atual preservado' }] : [] });
   });
   await page.goto('/inbox');
-  await page.getByRole('button', { name: 'Abrir configurações', exact: true }).click();
+  await openDataSettings(page);
   for (const payload of [{ tasks: [{ title: 'Não criar parcialmente' }], vision: [{ section: 'identity', content: 'Não substituir', title: 'Visão' }] }, { journal: [{ entryDate: '2026-09-30', content: 'Não substituir diário', pillarChecks: {} }] }]) {
     const chooser = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: 'Importar JSON', exact: true }).click();
@@ -148,7 +154,7 @@ test('importação recusa referências que receberiam IDs órfãos e arquivos re
     return route.fulfill({ json: [] });
   });
   await page.goto('/inbox');
-  await page.getByRole('button', { name: 'Abrir configurações', exact: true }).click();
+  await openDataSettings(page);
   for (const payload of [
     { content: [{ title: 'Conteúdo vinculado', linkedProjectIds: ['old-project'] }] },
     { tasks: [{ title: 'Subtarefa', parentId: 'old-task' }] },
@@ -161,6 +167,6 @@ test('importação recusa referências que receberiam IDs órfãos e arquivos re
     await expect(page.getByText(/Importação interrompida: 0 registros/).last()).toBeVisible();
     expect(writes).toBe(0);
     await page.reload();
-    await page.getByRole('button', { name: 'Abrir configurações', exact: true }).click();
+    await openDataSettings(page);
   }
 });
