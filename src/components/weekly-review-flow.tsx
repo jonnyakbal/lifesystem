@@ -28,7 +28,7 @@ import type { StageDef, TaskPlanning } from '@/types';
 import { CaptureConversionDialog } from '@/components/capture-conversion-dialog';
 import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 
-interface Capture { id: string; content: string; title?: string; status: string; targetId?: string; createdAt: string; }
+interface Capture { id: string; content?: string; title?: string; status: string; targetId?: string; createdAt: string; }
 interface Indicator { id: string; pillarId: string; name: string; targetValue?: number; currentValue?: number; frequency: string; }
 interface Pillar { id: string; name: string; icon: string; }
 interface Task {
@@ -43,8 +43,9 @@ interface VisionDoc { id: string; section: string; title: string; content?: stri
 const LAST_REVIEW_KEY = 'lifesystem-last-weekly-review';
 const VISION_SECTIONS = ['identity', 'vision_5y', 'timeline', 'dream', 'custom'];
 
-function getTitle(content: string): string {
-  const text = content.replace(/<[^>]*>/g, '').trim();
+function getTitle(content: string | undefined): string {
+  // Capturas vindas de integrações podem chegar sem texto; não derrubam a revisão.
+  const text = (content ?? '').replace(/<[^>]*>/g, '').trim();
   return text.split('\n')[0].slice(0, 80) || 'Sem título';
 }
 

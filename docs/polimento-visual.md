@@ -309,3 +309,23 @@ Pedido: "upgrade de navegabilidade, relação entre os elementos e principalment
 - **Ponte cena → estação (03/11):** cada capítulo tem um anfitrião (`host`); o cartão final oferece "Ver {agente} na estação", que fecha a campanha e focaliza o agente com o painel de comando aberto.
 - **Relação entre elementos (03/11):** com um agente em foco, a estação 3D desenha feixes tracejados animados (`AgentLinks` em `scene.tsx`) do posto dele até cada destino da sua área (os mesmos de "Abrir área de trabalho"). Somem na reunião de equipe e congelam com animações pausadas ou movimento reduzido.
 - **HUD único: não feito.** Conferindo o código, as listas de tripulação não se repetem ao mesmo tempo (uma é do modo mapa, outra do modo ampliado) e os nomes acessíveis dos 5 controles são usados por dezenas de testes. Unificar exige uma decisão de layout do Jonny antes.
+
+## Revisão (03/11) — branch feat/polimento-revisao — aguardando aprovação do Jonny
+
+Leitura feita pelo Claude: dados sintéticos no servidor local + produção vista no Chrome do Jonny (só navegação, nenhuma ação). Produção: "última revisão há 33 dias"; caixa 7, atrasadas 8, projetos sem próxima ação 2, aguardando 0, backlog 2.
+
+### Defeitos
+- **B1 — captura sem texto derruba a revisão inteira** (`getTitle` lia `content` indefinido; a API aceitava captura sem `content`). Corrigido na branch: tela tolera e API grava `''`.
+- **B2 — "última revisão" fica só no navegador** (`localStorage`): celular e PC mostram datas diferentes e limpar o navegador "esquece" a revisão. Proposta: guardar no servidor.
+- **B3 — Direção mostra ids técnicos** (`identity`, `vision_5y`…) quando a Visão ainda não tem documentos.
+- **B4 — o Modo História promete** "no fim, você escolhe o que importa na semana", mas a revisão termina sem essa escolha.
+
+### Visual / fluxo
+- **R1 — Cabeçalho:** sobretítulo + título grande + régua de 7 passos com rótulos + frase do menu no topo ("Revisar o caminho…"). Proposta: 1 linha "Revisão" + pílula "há 33 dias" (vermelha se > 7) + régua compacta só com pontos.
+- **R2 — Número em 3 lugares:** "(7)" no título do passo, selo no menu e "+1 na fila". Proposta: o número fica só no ponto da régua.
+- **R3 — Caixa com dois caminhos** ("Converter" em cada item e "Esclarecer um por vez") e lista cortada em 6. Proposta: esclarecer ali mesmo, um item por vez, com as teclas 1–7 da Caixa.
+- **R4 — Atrasadas altas:** cada tarefa ocupa ~110px com 3 botões sempre visíveis; com 8 atrasadas o "Próximo" some da tela. Proposta: linha única, "há 10 dias" no lugar da data, ações no hover e teclas (A amanhã, S +7 dias, B backlog, C concluir).
+- **R5 — Passos vazios** ("Aguardando (0) — Ninguém te devendo nada") custam um clique. Proposta: passo vazio já vem marcado ✓ e é pulado.
+- **R6 — Direção longa e com caixa dentro de caixa:** um cartão por meta. Proposta: uma linha por área com barrinhas, e só as metas atrasadas em destaque.
+- **R7 — Final:** "Concluir revisão" no passo 6 e o passo 7 "Pronto" só um parabéns. Proposta: o passo 7 vira "Semana": escolher até 3 prioridades (resolve B4), resumo do que foi feito ("7 esclarecidas · 5 reagendadas") e botão Planejar.
+- **R8 — Lembrete:** nada avisa que a revisão está atrasada. Proposta: em Hoje, nas segundas ou após 7 dias, um cartão "Dia de revisão".
