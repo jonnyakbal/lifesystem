@@ -360,3 +360,37 @@ Hoje é um diálogo pequeno (`src/components/layout/settings.tsx`) com Tema, Vis
 - S7: dia da revisão em `GET/PUT /api/weekly-review/settings` (coleção `weekly_review_settings`), fora do contrato estrito da jornada, que o MCP também lê. Hoje lembra a partir desse dia.
 - Corrigido junto: "há N d" das atrasadas na Revisão dependia da hora do dia; agora conta dias de calendário.
 - Testes: `tests/settings.spec.ts` (API do dia, atalhos com Ctrl e Ctrl+I navegando, jornada salva atualizando Planejar, lembrete de Hoje pelo dia combinado). `task-relationships-ui` passou a procurar "Ajustar jornada".
+
+## Editais (04/11) — aguardando aprovação do Jonny
+
+Lido no servidor local com 4 editais sintéticos.
+
+- **E1 — Número em 3 lugares:** pílula "4 No radar" (que é o total, e confunde com a etapa Radar = 2), aba "Todos 4" e contagem em cada etapa. Proposta: contagem só nas abas de etapa; pílulas ficam só "1 fecha em 14 dias" e "0 viraram projetos".
+- **E2 — Link Projetos duas vezes** (atalho no título e "Projetos →" à direita). Proposta: só o do título.
+- **E3 — 5 botões no cabeçalho** (Automação, Etapas, Buscar editais, Analisar com IA, Novo edital) quebram em duas linhas. Proposta: Novo edital + Buscar com IA; Automação, Etapas e Analisar num menu ⋯.
+- **E4 — Cartões grandes** (título em serifa de 2 linhas, etapa repetida no cartão). Proposta: Lista em linhas (título · órgão · valor · prazo), no padrão de Tarefas; o Quadro continua para arrastar entre etapas.
+- **E5 — Prazo pouco útil** ("09 de nov. · Em breve"). Proposta: contagem regressiva ("em 5 dias", "hoje", "encerrado").
+- **E6 — Alarme fora de hora:** edital já Inscrito mostra o prazo vencido em vermelho ("Encerrado"), mas isso é o esperado depois de inscrever. Proposta: vermelho só em Radar e Em análise.
+- **E7 — Textos de ajuda** no Cockpit da automação e no formulário. Proposta: só rótulos; os avisos que importam (limite de 6 URLs, só modelos gratuitos) ficam como dica curta.
+- **E8 — Título "Editais Culturais"** e menu "Editais". Proposta: "Editais" nos dois.
+
+## Corpo & saúde (04/11) — aguardando aprovação do Jonny
+
+Lido no servidor local com 4 observações sintéticas.
+
+- **B1 — Ordem errada:** a lista diz "Mais recentes primeiro", mas ordena pela hora do registro, não do fato (água de 2h atrás aparece abaixo de uma caminhada de ontem). A API ordena por registro, como prevê o contrato `list_health_observations` do Órion; a correção é só na tela, sem mexer no contrato.
+- **C1 — Textos de ajuda e sobretítulos:** "Mais recentes primeiro", "CONTROLE SEU · Antes de registrar" + parágrafo, "CONTEXTO DECLARADO · Seu ritmo é contexto" + parágrafo, "Obrigatório inclusive para peso". Proposta: tirar; os princípios (lacuna é desconhecido, aprovação só na tela) continuam valendo no comportamento.
+- **C2 — Caixa dentro de caixa:** linha do tempo é um cartão com cartões dentro; a coluna da direita tem mais dois cartões. Proposta: linhas simples.
+- **C3 — Painel de propostas do Órion ocupa espaço vazio.** Proposta: some quando não há proposta; quando há, aparece no topo como "Órion propôs 2 registros · revisar".
+- **C4 — Registrar leva 3 passos** (escolher tipo, digitar data e hora do zero, valor). Proposta: botões rápidos por tipo (Água, Sono, Peso, Movimento, Refeição, Energia, Estresse) com "quando" já preenchido como agora, visível e editável — não inventa data, porque é você confirmando.
+- **C5 — "Corrigir ›" sempre visível** em cada linha. Proposta: aparece ao passar o mouse (sempre visível no toque).
+- **C6 — Nenhuma visão da semana.** Proposta: 7 dias em barrinhas de sono e água por dia; dia sem registro aparece vazio (desconhecido), nunca zero.
+- **C7 — Contexto declarado é um bloco de texto.** Proposta: uma linha "Objetivos · Rotinas · Pilares" com Editar.
+- **C8 — Apple Saúde:** ver opções abaixo; depende da decisão do Jonny sobre consentimento.
+
+### Apple Saúde — opções
+O Apple Saúde não tem API na web: os dados só saem pelo iPhone.
+1. **Atalhos do iPhone (gratuito):** uma automação diária do app Atalhos lê passos, sono, peso e treinos do Saúde e envia ao LifeSystem com uma chave própria, só de saúde. Cada amostra entra com origem "Apple Saúde" e identificador da amostra (sem duplicar).
+2. **App Health Auto Export (pago):** envia mais tipos de dado sozinho, por automação. Custo recorrente.
+3. **Exportação manual (gratuita):** Saúde → Exportar todos os dados → enviar o arquivo; bom para trazer o histórico antigo de uma vez.
+Decisão pendente: os dados do Apple Saúde entram direto (são medições do seu próprio aparelho, separadas dos relatos) ou passam por aprovação em lote, como as propostas do Órion? Hoje o sistema não tem nenhum consentimento recorrente ativo; entrar direto cria o primeiro.
