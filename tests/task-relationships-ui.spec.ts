@@ -37,7 +37,8 @@ test('jornada continua editável na Semana sem criar planejamento na tarefa', as
     await page.getByRole('button', { name: 'Visualização: Calendário', exact: true }).click();
     await page.getByRole('button', { name: 'Semana', exact: true }).click();
     await page.getByRole('button', { name: 'Agenda', exact: true }).click();
-    await expect(page.getByRole('button', { name: 'Configurar capacidade', exact: true })).toBeVisible();
+    // A jornada é editada em Configurações; a Agenda da Semana mostra o resumo e o atalho.
+    await expect(page.getByRole('button', { name: 'Ajustar jornada', exact: true })).toBeVisible();
     expect((await (await request.get(`/api/tasks/${task.id}`)).json()).planning).toBeUndefined();
   } finally { await request.put('/api/planning-preferences', { data: original }); await request.delete(`/api/tasks/${task.id}`); }
 });

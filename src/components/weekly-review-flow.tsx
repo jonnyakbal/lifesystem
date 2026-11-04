@@ -22,7 +22,7 @@ import type { StageDef, TaskPlanning } from '@/types';
 import { ClarifyCard, type ClarifyCapture } from '@/components/clarify-card';
 import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 import { useLastReview } from '@/lib/use-last-review';
-import { daysSince, MAX_WEEK_PRIORITIES, type WeeklyReview } from '@/lib/weekly-review';
+import { calendarDaysBetween, daysSince, MAX_WEEK_PRIORITIES, type WeeklyReview } from '@/lib/weekly-review';
 
 interface Indicator { id: string; pillarId: string; name: string; targetValue?: number; currentValue?: number; frequency: string; }
 interface Pillar { id: string; name: string; icon: string; }
@@ -248,7 +248,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void; embedded
               {overdueTasks.map(task => <li key={task.id} tabIndex={0} onKeyDown={rowKeys(task)} aria-label={task.title} className={row}>
                 {completeButton(task)}
                 <span className="min-w-0 flex-1 truncate text-sm">{task.title}</span>
-                <span className="shrink-0 text-xs text-destructive">há {daysSince(`${task.dueDate}T12:00:00`)} d</span>
+                <span className="shrink-0 text-xs text-destructive">há {calendarDaysBetween(task.dueDate!, today)} d</span>
                 {task.planning?.startAt
                   ? <Button asChild variant="outline" size="sm"><Link href="/planejar" aria-label={`Replanejar ${task.title}`}>Replanejar horário<ArrowRight className="h-3.5 w-3.5" /></Link></Button>
                   : <span className={rowActions}>

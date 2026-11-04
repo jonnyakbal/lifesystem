@@ -79,9 +79,9 @@ export default function HojePage() {
   const [journal, setJournal] = useState<JournalEntry[]>([]);
   const [captures, setCaptures] = useState<Capture[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
-  // Revisão semanal combinada para segunda: lembrar até ela ser feita na semana.
+  // Revisão semanal no dia combinado (Configurações → Jornada): lembrar até ela ser feita.
   const lastReview = useLastReview();
-  const reviewDue = lastReview.loaded && isReviewDue(lastReview.lastCompletedAt);
+  const reviewDue = lastReview.loaded && isReviewDue(lastReview.lastCompletedAt, new Date(), lastReview.reviewDay);
   const [configuredStages, setStages] = useState<StageDef[]>(DEFAULT_STAGES.tasks);
   const stages = resolveTaskStages(configuredStages, tasks);
   const pendingTaskIds = useRef(new Set<string>());

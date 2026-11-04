@@ -2,13 +2,21 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Sun, Moon, Download, Upload, Settings, Orbit, Gamepad2 } from 'lucide-react';
-import { todayStr } from '@/lib/utils';
+import { cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
+import { modifierLabel, shortcutGroups } from '@/lib/shortcuts';
+import type { PlanningPreferences } from '@/lib/planning-preferences';
+import { DEFAULT_REVIEW_SETTINGS, REVIEW_SETTINGS_EVENT, type ReviewSettings } from '@/lib/weekly-review';
+import { JourneyForm } from '@/components/tasks/task-capacity-settings';
+
+export type SettingsTab = 'aparencia' | 'jornada' | 'dados' | 'atalhos';
+const TABS: [SettingsTab, string][] = [['aparencia', 'Aparência'], ['jornada', 'Jornada'], ['dados', 'Dados'], ['atalhos', 'Atalhos']];
+const REVIEW_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 type Theme = 'dark' | 'light' | 'system';
 
@@ -87,12 +95,42 @@ export function useSkin() {
   return { skin, setSkin };
 }
 
-export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function SettingsDialog({ open, onOpenChange, tab = 'aparencia', onTabChange }: {
+  open: boolean; onOpenChange: (v: boolean) => void; tab?: SettingsTab; onTabChange?: (tab: SettingsTab) => void;
+}) {
   const { theme, setTheme } = useTheme();
   const { skin, setSkin } = useSkin();
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const dataLock = useRef(false);
+  const [journey, setJourney] = useState<PlanningPreferences | null>(null);
+  // Recria o formulário só a cada leitura (não a cada gravação, para manter o aviso de salvo).
+  const [journeyLoad, setJourneyLoad] = useState(0);
+  const [journeyError, setJourneyError] = useState('');
+  const [review, setReview] = useState<ReviewSettings>(DEFAULT_REVIEW_SETTINGS);
+  const [mod, setMod] = useState('Ctrl');
+
+  // A jornada só é lida quando a aba é aberta, sempre fresca.
+  useEffect(() => {
+    if (!open || tab !== 'jornada') return;
+    let stale = false;
+    queueMicrotask(() => { setJourney(null); setJourneyError(''); });
+    Promise.all([apiFetch<PlanningPreferences>('/api/planning-preferences'), apiFetch<ReviewSettings>('/api/weekly-review/settings')])
+      .then(([preferences, settings]) => { if (!stale) { setJourney(preferences); setReview(settings); setJourneyLoad(value => value + 1); } })
+      .catch(error => { if (!stale) setJourneyError(showError(error)); });
+    return () => { stale = true; };
+  }, [open, tab]);
+  useEffect(() => { queueMicrotask(() => setMod(modifierLabel())); }, []);
+
+  async function saveReviewDay(reviewDay: number) {
+    const previous = review;
+    setReview({ reviewDay });
+    try {
+      const saved = await apiFetch<ReviewSettings>('/api/weekly-review/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reviewDay }) });
+      window.dispatchEvent(new CustomEvent(REVIEW_SETTINGS_EVENT, { detail: saved }));
+      toast.success(`Revisão semanal: ${REVIEW_DAYS[reviewDay - 1].toLowerCase()}.`);
+    } catch (error) { setReview(previous); toast.error(showError(error)); }
+  }
 
   async function handleExport() {
     if (dataLock.current) return;
@@ -200,60 +238,68 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90dvh] max-w-md overflow-y-auto rounded-2xl">
+      <DialogContent className="max-h-[90dvh] max-w-lg overflow-y-auto rounded-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings className="h-5 w-5" />
             Configurações
           </DialogTitle>
-          <DialogDescription>Personalize o LIFESYSTEM</DialogDescription>
+          <DialogDescription className="sr-only">Aparência, jornada, dados e atalhos</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6 py-2">
-          {/* Theme */}
-          <div>
-            <p className="text-sm font-medium mb-3">Tema</p>
-            <div className="flex flex-wrap gap-2">
-              {([
-                { value: 'dark', label: 'Escuro', icon: Moon },
-                { value: 'light', label: 'Claro', icon: Sun },
-                { value: 'system', label: 'Sistema', icon: Settings },
-              ] as const).map(opt => (
-                <Button
-                  key={opt.value}
-                  variant={theme === opt.value ? 'secondary' : 'outline'}
-                  size="sm"
-                  className="flex-1 gap-2"
-                  aria-pressed={theme === opt.value}
-                  onClick={() => setTheme(opt.value)}
-                >
-                  <opt.icon className="h-4 w-4" />
-                  {opt.label}
-                </Button>
-              ))}
-            </div>
-          </div>
+        <div role="tablist" aria-label="Seções das configurações" className="flex gap-1 border-b">
+          {TABS.map(([id, label]) => <button key={id} type="button" role="tab" id={`settings-tab-${id}`} aria-selected={tab === id} aria-controls={`settings-panel-${id}`}
+            onClick={() => onTabChange?.(id)}
+            className={cn('-mb-px min-h-10 border-b-2 px-3 text-sm transition-colors', tab === id ? 'border-primary font-medium text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground')}>{label}</button>)}
+        </div>
 
-          {/* Skin */}
-          <div>
-            <p className="text-sm font-medium mb-3">Visual</p>
-            <div className="flex flex-wrap gap-2">
-              {([
-                { value: 'astral', label: 'Astral', icon: Orbit },
-                { value: 'retro', label: 'Retrô pixel', icon: Gamepad2 },
-              ] as const).map(opt => (
-                <Button key={opt.value} variant={skin === opt.value ? 'secondary' : 'outline'} size="sm" className="flex-1 gap-2"
-                  aria-pressed={skin === opt.value} onClick={() => setSkin(opt.value)}>
-                  <opt.icon className="h-4 w-4" />
-                  {opt.label}
-                </Button>
-              ))}
+        <div role="tabpanel" id={`settings-panel-${tab}`} aria-labelledby={`settings-tab-${tab}`} className="space-y-6 py-2">
+          {tab === 'aparencia' && <>
+            <div>
+              <p className="mb-3 text-sm font-medium">Tema</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: 'dark', label: 'Escuro', icon: Moon },
+                  { value: 'light', label: 'Claro', icon: Sun },
+                  { value: 'system', label: 'Sistema', icon: Settings },
+                ] as const).map(opt => (
+                  <Button key={opt.value} variant={theme === opt.value ? 'secondary' : 'outline'} size="sm" className="flex-1 gap-2"
+                    aria-pressed={theme === opt.value} onClick={() => setTheme(opt.value)}>
+                    <opt.icon className="h-4 w-4" />
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
+            <div>
+              <p className="mb-3 text-sm font-medium">Visual</p>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: 'astral', label: 'Astral', icon: Orbit },
+                  { value: 'retro', label: 'Retrô pixel', icon: Gamepad2 },
+                ] as const).map(opt => (
+                  <Button key={opt.value} variant={skin === opt.value ? 'secondary' : 'outline'} size="sm" className="flex-1 gap-2"
+                    aria-pressed={skin === opt.value} onClick={() => setSkin(opt.value)}>
+                    <opt.icon className="h-4 w-4" />
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </>}
 
-          {/* Data */}
-          <div>
-            <p className="text-sm font-medium mb-3">Dados</p>
+          {tab === 'jornada' && <>
+            {journeyError ? <p role="alert" className="text-sm text-destructive">{journeyError}</p>
+              : !journey ? <p className="text-sm text-muted-foreground">Carregando…</p>
+              : <JourneyForm key={journeyLoad} preferences={journey} onSaved={setJourney} />}
+            <label className="block space-y-1.5 border-t pt-4 text-xs font-medium">Dia da revisão semanal
+              <select value={review.reviewDay} onChange={event => void saveReviewDay(Number(event.target.value))} className="h-10 w-full rounded-md border bg-background px-3 text-base sm:text-sm">
+                {REVIEW_DAYS.map((day, index) => <option key={day} value={index + 1}>{day}</option>)}
+              </select>
+            </label>
+          </>}
+
+          {tab === 'dados' && <div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="flex-1 gap-2" onClick={handleExport} disabled={isExporting || isImporting}>
                 <Download className="h-4 w-4" />
@@ -264,33 +310,20 @@ export function SettingsDialog({ open, onOpenChange }: { open: boolean; onOpenCh
                 {isImporting ? 'Importando…' : 'Importar JSON'}
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Exporta as áreas principais em JSON, sem credenciais e integrações. Não é um backup completo. A importação adiciona registros independentes; arquivos com vínculos ou agenda não são restaurados por este formulário.
-            </p>
-          </div>
+            <p className="mt-2 text-xs text-muted-foreground">Exporta as áreas principais; não substitui o backup do servidor.</p>
+          </div>}
 
-          {/* Shortcuts */}
-          <div>
-            <p className="text-sm font-medium mb-3">Atalhos</p>
-            <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
-              <div className="flex justify-between rounded bg-muted/50 px-2 py-1">
-                <span>Command Palette</span>
-                <kbd className="font-mono">⌘K</kbd>
-              </div>
-              <div className="flex justify-between rounded bg-muted/50 px-2 py-1">
-                <span>INBOX</span>
-                <kbd className="font-mono">⌘I</kbd>
-              </div>
-              <div className="flex justify-between rounded bg-muted/50 px-2 py-1">
-                <span>Hoje</span>
-                <kbd className="font-mono">⌘G</kbd>
-              </div>
-              <div className="flex justify-between rounded bg-muted/50 px-2 py-1">
-                <span>Projetos</span>
-                <kbd className="font-mono">⌘J</kbd>
-              </div>
-            </div>
-          </div>
+          {tab === 'atalhos' && <div className="space-y-4">
+            {shortcutGroups(mod).map(group => <section key={group.title} aria-label={group.title}>
+              <h3 className="mb-1.5 text-xs font-medium text-muted-foreground">{group.title}</h3>
+              <ul className="grid gap-x-4 sm:grid-cols-2">
+                {group.items.map(item => <li key={`${item.keys.join('+')}-${item.label}`} className="flex min-h-8 items-center justify-between gap-3 text-sm">
+                  <span className="truncate">{item.label}</span>
+                  <span className="flex shrink-0 gap-1">{item.keys.map(key => <kbd key={key} className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px]">{key}</kbd>)}</span>
+                </li>)}
+              </ul>
+            </section>)}
+          </div>}
         </div>
       </DialogContent>
     </Dialog>

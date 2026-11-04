@@ -341,7 +341,7 @@ Leitura feita pelo Claude: dados sintéticos no servidor local + produção vist
 - R8: o aviso "Revisão semanal pendente" de Hoje já existia; passou a usar a data do servidor.
 - Testes: `tests/weekly-review.spec.ts` (API, captura sem texto, fluxo com passo vazio pulado e prioridades, atalho A). Ajustados `core-workflow`, `system-experience` e `review-recovery`, que fixavam o fluxo antigo.
 
-## Configurações (04/11) — aguardando aprovação do Jonny
+## Configurações (04/11) — aprovada inteira e implementada
 
 Hoje é um diálogo pequeno (`src/components/layout/settings.tsx`) com Tema, Visual, Dados e Atalhos. Lido no servidor local com dados sintéticos.
 
@@ -352,3 +352,11 @@ Hoje é um diálogo pequeno (`src/components/layout/settings.tsx`) com Tema, Vis
 - **S5 — Subtítulo "Personalize o LIFESYSTEM"** não diz nada. Proposta: tirar.
 - **S6 — Com mais seções o diálogo fica longo.** Proposta: abas Aparência · Jornada · Dados · Atalhos, e link direto (abrir Configurações já na aba Jornada a partir de Planejar).
 - **S7 — Dia da revisão fixo na segunda.** Proposta: escolher o dia em Jornada; o aviso de Hoje e a pílula da Revisão seguem esse dia.
+
+### Feito (04/11)
+- S1: `src/lib/shortcuts.ts` é a fonte única — a paleta navega e anuncia atalhos a partir dela, e Configurações → Atalhos lista os mesmos grupos em português, com Ctrl no PC e ⌘ no Mac. Corrigido o texto antigo do Escritório: são 7 tripulantes, teclas 1–7.
+- S2/S3: a jornada saiu de Planejar (e da Agenda da Semana em Tarefas) para Configurações → Jornada; nas telas fica a linha "Jornada 08:00–20:00 · todos os dias · fuso · Ajustar jornada", que abre a aba direto. O fuso virou lista com o deslocamento (GMT-3) e oferece o fuso do aparelho. Planejar atualiza na hora pelo evento `lifesystem-planning-preferences`.
+- S4/S5/S6: diálogo em abas (Aparência · Jornada · Dados · Atalhos), sem subtítulo e com uma linha em Dados; `open-settings` aceita `{ tab }`.
+- S7: dia da revisão em `GET/PUT /api/weekly-review/settings` (coleção `weekly_review_settings`), fora do contrato estrito da jornada, que o MCP também lê. Hoje lembra a partir desse dia.
+- Corrigido junto: "há N d" das atrasadas na Revisão dependia da hora do dia; agora conta dias de calendário.
+- Testes: `tests/settings.spec.ts` (API do dia, atalhos com Ctrl e Ctrl+I navegando, jornada salva atualizando Planejar, lembrete de Hoje pelo dia combinado). `task-relationships-ui` passou a procurar "Ajustar jornada".

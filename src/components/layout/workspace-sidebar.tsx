@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { BrandMark } from '@/components/brand-mark';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTitle, SheetDescription } from '@/components/ui/sheet';
-import { SettingsDialog, useSkin, useTheme } from './settings';
+import { SettingsDialog, useSkin, useTheme, type SettingsTab } from './settings';
 import { NavIcon } from '@/components/brand/pixel-icons';
 import { PixelSprite } from '@/components/brand/pixel-sprite';
 import { NotificationCenter } from '@/components/notification-center';
@@ -28,6 +28,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('aparencia');
   const [groupDisclosure, setGroupDisclosure] = useState<{ route: string; values: Record<string, boolean> }>({ route: pathname, values: {} });
   const { theme, setTheme } = useTheme();
   const { skin, setSkin } = useSkin();
@@ -47,7 +48,8 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
   }
 
   useEffect(() => {
-    const open = () => setSettingsOpen(true);
+    // open-settings aceita { tab } para abrir direto numa seção (ex.: Planejar → Jornada).
+    const open = (event: Event) => { setSettingsTab((event as CustomEvent<{ tab?: SettingsTab }>).detail?.tab || 'aparencia'); setSettingsOpen(true); };
     window.addEventListener('open-settings', open);
     return () => window.removeEventListener('open-settings', open);
   }, []);
@@ -125,7 +127,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
         {renderNavigation(false, true)}
       </SheetContent>
     </Sheet>
-    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+    <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} tab={settingsTab} onTabChange={setSettingsTab} />
   </>;
 }
 

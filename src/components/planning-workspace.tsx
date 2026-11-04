@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { PlanningWizard } from '@/components/planning-wizard';
 import { clockLabel, dateKeyInTimeZone, freeIntervals, minutesOnDay } from '@/lib/planning-availability';
 import { DEFAULT_PLANNING_PREFERENCES, workWindowOnDay, type PlanningPreferences } from '@/lib/planning-preferences';
-import { TaskCapacitySettings } from '@/components/tasks/task-capacity-settings';
+import { PLANNING_PREFERENCES_EVENT, TaskCapacitySettings } from '@/components/tasks/task-capacity-settings';
 import { projectAgenda } from '@/lib/agenda/projection';
 
 const OVERLAY_KEY = 'planning-overlays';
@@ -72,6 +72,12 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask
   const [calendarError, setCalendarError] = useState('');
   const [preferences, setPreferences] = useState<PlanningPreferences>(DEFAULT_PLANNING_PREFERENCES);
   const [preferencesError, setPreferencesError] = useState('');
+  // A jornada é editada em Configurações; acompanha a mudança sem recarregar a tela.
+  useEffect(() => {
+    const onChange = (event: Event) => { const next = (event as CustomEvent<PlanningPreferences>).detail; if (next) { setPreferences(next); setPreferencesError(''); } };
+    window.addEventListener(PLANNING_PREFERENCES_EVENT, onChange);
+    return () => window.removeEventListener(PLANNING_PREFERENCES_EVENT, onChange);
+  }, []);
   const [selected, setSelected] = useState<Task | null>(null);
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [saving, setSaving] = useState(false);
@@ -232,7 +238,7 @@ export function PlanningWorkspace({ embedded = false, onTasksChanged, onOpenTask
     {embedded ? <header className="mb-5 flex flex-wrap items-center justify-between gap-3"><h2 className="font-display text-2xl">Sua semana</h2><div className="flex items-center gap-2"><Button variant="outline" onClick={() => setShowRitual(value => !value)}>{showRitual ? 'Fechar ritual' : 'Criar por pilar'}</Button><Link href="/planejar" className="work-action-link">Abrir Planejar</Link></div></header> : <WorkspaceHeading eyebrow="Tempo com intenção" title="Sua semana" description="Uma agenda possível. Distribua suas prioridades, reserve seu foco e encontre espaço para a vida." actions={<><Button variant="outline" className="gap-2" onClick={() => setShowRitual(value => !value)}><Sparkles className="h-4 w-4" />{showRitual ? 'Fechar ritual' : 'Criar por pilar'}</Button><Link href="/tarefas" className="work-action-link">Todas as tarefas</Link></>} />}
     {showRitual && <section className="mb-7 rounded-2xl border bg-card/70 p-4 sm:p-6"><PlanningWizard onItemsChanged={() => { void load(); onTasksChanged?.(); }} /></section>}
     {loadError && <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm"><CircleAlert className="h-4 w-4" />{loadError}<Button size="sm" variant="outline" onClick={() => void load()}>Tentar novamente</Button></div>}
-    <TaskCapacitySettings preferences={preferences} loadError={preferencesError} onRetry={() => void load()} onSaved={value => { setPreferences(value); setPreferencesError(''); }} />
+    <TaskCapacitySettings preferences={preferences} loadError={preferencesError} onRetry={() => void load()} />
 
     <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
       <div className="flex items-center gap-2"><Button variant="outline" size="icon" aria-label="Semana anterior" onClick={() => setWeekOffset(value => value - 1)}><ArrowLeft className="h-4 w-4" /></Button><h2 className="planning-period min-w-44 text-center text-sm font-semibold">{period}</h2><Button variant="outline" size="icon" aria-label="Próxima semana" onClick={() => setWeekOffset(value => value + 1)}><ArrowRight className="h-4 w-4" /></Button>{weekOffset !== 0 && <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>Hoje</Button>}</div>

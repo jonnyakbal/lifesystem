@@ -10,6 +10,15 @@ import {
   Zap, Calendar, TrendingUp, Loader2, NotebookText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { modifierLabel, NAV_HOTKEYS } from '@/lib/shortcuts';
+
+// Atalho anunciado na paleta, derivado do mesmo mapa que navega (Ctrl no PC, ⌘ no Mac).
+function shortcutFor(href: string) {
+  const mod = modifierLabel();
+  if (href === '/hermes') return `${mod}⇧H`;
+  const key = Object.keys(NAV_HOTKEYS).find(k => NAV_HOTKEYS[k].href === href);
+  return key ? `${mod}${key.toUpperCase()}` : undefined;
+}
 import { navigation } from '@/lib/navigation';
 import { workspaceConfig } from '@/lib/workspace-config';
 import { toast } from 'sonner';
@@ -211,7 +220,7 @@ export function CommandPalette() {
     ...navigation.flatMap(group => group.items)
       .filter(item => !workspaceConfig.hiddenModules.includes(item.href))
       .map(item => ({ id: `nav-${item.href}`, label: `Ir para ${item.title}`, icon: item.icon,
-        shortcut: ({ '/inbox': '⌘I', '/hoje': '⌘G', '/projetos': '⌘J', '/indicadores': '⌘D', '/diario-bordo': '⌘B', '/editais': '⌘E', '/hermes': '⌘⇧H' } as Record<string, string>)[item.href],
+        shortcut: shortcutFor(item.href),
         action: () => router.push(item.href), category: 'Navegação' })),
     { id: 'nova-tarefa', label: 'Criar nova tarefa', icon: Plus, action: () => { router.push('/tarefas'); }, category: 'Ações Rápidas' },
     { id: 'nova-captura', label: 'Criar nova captura', icon: Plus, action: () => { router.push('/inbox'); }, category: 'Ações Rápidas' },
@@ -360,10 +369,6 @@ export function CommandPalette() {
     // contenteditable, então itálico/negrito do Tiptap continuam funcionando).
     // ⌘T, ⌘W, ⌘N, ⌘L etc. são do navegador e não podem ser capturados — por
     // isso os itens correspondentes do palette não anunciam atalho.
-    const navHotkeys: Record<string, string> = {
-      i: '/inbox', g: '/hoje', j: '/projetos', d: '/indicadores',
-      b: '/diario-bordo', e: '/editais',
-    };
     function handleKeyDown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
@@ -385,9 +390,9 @@ export function CommandPalette() {
           router.push('/hermes');
           return;
         }
-        if (!e.shiftKey && !typing && navHotkeys[key]) {
+        if (!e.shiftKey && !typing && NAV_HOTKEYS[key]) {
           e.preventDefault();
-          router.push(navHotkeys[key]);
+          router.push(NAV_HOTKEYS[key].href);
         }
       }
     }
