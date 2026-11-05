@@ -428,7 +428,7 @@ Conferido no código em 04/11. O texto final é decisão do Jonny; isto não é 
 - **Pendência registrada:** `npm audit` (05/11) aponta 17 vulnerabilidades (2 críticas, 3 altas) em dependências já existentes (`next`, `zod`, `dompurify`, `undici` e outras); as fontes novas não têm dependências. Corrigir é uma entrega própria (inclui subir o Next).
 - **Resolvido (05/11, `chore/deps-seguranca`):** `next`/`eslint-config-next` 16.4.5, `zod` 4.6.7, `dompurify` 3.4.17 e transitivas; `npm audit` = 0. `isomorphic-dompurify` fixado em 3.8.0 porque as versões seguintes exigem Node 22 (CI usa Node 20); `minimatch` da cadeia `typescript-eslint` por `overrides`. Gate em cópia limpa: tsc e lint 0, build webpack ok, 470/472 — falhas: área de transferência do Windows (já conhecida) e `office-controls` reduced motion por clique antes da hidratação numa rodada lenta (37 min); isolado passou 2×, teste passou a repetir o clique.
 
-## Profissional (05/11) — aguardando aprovação do Jonny
+## Profissional (05/11) — aprovada inteira e implementada
 
 Leitura: dados sintéticos no servidor local (3 projetos, 3 próximos passos, 1 proposta, 1 entrega) + produção vista no Chrome do Jonny (só navegação). Produção: 2 projetos, ambos sem objetivo; 1 próximo passo; nada aguardando.
 
@@ -451,3 +451,13 @@ Leitura: dados sintéticos no servidor local (3 projetos, 3 próximos passos, 1 
 - **P7** — Próximos passos em lista agrupada por projeto: ícone de quem executa, título, prazo, "bloqueado" quando for o caso; clique abre; botão de concluir com desfazer.
 - **P8** — Aguardando você: uma lista só (propostas e entregas), cada linha com tipo e projeto; revisão mostra os campos com nome legível e destaca o que muda em relação à versão atual.
 - **P9** — Celular: abas cabem (rótulos curtos), cabeçalho compacto, metas abaixo das abas.
+
+### Feito (05/11, `feat/polimento-profissional`)
+- B1: carregamento mostra esqueleto; nada de "Nenhum…" nem contador 0 antes da resposta.
+- B2/P8: revisão com nomes legíveis (projeto, marca, quem executa, artefatos), "N campos mudam" e valor antigo riscado; "Aguardando você" junta propostas válidas e entregas sem aprovação, já aprovadas ficam recolhidas.
+- B3: `counts.ownerQueue` e `counts.pendingProposals` no overview (aditivo; `awaitingReview` segue igual para os agentes).
+- B4/P7: próximos passos em lista por projeto, com ícone de quem executa, prazo (vermelho se vencido), "Bloqueado", concluir com desfazer e concluídos recolhidos.
+- B5: marca sem @ sem separador sobrando. B6: caixa de sugestões saiu; projeto sem próximo passo mostra "Definir próximo passo" no próprio cartão.
+- B7: o serviço recusava trocar marca ("Não é permitido mover registros entre projetos ou marcas"). Nova regra: o dono pode corrigir a marca de um contexto quando o projeto não tem nenhum outro registro profissional; agentes nunca. A correção do ARCO PASS em produção fica para depois da publicação.
+- P1–P6/P9: cabeçalho de 1 linha com "Arco Leads ↗" pequeno, contadores nas abas, filtro e busca na linha das abas, metas em uma linha só na Visão geral, cartões clicáveis, abas curtas no celular sem rolagem lateral.
+- Testes: professional-simplified (reescrito + revisão legível, passos por projeto com desfazer, carregamento), professional-domain (fila do dono, correção de marca). Bateria completa em cópia limpa: 472/476 numa rodada com o PC suspendendo (rede suspensa, Chrome sem abrir); os 3 arquivos afetados passaram ao repetir. Única falha restante: área de transferência do Windows (já conhecida).
