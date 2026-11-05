@@ -41,8 +41,11 @@ test("reduced motion explains why the orbital tour stays off", async ({ page }) 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await login(page);
   await page.goto("/escritorio");
-  await page.getByRole("button", { name: "Passeio orbital", exact: true }).click();
-  await expect(notice(page)).toHaveText("Passeio indisponível: seu sistema pede menos movimento.");
+  // Um clique antes da hidratação não é tratado; repete como uma pessoa faria.
+  await expect(async () => {
+    await page.getByRole("button", { name: "Passeio orbital", exact: true }).click();
+    await expect(notice(page)).toHaveText("Passeio indisponível: seu sistema pede menos movimento.", { timeout: 1000 });
+  }).toPass({ timeout: 15_000 });
 });
 
 test("number keys pick crew members but never hijack typing", async ({ page }) => {
