@@ -106,7 +106,7 @@ test('while loading the page never claims there is nothing to show', async ({ pa
 test('older CRM records stay readable, never editable, and nothing is lost', async ({ page }) => {
   const kinds = await mock(page, { contact: 3, opportunity: 1, campaign: 0, content: 2 });
   await page.goto('/profissional');
-  await page.getByRole('button', { name: 'Registros antigos (6)' }).click();
+  await page.getByRole('button', { name: 'Registros antigos 6' }).click();
   await expect(page.getByText(/Nada foi apagado/)).toBeVisible();
   await page.getByRole('button', { name: 'Oportunidades (1)' }).click();
   await expect(page.getByText('Etapa: Qualificado')).toBeVisible();

@@ -37,3 +37,26 @@ test('piloto profissional preserva aprovação, versões, idempotência e isolam
     expect(await storage.getAll('financial')).toEqual([]);
   } finally { if (previous === undefined) delete process.env.LIFESYSTEM_DATA_DIR; else process.env.LIFESYSTEM_DATA_DIR = previous; await rm(dir, { recursive: true, force: true }); }
 });
+
+test('a fila do dono soma propostas válidas e entregas sem aprovação da versão atual', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'ls-professional-queue-'));
+  const previous = process.env.LIFESYSTEM_DATA_DIR;
+  process.env.LIFESYSTEM_DATA_DIR = dir;
+  try {
+    const project = await storage.create<Project>('projects', { name: 'Projeto sintético', description: '', status: 'active', tags: [], links: [], needs: '', tasksCount: 0, tasksDone: 0 });
+    const human = { id: 'owner', human: true };
+    const agent = { id: 'sirius-test', human: false };
+    const binding = { projectId: project.id, brandId: 'arco-labs' };
+    await professionalCommand({ action: 'save', kind: 'context', expectedRevision: 0, idempotencyKey: 'queue-context', data: { ...binding } }, human);
+    const work = await professionalCommand({ action: 'save', kind: 'work', expectedRevision: 0, idempotencyKey: 'queue-work', data: { ...binding, title: 'Pesquisa sintética', workType: 'agent' } }, human) as ProfessionalRecord;
+    const deliverable = await professionalCommand({ action: 'save', kind: 'deliverable', expectedRevision: 0, idempotencyKey: 'queue-deliverable', data: { ...binding, title: 'Lista sintética', type: 'research', workId: work.id } }, human) as ProfessionalRecord;
+    await professionalCommand({ action: 'propose', kind: 'work', id: work.id, expectedRevision: work.revision, approvalType: 'work_scope', idempotencyKey: 'queue-scope', data: { ...binding, title: 'Pesquisa sintética', workType: 'agent' } }, agent);
+    const counts = async () => (await professionalQuery({ view: 'overview' }) as { counts: { awaitingReview: number; pendingProposals: number; ownerQueue: number } }).counts;
+    expect(await counts()).toEqual(expect.objectContaining({ awaitingReview: 1, pendingProposals: 1, ownerQueue: 2 }));
+    const approval = await professionalCommand({ action: 'propose', kind: 'deliverable', id: deliverable.id, expectedRevision: deliverable.revision, approvalType: 'deliverable', idempotencyKey: 'queue-approve', data: deliverable.data }, human) as Proposal;
+    await approveProposal(approval.id, approval.revision, approval.hash, human);
+    await professionalCommand({ action: 'apply', id: approval.id, idempotencyKey: 'queue-apply' }, human);
+    // awaitingReview segue contando entregas (contrato dos agentes); a fila do dono esvazia.
+    expect(await counts()).toEqual(expect.objectContaining({ awaitingReview: 1, pendingProposals: 1, ownerQueue: 1 }));
+  } finally { if (previous === undefined) delete process.env.LIFESYSTEM_DATA_DIR; else process.env.LIFESYSTEM_DATA_DIR = previous; await rm(dir, { recursive: true, force: true }); }
+});
