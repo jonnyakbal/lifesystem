@@ -11,6 +11,9 @@ import { isValidSessionToken, SESSION_COOKIE } from '@/lib/auth';
 const PUBLIC_PATHS = ['/login', '/privacidade', '/termos', '/api/login', '/api/mcp', '/api/ai/v1/chat/completions', '/api/ai/v1/models', '/api/hermes/heartbeat'];
 // Exact routes only; each validates its dedicated publisher token.
 const OFFICE_PUBLISH_PATHS = ['/api/hermes/office/events', '/api/hermes/office/sessions', '/api/hermes/office/commands'];
+// Exact route: the Apple Saúde import validates its own revocable device key
+// (lib/health/apple.ts). /api/health/apple/consent stays behind the session.
+const DEVICE_IMPORT_PATHS = ['/api/health/apple'];
 
 export async function proxy(request: NextRequest) {
   if (process.env.NODE_ENV !== 'production') {
@@ -44,7 +47,7 @@ export async function proxy(request: NextRequest) {
       }
     }
   }
-  if (OFFICE_PUBLISH_PATHS.includes(pathname) || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
+  if (OFFICE_PUBLISH_PATHS.includes(pathname) || DEVICE_IMPORT_PATHS.includes(pathname) || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/'))) {
     return NextResponse.next();
   }
 

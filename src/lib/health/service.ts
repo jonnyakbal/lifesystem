@@ -107,8 +107,8 @@ export async function saveHealthContext(raw: unknown, expectedRevision: number, 
     return context;
   });
 }
-function createObservation(ledger: HealthLedger, data: HealthObservationInput, actor: HealthActor, idempotencyKey: string): HealthObservation {
-  const entry: HealthObservation = { id: randomUUID(), revision: 1, data, observedAt: data.observedAt, recordedAt: new Date().toISOString(), actor: actor.id, origin: 'self_report', idempotencyKey, durationMinutes: duration(data), versions: [] };
+function createObservation(ledger: HealthLedger, data: HealthObservationInput, actor: HealthActor, idempotencyKey: string, origin: HealthObservation['origin'] = 'self_report'): HealthObservation {
+  const entry: HealthObservation = { id: randomUUID(), revision: 1, data, observedAt: data.observedAt, recordedAt: new Date().toISOString(), actor: actor.id, origin, idempotencyKey, durationMinutes: duration(data), versions: [] };
   ledger.observations.push(entry);
   return entry;
 }
@@ -132,6 +132,32 @@ export async function recordHealthObservation(raw: unknown, idempotencyKey: stri
     const entry = createObservation(ledger, data, actor, idempotencyKey);
     remember(ledger, actor, idempotencyKey, 'record', data, entry.id);
     return entry;
+  });
+}
+/**
+ * Medições de um aparelho que a pessoa autorizou (consentimento revogável com
+ * chave própria, ver lib/health/apple.ts). Não exige sessão humana porque o
+ * consentimento é a autorização; cada item tem chave estável, então reenviar
+ * não duplica e um dado diferente com a mesma chave vira conflito, não sobrescrita.
+ */
+export async function importDeviceObservations(items: { key: string; observation: unknown }[], actorId: string) {
+  const actor: HealthActor = { id: actorId, human: false };
+  const parsed = items.map(item => {
+    try { const data = healthObservationSchema.parse(item.observation); validateTemporal(data); return { key: item.key, data }; }
+    catch { return { key: item.key, data: null }; }
+  });
+  return transactHealthLedger(ledger => {
+    const result = { created: 0, duplicates: 0, conflicts: 0, invalid: 0 };
+    for (const { key, data } of parsed) {
+      if (!data) { result.invalid++; continue; }
+      try {
+        if (receipt(ledger, actor, key, 'record', data)) { result.duplicates++; continue; }
+      } catch { result.conflicts++; continue; }
+      const entry = createObservation(ledger, data, actor, key, 'device');
+      remember(ledger, actor, key, 'record', data, entry.id);
+      result.created++;
+    }
+    return result;
   });
 }
 export async function correctHealthObservation(id: string, expectedRevision: number, raw: unknown, reason: string, idempotencyKey: string, actor: HealthActor) {

@@ -36,7 +36,9 @@ export type HealthProposalInput = z.infer<typeof proposalInputSchema>;
 
 export interface HealthActor { id: string; human: boolean }
 export interface HealthObservation {
-  id: string; revision: number; data: HealthObservationInput; observedAt: string; recordedAt: string; actor: string; origin: 'self_report'; idempotencyKey: string;
+  id: string; revision: number; data: HealthObservationInput; observedAt: string; recordedAt: string; actor: string;
+  /** self_report = relato da pessoa; device = medido por um aparelho autorizado (ex.: Apple Saúde). */
+  origin: 'self_report' | 'device'; idempotencyKey: string;
   durationMinutes: number | null; versions: { revision: number; data: HealthObservationInput; correctedAt: string; actor: string; reason: string }[];
 }
 export interface HealthProposal {

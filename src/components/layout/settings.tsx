@@ -13,9 +13,10 @@ import { modifierLabel, shortcutGroups } from '@/lib/shortcuts';
 import type { PlanningPreferences } from '@/lib/planning-preferences';
 import { DEFAULT_REVIEW_SETTINGS, REVIEW_SETTINGS_EVENT, type ReviewSettings } from '@/lib/weekly-review';
 import { JourneyForm } from '@/components/tasks/task-capacity-settings';
+import { AppleHealthSettings } from '@/components/settings/apple-health-settings';
 
-export type SettingsTab = 'aparencia' | 'jornada' | 'dados' | 'atalhos';
-const TABS: [SettingsTab, string][] = [['aparencia', 'Aparência'], ['jornada', 'Jornada'], ['dados', 'Dados'], ['atalhos', 'Atalhos']];
+export type SettingsTab = 'aparencia' | 'jornada' | 'integracoes' | 'dados' | 'atalhos';
+const TABS: [SettingsTab, string][] = [['aparencia', 'Aparência'], ['jornada', 'Jornada'], ['integracoes', 'Integrações'], ['dados', 'Dados'], ['atalhos', 'Atalhos']];
 const REVIEW_DAYS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado', 'Domingo'];
 
 type Theme = 'dark' | 'light' | 'system';
@@ -244,7 +245,7 @@ export function SettingsDialog({ open, onOpenChange, tab = 'aparencia', onTabCha
             <Settings className="h-5 w-5" />
             Configurações
           </DialogTitle>
-          <DialogDescription className="sr-only">Aparência, jornada, dados e atalhos</DialogDescription>
+          <DialogDescription className="sr-only">Aparência, jornada, integrações, dados e atalhos</DialogDescription>
         </DialogHeader>
 
         <div role="tablist" aria-label="Seções das configurações" className="flex gap-1 border-b">
@@ -298,6 +299,8 @@ export function SettingsDialog({ open, onOpenChange, tab = 'aparencia', onTabCha
               </select>
             </label>
           </>}
+
+          {tab === 'integracoes' && <AppleHealthSettings />}
 
           {tab === 'dados' && <div>
             <div className="flex gap-2">
