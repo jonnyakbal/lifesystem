@@ -31,7 +31,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
   const [settingsTab, setSettingsTab] = useState<SettingsTab>('aparencia');
   const [groupDisclosure, setGroupDisclosure] = useState<{ route: string; values: Record<string, boolean> }>({ route: pathname, values: {} });
   const { theme, setTheme } = useTheme();
-  const { skin, setSkin } = useSkin();
+  const { skin, toggleRetro } = useSkin();
   const page = getPageContext(pathname);
   const inboxCount = useInboxCount();
   const groups = navigation.map(group => ({
@@ -92,7 +92,7 @@ export function WorkspaceSidebar({ collapsed, onToggle }: { collapsed: boolean; 
           <Button variant="ghost" size="icon" title="Alternar tema" aria-label="Alternar tema" onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}>
             {theme === 'light' ? <Moon size={17} /> : <Sun size={17} />}
           </Button>
-          <Button variant="ghost" size="icon" title={skin === 'retro' ? 'Visual Astral' : 'Visual Retrô pixel'} aria-label="Alternar visual retrô" aria-pressed={skin === 'retro'} onClick={() => setSkin(skin === 'retro' ? 'astral' : 'retro')}>
+          <Button variant="ghost" size="icon" title={skin === 'retro' ? 'Visual Astral' : 'Visual Retrô pixel'} aria-label="Alternar visual retrô" aria-pressed={skin === 'retro'} onClick={toggleRetro}>
             {skin === 'retro' ? <Orbit size={17} /> : <Gamepad2 size={17} />}
           </Button>
           {!compact && <Button variant="ghost" size="icon" title="Sair" aria-label="Sair" onClick={async () => { const res = await fetch('/api/logout', { method: 'POST' }); if (res.ok) router.push('/login'); }}><LogOut size={17} /></Button>}

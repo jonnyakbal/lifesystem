@@ -20,7 +20,7 @@ test('visual Retrô liga pelo menu, troca os ícones e sobrevive ao recarregar',
   await expect(html).toHaveAttribute('data-skin', 'retro');
   expect(await page.evaluate(() => getComputedStyle(document.querySelector('h1')!).fontFamily)).toContain('Pixelify');
 
-  await toggle.click();
-  await expect(html).toHaveAttribute('data-skin', 'astral');
+  // Logo após recarregar o botão pode ainda não estar hidratado: repete como no primeiro clique.
+  await expect(async () => { await toggle.click(); await expect(html).toHaveAttribute('data-skin', 'astral', { timeout: 1000 }); }).toPass({ timeout: 15000 });
   await expect(nav.locator('.skin-astral-only').first()).toBeVisible();
 });

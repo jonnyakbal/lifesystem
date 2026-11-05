@@ -1,0 +1,92 @@
+/* Visual Arco: inspirado no brandbook v3 da Arco Labs (02 - Marca/brand-guidelines.md),
+   opt-in por data-skin="arco" no <html> (Configurações → Aparência → Visual).
+   Traz cores, tipografia e detalhes (cantos de 3 px, divisórias de 1 px, rótulos
+   em DM Mono). Não usa o logo nem o emblema: o brandbook proíbe o emblema como
+   ícone de interface. Vale para os temas escuro e claro. */
+
+.skin-arco-only { display: none !important; }
+[data-skin="arco"] .skin-arco-only { display: revert !important; }
+
+[data-skin="arco"] {
+  --font-ui: "Space Grotesk Variable";
+  --font-code: "DM Mono";
+  --font-display: "Bricolage Grotesque Variable", var(--font-ui), system-ui, sans-serif;
+  --font-sans: var(--font-ui), system-ui, sans-serif;
+  --font-mono: var(--font-code), monospace;
+  --radius: 3px;
+  --radius-sm: 2px; --radius-md: 3px; --radius-lg: 3px; --radius-xl: 4px; --radius-2xl: 6px;
+  /* Paleta da marca: paper, ink, space, mist, lilac, signal, amber. */
+  --arco-paper: #F8F5ED; --arco-ink: #242324; --arco-space: #0C161B; --arco-mist: #D6E5DF;
+  --arco-lilac: #C2BEF2; --arco-signal: #D1EE87; --arco-amber: #E7A45C;
+}
+
+/* Escuro: seção de sistema — space, mist e signal para o que pede atenção. */
+[data-skin="arco"].dark {
+  --color-background: #0C161B;
+  --color-foreground: #E4EEE9;
+  --color-card: #111E24;
+  --color-card-foreground: #E4EEE9;
+  --color-popover: #14232A;
+  --color-popover-foreground: #E4EEE9;
+  --color-primary: #D1EE87;
+  --color-primary-foreground: #0C161B;
+  --color-secondary: #172830;
+  --color-secondary-foreground: #D6E5DF;
+  --color-muted: #15242B;
+  --color-muted-foreground: #93AAA3;
+  --color-accent: #1B2B33;
+  --color-accent-foreground: #C2BEF2;
+  --color-border: #22343C;
+  --color-input: #2B3F48;
+  --color-ring: #C2BEF2;
+  --color-stellar: #C2BEF2;
+}
+/* Claro: leitura editorial — paper, ink e lilás como acento. */
+[data-skin="arco"].light {
+  --color-background: #F8F5ED;
+  --color-foreground: #242324;
+  --color-card: #FFFDF7;
+  --color-card-foreground: #242324;
+  --color-popover: #FFFDF7;
+  --color-popover-foreground: #242324;
+  --color-primary: #0C161B;
+  --color-primary-foreground: #F8F5ED;
+  --color-secondary: #EEE9DC;
+  --color-secondary-foreground: #242324;
+  --color-muted: #EFEAE0;
+  --color-muted-foreground: #5E5B57;
+  --color-accent: #E7E5FB;
+  --color-accent-foreground: #2E2A6B;
+  --color-border: #DCD5C6;
+  --color-input: #CFC8B8;
+  --color-ring: #6C63C9;
+  --color-stellar: #6C63C9;
+}
+
+/* Títulos em Bricolage com tracking negativo (peso 550–650 na marca-mãe). */
+[data-skin="arco"] h1, [data-skin="arco"] .font-display { font-family: var(--font-display); font-weight: 600; letter-spacing: -.045em; }
+[data-skin="arco"] h2, [data-skin="arco"] h3 { font-family: var(--font-display); font-weight: 580; letter-spacing: -.03em; }
+
+/* Rótulos e índices em DM Mono, caixa alta, tracking positivo, uso pontual. */
+[data-skin="arco"] .workspace-nav-group > p,
+[data-skin="arco"] .task-eyebrow,
+[data-skin="arco"] .work-metric p,
+[data-skin="arco"] .today-label,
+[data-skin="arco"] kbd { font-family: var(--font-code); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 400; }
+[data-skin="arco"] .font-mono-num,
+[data-skin="arco"] .work-metric strong { font-family: var(--font-code); letter-spacing: 0; }
+
+/* Divisórias finas de 1 px no lugar de sombras: a marca conecta por detalhe, não por volume. */
+[data-skin="arco"] .astral-card,
+[data-skin="arco"] .task-card,
+[data-skin="arco"] .area-card,
+[data-skin="arco"] .business-card,
+[data-skin="arco"] .inbox-card { box-shadow: none; border-width: 1px; }
+
+/* Fundo escuro: grade discreta de painel de missão. */
+[data-skin="arco"].dark body {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--arco-mist) 4%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--arco-mist) 4%, transparent) 1px, transparent 1px);
+  background-size: 48px 48px;
+}

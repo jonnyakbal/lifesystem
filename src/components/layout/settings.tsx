@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Sun, Moon, Download, Upload, Settings, Orbit, Gamepad2 } from 'lucide-react';
+import { Sun, Moon, Download, Upload, Settings, Orbit, Gamepad2, Compass } from 'lucide-react';
 import { cn, todayStr } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -69,11 +69,12 @@ export function useTheme() {
   return { theme, setTheme };
 }
 
-export type Skin = 'astral' | 'retro';
+export type Skin = 'astral' | 'retro' | 'arco';
 
 function readSkin(): Skin {
-  try { return localStorage.getItem('lifesystem-skin') === 'retro' ? 'retro' : 'astral'; }
-  catch { return document.documentElement.dataset.skin === 'retro' ? 'retro' : 'astral'; }
+  const valid = (value: string | null | undefined): Skin => (value === 'retro' || value === 'arco' ? value : 'astral');
+  try { return valid(localStorage.getItem('lifesystem-skin')); }
+  catch { return valid(document.documentElement.dataset.skin); }
 }
 
 /** Visual do sistema: Astral (padrão) ou Retrô (pixel art e terminal retrofuturista).
@@ -93,7 +94,10 @@ export function useSkin() {
     try { localStorage.setItem('lifesystem-skin', next); } catch { /* Vale nesta sessão mesmo com armazenamento bloqueado. */ }
     window.dispatchEvent(new Event('lifesystem-skin-change'));
   }
-  return { skin, setSkin };
+  // Decide pelo visual já aplicado no <html> (o script do layout aplica antes da
+  // hidratação), não pelo estado: um clique logo após recarregar não usa valor velho.
+  function toggleRetro() { setSkin(document.documentElement.dataset.skin === 'retro' ? 'astral' : 'retro'); }
+  return { skin, setSkin, toggleRetro };
 }
 
 export function SettingsDialog({ open, onOpenChange, tab = 'aparencia', onTabChange }: {
@@ -278,6 +282,7 @@ export function SettingsDialog({ open, onOpenChange, tab = 'aparencia', onTabCha
                 {([
                   { value: 'astral', label: 'Astral', icon: Orbit },
                   { value: 'retro', label: 'Retrô pixel', icon: Gamepad2 },
+                  { value: 'arco', label: 'Arco', icon: Compass },
                 ] as const).map(opt => (
                   <Button key={opt.value} variant={skin === opt.value ? 'secondary' : 'outline'} size="sm" className="flex-1 gap-2"
                     aria-pressed={skin === opt.value} onClick={() => setSkin(opt.value)}>

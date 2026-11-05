@@ -5,9 +5,14 @@ import "@fontsource-variable/jetbrains-mono/wght.css";
 import "@fontsource-variable/pixelify-sans/wght.css";
 import "@fontsource/silkscreen/400.css";
 import "@fontsource/vt323/400.css";
+import "@fontsource-variable/bricolage-grotesque/wght.css";
+import "@fontsource-variable/space-grotesk/wght.css";
+import "@fontsource/dm-mono/400.css";
+import "@fontsource/dm-mono/500.css";
 import "./globals.css";
 import "./astral.css";
 import "./retro.css";
+import "./arco.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "sonner";
 import { ChromeGate } from "@/components/layout/chrome-gate";
@@ -48,7 +53,7 @@ export const viewport: Viewport = {
 // Forcing dynamic rendering means every request is always evaluated fresh.
 export const dynamic = 'force-dynamic';
 
-const themeBootScript = `try{var d=document.documentElement,t=localStorage.getItem('lifesystem-theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t==='light'){d.classList.remove('dark');d.classList.add('light')}if(localStorage.getItem('lifesystem-skin')==='retro')d.dataset.skin='retro'}catch(e){}`;
+const themeBootScript = `try{var d=document.documentElement,t=localStorage.getItem('lifesystem-theme');if(t==='system')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';if(t==='light'){d.classList.remove('dark');d.classList.add('light')}var s=localStorage.getItem('lifesystem-skin');if(s==='retro'||s==='arco')d.dataset.skin=s}catch(e){}`;
 
 export default function RootLayout({
   children,
