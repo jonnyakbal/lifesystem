@@ -427,3 +427,27 @@ Conferido no código em 04/11. O texto final é decisão do Jonny; isto não é 
 - **Cockpit do Diário de bordo** (inspirado na Central de comando do ArcoPass, `arco-pass/frontend/src/pages/admin/CentralComando.tsx`): faixa-mestra com veredito e 5 lâmpadas (CI da main no GitHub, Hermes pelo heartbeat, último backup pelo manifesto, Segurança e Diário pelas entradas), 4 medidores (sinal do Hermes em min, latência MCP mediana, idade do backup, tamanho dos dados), gravador de 12 semanas por categoria e mapa de calor diário. Sinais em `GET /api/cockpit` (`src/lib/cockpit.ts`). Sinal sem fonte fica "sem sinal" (cinza), nunca "normal". A hospedagem compartilhada não expõe CPU/memória/disco, por isso os medidores do ArcoPass foram trocados pelo que existe aqui. `LIFESYSTEM_COCKPIT_CI=off` desliga a consulta ao GitHub.
 - **Pendência registrada:** `npm audit` (05/11) aponta 17 vulnerabilidades (2 críticas, 3 altas) em dependências já existentes (`next`, `zod`, `dompurify`, `undici` e outras); as fontes novas não têm dependências. Corrigir é uma entrega própria (inclui subir o Next).
 - **Resolvido (05/11, `chore/deps-seguranca`):** `next`/`eslint-config-next` 16.4.5, `zod` 4.6.7, `dompurify` 3.4.17 e transitivas; `npm audit` = 0. `isomorphic-dompurify` fixado em 3.8.0 porque as versões seguintes exigem Node 22 (CI usa Node 20); `minimatch` da cadeia `typescript-eslint` por `overrides`. Gate em cópia limpa: tsc e lint 0, build webpack ok, 470/472 — falhas: área de transferência do Windows (já conhecida) e `office-controls` reduced motion por clique antes da hidratação numa rodada lenta (37 min); isolado passou 2×, teste passou a repetir o clique.
+
+## Profissional (05/11) — aguardando aprovação do Jonny
+
+Leitura: dados sintéticos no servidor local (3 projetos, 3 próximos passos, 1 proposta, 1 entrega) + produção vista no Chrome do Jonny (só navegação). Produção: 2 projetos, ambos sem objetivo; 1 próximo passo; nada aguardando.
+
+### Defeitos
+- **B1** — Enquanto carrega, a aba mostra "Nenhum próximo passo em aberto" e os contadores mostram 0. Parece que os dados sumiram.
+- **B2** — "Revisar e decidir" mostra o JSON cru da proposta (com IDs). Não dá para decidir lendo aquilo.
+- **B3** — "1 entregas para revisar": plural errado e conta só entregas; a proposta pendente fica de fora.
+- **B4** — Cartão de próximo passo não mostra projeto, prazo, quem executa nem se está bloqueado; mostra "versão 1", que é detalhe técnico.
+- **B5** — Marca sem @ aparece com separador sobrando ("FREELAS ·").
+- **B6** — Sugestões do Sirius não dizem de qual projeto são e repetem o "Falta informar" do cartão. Em produção aparecem duas iguais.
+- **B7 (dado, confirmar)** — Em produção o projeto ARCO PASS está com a marca Ateliê Studio.
+
+### Visual / fluxo
+- **P1** — Cabeçalho de 1 linha: "Arco Leads ↗" vira atalho pequeno junto de Projetos/Tarefas; fica só "Adicionar projeto" como ação.
+- **P2** — Metas numa linha só, sem a frase de ajuda: "Metas 6 meses · R$ 45 mil bruto · R$ 15 mil para investir ✎".
+- **P3** — Número em um lugar só: contadores saem das pílulas e vão para as abas ("Próximos passos 3", "Aguardando você 2").
+- **P4** — Sem textos de ajuda: some a frase sob as abas, a explicação da caixa do Sirius e a frase fixa de prioridades.
+- **P5** — Filtro de projeto e busca na mesma linha das abas.
+- **P6** — Visão geral: cartão inteiro clica e abre a edição; sem objetivo mostra só "Falta: objetivo, público…" (clicável); "Abrir projeto" vira ícone.
+- **P7** — Próximos passos em lista agrupada por projeto: ícone de quem executa, título, prazo, "bloqueado" quando for o caso; clique abre; botão de concluir com desfazer.
+- **P8** — Aguardando você: uma lista só (propostas e entregas), cada linha com tipo e projeto; revisão mostra os campos com nome legível e destaca o que muda em relação à versão atual.
+- **P9** — Celular: abas cabem (rótulos curtos), cabeçalho compacto, metas abaixo das abas.
