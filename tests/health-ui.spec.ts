@@ -24,3 +24,23 @@ test('Corpo e saúde oferece histórico, registro datado e revisão em desktop e
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
   }
 });
+
+test('linha do tempo segue a hora do fato e o registro rápido vem com o tipo e agora preenchidos', async ({ page }) => {
+  const base = { revision: 1, actor: 'owner', durationMinutes: null, versions: [] };
+  // A API devolve pela ordem de registro: a caminhada foi registrada por último, mas aconteceu antes.
+  const water = { ...base, id: '0d2c9f2e-1a3b-4c5d-8e9f-000000000001', data: { type: 'water', ml: 400, observedAt: '2026-10-02T18:00:00-03:00', timezone: 'America/Sao_Paulo' }, observedAt: '2026-10-02T18:00:00-03:00', recordedAt: '2026-10-02T21:00:00.000Z' };
+  const walk = { ...base, id: '0d2c9f2e-1a3b-4c5d-8e9f-000000000002', data: { type: 'movement', activity: 'Caminhada sintética', completed: true, observedAt: '2026-10-01T08:00:00-03:00', timezone: 'America/Sao_Paulo' }, observedAt: '2026-10-01T08:00:00-03:00', recordedAt: '2026-10-03T12:00:00.000Z' };
+  await page.route('**/api/health?view=observations*', route => route.fulfill({ json: { items: [walk, water], nextCursor: null } }));
+  await page.route('**/api/health?view=proposals*', route => route.fulfill({ json: { items: [] } }));
+  await page.route('**/api/health?view=summary*', route => route.fulfill({ json: { observations: 2, counts: {}, waterMl: 400, sleepMinutes: 0, averageEnergy: null, averageStress: null, averageWeightKg: null, coverage: { observedDays: 2, missingMeansUnknown: true } } }));
+  await page.route('**/api/health?view=context*', route => route.fulfill({ json: { id: 'health-context', revision: 0, data: { profile: null, objectives: [], preferences: [], routines: [], limitations: null, equipment: null, healthPillarIds: [] }, reviewedAt: null, actor: null, unknown: [] } }));
+  await page.route('**/api/pillars', route => route.fulfill({ json: [] }));
+  await page.goto('/corpo');
+  const rows = page.getByLabel('Histórico de saúde').getByRole('listitem');
+  await expect(rows.first()).toContainText('400 ml');
+  await expect(rows.nth(1)).toContainText('Caminhada sintética');
+  await expect(page.getByRole('region', { name: 'Revisões do Orion' })).toHaveCount(0);
+  await page.getByRole('navigation', { name: 'Registro rápido' }).getByRole('button', { name: 'Sono' }).click();
+  await expect(page.getByLabel('O que você observou?')).toHaveValue('sleep');
+  await expect(page.getByLabel('Quando você observou?')).not.toHaveValue('');
+});
