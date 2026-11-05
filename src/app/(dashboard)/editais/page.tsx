@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'motion/react';
-import { Plus, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal, Radar, CheckSquare, Square, Search, List, Columns3, ArrowRight, FolderKanban } from 'lucide-react';
-import { addDays, cn, todayStr } from '@/lib/utils';
+import { Plus, Edit2, ExternalLink, Trash2, Calendar, Landmark, Sparkles, Loader2, SlidersHorizontal, Radar, CheckSquare, Square, Search, List, Columns3, ArrowRight, FolderKanban, MoreHorizontal } from 'lucide-react';
+import { cn, todayStr } from '@/lib/utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { StageConfigDialog } from '@/components/stage-config-dialog';
 import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { calendarDaysBetween } from '@/lib/weekly-review';
 import type { Edital, EditalSettings, StageDef } from '@/types';
 
 interface Pillar { id: string; name: string; icon: string; }
@@ -402,26 +404,53 @@ export default function EditaisPage() {
     return editais.filter(edital => (filterStage === 'all' || (filterStage === '__unmapped' ? !knownStages.has(edital.stage) : edital.stage === filterStage)) && (!query || `${edital.title} ${edital.orgao ?? ''} ${edital.description ?? ''}`.toLocaleLowerCase('pt-BR').includes(query)));
   }, [editais, search, filterStage, knownStages]);
   const today = todayStr();
-  const closingSoon = editais.filter(edital => edital.prazoInscricao && edital.prazoInscricao >= today && edital.prazoInscricao <= addDays(today, 14) && !stages.find(stage => stage.id === edital.stage)?.isTerminal).length;
+
+
+  // Prazo de inscrição só pesa antes de inscrever: depois disso vencer é o esperado.
+  const inscriptionIndex = stages.findIndex(stage => /inscri/i.test(`${stage.id} ${stage.label}`));
+  function deadlineInfo(edital: Edital) {
+    const stageIndex = stages.findIndex(stage => stage.id === edital.stage);
+    const stage = stages[stageIndex];
+    const deadline = edital.prazoInscricao;
+    const open = !stage?.isTerminal && (inscriptionIndex === -1 || stageIndex === -1 || stageIndex < inscriptionIndex);
+    if (!deadline) return { deadline, label: '', overdue: false, soon: false };
+    const days = calendarDaysBetween(today, deadline);
+    const label = days < 0 ? 'encerrado' : days === 0 ? 'hoje' : days === 1 ? 'amanhã' : days <= 30 ? `em ${days} dias` : new Date(deadline + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    return { deadline, label, overdue: open && days < 0, soon: open && days >= 0 && days <= 14 };
+  }
+  function deadlineChip(edital: Edital) {
+    const { deadline, label, overdue, soon } = deadlineInfo(edital);
+    if (!deadline) return null;
+    return <span title={new Date(deadline + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })} className={cn('inline-flex shrink-0 items-center gap-1.5 text-xs', overdue ? 'text-destructive' : soon ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}><Calendar className="h-3.5 w-3.5" />{label}</span>;
+  }
+
+  const closingSoon = editais.filter(edital => deadlineInfo(edital).soon).length;
+
+  // Lista: uma linha por edital (título · órgão · valor · prazo), no padrão de Tarefas.
+  function renderEditalRow(edital: Edital) {
+    const stage = stages.find(stage => stage.id === edital.stage);
+    return <li key={edital.id} onClick={() => openEdit(edital)} className="group flex min-h-14 cursor-pointer flex-wrap items-center gap-x-4 gap-y-1 px-2 py-2.5 hover:bg-muted/30">
+      <span className="min-w-0 flex-1 basis-60">
+        <button type="button" aria-label={`Abrir edital ${edital.title}`} onClick={event => { event.stopPropagation(); openEdit(edital); }} className="block w-full truncate text-left text-sm font-medium focus-visible:outline-2 focus-visible:outline-primary">{edital.title}</button>
+        {edital.orgao && <span className="block truncate text-xs text-muted-foreground">{edital.orgao}</span>}
+      </span>
+      {filterStage === 'all' && <span className="inline-flex w-28 shrink-0 items-center gap-1.5 text-xs text-muted-foreground"><span className={cn('h-1.5 w-1.5 rounded-full', stage?.dot ?? 'bg-muted-foreground')} />{stage?.label ?? 'Etapa anterior'}</span>}
+      <span className="w-24 shrink-0 text-right text-xs tabular-nums text-muted-foreground">{formatMoney(edital.valor) || ''}</span>
+      <span className="w-24 shrink-0">{deadlineChip(edital)}</span>
+      {edital.projectId && <Link href={`/projetos?open=${encodeURIComponent(edital.projectId)}`} onClick={event => event.stopPropagation()} className="inline-flex shrink-0 items-center gap-1 text-xs text-primary hover:underline"><FolderKanban className="h-3.5 w-3.5" />Projeto</Link>}
+    </li>;
+  }
 
   function renderEditalCard(edital: Edital) {
-    const stage = stages.find(stage => stage.id === edital.stage);
     const pillar = pillarOf(edital.pillarId);
-    const deadline = edital.prazoInscricao;
-    const overdue = Boolean(deadline && deadline < today && !stage?.isTerminal);
-    const soon = Boolean(deadline && deadline >= today && deadline <= addDays(today, 14) && !stage?.isTerminal);
     return <Card key={edital.id} draggable={view === 'board'} onDragStart={event => { setDraggedId(edital.id); event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', edital.id); }} onDragEnd={() => setDraggedId(null)} onClick={() => openEdit(edital)} className={cn('work-item-card group cursor-pointer transition-colors hover:border-primary/40', draggedId === edital.id && 'opacity-50')}>
-      <CardContent className="space-y-3 p-5">
-        <div className="flex items-center justify-between gap-3 text-[11px] text-muted-foreground">
-          <span className="inline-flex items-center gap-1.5"><span className={cn('h-1.5 w-1.5 rounded-full', stage?.dot ?? 'bg-muted-foreground')} />{stage?.label ?? 'Etapa anterior'}</span>
-          {pillar && <span className="truncate">{pillar.icon} {pillar.name}</span>}
-        </div>
-        <h3 className="font-display text-xl leading-snug"><button type="button" aria-label={`Abrir edital ${edital.title}`} onClick={event => { event.stopPropagation(); openEdit(edital); }} className="work-card-title line-clamp-2 w-full text-left focus-visible:outline-2 focus-visible:outline-primary">{edital.title}</button></h3>
+      <CardContent className="space-y-2 p-4">
+        {pillar && <p className="truncate text-[11px] text-muted-foreground">{pillar.icon} {pillar.name}</p>}
+        <h3 className="text-sm font-medium leading-snug"><button type="button" aria-label={`Abrir edital ${edital.title}`} onClick={event => { event.stopPropagation(); openEdit(edital); }} className="work-card-title line-clamp-2 w-full text-left focus-visible:outline-2 focus-visible:outline-primary">{edital.title}</button></h3>
         {edital.orgao && <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><Landmark className="h-3.5 w-3.5 shrink-0" />{edital.orgao}</p>}
-        {edital.description && <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">{edital.description}</p>}
         <div className="flex flex-wrap items-center gap-2 border-t border-border/50 pt-3">
           {formatMoney(edital.valor) && <Badge variant="secondary" className="text-xs">{formatMoney(edital.valor)}</Badge>}
-          {deadline && <span className={cn('inline-flex items-center gap-1.5 text-xs', overdue ? 'text-destructive' : soon ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground')}><Calendar className="h-3.5 w-3.5" />{new Date(deadline + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}{overdue ? ' · Encerrado' : soon ? ' · Em breve' : ''}</span>}
+          {deadlineChip(edital)}
           {edital.projectId && <Link href={`/projetos?open=${encodeURIComponent(edital.projectId)}`} onClick={event => event.stopPropagation()} className="ml-auto inline-flex min-h-8 items-center gap-1 text-xs text-primary hover:underline"><FolderKanban className="h-3.5 w-3.5" /> Projeto <ArrowRight className="h-3 w-3" /></Link>}
         </div>
       </CardContent>
@@ -430,39 +459,36 @@ export default function EditaisPage() {
 
   return (
     <motion.div className="work-page p-4 lg:p-8" variants={stagger} initial="initial" animate="animate">
-      <WorkspaceHeading eyebrow="Oportunidades em movimento" title="Editais Culturais" description="Encontre oportunidades que combinam com sua trajetória. Acompanhe os prazos e transforme uma boa inscrição no seu próximo projeto." actions={<>
-          <Button variant="outline" onClick={openCockpit} className="gap-1.5" aria-label="Cockpit da automação">
-            <SlidersHorizontal className="h-4 w-4" />Automação
-          </Button>
-          <Button variant="outline" onClick={() => setStageDialogOpen(true)} className="gap-1.5" aria-label="Editar etapas">
-            <Edit2 className="h-4 w-4" />Etapas
-          </Button>
+      <WorkspaceHeading eyebrow="Oportunidades em movimento" title="Editais" description="Encontre oportunidades que combinam com sua trajetória. Acompanhe os prazos e transforme uma boa inscrição no seu próximo projeto." actions={<>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Mais ações de editais"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => { setAiResult(null); setAiInput(''); setAiOpen(true); }}><Sparkles className="mr-2 h-4 w-4" />Analisar com IA</DropdownMenuItem>
+              <DropdownMenuItem onClick={openCockpit}><SlidersHorizontal className="mr-2 h-4 w-4" />Cockpit da automação</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setStageDialogOpen(true)}><Edit2 className="mr-2 h-4 w-4" />Editar etapas</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button variant="outline" onClick={buscarEditais} className="gap-1.5">
             <Radar className="h-4 w-4" /> Buscar editais
-          </Button>
-          <Button variant="outline" onClick={() => { setAiResult(null); setAiInput(''); setAiOpen(true); }} className="gap-1.5">
-            <Sparkles className="h-4 w-4" /> Analisar com IA
           </Button>
           <Button onClick={openCreate} className="gap-1.5">
             <Plus className="h-4 w-4" /> Novo edital
           </Button>
       </>}>
         <div className="work-metrics">
-          <WorkspaceMetric label="No radar" value={isLoading ? '—' : editais.length} detail="Oportunidades em todas as etapas" tone="primary" />
-          <WorkspaceMetric label="Nos próximos 14 dias" value={isLoading ? '—' : closingSoon} detail="Inscrições abertas perto do prazo" tone={closingSoon ? 'warning' : 'default'} />
-          <WorkspaceMetric label="Viraram projetos" value={isLoading ? '—' : editais.filter(edital => edital.projectId).length} detail="Da oportunidade para a realização" />
+          <WorkspaceMetric label="fecham em 14 dias" value={isLoading ? '—' : closingSoon} detail="Inscrições abertas perto do prazo" tone={closingSoon ? 'warning' : 'default'} />
+          <WorkspaceMetric label="viraram projetos" value={isLoading ? '—' : editais.filter(edital => edital.projectId).length} detail="Da oportunidade para a realização" />
         </div>
       </WorkspaceHeading>
 
       <div className="work-project-controls">
         <div className="relative min-w-0 flex-1 sm:max-w-sm"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Filtrar editais" placeholder="Filtrar por edital ou instituição..." value={search} onChange={event => setSearch(event.target.value)} className="h-11 pl-9" /></div>
         <div className="work-view-switch" role="group" aria-label="Visualização dos editais"><Button size="sm" variant={view === 'list' ? 'secondary' : 'ghost'} aria-label="Visualização: Lista" aria-pressed={view === 'list'} onClick={() => setView('list')} className="gap-1.5"><List className="h-4 w-4" />Lista</Button><Button size="sm" variant={view === 'board' ? 'secondary' : 'ghost'} aria-label="Visualização: Quadro" aria-pressed={view === 'board'} onClick={() => setView('board')} className="gap-1.5"><Columns3 className="h-4 w-4" />Quadro</Button></div>
-        <Link href="/projetos" className="ml-auto inline-flex min-h-11 items-center gap-1.5 text-xs text-muted-foreground hover:text-primary">Projetos <ArrowRight className="h-3.5 w-3.5" /></Link>
       </div>
       {editais.length > 0 && <div className="work-stage-tabs" aria-label="Filtrar editais por etapa"><button aria-pressed={filterStage === 'all'} onClick={() => setFilterStage('all')}>Todos <span>{editais.length}</span></button>{displayStages.map(stage => <button key={stage.id} aria-pressed={filterStage === stage.id} onClick={() => setFilterStage(stage.id)}><i className={stage.dot} />{stage.label}<span>{editais.filter(edital => stage.unmapped ? !knownStages.has(edital.stage) : edital.stage === stage.id).length}</span></button>)}</div>}
 
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-64 w-full" />)}</div>
+        view === 'list' ? <div className="space-y-2">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 w-full" />)}</div>
       ) : editais.length === 0 ? (
         // Primeira experiência do módulo: orientar pra ação, não expor o
         // jargão de kanban ("Solte aqui") numa tela totalmente vazia.
@@ -487,7 +513,7 @@ export default function EditaisPage() {
             </CardContent>
           </Card>
         </motion.div>
-      ) : filtered.length === 0 ? <div className="work-empty"><Search className="h-7 w-7 text-muted-foreground" /><h2 className="font-display text-2xl">Nenhum edital encontrado</h2><span>Tente outra busca ou explore todas as etapas.</span><Button variant="outline" onClick={() => { setSearch(''); setFilterStage('all'); }}>Limpar filtros</Button></div> : view === 'list' ? <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">{filtered.map(renderEditalCard)}</div> : (
+      ) : filtered.length === 0 ? <div className="work-empty"><Search className="h-7 w-7 text-muted-foreground" /><h2 className="font-display text-2xl">Nenhum edital encontrado</h2><span>Tente outra busca ou explore todas as etapas.</span><Button variant="outline" onClick={() => { setSearch(''); setFilterStage('all'); }}>Limpar filtros</Button></div> : view === 'list' ? <ul aria-label="Lista de editais" className="divide-y divide-border/60">{filtered.map(renderEditalRow)}</ul> : (
         <div className="work-board" aria-label="Quadro de editais">
           {displayStages.filter(stage => filterStage === 'all' || filterStage === stage.id).map(stage => (
             <div
@@ -585,7 +611,7 @@ export default function EditaisPage() {
                     {stages.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <p className="text-xs text-muted-foreground">Escolha uma etapa aqui ou arraste o cartão na visualização de quadro.</p>
+                
               </div>
             )}
           </div>
@@ -671,7 +697,7 @@ export default function EditaisPage() {
         <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden sm:max-w-2xl">
           <DialogHeader className="shrink-0">
             <DialogTitle className="flex items-center gap-2"><SlidersHorizontal className="h-4 w-4 text-primary" /> Cockpit da automação</DialogTitle>
-            <DialogDescription>O contexto que a IA usa pra avaliar cada edital. Tudo aqui entra no prompt — quanto mais específico, melhor a nota de aderência.</DialogDescription>
+            <DialogDescription className="sr-only">O contexto que a IA usa para avaliar cada edital.</DialogDescription>
           </DialogHeader>
 
           {!settings ? (
@@ -681,13 +707,13 @@ export default function EditaisPage() {
               <div className="space-y-1.5">
                 <Label>Seu perfil</Label>
                 <Textarea rows={3} value={settings.perfil} onChange={(e) => setSettings({ ...settings, perfil: e.target.value })} />
-                <p className="text-xs text-muted-foreground">Quem você é e no que atua. Seus Pilares e Projetos já entram automaticamente.</p>
+                
               </div>
 
               <div className="space-y-1.5">
                 <Label>Pré-requisitos e restrições</Label>
                 <Textarea rows={3} value={settings.preRequisitos} onChange={(e) => setSettings({ ...settings, preRequisitos: e.target.value })} />
-                <p className="text-xs text-muted-foreground">O que te desqualifica ou limita (CNPJ, região, tempo de atuação). A IA derruba a nota quando o edital exige algo que você não tem.</p>
+                
               </div>
 
               <div className="space-y-1.5">
@@ -698,7 +724,7 @@ export default function EditaisPage() {
                   onChange={(e) => setSettings({ ...settings, fontes: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) })}
                   placeholder="https://..."
                 />
-                <p className="text-xs text-muted-foreground">Uma URL por linha (máx. 6 por varredura). Páginas que listam editais abertos funcionam melhor — home de site e página de menu costumam vir vazias.</p>
+                <p className="text-xs text-muted-foreground">Uma URL por linha · até 6 por busca · prefira páginas que listam editais.</p>
               </div>
 
               <div className="space-y-1.5">
@@ -707,7 +733,7 @@ export default function EditaisPage() {
                   value={settings.palavrasChave.join(', ')}
                   onChange={(e) => setSettings({ ...settings, palavrasChave: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
                 />
-                <p className="text-xs text-muted-foreground">Separadas por vírgula. Vão alimentar a busca automática quando ela existir.</p>
+                <p className="text-xs text-muted-foreground">Separadas por vírgula.</p>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
@@ -732,7 +758,7 @@ export default function EditaisPage() {
                       <SelectItem value="ling-3.0-flash-fin-free">ling-3.0-flash-fin-free</SelectItem>
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground">Só modelos gratuitos. No automático, se um bater no limite ele cai pro próximo.</p>
+                  <p className="text-xs text-muted-foreground">Só modelos gratuitos.</p>
                 </div>
               </div>
             </div>

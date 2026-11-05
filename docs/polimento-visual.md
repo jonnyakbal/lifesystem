@@ -361,7 +361,7 @@ Hoje é um diálogo pequeno (`src/components/layout/settings.tsx`) com Tema, Vis
 - Corrigido junto: "há N d" das atrasadas na Revisão dependia da hora do dia; agora conta dias de calendário.
 - Testes: `tests/settings.spec.ts` (API do dia, atalhos com Ctrl e Ctrl+I navegando, jornada salva atualizando Planejar, lembrete de Hoje pelo dia combinado). `task-relationships-ui` passou a procurar "Ajustar jornada".
 
-## Editais (04/11) — aguardando aprovação do Jonny
+## Editais (04/11) — aprovada inteira e implementada
 
 Lido no servidor local com 4 editais sintéticos.
 
@@ -374,7 +374,7 @@ Lido no servidor local com 4 editais sintéticos.
 - **E7 — Textos de ajuda** no Cockpit da automação e no formulário. Proposta: só rótulos; os avisos que importam (limite de 6 URLs, só modelos gratuitos) ficam como dica curta.
 - **E8 — Título "Editais Culturais"** e menu "Editais". Proposta: "Editais" nos dois.
 
-## Corpo & saúde (04/11) — aguardando aprovação do Jonny
+## Corpo & saúde (04/11) — aprovada inteira e implementada
 
 Lido no servidor local com 4 observações sintéticas.
 
@@ -394,3 +394,9 @@ O Apple Saúde não tem API na web: os dados só saem pelo iPhone.
 2. **App Health Auto Export (pago):** envia mais tipos de dado sozinho, por automação. Custo recorrente.
 3. **Exportação manual (gratuita):** Saúde → Exportar todos os dados → enviar o arquivo; bom para trazer o histórico antigo de uma vez.
 Decisão pendente: os dados do Apple Saúde entram direto (são medições do seu próprio aparelho, separadas dos relatos) ou passam por aprovação em lote, como as propostas do Órion? Hoje o sistema não tem nenhum consentimento recorrente ativo; entrar direto cria o primeiro.
+
+### Feito (04/11) — Corpo, Apple Saúde e Editais
+- Corpo: linha do tempo pela hora do fato (B1), registro rápido por tipo com "agora" preenchido e editável (C4), semana em barrinhas de sono e água com dia vazio = desconhecido (C6), propostas do Órion só quando existem, no topo (C3), linhas simples sem textos de ajuda (C1, C2), contexto em uma linha (C7), "Corrigir" no hover (C5).
+- Apple Saúde (C8): decisão do Jonny = Atalhos, entra direto. `POST /api/health/apple` com chave própria (Configurações → Integrações), `origin: "device"`, fonte "Apple Saúde", sono unido por noite, passos por dia encerrado, reenvio sem duplicar. Passo a passo em `docs/integrations/apple-saude.md`. O atalho no iPhone ainda não foi testado num aparelho.
+- Editais: título "Editais" (E8); cabeçalho com Buscar editais + Novo edital e o resto no ⋯ (E3); pílulas só "fecham em 14 dias" e "viraram projetos" (E1); sem o segundo link Projetos (E2); Lista em linhas alinhadas (E4); prazo em contagem regressiva (E5) e alarme só antes da etapa de inscrição (E6); textos do Cockpit encurtados (E7).
+- Testes: `health-ui` (ordem e registro rápido), `apple-health.spec.ts` (3), `editais-polish.spec.ts`.
