@@ -1,27 +1,38 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { LegalPage, LegalSection } from '@/components/legal/legal-page';
 
 export const metadata: Metadata = {
   title: 'Política de Privacidade | LIFESYSTEM',
   description: 'Como o LIFESYSTEM trata seus dados pessoais e integrações.',
 };
 
+// Texto descreve o sistema conferido no código em 04/11/2026 (docs/polimento-visual.md, P1–P8).
 export default function PrivacyPage() {
-  return (
-    <main className="min-h-screen bg-[#070A1C] px-5 py-12 text-slate-100 sm:px-8">
-      <article className="mx-auto max-w-3xl rounded-3xl border border-white/10 bg-white/[0.03] p-7 shadow-2xl backdrop-blur sm:p-10">
-        <Link href="/" className="text-sm font-semibold text-violet-300 hover:text-violet-200">LIFESYSTEM</Link>
-        <h1 className="mt-5 font-display text-4xl font-bold tracking-tight">Política de Privacidade</h1>
-        <p className="mt-3 text-sm text-slate-400">Última atualização: 16 de setembro de 2026</p>
-
-        <div className="mt-9 space-y-7 leading-7 text-slate-300">
-          <section><h2 className="text-xl font-semibold text-white">O que armazenamos</h2><p className="mt-2">O LIFESYSTEM armazena os dados que você cria no aplicativo, como tarefas, notas, projetos, metas, registros financeiros, diário e capturas. Esses dados existem para organizar seu sistema pessoal.</p></section>
-          <section><h2 className="text-xl font-semibold text-white">Google Agenda</h2><p className="mt-2">Quando você conecta o Google Agenda, o LIFESYSTEM recebe permissão para ver e editar eventos. Ao abrir Planejar, consultamos os eventos da agenda principal no intervalo exibido para mostrar seus compromissos ao lado das tarefas. Quando você escolhe converter uma captura em evento, criamos esse evento na agenda principal. O token de acesso é criptografado no servidor. Os eventos consultados não são armazenados em nossos arquivos de dados nem vendidos ou compartilhados com anunciantes.</p></section>
-          <section><h2 className="text-xl font-semibold text-white">Uso e compartilhamento</h2><p className="mt-2">Não vendemos dados pessoais e não compartilhamos seus dados com anunciantes. Integrações externas só recebem os dados necessários para executar a ação que você solicitou.</p></section>
-          <section><h2 className="text-xl font-semibold text-white">Segurança e retenção</h2><p className="mt-2">Os dados são protegidos por autenticação e por controles de acesso no servidor. Você pode excluir itens dentro do aplicativo e revogar a conexão com o Google a qualquer momento nas permissões da sua Conta Google.</p></section>
-          <section><h2 className="text-xl font-semibold text-white">Contato</h2><p className="mt-2">Para dúvidas sobre privacidade ou solicitação de exclusão, entre em contato pelo e-mail <a className="text-violet-300 hover:text-violet-200" href="mailto:jonnyakbal@gmail.com">jonnyakbal@gmail.com</a>.</p></section>
-        </div>
-      </article>
-    </main>
-  );
+  return <LegalPage title="Política de Privacidade" updatedAt="4 de novembro de 2026" current="privacidade">
+    <LegalSection title="O que armazenamos">
+      <p>O LIFESYSTEM guarda o que você cria nele: tarefas, projetos, notas, capturas, metas, registros financeiros, diário, conteúdos, editais e as revisões semanais. Esses dados existem para organizar o seu sistema pessoal e não são usados para outra finalidade.</p>
+    </LegalSection>
+    <LegalSection title="Dados de saúde">
+      <p>Em Corpo & saúde ficam observações como sono, peso, água, refeições, movimento, energia e estresse. Pela LGPD, são dados pessoais sensíveis. Eles só entram por você, por propostas do agente Órion que você aprova na tela, ou pelo Apple Saúde, se você ligar essa integração. Nada disso é diagnóstico: são registros, e a falta de registro continua sendo desconhecida.</p>
+      <p>A integração com o Apple Saúde usa uma automação do app Atalhos no seu iPhone e uma chave criada por você em Configurações → Integrações. Guardamos só o hash da chave; você pode trocá-la ou revogá-la a qualquer momento. O que entra fica marcado como medido pelo aparelho, separado dos seus relatos.</p>
+    </LegalSection>
+    <LegalSection title="Google Agenda">
+      <p>Quando você conecta o Google Agenda, o LIFESYSTEM recebe permissão para ver e editar eventos. Consultamos os eventos da agenda principal no intervalo exibido para mostrar seus compromissos ao lado das tarefas, e criamos ou ajustamos eventos quando você pede (por exemplo, ao reservar um bloco de foco ou converter uma captura em evento). O token de acesso é guardado criptografado no servidor. Os eventos consultados não são gravados nos nossos arquivos de dados, nem vendidos ou compartilhados com anunciantes.</p>
+    </LegalSection>
+    <LegalSection title="Inteligência artificial">
+      <p>Algumas funções enviam a um modelo de IA o texto necessário para responder: o Copiloto, a análise e a busca de editais, o diagnóstico e a Central de conteúdo. Usamos modelos gratuitos oferecidos por OpenRouter, Groq, Mistral, Cloudflare Workers AI e OpenCode, e cada envio vale só para aquela resposta. O que a IA devolve é sugestão: nada muda nos seus dados sem a sua ação.</p>
+    </LegalSection>
+    <LegalSection title="Agentes Hermes">
+      <p>Os agentes do Hermes rodam num servidor próprio do titular do LIFESYSTEM e acessam áreas específicas por chaves dedicadas. Eles podem conversar com você no Escritório, no Telegram ou no WhatsApp. Quando um agente quer mudar algo (registrar um treino, criar uma tarefa), ele prepara uma proposta, que só vale depois que você aprova na tela; cada mudança aplicada deixa um recibo.</p>
+    </LegalSection>
+    <LegalSection title="Onde os dados ficam">
+      <p>Os dados ficam no servidor de hospedagem do LIFESYSTEM (Hostinger) ou num banco Cloudflare D1, com uma cópia de segurança feita a cada publicação de nova versão. O acesso exige login, e as rotas usadas por agentes e aparelhos exigem chaves próprias.</p>
+    </LegalSection>
+    <LegalSection title="Compartilhamento">
+      <p>Não vendemos dados pessoais e não os compartilhamos com anunciantes. Serviços externos (Google, provedores de IA, Telegram/WhatsApp) recebem só o necessário para a ação que você pediu.</p>
+    </LegalSection>
+    <LegalSection title="Seus direitos">
+      <p>Você pode corrigir e excluir itens dentro do aplicativo, exportar as áreas principais em Configurações → Dados, revogar a chave do Apple Saúde em Configurações → Integrações e revogar o Google nas permissões da sua Conta Google. Para dúvidas, acesso ou exclusão completa, escreva para jonnyakbal@gmail.com.</p>
+    </LegalSection>
+  </LegalPage>;
 }
