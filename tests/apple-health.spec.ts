@@ -55,8 +55,9 @@ test('Apple Saúde: formato inválido é recusado e a chave não abre outras rot
     // Passos de hoje ainda vão mudar: não entram; futuro também não.
     expect(await (await device.post('/api/health/apple', { data: { timezone: tz, samples: [{ type: 'steps', start: at(0.1), value: 900 }] }, headers })).json()).toMatchObject({ created: 0 });
     expect(await (await device.post('/api/health/apple', { data: { timezone: tz, samples: [{ type: 'weight', start: new Date(Date.now() + 86_400_000).toISOString(), value: 70 }] }, headers })).json()).toMatchObject({ created: 0, invalid: 1 });
-    // A chave do aparelho não substitui a sessão nem cria outra chave.
-    expect((await device.post('/api/health/apple/consent', { headers })).status()).toBe(403);
+    // A chave do aparelho não substitui a sessão nem cria outra chave: em produção a
+    // barreira de login recusa antes (401); sem ela, a própria rota recusa (403).
+    expect([401, 403]).toContain((await device.post('/api/health/apple/consent', { headers })).status());
   } finally {
     await device.dispose();
     await request.delete('/api/health/apple/consent');
