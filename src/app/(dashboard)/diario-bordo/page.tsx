@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import { apiFetch, showError } from '@/lib/api';
 import { NotionEditor } from '@/components/notion-editor';
 import { WorkspaceHeading, WorkspaceMetric } from '@/components/workspace/workspace-heading';
+import { LogCockpit } from '@/components/cockpit/log-cockpit';
 import type { LogEntry, LogEntryCategory } from '@/types';
 
 const CATEGORY_CONFIG: Record<LogEntryCategory, { label: string; color: string }> = {
@@ -155,6 +156,8 @@ export default function DiarioBordoPage() {
           <WorkspaceMetric label="Frentes registradas" value={new Set(entries.map(entry => entry.category)).size} detail="Produto, infraestrutura e próximos passos" />
         </div>
       </WorkspaceHeading>
+
+      <LogCockpit entries={entries} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="relative w-full sm:max-w-sm">
