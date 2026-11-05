@@ -60,3 +60,20 @@ test('a fila do dono soma propostas válidas e entregas sem aprovação da vers�
     expect(await counts()).toEqual(expect.objectContaining({ awaitingReview: 1, pendingProposals: 1, ownerQueue: 1 }));
   } finally { if (previous === undefined) delete process.env.LIFESYSTEM_DATA_DIR; else process.env.LIFESYSTEM_DATA_DIR = previous; await rm(dir, { recursive: true, force: true }); }
 });
+
+test('o dono corrige a marca de um contexto sem vínculos, mas não a de um projeto com registros', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'ls-professional-brand-'));
+  const previous = process.env.LIFESYSTEM_DATA_DIR;
+  process.env.LIFESYSTEM_DATA_DIR = dir;
+  try {
+    const project = await storage.create<Project>('projects', { name: 'Projeto sintético', description: '', status: 'active', tags: [], links: [], needs: '', tasksCount: 0, tasksDone: 0 });
+    const human = { id: 'owner', human: true };
+    const agent = { id: 'sirius-test', human: false };
+    const context = await professionalCommand({ action: 'save', kind: 'context', expectedRevision: 0, idempotencyKey: 'brand-context', data: { projectId: project.id, brandId: 'atelie-studio' } }, human) as ProfessionalRecord;
+    await expect(professionalCommand({ action: 'save', kind: 'context', id: context.id, expectedRevision: 1, idempotencyKey: 'brand-agent', data: { projectId: project.id, brandId: 'arcopass' } }, agent)).rejects.toThrow();
+    const fixed = await professionalCommand({ action: 'save', kind: 'context', id: context.id, expectedRevision: 1, idempotencyKey: 'brand-fix', data: { projectId: project.id, brandId: 'arcopass' } }, human) as ProfessionalRecord;
+    expect(fixed.data.brandId).toBe('arcopass');
+    await professionalCommand({ action: 'save', kind: 'work', expectedRevision: 0, idempotencyKey: 'brand-work', data: { projectId: project.id, brandId: 'arcopass', title: 'Passo sintético' } }, human);
+    await expect(professionalCommand({ action: 'save', kind: 'context', id: context.id, expectedRevision: fixed.revision, idempotencyKey: 'brand-locked', data: { projectId: project.id, brandId: 'freelance' } }, human)).rejects.toThrow('marcas');
+  } finally { if (previous === undefined) delete process.env.LIFESYSTEM_DATA_DIR; else process.env.LIFESYSTEM_DATA_DIR = previous; await rm(dir, { recursive: true, force: true }); }
+});

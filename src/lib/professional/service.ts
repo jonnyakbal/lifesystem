@@ -74,9 +74,12 @@ async function putRecord(ledger: Ledger, kind: Kind, data: Record<string, unknow
   const previous = ledger.records.find(record => record.id === id);
   if (kind === 'context' && ledger.records.some(record => record.kind === 'context' && record.data.projectId === data.projectId && record.id !== id)) throw new Error('O projeto já possui um contexto profissional. Releia e altere a versão existente.');
   checkVersion(previous, expectedRevision);
-  if (previous && (previous.kind !== kind || previous.data.projectId !== data.projectId || previous.data.brandId !== data.brandId)) throw new Error('Não é permitido mover registros entre projetos ou marcas.');
+  // Exceção: o dono pode corrigir a marca de um contexto que ainda não tem nenhum
+  // registro vinculado no projeto (nada fica com marca divergente).
+  const brandFix = kind === 'context' && !!previous && actor.human && previous.data.projectId === data.projectId && !ledger.records.some(record => record.id !== id && record.data.projectId === data.projectId);
+  if (previous && (previous.kind !== kind || previous.data.projectId !== data.projectId || (previous.data.brandId !== data.brandId && !brandFix))) throw new Error('Não é permitido mover registros entre projetos ou marcas.');
   if (kind === 'deliverable' && previous && previous.data.workId !== data.workId) throw new Error('Uma entrega não pode ser transferida entre trabalhos.');
-  if (kind === 'context' && previous && previous.data.brandId !== data.brandId) throw new Error('A marca do contexto possui vínculos; não pode ser substituída.');
+  if (kind === 'context' && previous && previous.data.brandId !== data.brandId && !brandFix) throw new Error('A marca do contexto possui vínculos; não pode ser substituída.');
   if (kind === 'contact' && !previous) {
     const channels = data.channels as { type: string; value: string }[];
     const duplicate = ledger.records.find(item => item.kind === 'contact' && item.data.brandId === data.brandId && item.data.projectId === data.projectId && (item.data.channels as typeof channels).some(channel => channels.some(candidate => candidate.type === channel.type && normalizeChannel(candidate.type, candidate.value) === normalizeChannel(channel.type, channel.value))));
