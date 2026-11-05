@@ -400,3 +400,23 @@ Decisão pendente: os dados do Apple Saúde entram direto (são medições do se
 - Apple Saúde (C8): decisão do Jonny = Atalhos, entra direto. `POST /api/health/apple` com chave própria (Configurações → Integrações), `origin: "device"`, fonte "Apple Saúde", sono unido por noite, passos por dia encerrado, reenvio sem duplicar. Passo a passo em `docs/integrations/apple-saude.md`. O atalho no iPhone ainda não foi testado num aparelho.
 - Editais: título "Editais" (E8); cabeçalho com Buscar editais + Novo edital e o resto no ⋯ (E3); pílulas só "fecham em 14 dias" e "viraram projetos" (E1); sem o segundo link Projetos (E2); Lista em linhas alinhadas (E4); prazo em contagem regressiva (E5) e alarme só antes da etapa de inscrição (E6); textos do Cockpit encurtados (E7).
 - Testes: `health-ui` (ordem e registro rápido), `apple-health.spec.ts` (3), `editais-polish.spec.ts`.
+
+## Termos e Privacidade (04/11) — aguardando aprovação do Jonny
+
+As duas páginas são públicas (sem login) e curtas. Última atualização declarada: 16/09/2026.
+
+### Visual
+- **L1 — Cores fixas** (fundo `#070A1C`, textos `slate`): a página ignora o tema claro e o visual Retrô. Proposta: usar as cores do tema, como o resto do app.
+- **L2 — Caixa em volta do texto** (cartão com borda e sombra). Proposta: texto corrido em coluna de leitura, sem caixa.
+- **L3 — "LIFESYSTEM" leva para `/`**, que manda para o login quem não está logado. Proposta: manter o link e acrescentar, no rodapé, o atalho entre as duas páginas (Termos ↔ Privacidade).
+
+### Conteúdo — a Privacidade está desatualizada em relação ao sistema de hoje
+Conferido no código em 04/11. O texto final é decisão do Jonny; isto não é parecer jurídico.
+- **P1 — Saúde não aparece.** Corpo guarda sono, peso, água, refeições, movimento, energia e estresse; pela LGPD isso é dado sensível (art. 11). A política só cita tarefas, notas, finanças, diário e capturas.
+- **P2 — Apple Saúde** (se for publicado): chave própria, revogável em Configurações; o que entra fica marcado como medido pelo aparelho.
+- **P3 — Provedores de IA não aparecem.** Copiloto, análise e busca de Editais, diagnóstico e a Central de conteúdo enviam o texto necessário a modelos gratuitos em OpenRouter, Groq, Mistral, Cloudflare Workers AI e OpenCode. A política diz só que "integrações externas recebem o necessário".
+- **P4 — Agentes Hermes não aparecem.** O Hermes (servidor próprio do Jonny) lê áreas do LifeSystem por chaves dedicadas e pode responder por Telegram/WhatsApp; propostas de mudança exigem aprovação na tela.
+- **P5 — Onde os dados ficam:** hospedagem (Hostinger) ou banco Cloudflare D1, com backups. Hoje não é dito.
+- **P6 — Exclusão e exportação:** existe Exportar em Configurações → Dados; vale citar.
+- **P7 — Termos:** acrescentar que agentes só agem com aprovação explícita na tela e que respostas de IA são sugestões, não decisões.
+- **P8 — Data de atualização** passa para a da publicação.
