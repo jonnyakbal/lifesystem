@@ -8,6 +8,10 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
+## Coordenação Codex ↔ Claude (07/11/2026)
+
+Leia primeiro [docs/COORDENACAO-AGENTES.md](docs/COORDENACAO-AGENTES.md): regras para os dois agentes não se atropelarem e o estado atual (branch pendente, próximos passos).
+
 ## Continuidade desta sessão — 01/10/2026
 
 Atualização de 02/10: Jonny autorizou publicar as pendências/documentação para Claude na nuvem. Comece por `docs/CONTINUIDADE-CLAUDE-CLOUD.md`; esta sessão cuida de código/UI/APIs LifeSystem, a outra da configuração/consumidor Hermes pessoal na VPS. Não alterar nenhuma instalação Hermes nem Arco CRM aqui. A conversa da estação já está publicada/testada; seguir o plano incremental, sem reinstalá-la. A restrição documental de não publicar no repasse anterior abaixo é histórica e não impede esta publicação expressamente solicitada; não amplia a autorização para reescrita pública ou mudanças de runtime.
