@@ -28,6 +28,7 @@ import {
   type RecurringType,
 } from '@/lib/finance-model';
 import { useCategoryCatalog } from './use-category-catalog';
+import { descriptionSuggestions, suggestionFor } from '@/lib/financial-suggestions';
 import { installmentPlan, invoiceCycle, MAX_INSTALLMENTS } from '@/lib/card-invoice';
 import { effectiveFinancialDate } from '@/lib/financial-period';
 import { toast } from 'sonner';
@@ -110,6 +111,24 @@ export function EntryDialog({
       ...(entry?.category && entry.type === type ? [entry.category] : []),
     ]),
   ];
+  const knownDescriptions = descriptionSuggestions(entries, type);
+  const [learned, setLearned] = useState(false);
+
+  function changeDescription(value: string) {
+    setDescription(value);
+    if (entry || category) return; // nunca sobrescreve o que você já escolheu
+    const hint = suggestionFor(entries, value);
+    if (!hint) return;
+    setType(hint.type);
+    setCategory(hint.category);
+    if (hint.cardId && cardId === 'none' && cards.some((c) => c.id === hint.cardId && c.isActive)) setCardId(hint.cardId);
+    if (hint.accountId && accountId === 'none' && accounts.some((a) => a.id === hint.accountId && a.isActive)) setAccountId(hint.accountId);
+    if (hint.payee && !payee) setPayee(hint.payee);
+    if (hint.amount && !amount) setAmount(String(hint.amount));
+    if (hint.installments && installments === '1') setInstallments(String(hint.installments));
+    setLearned(true);
+  }
+
   const chosenCategory =
     category === '__custom' ? customCategory.trim() : category;
 
@@ -315,10 +334,22 @@ export function EntryDialog({
             <Input
               id="entry-description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={(e) => changeDescription(e.target.value)}
               placeholder="O que foi?"
+              list="entry-description-options"
+              autoComplete="off"
               className="h-11"
             />
+            <datalist id="entry-description-options">
+              {knownDescriptions.map((d) => (
+                <option key={d} value={d} />
+              ))}
+            </datalist>
+            {learned && (
+              <p className="text-xs text-muted-foreground" aria-live="polite">
+                Preenchido pelo seu último lançamento igual. Confira e ajuste se precisar.
+              </p>
+            )}
           </div>
           {type !== 'income' && (
             <div className="space-y-2">

@@ -466,3 +466,47 @@ test('prévia visual com dados sintéticos nos temas claro e escuro', async ({ p
   await expect.poll(async () => (await page.getByRole('heading', { name: 'Financeiro', exact: true, level: 1 }).boundingBox())!.x).toBeGreaterThanOrEqual(250);
   await page.screenshot({ path: 'screenshots/financial-redesign-light.png', fullPage: true });
 });
+
+test('compra parcelada no cartão mostra a fatura certa e envia as parcelas', async ({ page }) => {
+  await page.route('**/api/cards', (route) =>
+    route.fulfill({ json: [{ id: 'card-a', name: 'Cartão A', type: 'credit', brand: 'Visa', lastDigits: '1234', isActive: true, closingDay: 10, dueDay: 20 }] })
+  );
+  await page.goto('/financeiro');
+  await page.getByRole('button', { name: 'Faturas', exact: true }).click();
+  await page.getByRole('button', { name: 'Adicionar compra ao Cartão A' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Novo Lançamento' });
+  await expect(dialog.getByRole('group', { name: 'Situação do lançamento' })).toHaveCount(0);
+  await dialog.getByRole('combobox', { name: 'Categoria' }).click();
+  await page.getByRole('option', { name: 'Alimentação', exact: true }).click();
+  await dialog.getByLabel('Valor (R$)').fill('100');
+  await dialog.getByLabel('Data da compra').fill('2027-03-10');
+  await dialog.getByLabel('Parcelas').fill('3');
+  await expect(dialog.getByText(/fecha em\s*10\/04\s*e\s*vence em\s*20\/04/)).toBeVisible();
+  await expect(dialog.getByText(/3x de R\$\s*33,33.*1ª de R\$\s*33,34.*vence em 20\/06/)).toBeVisible();
+  const request = page.waitForRequest((r) => r.url().endsWith('/api/financial') && r.method() === 'POST');
+  await dialog.getByRole('button', { name: 'Salvar lançamento' }).click();
+  expect((await request).postDataJSON()).toMatchObject({ cardId: 'card-a', date: '2027-03-10', amount: 100, installments: 3, status: 'pending' });
+});
+
+test('descrição já usada preenche categoria, cartão, pessoa e valor', async ({ page }) => {
+  await page.route('**/api/cards', (route) =>
+    route.fulfill({ json: [{ id: 'card-a', name: 'Cartão A', type: 'credit', brand: 'Visa', lastDigits: '1234', isActive: true, closingDay: 10, dueDay: 20 }] })
+  );
+  await page.route('**/api/financial', (route) => {
+    if (route.request().method() !== 'GET') return route.fallback();
+    return route.fulfill({ json: [
+      { id: 's1', type: 'expense_fixed', category: 'Assinaturas', description: 'Streaming sintético', amount: 21.9, date: `${month}-02`, cardId: 'card-a', payee: 'Empresa Teste', status: 'pending' },
+      { id: 's0', type: 'expense_fixed', category: 'Assinaturas', description: 'Streaming sintético', amount: 21.9, date: `${month}-01`, cardId: 'card-a', payee: 'Empresa Teste', status: 'paid' },
+    ] });
+  });
+  await page.goto('/financeiro');
+  await page.locator('#financial-new-entry').click();
+  const dialog = page.getByRole('dialog', { name: 'Novo Lançamento' });
+  await expect(dialog.locator('#entry-description-options option[value="Streaming sintético"]')).toHaveCount(1);
+  await dialog.getByLabel('Descrição · opcional').fill('streaming sintetico');
+  await expect(dialog.getByText('Preenchido pelo seu último lançamento igual.', { exact: false })).toBeVisible();
+  await expect(dialog.getByLabel('Valor (R$)')).toHaveValue('21.9');
+  await expect(dialog.getByRole('combobox', { name: 'Categoria' })).toHaveText('Assinaturas');
+  await expect(dialog.getByRole('combobox', { name: 'Cartão usado · opcional' })).toContainText('Cartão A');
+  await expect(dialog.getByText(/Entra na fatura/)).toBeVisible();
+});
