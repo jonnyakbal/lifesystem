@@ -15,9 +15,10 @@ A partir de 07/11/2026 o Jonny trabalha principalmente com o **Codex**. O Claude
 
 Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`UPLOAD_DIR`/`BACKUP_DIR`, variáveis do `.github/workflows/ci.yml`, `npm run build` e `npx playwright test --config=playwright.ci.config.ts`. Falha conhecida só no Windows: `office-provenance` (área de transferência). Rodadas com o PC suspendendo geram falhas falsas (`ERR_NETWORK_IO_SUSPENDED`, Chrome sem abrir): repita os arquivos afetados.
 
-## Estado atual (07/11/2026, Claude)
+## Estado atual (10/11/2026, Claude)
 
-- `main` = `origin/main` em `58f94d1` (dependências corrigidas, `npm audit` 0, CI verde, no ar).
-- **Branch `feat/polimento-profissional` pronta e NÃO publicada** (tela Profissional polida + regra que permite ao dono corrigir a marca de um contexto sem vínculos). Testada; detalhes em [polimento-visual.md](polimento-visual.md#profissional-0511--aprovada-inteira-e-implementada). Falta: autorização do Jonny para publicar.
-- **Depois de publicar:** em produção, editar o projeto ARCO PASS em Profissional e trocar a marca de Ateliê Studio para **Arcopass** (pedido do Jonny; antes da publicação o servidor recusa).
-- Backlog do polimento: Indicadores, Pilares, Visão, Dados, Diário pessoal, Hermes; passada fina em Conteúdo e Escritório. Decisões pendentes do Jonny: visual Arco como padrão; espaço em disco (`arco-labs` ~20 GB).
+- `main` = `origin/main` em `1e02d4c` (correção de faturas do Codex, no ar segundo o repasse).
+- **Branch `feat/polimento-profissional` rebaseada sobre `1e02d4c` e NÃO publicada.** Nenhum arquivo em comum com a correção financeira. Gate em cópia limpa: tsc 0, build ok, 43 testes (`tests/professional*`, `tests/financial*`) passaram. Falta: autorização do Jonny para publicar (fast-forward).
+- **Depois de publicar:** em produção, trocar a marca do projeto ARCO PASS de Ateliê Studio para **Arcopass**.
+- Pendente do Codex: validar compra real vinculada ao cartão na fatura certa (Jonny).
+- Backlog do polimento: Indicadores, Pilares, Visão, Dados, Diário pessoal, Hermes; passada fina em Conteúdo e Escritório.
