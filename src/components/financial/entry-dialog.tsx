@@ -23,6 +23,7 @@ import { cn, todayStr } from '@/lib/utils';
 import {
   recurringLabels,
   type Account,
+  type Card,
   type FinancialEntry,
   type RecurringType,
 } from '@/lib/finance-model';
@@ -34,6 +35,8 @@ interface Props {
   entry?: FinancialEntry;
   entries: FinancialEntry[];
   accounts: Account[];
+  cards: Card[];
+  initialCardId?: string;
   selectedMonth: string;
   onClose: () => void;
   onSaved: (month: string) => void;
@@ -43,6 +46,8 @@ export function EntryDialog({
   entry,
   entries,
   accounts,
+  cards,
+  initialCardId,
   selectedMonth,
   onClose,
   onSaved,
@@ -64,6 +69,9 @@ export function EntryDialog({
     entry?.paidDate || (entry?.status === 'paid' ? entry.date : today)
   );
   const [accountId, setAccountId] = useState(entry?.accountId || 'none');
+  const [cardId, setCardId] = useState(
+    entry?.cardId || initialCardId || 'none'
+  );
   const [payee, setPayee] = useState(entry?.payee || '');
   const [frequency, setFrequency] = useState<RecurringType>(
     entry?.recurring && entry.recurring !== 'none'
@@ -115,6 +123,12 @@ export function EntryDialog({
       dueDate: dueDate || (entry ? null : undefined),
       paidDate: isPaid ? paidDate : entry ? null : undefined,
       accountId: accountId === 'none' ? (entry ? '' : undefined) : accountId,
+      cardId:
+        type === 'income' || cardId === 'none'
+          ? entry
+            ? null
+            : undefined
+          : cardId,
       payee,
       recurring: frequency !== 'none',
       recurringFrequency: frequency === 'none' ? undefined : frequency,
@@ -284,6 +298,31 @@ export function EntryDialog({
               className="h-11"
             />
           </div>
+          {type !== 'income' && (
+            <div className="space-y-2">
+              <Label htmlFor="entry-card">Cartão usado · opcional</Label>
+              <Select value={cardId} onValueChange={setCardId}>
+                <SelectTrigger id="entry-card" className="h-11 w-full">
+                  <SelectValue placeholder="Sem cartão" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sem cartão</SelectItem>
+                  {cards
+                    .filter((card) => card.isActive || card.id === cardId)
+                    .map((card) => (
+                      <SelectItem key={card.id} value={card.id}>
+                        {card.name} · final {card.lastDigits}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {initialCardId && (
+                <p className="text-xs text-muted-foreground">
+                  Esta compra será vinculada à fatura do cartão selecionado.
+                </p>
+              )}
+            </div>
+          )}
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="entry-due">Vencimento · opcional</Label>

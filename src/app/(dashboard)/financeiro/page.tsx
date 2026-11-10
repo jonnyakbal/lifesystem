@@ -119,6 +119,7 @@ export default function FinanceiroPage() {
   const [entryDialog, setEntryDialog] = useState<FinancialEntry | 'new' | null>(
     null
   );
+  const [entryCardId, setEntryCardId] = useState<string | undefined>();
   const [loadError, setLoadError] = useState('');
   const [balanceAccount, setBalanceAccount] = useState<Account | null>(null);
   const [newBalance, setNewBalance] = useState('');
@@ -138,6 +139,11 @@ export default function FinanceiroPage() {
     setCategoryFilter(category);
     setSearchQuery('');
     setActiveTab('transactions');
+  }
+
+  function openNewEntry(cardId?: string) {
+    setEntryCardId(cardId);
+    setEntryDialog('new');
   }
 
   // Dialogs
@@ -785,7 +791,7 @@ export default function FinanceiroPage() {
             )}
             <Button
               id="financial-new-entry"
-              onClick={() => setEntryDialog('new')}
+              onClick={() => openNewEntry()}
               className="h-11 w-full rounded-xl sm:ml-auto sm:w-auto"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -887,7 +893,7 @@ export default function FinanceiroPage() {
             }}
             onTransactions={openTransactions}
             onPay={handleTogglePaid}
-            onNewEntry={() => setEntryDialog('new')}
+            onNewEntry={() => openNewEntry()}
             onNewGoal={() => setIsGoalDialogOpen(true)}
             onNewBudget={() => setIsBudgetDialogOpen(true)}
           />
@@ -1188,6 +1194,8 @@ export default function FinanceiroPage() {
                       (a, e) => a + e.amount,
                       0
                     );
+                    const canAddPurchase =
+                      !currentBill || currentBill.status === 'open';
 
                     return (
                       <Card key={card.id} className="overflow-hidden">
@@ -1311,6 +1319,16 @@ export default function FinanceiroPage() {
 
                             {/* Action Buttons */}
                             <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                className="flex-1"
+                                aria-label={`Adicionar compra ao ${card.name}`}
+                                disabled={!canAddPurchase}
+                                onClick={() => openNewEntry(card.id)}
+                              >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar compra
+                              </Button>
                               {!currentBill || currentBill.status === 'open' ? (
                                 <Button
                                   onClick={() =>
@@ -1503,7 +1521,7 @@ export default function FinanceiroPage() {
             onEdit={setEntryDialog}
             onPay={handleTogglePaid}
             onDelete={handleDeleteEntry}
-            onNew={() => setEntryDialog('new')}
+            onNew={() => openNewEntry()}
           />
         )}
 
@@ -2161,6 +2179,8 @@ export default function FinanceiroPage() {
           entry={entryDialog === 'new' ? undefined : entryDialog}
           entries={entries}
           accounts={accounts}
+          cards={cards}
+          initialCardId={entryDialog === 'new' ? entryCardId : undefined}
           selectedMonth={selectedMonth}
           onClose={() => setEntryDialog(null)}
           onSaved={(month) => {

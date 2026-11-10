@@ -11,7 +11,7 @@ export interface FinancialEntry {
   recurring?: boolean | RecurringType;
   recurringFrequency?: RecurringType;
   accountId?: string;
-  cardId?: string;
+  cardId?: string | null;
   payee?: string;
   tags?: string[];
   status?: 'pending' | 'paid' | 'overdue';

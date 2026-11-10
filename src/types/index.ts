@@ -279,7 +279,7 @@ export interface FinancialEntry extends BaseEntity {
   recurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
   accountId?: string;
-  cardId?: string;
+  cardId?: string | null;
   payee?: string;
   tags?: string[];
   status?: 'pending' | 'paid' | 'overdue';

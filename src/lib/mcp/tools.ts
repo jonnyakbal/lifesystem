@@ -27,6 +27,7 @@ import { registerHealthTools } from './health';
 import { contentPayloadSchema, validateContentBinding, updateContent } from '@/lib/content-domain';
 import { getFinancialDisplayEntries, getFinancialDisplayBudgets } from '@/lib/financial-categories';
 import { updateEdital } from '@/lib/edital-service';
+import { createFinancialBill, updateFinancialBill } from '@/lib/financial-bills';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -525,7 +526,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     updateShape: {
       projectId: z.string().max(100).optional().describe('Vínculo explícito com projeto; não inferir pela categoria.'),
       type: z.enum(['income', 'expense_fixed', 'expense_variable']).optional(), category: z.string().optional(), description: z.string().optional(), amount: z.number().positive().optional(), date: z.string().optional().describe('Data original do registro YYYY-MM-DD.'),
-      recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
+      recurring: z.boolean().optional(), recurringFrequency: z.enum(['daily', 'weekly', 'biweekly', 'monthly', 'yearly']).optional(), accountId: z.string().optional(), cardId: z.string().nullable().optional(), payee: z.string().optional(), tags: z.array(z.string()).optional(),
       status: z.enum(['pending', 'paid', 'overdue']).optional().describe('paid entra no realizado; pending/overdue entram no previsto.'),
       dueDate: z.string().nullable().optional().describe('Vencimento YYYY-MM-DD para previsão; null remove o vencimento e usa date como fallback.'),
       paidDate: z.string().nullable().optional().describe('Dia do pagamento YYYY-MM-DD; null limpa quando volta a pendente.'),
@@ -583,6 +584,12 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     buildCreatePayload: (input) => ({ ...input, paidAmount: input.paidAmount || 0, status: input.status || 'open', items: input.items || [] }),
     validateCreate: payload => billSchema.parse(payload),
     validateUpdate: fields => billSchema.partial().parse(fields),
+    performCreate: async (fields, stableId) => ({ ...await createFinancialBill(fields as Parameters<typeof createFinancialBill>[0], stableId) }),
+    performUpdate: async (fields, id, expectedUpdatedAt) => {
+      const updated = await updateFinancialBill(id, fields as Parameters<typeof updateFinancialBill>[1], expectedUpdatedAt);
+      if (!updated) throw new Error('Fatura não encontrada.');
+      return updated;
+    },
   }, scopes, clientId);
 
   registerCrudTools(server, {

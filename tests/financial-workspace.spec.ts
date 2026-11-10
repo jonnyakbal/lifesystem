@@ -1,6 +1,12 @@
 import { test, expect } from '@playwright/test';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { financialEntrySchema } from '../src/lib/financial-validation';
 import { todayStr } from '../src/lib/utils';
+import { storage } from '../src/lib/storage';
+import { POST as createBill } from '../src/app/api/bills/route';
+import { NextRequest } from 'next/server';
 
 const today = todayStr();
 const month = today.slice(0, 7);
@@ -342,6 +348,91 @@ test('nova fatura respeita o cartão escolhido e o mês futuro', async ({
     closeDate: `${futureMonth}-10`,
     status: 'open',
   });
+});
+
+test('adicionar compra pela fatura vincula o lançamento ao cartão', async ({
+  page,
+}) => {
+  await page.route('**/api/cards', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'card-a',
+          name: 'Cartão A',
+          type: 'credit',
+          brand: 'Visa',
+          lastDigits: '1234',
+          isActive: true,
+          closingDay: 10,
+          dueDay: 20,
+        },
+      ],
+    })
+  );
+  await page.goto('/financeiro');
+  await page.getByRole('button', { name: 'Faturas', exact: true }).click();
+  await page
+    .getByRole('button', { name: 'Adicionar compra ao Cartão A' })
+    .click();
+
+  const dialog = page.getByRole('dialog', { name: 'Novo Lançamento' });
+  await dialog.getByRole('combobox', { name: 'Categoria' }).click();
+  await page.getByRole('option', { name: 'Alimentação', exact: true }).click();
+  await dialog.getByLabel('Valor (R$)').fill('45.90');
+  await dialog.getByLabel('Descrição · opcional').fill('Compra de teste');
+
+  const request = page.waitForRequest(
+    (r) => r.url().endsWith('/api/financial') && r.method() === 'POST'
+  );
+  await dialog.getByRole('button', { name: 'Salvar lançamento' }).click();
+  expect((await request).postDataJSON()).toMatchObject({
+    cardId: 'card-a',
+    type: 'expense_variable',
+    category: 'Alimentação',
+    amount: 45.9,
+    description: 'Compra de teste',
+  });
+});
+
+test('faturas concorrentes do mesmo cartão e mês não são duplicadas', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'ls-financial-bill-unique-'));
+  const previous = {
+    dir: process.env.LIFESYSTEM_DATA_DIR,
+    storage: process.env.LIFESYSTEM_STORAGE,
+  };
+  process.env.LIFESYSTEM_DATA_DIR = dir;
+  process.env.LIFESYSTEM_STORAGE = 'file';
+  const body = {
+    cardId: 'synthetic-card',
+    month: '2027-01',
+    amount: 0,
+    paidAmount: 0,
+    status: 'open',
+    closeDate: '2027-01-10',
+    dueDate: '2027-01-20',
+    items: [],
+  };
+  const request = () =>
+    createBill(
+      new NextRequest('http://localhost/api/bills', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    );
+  try {
+    const responses = await Promise.all([request(), request()]);
+    expect(responses.map((response) => response.status).sort()).toEqual([
+      201, 409,
+    ]);
+    expect(await storage.getAll('bills')).toHaveLength(1);
+  } finally {
+    if (previous.dir === undefined) delete process.env.LIFESYSTEM_DATA_DIR;
+    else process.env.LIFESYSTEM_DATA_DIR = previous.dir;
+    if (previous.storage === undefined) delete process.env.LIFESYSTEM_STORAGE;
+    else process.env.LIFESYSTEM_STORAGE = previous.storage;
+    await rm(dir, { recursive: true, force: true });
+  }
 });
 
 test('prévia visual com dados sintéticos nos temas claro e escuro', async ({ page }) => {

@@ -151,7 +151,7 @@ export function financialCreatePayload(
     recurringFrequency?: string;
     description?: string;
     accountId?: string;
-    cardId?: string;
+    cardId?: string | null;
     payee?: string;
     tags?: string[];
   }
@@ -170,7 +170,7 @@ export function financialCreatePayload(
     paidDate: entry.status === 'paid' ? entry.paidDate || undefined : undefined,
     status: entry.status || 'pending',
     accountId: entry.accountId,
-    cardId: entry.cardId,
+    cardId: entry.cardId || undefined,
     payee: entry.payee,
     tags: entry.tags,
     recurring:
