@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storage } from '@/lib/storage';
-import { FinancialEntry } from '@/types';
+import { createFinancialEntries } from '@/lib/financial-card-purchases';
 import { financialEntrySchema } from '@/lib/financial-validation';
 import { getFinancialDisplayEntries } from '@/lib/financial-categories';
 
@@ -13,7 +12,7 @@ export async function POST(request: NextRequest) {
   const parsed = financialEntrySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: 'Dados financeiros inválidos.', details: parsed.error.flatten() }, { status: 400 });
   const body = parsed.data;
-  const entry = await storage.create<FinancialEntry>('financial', {
+  const created = await createFinancialEntries({
     projectId: body.projectId,
     type: body.type,
     category: body.category,
@@ -29,6 +28,9 @@ export async function POST(request: NextRequest) {
     status: body.status || 'pending',
     dueDate: body.dueDate,
     paidDate: body.paidDate,
+    installments: body.installments,
+    billMonth: body.billMonth,
   });
-  return NextResponse.json(entry, { status: 201 });
+  // Compatível: devolve o primeiro lançamento; parcelas extras vêm em `installments`.
+  return NextResponse.json({ ...created[0], ...(created.length > 1 ? { installments: created } : {}) }, { status: 201 });
 }

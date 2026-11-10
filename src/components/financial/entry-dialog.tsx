@@ -28,6 +28,7 @@ import {
   type RecurringType,
 } from '@/lib/finance-model';
 import { useCategoryCatalog } from './use-category-catalog';
+import { installmentPlan, invoiceCycle, MAX_INSTALLMENTS } from '@/lib/card-invoice';
 import { effectiveFinancialDate } from '@/lib/financial-period';
 import { toast } from 'sonner';
 
@@ -41,6 +42,9 @@ interface Props {
   onClose: () => void;
   onSaved: (month: string) => void;
 }
+
+const br = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7);
+const money = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
 export function EntryDialog({
   entry,
@@ -79,9 +83,26 @@ export function EntryDialog({
           (typeof entry.recurring === 'string' ? entry.recurring : 'monthly')
       : 'none'
   );
+  const [purchaseDate, setPurchaseDate] = useState(entry?.date || today);
+  const [installments, setInstallments] = useState('1');
   const [saving, setSaving] = useState(false);
+  const selectedCard = cards.find((c) => c.id === cardId);
+  const isCredit =
+    type !== 'income' &&
+    !!selectedCard &&
+    (selectedCard.type === 'credit' || selectedCard.type === 'multiple');
+  const parcelCount = Math.min(
+    MAX_INSTALLMENTS,
+    Math.max(1, Math.trunc(Number(installments) || 1))
+  );
+  const plan =
+    isCredit && Number(amount) > 0 && /^\d{4}-\d{2}-\d{2}$/.test(purchaseDate)
+      ? entry?.billMonth
+        ? [{ ...invoiceCycle(selectedCard!, entry.billMonth), current: 1, total: 1, amount: Number(amount) }]
+        : installmentPlan(selectedCard!, purchaseDate, Number(amount), entry ? 1 : parcelCount)
+      : [];
   const [error, setError] = useState('');
-  const isPaid = status === 'paid';
+  const isPaid = !isCredit && status === 'paid';
   const categoryOptions = [
     ...new Set([
       ...categories[type],
@@ -103,7 +124,7 @@ export function EntryDialog({
       setError('Informe uma categoria e um valor maior que zero.');
       return;
     }
-    if (!isPaid && !dueDate && !entry && selectedMonth !== today.slice(0, 7)) {
+    if (!isCredit && !isPaid && !dueDate && !entry && selectedMonth !== today.slice(0, 7)) {
       setError('Informe o vencimento para lançar uma previsão neste mês.');
       return;
     }
@@ -118,9 +139,10 @@ export function EntryDialog({
       category: chosenCategory,
       amount: Number(amount),
       description: description.trim(),
-      date: entry?.date || today,
-      status,
-      dueDate: dueDate || (entry ? null : undefined),
+      date: isCredit ? purchaseDate : entry?.date || today,
+      status: isCredit ? ('pending' as const) : status,
+      dueDate: isCredit ? (entry ? plan[0]?.dueDate : undefined) : dueDate || (entry ? null : undefined),
+      ...(isCredit && !entry && parcelCount > 1 ? { installments: parcelCount } : {}),
       paidDate: isPaid ? paidDate : entry ? null : undefined,
       accountId: accountId === 'none' ? (entry ? '' : undefined) : accountId,
       cardId:
@@ -139,7 +161,7 @@ export function EntryDialog({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
-      onSaved(effectiveFinancialDate(data).slice(0, 7));
+      onSaved(isCredit && plan[0] ? plan[0].dueDate.slice(0, 7) : effectiveFinancialDate(data).slice(0, 7));
       toast.success(
         entry ? 'Lançamento atualizado!' : 'Lançamento adicionado!'
       );
@@ -187,7 +209,7 @@ export function EntryDialog({
           aria-label={entry ? 'Editar lançamento' : 'Novo Lançamento'}
           className="space-y-5"
         >
-          <div
+          {!isCredit && <div
             className="grid grid-cols-2 gap-1 rounded-xl bg-muted/60 p-1"
             role="group"
             aria-label="Situação do lançamento"
@@ -217,7 +239,7 @@ export function EntryDialog({
               {isPaid && <Check className="h-4 w-4" />}
               {type === 'income' ? 'Recebido' : 'Pago'}
             </button>
-          </div>
+          </div>}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="entry-type">Movimentação</Label>
@@ -316,14 +338,61 @@ export function EntryDialog({
                     ))}
                 </SelectContent>
               </Select>
-              {initialCardId && (
-                <p className="text-xs text-muted-foreground">
-                  Esta compra será vinculada à fatura do cartão selecionado.
-                </p>
-              )}
             </div>
           )}
-          <div className="grid gap-3 sm:grid-cols-2">
+          {isCredit && (
+            <div className="space-y-3 rounded-2xl border border-border/70 bg-muted/20 p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="entry-purchase-date">Data da compra</Label>
+                  <Input
+                    id="entry-purchase-date"
+                    type="date"
+                    value={purchaseDate}
+                    onChange={(e) => setPurchaseDate(e.target.value)}
+                    required
+                    disabled={!!entry?.installment}
+                    className="h-11 min-w-0"
+                  />
+                </div>
+                {!entry && (
+                  <div className="space-y-2">
+                    <Label htmlFor="entry-installments">Parcelas</Label>
+                    <Input
+                      id="entry-installments"
+                      type="number"
+                      inputMode="numeric"
+                      min="1"
+                      max={MAX_INSTALLMENTS}
+                      step="1"
+                      value={installments}
+                      onChange={(e) => setInstallments(e.target.value)}
+                      className="h-11 min-w-0"
+                    />
+                  </div>
+                )}
+              </div>
+              {plan.length > 0 && (
+                <div aria-live="polite" className="space-y-1 text-sm">
+                  <p>
+                    Entra na fatura que fecha em <strong>{br(plan[0].closeDate)}</strong> e
+                    vence em <strong>{br(plan[0].dueDate)}</strong>.
+                  </p>
+                  {plan.length > 1 && (
+                    <p className="text-muted-foreground">
+                      {plan.length}x de {money(plan[plan.length - 1].amount)}
+                      {plan[0].amount !== plan[plan.length - 1].amount && ` (1ª de ${money(plan[0].amount)})`}
+                      , até a fatura que vence em {br(plan[plan.length - 1].dueDate)}.
+                    </p>
+                  )}
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Compra no crédito fica prevista até você pagar a fatura.
+              </p>
+            </div>
+          )}
+          {!isCredit && <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="entry-due">Vencimento · opcional</Label>
               <Input
@@ -347,7 +416,7 @@ export function EntryDialog({
                 />
               </div>
             )}
-          </div>
+          </div>}
           <details className="rounded-xl border border-border/70 p-3">
             <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
               Mais detalhes

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
+import { entryInvoiceMonth, invoiceCycle } from '@/lib/card-invoice';
 import {
   type FinancialEntry,
   type Account,
@@ -47,7 +48,6 @@ import {
 import {
   financialCreatePayload,
   financialDisplayStatus,
-  billCycleDates,
   formatMoney,
 } from '@/lib/financial-insights';
 import { cn, todayStr } from '@/lib/utils';
@@ -462,6 +462,24 @@ export default function FinanceiroPage() {
 
   async function handleDeleteEntry(id: string) {
     const entry = entries.find((e) => e.id === id);
+    if (
+      entry?.installment &&
+      window.confirm(
+        `Esta é a parcela ${entry.installment.current}/${entry.installment.total}. Excluir também as outras parcelas ainda não pagas desta compra?`
+      )
+    ) {
+      try {
+        const res = await apiFetch<{ removed: number }>(
+          `/api/financial/${id}?scope=installments`,
+          { method: 'DELETE' }
+        );
+        await loadAll();
+        toast.success(`${res.removed} parcelas excluídas.`);
+      } catch (err) {
+        toast.error(showError(err));
+      }
+      return;
+    }
     try {
       await apiFetch(`/api/financial/${id}`, { method: 'DELETE' });
       loadAll();
@@ -537,9 +555,13 @@ export default function FinanceiroPage() {
   // ─── Bill Closing Functions ───────────────────────────────────────────────
 
   function getCardTransactionsForMonth(cardId: string, month: string) {
+    const card = cards.find((c) => c.id === cardId);
+    if (!card) return [];
     return entries.filter(
       (e) =>
-        e.cardId === cardId && e.date.startsWith(month) && e.type !== 'income'
+        e.cardId === cardId &&
+        e.type !== 'income' &&
+        entryInvoiceMonth(e, card) === month
     );
   }
 
@@ -553,11 +575,7 @@ export default function FinanceiroPage() {
 
     const transactions = getCardTransactionsForMonth(cardId, month);
     const total = transactions.reduce((a, e) => a + e.amount, 0);
-    const { closeDate, dueDate } = billCycleDates(
-      month,
-      card.closingDay || 1,
-      card.dueDay || 10
-    );
+    const { closeDate, dueDate } = invoiceCycle(card, month);
 
     const existingBill = getBillForCardMonth(cardId, month);
     if (
@@ -657,11 +675,7 @@ export default function FinanceiroPage() {
       toast.info('Este cartão já tem uma fatura neste mês.');
       return;
     }
-    const { closeDate, dueDate } = billCycleDates(
-      month,
-      card.closingDay || 1,
-      card.dueDay || 10
-    );
+    const { closeDate, dueDate } = invoiceCycle(card, month);
     setBillSaving(true);
     try {
       await apiFetch('/api/bills', {

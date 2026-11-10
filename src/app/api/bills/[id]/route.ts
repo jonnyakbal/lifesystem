@@ -5,6 +5,7 @@ import {
   DuplicateFinancialBillError,
   updateFinancialBill,
 } from '@/lib/financial-bills';
+import { settleInvoiceEntries } from '@/lib/financial-card-purchases';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,6 +14,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     const updated = await updateFinancialBill(id, parsed.data);
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    if (parsed.data.status === 'paid') {
+      await settleInvoiceEntries(updated.cardId, updated.month, new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date()));
+    }
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof DuplicateFinancialBillError) {

@@ -16,6 +16,7 @@ import { storage } from '@/lib/storage';
 import { runMcpToolWithAudit } from './audit';
 import { canUseMcpTool } from './auth';
 import { createGoogleCalendarEvent, createManagedMcpEventId, listGoogleCalendarEvents, removeManagedMcpCalendarEvent, syncManagedMcpCalendarEvent } from '@/lib/google-calendar';
+import { createFinancialEntries } from '@/lib/financial-card-purchases';
 import { accountSchema, billItemSchema, billSchema, budgetSchema, cardSchema, financialEntrySchema, financialEntryUpdateSchema, financialGoalSchema, payeeSchema } from '@/lib/financial-validation';
 import { createTaskRecords, taskUpdateSchema, updateTaskRecord } from '@/lib/task-domain';
 import { taskPayloadSchema } from '@/lib/validation';
@@ -522,6 +523,11 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
       status: z.enum(['pending', 'paid', 'overdue']).optional().describe('pending/overdue = previsto; paid = realizado. Padrão: pending.'),
       dueDate: z.string().optional().describe('Vencimento YYYY-MM-DD; define o mês de pendentes/atrasados.'),
       paidDate: z.string().optional().describe('Pagamento YYYY-MM-DD; use somente quando status=paid. Define o mês realizado.'),
+      installments: z.number().int().min(1).max(48).optional().describe('Compra no cartão de crédito: número de parcelas. O LifeSystem calcula a fatura de cada parcela pela data da compra e pelo fechamento do cartão; não informe dueDate/billMonth.'),
+    },
+    performCreate: async (data, stableId) => {
+      const created = await createFinancialEntries(data as Parameters<typeof createFinancialEntries>[0], stableId);
+      return (created.length > 1 ? { ...created[0], installments: created } : created[0]) as unknown as { id: string; [key: string]: unknown };
     },
     updateShape: {
       projectId: z.string().max(100).optional().describe('Vínculo explícito com projeto; não inferir pela categoria.'),

@@ -152,6 +152,7 @@ export function financialCreatePayload(
     description?: string;
     accountId?: string;
     cardId?: string | null;
+    billMonth?: string;
     payee?: string;
     tags?: string[];
   }
@@ -171,6 +172,7 @@ export function financialCreatePayload(
     status: entry.status || 'pending',
     accountId: entry.accountId,
     cardId: entry.cardId || undefined,
+    billMonth: entry.cardId ? entry.billMonth : undefined,
     payee: entry.payee,
     tags: entry.tags,
     recurring:

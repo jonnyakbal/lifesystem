@@ -280,6 +280,8 @@ export interface FinancialEntry extends BaseEntity {
   recurringFrequency?: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'yearly';
   accountId?: string;
   cardId?: string | null;
+  billMonth?: string; // mês de fechamento da fatura do cartão (YYYY-MM)
+  installment?: { groupId: string; current: number; total: number; totalAmount: number };
   payee?: string;
   tags?: string[];
   status?: 'pending' | 'paid' | 'overdue';
