@@ -265,6 +265,7 @@ export function EntryDialog({
               <Select
                 value={type}
                 onValueChange={(v) => {
+                  if (v === type) return; // eco do seletor ao mudar o tipo por sugestão
                   setType(v as FinancialEntry['type']);
                   setCategory('');
                 }}
