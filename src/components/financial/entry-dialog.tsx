@@ -284,7 +284,7 @@ export function EntryDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="entry-category">Categoria</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(v) => { if (v) setCategory(v); }}>
                 <SelectTrigger id="entry-category" className="h-11 w-full">
                   <SelectValue placeholder="Selecionar" />
                 </SelectTrigger>
