@@ -28,3 +28,10 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - Branch local `codex/journal-mcp`. Escopos explícitos `journal:read` e `journal:write`. O Diário usa o mesmo armazenamento da interface e exige a versão atual para edição pelo agente.
 - Catálogo, contrato e lacunas em [mcp-cobertura.md](mcp-cobertura.md).
 - Sem publicação. A credencial e a ponte do OpenBot na Oracle continuam pendentes.
+
+### Catálogo do agente pessoal (Codex)
+
+- Na branch local `codex/journal-mcp`, o catálogo agora classifica leitura e escrita. Criações com idempotência conferem também os argumentos e preservam a intenção após falha do recibo.
+- Disponibilidade semanal, revisão, Notas/Wiki e Visão estão disponíveis localmente com os novos escopos documentados no [mapa MCP](mcp-cobertura.md). O rascunho da revisão é somente de leitura.
+- Validação local com credencial sintética. A ponte, a credencial e o teste pelo OpenBot real continuam pendentes.
+- Verificação: 37 testes MCP e de calendário, TypeScript, ESLint dos arquivos envolvidos e build Webpack passaram com dados sintéticos.

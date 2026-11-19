@@ -98,6 +98,20 @@ export function canUseMcpTool(toolName: string, scopes: string[]): boolean {
   if (scopes.includes('professional:only') && !professional.includes(toolName)) return false;
   if (toolName === 'list_journal_entries') return scopes.includes('journal:read');
   if (toolName === 'save_journal_entry') return scopes.includes('journal:write');
+  switch (toolName) {
+    case 'get_week_availability':
+      return scopes.includes('agenda:read') && canUseMcpTool('list_tasks', scopes) && canUseMcpTool('list_calendar_events', scopes);
+    case 'get_weekly_review':
+      return scopes.includes('weekly_review:read');
+    case 'prepare_weekly_review':
+      return scopes.includes('weekly_review:read') && ['list_tasks', 'list_projects', 'list_captures'].every(name => canUseMcpTool(name, scopes));
+    case 'list_notes':
+    case 'get_note':
+    case 'list_wiki_collections':
+      return scopes.includes('notes:read');
+    case 'list_vision_documents':
+      return scopes.includes('vision:read');
+  }
   if (scopes.includes('*')) return true;
 
   const professionalActions: Record<string, string> = { query_professional: 'read', get_professional_schemas: 'read', get_professional_receipt: 'read', get_professional_diagnostics: 'read', propose_professional_change: 'propose', batch_professional_proposals: 'propose', apply_professional_proposal: 'apply', submit_professional_artifact: 'artifact', report_professional_execution: 'execution' };

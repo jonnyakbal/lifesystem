@@ -20,7 +20,11 @@ export function registerHealthTools(server: McpServer, scopes: string[], clientI
   function register<S extends z.ZodRawShape>(name: keyof typeof toolActions, description: string, shape: S, execute: (input: z.infer<z.ZodObject<S>>) => Promise<unknown>) {
     if (!canUseMcpTool(name, scopes)) return;
     const concrete: z.ZodRawShape = shape;
-    server.registerTool(name, { description, inputSchema: concrete }, async raw => runMcpToolWithAudit(name, async () => {
+    const readOnly = toolActions[name] === 'health:read';
+    server.registerTool(name, {
+      description, inputSchema: concrete,
+      annotations: readOnly ? { readOnlyHint: true } : { readOnlyHint: false, destructiveHint: true },
+    }, async raw => runMcpToolWithAudit(name, async () => {
       try { return { content: [{ type: 'text' as const, text: JSON.stringify(await execute(z.object(shape).parse(raw))) }] }; }
       catch (error) { return { isError: true, content: [{ type: 'text' as const, text: error instanceof Error ? error.message : 'Operação de saúde recusada.' }] }; }
     }, (tool, success, _error, id, meta) => logMcpCall(tool, success, success ? undefined : 'health_operation_rejected', id, meta), clientId));

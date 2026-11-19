@@ -12,7 +12,11 @@ export function registerProfessionalTools(server: McpServer, scopes: string[], c
   function register<S extends z.ZodRawShape>(name: string, description: string, shape: S, execute: (input: z.infer<z.ZodObject<S>>) => Promise<unknown>) {
     if (!canUseMcpTool(name, scopes)) return;
     const concrete: z.ZodRawShape = shape;
-    server.registerTool(name, { description, inputSchema: concrete }, async input => runMcpToolWithAudit(name, async () => {
+    const readOnly = name === 'query_professional' || name.startsWith('get_professional_');
+    server.registerTool(name, {
+      description, inputSchema: concrete,
+      annotations: readOnly ? { readOnlyHint: true } : { readOnlyHint: false, destructiveHint: true },
+    }, async input => runMcpToolWithAudit(name, async () => {
       try { return { content: [{ type: 'text' as const, text: JSON.stringify(await execute(z.object(shape).parse(input))) }] }; }
       catch (error) { return { isError: true, content: [{ type: 'text' as const, text: error instanceof Error ? error.message : 'Operação profissional recusada.' }] }; }
     }, undefined, clientId));
