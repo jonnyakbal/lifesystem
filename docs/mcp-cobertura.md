@@ -1,6 +1,6 @@
 # Cobertura MCP do LifeSystem
 
-Inventário a partir do código em 19/11/2026. A disponibilidade em produção depende da versão publicada e dos escopos da credencial. O endpoint descobre ferramentas por credencial com `tools/list`.
+Inventário a partir do código em 19/11/2026, atualizado com o catálogo pessoal. A disponibilidade em produção depende da versão publicada e dos escopos da credencial. O endpoint descobre ferramentas por credencial com `tools/list`.
 
 ## Diário pessoal
 
@@ -13,14 +13,35 @@ Usa a mesma coleção e as mesmas entradas por data de `/diario`. Diário de bor
 
 A leitura retorna as entradas mais recentes primeiro, incluindo a versão `updatedAt`. A escrita mantém os campos omitidos. Quando enviado, `pillarChecks` substitui o mapa inteiro. Humor aceita `great`, `good`, `neutral`, `bad` e `terrible`; os valores de pilares são inteiros de 0 a 10. A escrita retorna somente `id`, `entryDate`, `updatedAt` e `created`. A auditoria registra a operação, o cliente e o resultado sem conteúdo do diário. A escrita é direta para a credencial autorizada, sem proposta ou aprovação intermediária. Não há exclusão. A chave legada e o curinga geral não habilitam o Diário.
 
-## Lacunas além do Diário
+## Consultas do agente pessoal
+
+| Ferramenta | Escopo | Entrada e retorno |
+|---|---|---|
+| `get_week_availability` | `agenda:read` + tarefas (`tasks:read`) e Google Agenda (`calendar:read` ou `calendar:write`) | `date` (YYYY-MM-DD); `minimumMinutes` (1–1440, padrão 30). Semana de segunda a domingo no fuso de Planejar. Janelas livres unem blocos de tarefas e eventos ocupados, inclusive dia inteiro. Em falha do Google, `calendarStatus: unavailable` e `freeWindows: null` nos dias com jornada configurada. |
+| `get_weekly_review` | `weekly_review:read` | Sem argumentos. Última revisão concluída, suas prioridades e o dia de revisão configurado. |
+| `prepare_weekly_review` | `weekly_review:read` + `tasks:read`, `captures:read` e `projects:read` | `through` (YYYY-MM-DD); `limit` por grupo (1–20, padrão 8). Devolve rascunho com Inbox, tarefas abertas até a data, projetos ativos sem próxima ação e prioridades anteriores ainda abertas. O usuário conclui em `/revisao`. |
+| `list_notes` | `notes:read` | Filtros opcionais `query`, `collectionId` e `codeStage` (`captured`, `distilled`, `expressed`). Devolve resumos. |
+| `get_note` | `notes:read` | `id` de uma nota. Devolve texto, essência e vínculos. Capturas do Inbox e itens organizados ficam fora da consulta. |
+| `list_wiki_collections` | `notes:read` | Lista coleções da Wiki. |
+| `list_vision_documents` | `vision:read` | `section` opcional (`identity`, `vision_5y`, `timeline`, `dream`, `custom`); `includeContent` (padrão falso). |
+
+Listagens de notas, Wiki e Visão aceitam `limit` de 1 a 50 (padrão 15) e `cursor` numérico, começando em 0. Use `nextCursor` para continuar. Os quatro novos escopos são explícitos. Nenhuma dessas ferramentas escreve nas coleções de negócio. O rascunho da revisão aparece na resposta MCP e não é salvo na interface.
+
+## Catálogo e recibos
+
+- O catálogo anuncia ferramentas de leitura, criação e mutações que podem sobrescrever ou remover dados. Essas anotações orientam o cliente. O filtro por escopo continua no servidor.
+- Criações com chave de idempotência no CRUD e no calendário registram uma impressão dos argumentos antes do efeito. Mesma credencial, chave e parâmetros recuperam o recibo, e alterações de dados ou operação geram conflito. Se a gravação do recibo falhar, a intenção continua registrada. A recuperação usa o ID estável da criação. No Google Agenda, a recuperação de uma criação não sobrescreve edições posteriores do evento.
+- Recibos antigos sem impressão ainda podem ser recuperados, mas não permitem comparar os argumentos originais.
+- O teste HTTP local usa o handler de produção, uma credencial sintética e armazenamento isolado. O teste real OpenBot → Oracle → LifeSystem depende da ponte e da credencial de produção.
+
+## Lacunas restantes
 
 | Área ou ação | O que o MCP cobre | O que ainda falta |
 |---|---|---|
-| Notas e Wiki | Capturas e conversão para nota via `convert_capture` | Listagem orientada a notas, coleções da Wiki e operações próprias da organização CODE. |
-| Visão | Nenhuma ferramenta dedicada | Consultar documentos da Visão, seções e horizonte, com escrita versionada em uma etapa posterior. |
-| Revisão semanal | Tarefas e indicadores consultáveis separadamente | Consultar, registrar e configurar a revisão semanal e suas prioridades. |
-| Planejar | Blocos de tarefas, adoção de evento, listagem do Google Agenda e ciclo de vida dos eventos gerenciados | Preferências de jornada, consulta unificada da semana/disponibilidade, processamento em lote e recorrência explícita de tarefas. |
+| Notas e Wiki | Busca, leitura e coleções, além da conversão de capturas | Edição de notas, coleções e etapas CODE pelo MCP. |
+| Visão | Leitura por seção | Escrita versionada na Visão. |
+| Revisão semanal | Consulta da última revisão e rascunho calculado | Persistir, anexar à interface ou aplicar um rascunho com confirmação humana. Configuração e conclusão seguem na interface. |
+| Planejar | Blocos de tarefas, adoção de evento, listagem do Google Agenda e ciclo de vida dos eventos gerenciados | Edição de preferências de jornada, processamento em lote e recorrência explícita de tarefas. |
 | Financeiro | Lançamentos, resumo mensal, contas, cartões, faturas, orçamentos, credores e metas | Catálogo/gestão de categorias financeiras e operações específicas do fluxo de fatura que não são representadas pelo CRUD. |
 | Conteúdo e Fontes | CRUD de conteúdo, itens e fontes, em escopos separados | Gestão de categorias, disparar atualização da fonte e ações dedicadas de clipping/análise. |
 | Editais | CRUD e atualização de etapa com verificação do escopo do destino | Configuração, descoberta e análise oferecidas pela interface. |
@@ -28,5 +49,3 @@ A leitura retorna as entradas mais recentes primeiro, incluindo a versão `updat
 | Saúde e Profissional | Contratos MCP próprios com consulta, propostas, aplicação e recibos, conforme o domínio | Aprovação humana permanece na interface; dados de conectores e operações administrativas não devem ser adicionados ao perfil geral. |
 | Escritório e agentes | Heartbeat usa autorização separada, e chamadas MCP têm auditoria | Sessões, chat, comandos e administração do Escritório seguem em APIs próprias. |
 | Configuração e dados | APIs próprias da aplicação | Login, OAuth do Google, configurações globais, backup/migração e uploads ficam fora do acesso geral do agente. |
-
-Para o agente pessoal, as lacunas mais diretamente ligadas à organização diária são **Revisão semanal**, **Notas/Wiki** e **Visão**. A consulta de disponibilidade também evitaria que o agente tivesse de reconstruir a semana combinando várias ferramentas.

@@ -22,7 +22,7 @@ import type { StageDef, TaskPlanning } from '@/types';
 import { ClarifyCard, type ClarifyCapture } from '@/components/clarify-card';
 import { spawnNextOccurrenceIfRecurring, type RecurringFrequency } from '@/lib/recurring';
 import { useLastReview } from '@/lib/use-last-review';
-import { calendarDaysBetween, daysSince, MAX_WEEK_PRIORITIES, type WeeklyReview } from '@/lib/weekly-review';
+import { calendarDaysBetween, daysSince, MAX_WEEK_PRIORITIES, weeklyReviewStalledProjects, type WeeklyReview } from '@/lib/weekly-review';
 
 interface Indicator { id: string; pillarId: string; name: string; targetValue?: number; currentValue?: number; frequency: string; }
 interface Pillar { id: string; name: string; icon: string; }
@@ -156,7 +156,7 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void; embedded
   const overdueTasks = openTasks.filter(t => t.dueDate && t.dueDate < today);
   const waitingTasks = openTasks.filter(t => t.waitingFor);
   const backlogTasks = openTasks.filter(t => !t.dueDate && !t.waitingFor);
-  const stalledProjects = stalled(projects, openTasks);
+  const stalledProjects = weeklyReviewStalledProjects(projects, openTasks);
   const indicatorsByPillar = pillars.map(p => ({ pillar: p, indicators: indicators.filter(i => i.pillarId === p.id) })).filter(g => g.indicators.length > 0);
   const stepCounts = counts({ captures, tasks, stages, projects });
   const isEmpty = (i: number) => stepCounts[i] === 0;
@@ -352,9 +352,6 @@ export function WeeklyReviewFlow({ onFinish }: { onFinish?: () => void; embedded
   );
 }
 
-function stalled(projects: Project[], openTasks: Task[]) {
-  return projects.filter(project => ['active', 'development'].includes(project.status) && !openTasks.some(task => task.projectId === project.id && !task.waitingFor));
-}
 
 /** Itens por passo; null = passo sem contagem (sempre visitado). */
 function counts({ captures, tasks, stages, projects }: { captures: ClarifyCapture[]; tasks: Task[]; stages: StageDef[]; projects: Project[] }): (number | null)[] {
@@ -364,7 +361,7 @@ function counts({ captures, tasks, stages, projects }: { captures: ClarifyCaptur
   return [
     captures.filter(c => c.status === 'inbox').length,
     open.filter(t => t.dueDate && t.dueDate < today).length,
-    stalled(projects, open).length,
+    weeklyReviewStalledProjects(projects, open).length,
     open.filter(t => t.waitingFor).length,
     open.filter(t => !t.dueDate && !t.waitingFor).length,
     null,

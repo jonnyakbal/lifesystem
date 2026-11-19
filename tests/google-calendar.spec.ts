@@ -75,6 +75,16 @@ test('managed MCP events use a stable event id and refuse to delete foreign even
     await syncManagedMcpCalendarEvent(input);
     await syncManagedMcpCalendarEvent(input);
     expect(inserts).toBe(1);
+    // A receipt may fail after Google saves. Recovering creation preserves later edits.
+    remote = { ...remote!, summary: 'Editado depois' };
+    let patches = 0;
+    const mock = globalThis.fetch;
+    globalThis.fetch = async (...args) => {
+      if (args[1]?.method === 'PATCH') patches++;
+      return mock(...args);
+    };
+    expect((await syncManagedMcpCalendarEvent(input, 'create')).summary).toBe('Editado depois');
+    expect(patches).toBe(0);
     await removeManagedMcpCalendarEvent(input.eventId, input.clientId);
     expect(remote).toBeNull();
     remote = { id: input.eventId, etag: 'v2', extendedProperties: { private: { lifesystemTaskId: 'task' } } };

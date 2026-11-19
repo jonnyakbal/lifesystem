@@ -179,7 +179,7 @@ function assertMcpManaged(event: ManagedEvent, eventId: string, clientId: string
   }
 }
 
-export async function syncManagedMcpCalendarEvent(input: { eventId: string; clientId: string; title: string; description?: string; start: string; end: string; timeZone: string }) {
+export async function syncManagedMcpCalendarEvent(input: { eventId: string; clientId: string; title: string; description?: string; start: string; end: string; timeZone: string }, mode: 'upsert' | 'create' = 'upsert') {
   const start = new Date(input.start); const end = new Date(input.end);
   if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || end <= start) throw new GoogleCalendarError('Informe início e fim válidos para o evento.');
   const body = {
@@ -194,6 +194,7 @@ export async function syncManagedMcpCalendarEvent(input: { eventId: string; clie
   if (current.ok) {
     const event = await current.json() as ManagedEvent;
     assertMcpManaged(event, input.eventId, input.clientId);
+    if (mode === 'create') return event;
     if (event.summary === body.summary && (event.description || '') === body.description &&
       Date.parse(event.start?.dateTime || '') === Date.parse(input.start) && Date.parse(event.end?.dateTime || '') === Date.parse(input.end)) return event;
     response = await managedRequest(input.eventId, { method: 'PATCH', headers: { 'If-Match': event.etag }, body: JSON.stringify(body) });

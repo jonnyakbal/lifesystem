@@ -52,3 +52,12 @@ export function calendarDaysBetween(a: string, b: string): number {
 export function latestReview(reviews: WeeklyReview[]): WeeklyReview | null {
   return reviews.reduce<WeeklyReview | null>((latest, review) => (!latest || review.completedAt > latest.completedAt ? review : latest), null);
 }
+
+/** The review asks for next actions only on projects in active work. */
+export function weeklyReviewStalledProjects<P extends { id: string; status: string }>(
+  projects: P[],
+  openTasks: { projectId?: string; waitingFor?: string | null }[],
+): P[] {
+  const actionableProjects = new Set(openTasks.filter(task => !task.waitingFor).map(task => task.projectId));
+  return projects.filter(project => ['active', 'development'].includes(project.status) && !actionableProjects.has(project.id));
+}

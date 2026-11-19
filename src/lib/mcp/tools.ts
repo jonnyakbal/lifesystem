@@ -26,6 +26,7 @@ import { idempotencyKeySchema, runMcpIdempotent } from './receipts';
 import { registerProfessionalTools } from './professional';
 import { registerHealthTools } from './health';
 import { registerJournalTools } from './journal';
+import { registerPersonalReadTools } from './personal-read';
 import { contentPayloadSchema, validateContentBinding, updateContent } from '@/lib/content-domain';
 import { getFinancialDisplayEntries, getFinancialDisplayBudgets } from '@/lib/financial-categories';
 import { updateEdital } from '@/lib/edital-service';
@@ -88,6 +89,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       title: `Listar ${plural}`,
       description: `Lista todos os itens de ${plural} no LIFESYSTEM, com filtros opcionais.`,
       inputSchema: filterShape,
+      annotations: { readOnlyHint: true },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     logged(`list_${plural}`, async (input: any) => {
@@ -121,6 +123,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
         description: config.idempotentCreate
           ? `Cria um novo item em ${plural} no LIFESYSTEM. idempotencyKey é obrigatória: gere uma chave única para cada nova despesa e reutilize exatamente a mesma chave apenas ao repetir a mesma solicitação, para evitar duplicidades. Despesas distintas precisam de chaves distintas, mesmo quando os dados coincidirem.`
           : `Cria um novo item em ${plural} no LIFESYSTEM.`,
+        annotations: { readOnlyHint: false, destructiveHint: false },
         inputSchema: config.idempotentCreate
           ? { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.describe('OBRIGATÓRIA. Gere uma chave única para esta intenção de criação e reutilize a mesma chave somente em tentativas repetidas da mesma solicitação.') }
           : { ...createShapeConcrete, idempotencyKey: idempotencyKeySchema.optional().describe('Use uma chave estável para esta intenção. Repetições com a mesma chave recuperam o mesmo ID.') },
@@ -138,7 +141,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
             if (!idempotencyKey) return errorResult('idempotencyKey é obrigatória para esta criação. Reutilize a mesma chave somente ao repetir a mesma solicitação.');
             const identity = createHash('sha256').update(JSON.stringify([clientId || 'legacy', `create_${entity}`, idempotencyKey])).digest('hex');
             const createStable = () => config.performCreate ? config.performCreate(validated, `mcp-${identity}`) : storage.createOnce(collection, `mcp-${identity}`, validated);
-            const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, createStable);
+            const outcome = await runMcpIdempotent(clientId || 'legacy', `create_${entity}`, idempotencyKey, createStable, fields);
             return textResult({ ...outcome.result, replayed: outcome.replayed });
           }
           return textResult(await create());
@@ -154,6 +157,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
     {
       title: `Atualizar ${entity}`,
       description: `Atualiza campos de um item existente em ${plural} pelo id.`,
+      annotations: { readOnlyHint: false, destructiveHint: true },
       inputSchema: { id: z.string().describe('ID do item'), expectedUpdatedAt: z.string().optional().describe('Versão updatedAt observada; evita sobrescrever alteração concorrente.'), ...updateShapeConcrete },
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -177,6 +181,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       {
         title: `Apagar ${entity}`,
         description: `Apaga permanentemente um item de ${plural} pelo id.`,
+        annotations: { readOnlyHint: false, destructiveHint: true },
         inputSchema: { id: z.string().describe('ID do item') },
       },
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -194,6 +199,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   registerProfessionalTools(server, scopes, clientId);
   registerHealthTools(server, scopes, clientId);
   registerJournalTools(server, scopes, clientId);
+  registerPersonalReadTools(server, scopes, clientId);
   // Tasks — mirrors src/app/api/tasks/route.ts POST body.
   registerCrudTools(server, {
     entity: 'task',
@@ -253,6 +259,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, scopes, clientId);
 
   if (canUseMcpTool('convert_capture', scopes)) server.registerTool('convert_capture', {
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     title: 'Converter uma captura',
     description: 'Converte uma captura do INBOX de forma idempotente em nota, tarefa, conteúdo, lançamento financeiro, evento, projeto ou edital.',
     inputSchema: convertCaptureActionSchema.shape,
@@ -262,6 +269,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, clientId));
 
   if (canUseMcpTool('plan_task_block', scopes)) server.registerTool('plan_task_block', {
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     title: 'Planejar bloco de uma tarefa',
     description: 'Reserva um dia ou bloco de foco para uma tarefa e, quando solicitado, espelha o bloco no Google Agenda conectado.',
     inputSchema: taskPlanningActionSchema.shape,
@@ -271,6 +279,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, clientId));
 
   if (canUseMcpTool('remove_task_block', scopes)) server.registerTool('remove_task_block', {
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     title: 'Remover bloco de uma tarefa',
     description: 'Remove o bloco de planejamento e o evento Google gerenciado vinculado à tarefa.',
     inputSchema: { taskId: z.string().min(1) },
@@ -280,6 +289,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, clientId));
 
   if (canUseMcpTool('adopt_task_calendar_event', scopes)) server.registerTool('adopt_task_calendar_event', {
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     title: 'Adotar alteração externa do evento',
     description: 'Lê o evento Google gerenciado e incorpora horário e título alterados fora do LIFESYSTEM.',
     inputSchema: { taskId: z.string().min(1) },
@@ -610,6 +620,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, scopes, clientId);
 
   if (canUseMcpTool('get_financial_summary', scopes)) server.registerTool('get_financial_summary', {
+    annotations: { readOnlyHint: true },
     title: 'Resumo financeiro',
     description: 'Resumo mensal separado em realizado (paidDate ou date) e previsto (dueDate ou date). Pendentes não reduzem o saldo realizado.',
     inputSchema: { month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/).describe('Mês no formato YYYY-MM') },
@@ -619,6 +630,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, clientId));
 
   if (canUseMcpTool('create_calendar_event', scopes)) server.registerTool('create_calendar_event', {
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     title: 'Criar evento no Google Agenda',
     description: 'Cria um evento na agenda principal do Google já conectada ao LIFESYSTEM. Nunca peça ou exponha tokens Google.',
     inputSchema: {
@@ -634,6 +646,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, clientId));
 
   if (canUseMcpTool('list_calendar_events', scopes)) server.registerTool('list_calendar_events', {
+    annotations: { readOnlyHint: true, openWorldHint: true },
     title: 'Listar eventos do Google Agenda',
     description: 'Lê eventos no intervalo solicitado para consultar agenda e disponibilidade. Não altera o Google Agenda.',
     inputSchema: { from: z.string().datetime({ offset: true }), to: z.string().datetime({ offset: true }) },
@@ -650,6 +663,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     timeZone: z.string().min(1).max(100).default('America/Sao_Paulo'),
   };
   if (canUseMcpTool('create_managed_calendar_event', scopes)) server.registerTool('create_managed_calendar_event', {
+    annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
     title: 'Criar evento gerenciado no Google Agenda',
     description: 'Cria um evento identificado pelo LIFESYSTEM. Informe uma chave de idempotência estável para evitar duplicidade em novas tentativas.',
     inputSchema: { ...managedCalendarInput, idempotencyKey: idempotencyKeySchema },
@@ -657,14 +671,15 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     try {
       const outcome = await runMcpIdempotent(clientId || 'legacy', 'calendar.create', input.idempotencyKey, async () => {
         const eventId = createManagedMcpEventId(clientId || 'legacy', input.idempotencyKey);
-        const event = await syncManagedMcpCalendarEvent({ ...input, eventId, clientId: clientId || 'legacy' });
+        const event = await syncManagedMcpCalendarEvent({ ...input, eventId, clientId: clientId || 'legacy' }, 'create');
         return { id: event.id, eventId, url: event.htmlLink?.startsWith('https://') ? event.htmlLink : undefined };
-      });
+      }, { title: input.title, description: input.description, start: input.start, end: input.end, timeZone: input.timeZone });
       return textResult({ ...outcome.result, replayed: outcome.replayed });
     } catch (error) { return errorResult(error instanceof Error ? error.message : 'Não foi possível criar o evento.'); }
   }, clientId));
 
   if (canUseMcpTool('update_managed_calendar_event', scopes)) server.registerTool('update_managed_calendar_event', {
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     title: 'Atualizar evento gerenciado no Google Agenda',
     description: 'Atualiza somente um evento criado e identificado pelo LIFESYSTEM MCP.',
     inputSchema: { eventId: z.string().regex(/^[a-f0-9]{32}$/), ...managedCalendarInput },
@@ -676,6 +691,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
   }, clientId));
 
   if (canUseMcpTool('cancel_managed_calendar_event', scopes)) server.registerTool('cancel_managed_calendar_event', {
+    annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: true },
     title: 'Cancelar evento gerenciado no Google Agenda',
     description: 'Cancela somente um evento criado e identificado pelo LIFESYSTEM MCP.',
     inputSchema: { eventId: z.string().regex(/^[a-f0-9]{32}$/) },
