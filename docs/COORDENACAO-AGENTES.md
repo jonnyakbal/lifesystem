@@ -29,4 +29,9 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - A branch `codex/openbot-oauth` acrescenta autorização direta no LifeSystem conforme o [guia de integração](integrations/openbot-oauth.md). O OAuth começa com leitura de tarefas e Inbox. A validação final depende do consentimento do proprietário no OpenBot.
 - QA local em dados sintéticos: 25 testes OAuth/MCP, quatro testes do setup de CI, TypeScript, lint e build Webpack aprovados. O servidor local de produção retornou metadados 200, MCP anônimo 401 e, após trocar um código sintético, `tools/list` 200 com as duas ferramentas esperadas.
 - Após a primeira publicação, o formulário de consentimento enviava `Origin: null` no Chromium. A correção mantém a verificação de origem, altera a política apenas no HTML do consentimento e adiciona um teste do envio pelo Chromium. QA da correção: 26 testes relevantes e build Webpack aprovados.
-- Os cinco commits de `codex/journal-mcp` seguem separados da entrega de OAuth.
+
+### Diário pessoal no MCP (19/11/2026, Codex)
+
+- Branch local `codex/journal-mcp`. Escopos explícitos `journal:read` e `journal:write`. O Diário usa o mesmo armazenamento da interface e exige a versão atual para edição pelo agente.
+- Catálogo, contrato e lacunas em [mcp-cobertura.md](mcp-cobertura.md).
+- O Diário faz parte da candidata local para ampliar o acesso OAuth do Agente Pessoal.
