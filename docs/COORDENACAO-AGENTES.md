@@ -35,3 +35,8 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - Disponibilidade semanal, revisão, Notas/Wiki e Visão estão disponíveis localmente com os novos escopos documentados no [mapa MCP](mcp-cobertura.md). O rascunho da revisão é somente de leitura.
 - Validação local com credencial sintética. A ponte, a credencial e o teste pelo OpenBot real continuam pendentes.
 - Verificação: 37 testes MCP e de calendário, TypeScript, ESLint dos arquivos envolvidos e build Webpack passaram com dados sintéticos.
+
+### Ponte OpenBot na Oracle (Codex)
+
+- Protótipo local em [integrations/openbot-mcp](../integrations/openbot-mcp/README.md). O container OpenBot 0.71.0 na Oracle compartilha a rede atual com o Arco OS. A ponte proposta escuta somente no loopback do namespace OpenBot.
+- Três testes HTTP locais passaram com token sintético. Sem instalação, credencial ou validação no OpenBot real. A API da Hostinger mascara valores e substitui todas as variáveis ao escrever; a entrada exclusiva deve ser acrescentada no editor individual de MCP_API_KEYS pelo operador.

@@ -1,0 +1,14 @@
+# Ponte OpenBot para LifeSystem
+
+A instalação conferida na Oracle é o OpenBot Nightly 0.71.0. Cadastre o endpoint **Streamable HTTP** `http://127.0.0.1:4193/mcp` no OpenBot, sem cabeçalhos, após a ponte estar ativa. O segredo é lido de um arquivo montado **somente na ponte**. Ela envia o Bearer apenas para `https://lifesystem.oj0nny.com/api/mcp` e rejeita redirecionamentos. O container não publica portas e compartilha o namespace de rede do container `openbot-vps-openbot-1`, com escuta somente no loopback. Não a instalar na rede Docker compartilhada com o Arco OS.
+
+## Preparação da credencial
+
+- Na Hostinger, edite **somente** `MCP_API_KEYS` do LifeSystem pelo hPanel. Acrescente ao array existente um objeto com `id: "openbot"`, `key` e `scopes`, preservando todos os objetos existentes. Não use a operação de substituir todo o conjunto de variáveis. Para o primeiro teste, use apenas escopos de leitura disponíveis na versão publicada, como `tasks:read` e `captures:read`. Os novos escopos precisam da release correspondente.
+- Use 32 bytes de um gerador seguro representados em base64url, sem padding. O mesmo valor deve entrar no campo protegido do hPanel e no arquivo `/etc/lifesystem-openbot/token` na Oracle por um fluxo de entrada oculta. Não inclua o valor na linha de comando ou em arquivos do projeto. Prepare o arquivo com dono UID/GID `10001:10001` e modo `0400`. O host deve manter a pasta restrita. O Compose monta somente o arquivo, e o OpenBot não recebe esse volume.
+- Copie apenas `bridge.mjs` e `compose.yaml` para um diretório operacional na Oracle. Defina `LIFESYSTEM_BRIDGE_IMAGE` com uma imagem confiável do Node 24 fixada por digest. Suba o serviço separado após conferir a identidade do container e a disponibilidade da porta. Se o container do OpenBot for recriado, recrie também a ponte para anexá-la ao namespace atual.
+- Conceda o conector só ao agente pessoal no OpenBot e valide a descoberta usando o teste do servidor/cliente. Confira `initialize` e `tools/list`, sem executar ferramentas de registros. Em seguida, amplie os escopos conforme o [mapa MCP](../../docs/mcp-cobertura.md). Verifique que o motor do agente consegue usar o loopback da própria VM/container. O controle de acesso do aplicativo não substitui o isolamento de processos: programas que já executem no namespace de rede do OpenBot também podem alcançar a ponte. Em uma instalação compartilhada com agentes não confiáveis, não habilite o conjunto ampliado sem antes isolar esse ambiente.
+
+## Validação local
+
+`node --test integrations/openbot-mcp/bridge.test.mjs` usa uma chave sintética e um upstream simulado. Os casos cobrem destino fixo, Bearer, cabeçalhos, recusa de origem de navegador, tamanho, rotas e tratamento de falhas. O teste da VM com o OpenBot real permanece pendente.

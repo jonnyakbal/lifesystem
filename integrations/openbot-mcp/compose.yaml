@@ -1,0 +1,28 @@
+name: lifesystem-openbot-bridge
+services:
+  bridge:
+    # Use a supported Node image, with digest pinned on the Oracle host.
+    image: "${LIFESYSTEM_BRIDGE_IMAGE:?Set a Node 24 image pinned by digest}"
+    network_mode: container:openbot-vps-openbot-1
+    user: "10001:10001"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "none"
+    restart: unless-stopped
+    command: ["node", "/opt/lifesystem-bridge/bridge.mjs"]
+    volumes:
+      - type: bind
+        source: ./bridge.mjs
+        target: /opt/lifesystem-bridge/bridge.mjs
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /etc/lifesystem-openbot/token
+        target: /run/secrets/lifesystem-mcp
+        read_only: true
+        bind:
+          create_host_path: false
