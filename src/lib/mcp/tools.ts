@@ -25,6 +25,7 @@ import { adoptTaskCalendarEventAction, convertCaptureAction, convertCaptureActio
 import { idempotencyKeySchema, runMcpIdempotent } from './receipts';
 import { registerProfessionalTools } from './professional';
 import { registerHealthTools } from './health';
+import { registerJournalTools } from './journal';
 import { contentPayloadSchema, validateContentBinding, updateContent } from '@/lib/content-domain';
 import { getFinancialDisplayEntries, getFinancialDisplayBudgets } from '@/lib/financial-categories';
 import { updateEdital } from '@/lib/edital-service';
@@ -192,6 +193,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
 export function registerAllTools(server: McpServer, scopes: string[] = ['*'], clientId?: string) {
   registerProfessionalTools(server, scopes, clientId);
   registerHealthTools(server, scopes, clientId);
+  registerJournalTools(server, scopes, clientId);
   // Tasks — mirrors src/app/api/tasks/route.ts POST body.
   registerCrudTools(server, {
     entity: 'task',

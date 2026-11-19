@@ -96,6 +96,8 @@ export function canUseMcpTool(toolName: string, scopes: string[]): boolean {
   if (scopes.includes('health:only') && !(toolName in healthActions)) return false;
   if (toolName in healthActions) return !scopes.includes('professional:only') && (scopes.includes(`health:${healthActions[toolName]}`) || scopes.includes('health:*'));
   if (scopes.includes('professional:only') && !professional.includes(toolName)) return false;
+  if (toolName === 'list_journal_entries') return scopes.includes('journal:read');
+  if (toolName === 'save_journal_entry') return scopes.includes('journal:write');
   if (scopes.includes('*')) return true;
 
   const professionalActions: Record<string, string> = { query_professional: 'read', get_professional_schemas: 'read', get_professional_receipt: 'read', get_professional_diagnostics: 'read', propose_professional_change: 'propose', batch_professional_proposals: 'propose', apply_professional_proposal: 'apply', submit_professional_artifact: 'artifact', report_professional_execution: 'execution' };

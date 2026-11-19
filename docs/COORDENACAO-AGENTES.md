@@ -22,3 +22,9 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - **Depois de publicar:** em produção, trocar a marca do projeto ARCO PASS de Ateliê Studio para **Arcopass**.
 - Pendente do Codex: validar compra real vinculada ao cartão na fatura certa (Jonny).
 - Backlog do polimento: Indicadores, Pilares, Visão, Dados, Diário pessoal, Hermes; passada fina em Conteúdo e Escritório.
+
+### Diário pessoal no MCP (19/11/2026, Codex)
+
+- Branch local `codex/journal-mcp`. Escopos explícitos `journal:read` e `journal:write`. O Diário usa o mesmo armazenamento da interface e exige a versão atual para edição pelo agente.
+- Catálogo, contrato e lacunas em [mcp-cobertura.md](mcp-cobertura.md).
+- Sem publicação. A credencial e a ponte do OpenBot na Oracle continuam pendentes.
