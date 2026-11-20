@@ -47,3 +47,6 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - `initialize` e `tools/list` passaram pela ponte na Oracle. O catálogo da credencial é `list_tasks` e `list_captures`, correspondendo a `tasks:read` e `captures:read`.
 - Falta cadastrar `http://127.0.0.1:4193/mcp` como Streamable HTTP nas configurações MCP do servidor Oracle no OpenBot, atribuir ao agente pessoal e validar pelo próprio OpenBot. A automação do navegador não abriu nesta sessão.
 - O código das ferramentas novas segue local, sem publicação. A alteração de credencial no hPanel foi aplicada pelo Jonny.
+
+- A ponte ativa foi posta em modo de cadastro. Na Oracle, tools/list retornou apenas list_captures e list_tasks. O modo também recusou tools/call com HTTP 403, sem chegar ao LifeSystem. Quatro testes locais da ponte passaram.
+- OpenBot Nightly 0.71.0 tem controle MCP por agente, mas o padrão de uma entrada recém-criada permite todos. Validar a regra de acesso do agente pessoal na interface antes de liberar a execução da ponte. A interface ainda não foi inspecionada, pois o controle do Chrome falhou.

@@ -64,3 +64,14 @@ test('refuse redirects and do not relay transport errors', async () => {
     assert.equal((await reply.text()).includes('synthetic internal detail'), false);
   });
 });
+
+test('enrollment exposes tool discovery but blocks execution and JSON batches', async () => {
+  let forwarded = 0;
+  await withBridge(async () => { forwarded++; return Response.json({ result: { tools: [] } }); }, async origin => {
+    const send = value => fetch(origin + '/mcp', { method: 'POST', body: JSON.stringify(value) });
+    assert.equal((await send({ method: 'tools/list' })).status, 200);
+    assert.equal((await send({ method: 'tools/call', params: { name: 'list_tasks' } })).status, 403);
+    assert.equal((await send([{ method: 'tools/list' }, { method: 'tools/call' }])).status, 403);
+  });
+  assert.equal(forwarded, 1);
+});

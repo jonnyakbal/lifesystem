@@ -5,6 +5,8 @@ services:
     image: "${LIFESYSTEM_BRIDGE_IMAGE:?Set a Node 24 image pinned by digest}"
     network_mode: container:openbot-vps-openbot-1
     user: "10001:10001"
+    environment:
+      LIFESYSTEM_BRIDGE_ENROLLMENT: "${LIFESYSTEM_BRIDGE_ENROLLMENT:-1}"
     read_only: true
     cap_drop: [ALL]
     security_opt:

@@ -30,7 +30,7 @@ async function readBody(request) {
   return Buffer.concat(chunks, length);
 }
 
-export function createBridge({ token, fetchUpstream = fetch }) {
+export function createBridge({ token, fetchUpstream = fetch, enrollment = true }) {
   if (!/^[A-Za-z0-9_-]{43,128}$/.test(token)) {
     throw new Error('O segredo MCP precisa ser uma chave aleatória em base64url.');
   }
@@ -57,6 +57,18 @@ export function createBridge({ token, fetchUpstream = fetch }) {
         response.setHeader('connection', 'close');
         sendError(response, 413, 'Solicitação grande demais.');
         return;
+      }
+
+      if (enrollment && body) {
+        let message;
+        try { message = JSON.parse(body.toString('utf8')); } catch {
+          sendError(response, 400, 'Solicitação MCP inválida.');
+          return;
+        }
+        if (!['initialize', 'notifications/initialized', 'ping', 'tools/list'].includes(message?.method)) {
+          sendError(response, 403, 'A ponte está em modo de cadastro. Chamadas de ferramentas estão bloqueadas.');
+          return;
+        }
       }
 
       const headers = new Headers({ authorization: 'Bearer ' + token });
@@ -91,7 +103,7 @@ export function createBridge({ token, fetchUpstream = fetch }) {
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const token = (await readFile('/run/secrets/lifesystem-mcp', 'utf8')).trim();
-    const server = createBridge({ token });
+    const server = createBridge({ token, enrollment: process.env.LIFESYSTEM_BRIDGE_ENROLLMENT !== '0' });
     server.on('error', () => {
       console.error('A ponte MCP não conseguiu iniciar.');
       process.exitCode = 1;
