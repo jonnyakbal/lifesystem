@@ -117,6 +117,8 @@ function consentPage(input: Map<string, string>, scopes: string[]) {
 </html>`;
   return new Response(html, { headers: {
     ...PRIVATE_HEADERS, 'Content-Type': 'text/html; charset=utf-8',
+    // A no-referrer policy makes Chromium send Origin: null on a form navigation.
+    'Referrer-Policy': 'strict-origin',
     'Content-Security-Policy': `default-src 'none'; style-src 'unsafe-inline'; form-action 'self' ${CALLBACK}; frame-ancestors 'none'; base-uri 'none'`,
   } });
 }

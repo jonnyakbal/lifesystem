@@ -140,6 +140,39 @@ test('requires the owner session and an explicit, same-origin approval', async (
   expect(deniedCallback.searchParams.has('code')).toBe(false);
 });
 
+test('Chromium submits consent with the LifeSystem origin and receives the callback redirect', async ({ page }) => {
+  const endpoint = oauth + '/authorize';
+  let submission: { origin: string | undefined; status: number; location: string | null } | undefined;
+  await page.route(endpoint + '**', async route => {
+    const navigation = route.request();
+    const method = navigation.method();
+    const headers = await navigation.allHeaders();
+    const input = new NextRequest(navigation.url(), {
+      method, headers: { ...headers, cookie: SESSION_COOKIE + '=' + session },
+      body: navigation.postData() ?? undefined,
+    });
+    const response = method === 'POST'
+      ? await oauthPost(input, context('authorize'))
+      : await authorize(input, context('authorize'));
+    if (method === 'POST') {
+      submission = { origin: headers.origin, status: response.status, location: response.headers.get('location') };
+      // Inspect the redirect without sending a synthetic code to a real loopback listener.
+      await route.fulfill({ body: 'Envio verificado' });
+      return;
+    }
+    await route.fulfill({
+      status: response.status, headers: Object.fromEntries(response.headers), body: await response.text(),
+    });
+  });
+  await page.goto(endpoint + '?' + new URLSearchParams(requested));
+  await page.getByRole('button', { name: 'Autorizar leitura' }).click();
+  await expect(page.getByText('Envio verificado')).toBeVisible();
+  expect(submission).toMatchObject({ origin, status: 303 });
+  const callback = new URL(submission!.location!);
+  expect(callback.origin + callback.pathname).toBe(redirect);
+  expect(callback.searchParams.has('code')).toBe(true);
+});
+
 test('binds the single-use code to PKCE, canonical resource and exact callback', async () => {
   const code = await consentCode();
   const invalid: Record<string, string>[] = [
