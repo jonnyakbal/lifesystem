@@ -22,3 +22,10 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - **Depois de publicar:** em produção, trocar a marca do projeto ARCO PASS de Ateliê Studio para **Arcopass**.
 - Pendente do Codex: validar compra real vinculada ao cartão na fatura certa (Jonny).
 - Backlog do polimento: Indicadores, Pilares, Visão, Dados, Diário pessoal, Hermes; passada fina em Conteúdo e Escritório.
+
+### OpenBot pessoal (20/11/2026, Codex)
+
+- No Marketplace do OpenBot Oracle, o cadastro `lifesystem` foi confirmado restrito ao Agente Pessoal. O teste reconheceu duas ferramentas. A ponte na Oracle seguiu em modo de cadastro, com execução bloqueada.
+- A branch `codex/openbot-oauth` acrescenta autorização direta no LifeSystem conforme o [guia de integração](integrations/openbot-oauth.md). O OAuth começa com leitura de tarefas e Inbox. A validação final depende do consentimento do proprietário no OpenBot.
+- QA local em dados sintéticos: 25 testes OAuth/MCP, quatro testes do setup de CI, TypeScript, lint e build Webpack aprovados. O servidor local de produção retornou metadados 200, MCP anônimo 401 e, após trocar um código sintético, `tools/list` 200 com as duas ferramentas esperadas.
+- Os cinco commits de `codex/journal-mcp` seguem separados da entrega de OAuth.

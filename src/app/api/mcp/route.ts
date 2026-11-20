@@ -10,16 +10,17 @@ import { NextRequest } from 'next/server';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { createLifesystemMcpServer } from '@/lib/mcp/server';
 import { authorizeMcpToken } from '@/lib/mcp/auth';
+import { authorizeOpenBotAccess, ISSUER, openBotOAuthConfig, RESOURCE_METADATA_PATH } from '@/lib/mcp/openbot-oauth';
 import { consumeRateLimit, getRateLimitKey } from '@/lib/rate-limit';
 
 const MCP_REQUEST_LIMIT = 120;
 const MCP_WINDOW_MS = 60 * 1000;
 
-function getAuthorization(request: NextRequest) {
+async function getAuthorization(request: NextRequest) {
   const header = request.headers.get('authorization') || '';
   const [scheme, token, extra] = header.split(' ');
   if (scheme !== 'Bearer' || !token || extra) return null;
-  return authorizeMcpToken(token);
+  return authorizeMcpToken(token) || authorizeOpenBotAccess(token);
 }
 
 async function handle(request: NextRequest): Promise<Response> {
@@ -31,9 +32,16 @@ async function handle(request: NextRequest): Promise<Response> {
     );
   }
 
-  const authorization = getAuthorization(request);
+  const authorization = await getAuthorization(request);
   if (!authorization) {
-    return Response.json({ error: 'Não autorizado.' }, { status: 401 });
+    const oauth = openBotOAuthConfig();
+    return Response.json({ error: 'Não autorizado.' }, {
+      status: 401,
+      headers: {
+        'Cache-Control': 'no-store',
+        ...(oauth ? { 'WWW-Authenticate': `Bearer resource_metadata="${ISSUER + RESOURCE_METADATA_PATH}"` } : {}),
+      },
+    });
   }
 
   const clientLimit = consumeRateLimit(`mcp-client:${authorization.keyId}`, MCP_REQUEST_LIMIT, MCP_WINDOW_MS);
