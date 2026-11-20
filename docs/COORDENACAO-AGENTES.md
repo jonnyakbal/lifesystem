@@ -40,3 +40,10 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 
 - Protótipo local em [integrations/openbot-mcp](../integrations/openbot-mcp/README.md). O container OpenBot 0.71.0 na Oracle compartilha a rede atual com o Arco OS. A ponte proposta escuta somente no loopback do namespace OpenBot.
 - Três testes HTTP locais passaram com token sintético. Sem instalação, credencial ou validação no OpenBot real. A API da Hostinger mascara valores e substitui todas as variáveis ao escrever; a entrada exclusiva deve ser acrescentada no editor individual de MCP_API_KEYS pelo operador.
+
+### Ponte OpenBot na Oracle (20/11/2026, Codex)
+
+- Serviço separado `lifesystem-openbot-bridge-bridge-1` iniciado na Oracle com imagem oficial Node 24 fixada por digest. O serviço escuta no loopback do namespace do OpenBot, sem porta publicada.
+- `initialize` e `tools/list` passaram pela ponte na Oracle. O catálogo da credencial é `list_tasks` e `list_captures`, correspondendo a `tasks:read` e `captures:read`.
+- Falta cadastrar `http://127.0.0.1:4193/mcp` como Streamable HTTP nas configurações MCP do servidor Oracle no OpenBot, atribuir ao agente pessoal e validar pelo próprio OpenBot. A automação do navegador não abriu nesta sessão.
+- O código das ferramentas novas segue local, sem publicação. A alteração de credencial no hPanel foi aplicada pelo Jonny.
