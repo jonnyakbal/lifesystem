@@ -26,7 +26,7 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 ### OpenBot pessoal (20/11/2026, Codex)
 
 - No Marketplace do OpenBot Oracle, o cadastro `lifesystem` foi confirmado restrito ao Agente Pessoal. O teste reconheceu duas ferramentas. A ponte na Oracle seguiu em modo de cadastro, com execução bloqueada.
-- A branch `codex/openbot-oauth` acrescenta autorização direta no LifeSystem conforme o [guia de integração](integrations/openbot-oauth.md). O OAuth começa com leitura de tarefas e Inbox. A validação final depende do consentimento do proprietário no OpenBot.
+- A branch `codex/openbot-oauth` publicou a autorização direta no LifeSystem. O proprietário confirmou o acesso e o OpenBot validou o catálogo de leitura de tarefas e Inbox.
 - QA local em dados sintéticos: 25 testes OAuth/MCP, quatro testes do setup de CI, TypeScript, lint e build Webpack aprovados. O servidor local de produção retornou metadados 200, MCP anônimo 401 e, após trocar um código sintético, `tools/list` 200 com as duas ferramentas esperadas.
 - Após a primeira publicação, o formulário de consentimento enviava `Origin: null` no Chromium. A correção mantém a verificação de origem, altera a política apenas no HTML do consentimento e adiciona um teste do envio pelo Chromium. QA da correção: 26 testes relevantes e build Webpack aprovados.
 
@@ -42,3 +42,10 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 - Disponibilidade semanal, revisão, Notas/Wiki e Visão estão disponíveis localmente com os novos escopos documentados no [mapa MCP](mcp-cobertura.md). O rascunho da revisão é somente de leitura.
 - O OAuth com leitura de tarefas e Inbox está publicado. As ferramentas novas da candidata ainda precisam de publicação e consentimento.
 - Verificação: 37 testes MCP e de calendário, TypeScript, ESLint dos arquivos envolvidos e build Webpack passaram com dados sintéticos.
+
+### Ampliação do OAuth para o Agente Pessoal
+
+- Candidata local `codex/openbot-personal-full` preparada para revisão. Reaproveita os commits do Diário e das consultas pessoais. A ponte antiga fica fora desta entrega.
+- O [guia OpenBot](integrations/openbot-oauth.md) lista os escopos e o [mapa MCP](mcp-cobertura.md) descreve os contratos novos. A credencial Bearer da ponte e as concessões OAuth existentes conservam suas permissões.
+- QA isolado confirmou 68 ferramentas no consentimento ampliado, uma escrita sintética no Diário via token OAuth e a recusa dos escopos fora do perfil. Passaram 40 testes, TypeScript, ESLint e build Webpack.
+- Para ativar a candidata depois de aprovada, publicar o código, conferir agentes e papéis no OpenBot, renovar o consentimento e validar o catálogo sem consultar registros reais.

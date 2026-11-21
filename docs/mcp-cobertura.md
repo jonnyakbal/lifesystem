@@ -32,7 +32,7 @@ Listagens de notas, Wiki e Visão aceitam `limit` de 1 a 50 (padrão 15) e `curs
 - O catálogo anuncia ferramentas de leitura, criação e mutações que podem sobrescrever ou remover dados. Essas anotações orientam o cliente. O filtro por escopo continua no servidor.
 - Criações com chave de idempotência no CRUD e no calendário registram uma impressão dos argumentos antes do efeito. Mesma credencial, chave e parâmetros recuperam o recibo, e alterações de dados ou operação geram conflito. Se a gravação do recibo falhar, a intenção continua registrada. A recuperação usa o ID estável da criação. No Google Agenda, a recuperação de uma criação não sobrescreve edições posteriores do evento.
 - Recibos antigos sem impressão ainda podem ser recuperados, mas não permitem comparar os argumentos originais.
-- O teste HTTP local usa o handler de produção, uma credencial sintética e armazenamento isolado. O teste real OpenBot → Oracle → LifeSystem depende da ponte e da credencial de produção.
+- O teste HTTP local usa o handler de produção, credenciais sintéticas e armazenamento isolado. O OpenBot usa o [OAuth direto](integrations/openbot-oauth.md), com o catálogo habilitado pelos escopos que o proprietário aprova.
 
 ## Lacunas restantes
 

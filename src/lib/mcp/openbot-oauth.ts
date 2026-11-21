@@ -9,13 +9,43 @@ export const OAUTH_PATH = '/api/mcp/oauth';
 export const RESOURCE_METADATA_PATH = '/.well-known/oauth-protected-resource/api/mcp';
 export const OPENBOT_CLIENT = 'https://openbot.run/oauth/mcp-client.json';
 const COLLECTION = 'mcp_openbot_oauth';
-const SCOPES = ['tasks:read', 'captures:read'];
+const BASE_SCOPES = ['tasks:read', 'captures:read'];
+export const OPENBOT_SCOPE_LABELS: Record<string, string> = {
+  'tasks:read': 'Consultar tarefas',
+  'captures:read': 'Consultar a caixa de entrada',
+  'projects:read': 'Consultar projetos',
+  'pillars:read': 'Consultar pilares',
+  'indicators:read': 'Consultar indicadores',
+  'content:read': 'Consultar conteúdo',
+  'content_hub:read': 'Consultar fontes e itens de conteúdo',
+  'journal:read': 'Consultar o Diário pessoal',
+  'log_entries:read': 'Consultar o Diário de bordo',
+  'editais:read': 'Consultar editais',
+  'financial:read': 'Consultar lançamentos, contas, cartões, faturas, orçamentos e metas financeiras',
+  'calendar:read': 'Consultar o Google Agenda conectado',
+  'agenda:read': 'Consultar disponibilidade semanal',
+  'weekly_review:read': 'Consultar a última revisão e preparar um rascunho',
+  'notes:read': 'Consultar notas e coleções da Wiki',
+  'vision:read': 'Consultar documentos de Visão',
+  'tasks:write': 'Criar e editar tarefas, planejar blocos e sincronizar blocos vinculados com o Google Agenda',
+  'captures:write': 'Criar, classificar e converter capturas para os destinos autorizados',
+  'projects:write': 'Criar e editar projetos',
+  'pillars:write': 'Editar pilares existentes',
+  'indicators:write': 'Criar e atualizar indicadores',
+  'content:write': 'Criar e editar conteúdo',
+  'content_hub:write': 'Cadastrar e editar fontes e itens de conteúdo',
+  'journal:write': 'Registrar e editar entradas do Diário pessoal',
+  'log_entries:write': 'Criar e editar registros do Diário de bordo',
+  'editais:write': 'Cadastrar e acompanhar editais',
+  'financial:write': 'Criar e editar lançamentos, contas, cartões, faturas, orçamentos, credores e metas financeiras',
+  'calendar:write': 'Criar e editar eventos do agente. Cancelar eventos gerenciados pelo LifeSystem para o agente',
+};
 const ACCESS_SECONDS = 15 * 60;
 const REFRESH_MS = 30 * 24 * 60 * 60 * 1000;
 const CODE_MS = 5 * 60 * 1000;
 const MAX_ROTATIONS = 4096;
 
-type Config = { scopes: string[]; binding: string };
+type Config = { scopes: string[]; defaultScopes: string[]; binding: string };
 type Code = { kind: 'code'; digest: string; challenge: string; redirect: string; scopes: string[]; expires: number; binding: string };
 type Grant = {
   kind: 'grant'; access: string; refresh: string; spent: string[];
@@ -36,12 +66,14 @@ export function openBotOAuthConfig(): Config | null {
   const keys = parseMcpKeyConfigurations(process.env.MCP_API_KEYS).filter(key => key.id === 'openbot');
   if (!owner || !password || keys.length !== 1) return null;
   const key = keys[0];
-  const scopes = SCOPES.filter(scope => key.scopes.includes(scope));
-  if (scopes.length === 0) return null;
+  const defaultScopes = BASE_SCOPES.filter(scope => key.scopes.includes(scope));
+  if (defaultScopes.length === 0) return null;
+  // The direct key stays on its assigned scopes. Only an OAuth consent can issue the broader profile.
+  const scopes = defaultScopes.length === BASE_SCOPES.length ? Object.keys(OPENBOT_SCOPE_LABELS) : defaultScopes;
   const binding = createHmac('sha256', key.key)
     .update(JSON.stringify(['lifesystem-openbot-oauth', RESOURCE, owner, password]))
     .digest('base64url');
-  return { scopes, binding };
+  return { scopes, defaultScopes, binding };
 }
 
 function valid(entry: Entry, config: Config, now: number) {

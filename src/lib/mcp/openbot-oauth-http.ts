@@ -3,7 +3,7 @@ import { isValidSessionToken, SESSION_COOKIE } from '../auth';
 import { consumeRateLimit, getRateLimitKey } from '../rate-limit';
 import {
   exchangeOpenBotCode, ISSUER, issueOpenBotCode, OAUTH_PATH, OPENBOT_CLIENT,
-  openBotOAuthConfig, refreshOpenBotGrant, RESOURCE, revokeOpenBotGrant,
+  OPENBOT_SCOPE_LABELS, openBotOAuthConfig, refreshOpenBotGrant, RESOURCE, revokeOpenBotGrant,
 } from './openbot-oauth';
 
 const CALLBACK = 'http://127.0.0.1:28417/mcp-auth';
@@ -16,7 +16,6 @@ const PRIVATE_HEADERS = {
 const AUTH_FIELDS = [
   'response_type', 'client_id', 'redirect_uri', 'resource', 'code_challenge', 'code_challenge_method', 'state', 'scope',
 ];
-const labels: Record<string, string> = { 'tasks:read': 'Consultar tarefas', 'captures:read': 'Consultar a caixa de entrada' };
 
 export function oauthJson(fields: Record<string, unknown>, status = 200, headers: Record<string, string> = {}) {
   return Response.json(fields, { status, headers: { ...PRIVATE_HEADERS, ...headers } });
@@ -65,7 +64,7 @@ async function readForm(request: Request) {
   }
 }
 
-function parseAuthorization(input: Map<string, string>, allowed: string[]) {
+function parseAuthorization(input: Map<string, string>, config: NonNullable<ReturnType<typeof openBotOAuthConfig>>) {
   const callback = input.get('redirect_uri');
   const challenge = input.get('code_challenge');
   const state = input.get('state');
@@ -74,8 +73,8 @@ function parseAuthorization(input: Map<string, string>, allowed: string[]) {
     || input.get('code_challenge_method') !== 'S256' || !challenge || !/^[\w-]{43}$/.test(challenge)
     || !state || state.length > 512 || /[\x00-\x1f\x7f]/.test(state)) return null;
   const scope = input.get('scope');
-  const scopes = scope === undefined ? allowed : [...new Set(scope.trim().split(/ +/))];
-  if (!scopes.every(item => allowed.includes(item))) return null;
+  const scopes = scope === undefined ? config.defaultScopes : [...new Set(scope.trim().split(/ +/))];
+  if (!scopes.every(item => config.scopes.includes(item))) return null;
   return { callback, challenge, state, scopes };
 }
 
@@ -88,7 +87,11 @@ function consentPage(input: Map<string, string>, scopes: string[]) {
     const value = input.get(name);
     return value === undefined ? [] : [`<input type="hidden" name="${name}" value="${escapeHtml(value)}">`];
   }).join('');
-  const list = scopes.map(scope => `<li>${labels[scope]}</li>`).join('');
+  const read = scopes.filter(scope => scope.endsWith(':read'));
+  const write = scopes.filter(scope => scope.endsWith(':write'));
+  const group = (heading: string, list: string[]) => list.length
+    ? `<section><h2>${heading}</h2><ul>${list.map(scope => `<li>${escapeHtml(OPENBOT_SCOPE_LABELS[scope])}</li>`).join('')}</ul></section>`
+    : '';
   const html = `<!doctype html>
 <html lang="pt-BR">
 <meta charset="utf-8">
@@ -97,8 +100,11 @@ function consentPage(input: Map<string, string>, scopes: string[]) {
 <style>
   :root{color-scheme:dark;background:#0b111a;color:#eef6ff;font:16px/1.55 system-ui}
   body{margin:0;padding:24px;min-height:90vh;display:grid;place-items:center;box-sizing:border-box}
-  main{width:min(100%,480px);padding:32px;box-sizing:border-box;border:1px solid #364759;border-radius:18px;background:#141d29}
+  main{width:min(100%,720px);padding:clamp(16px,4vw,32px);box-sizing:border-box;border:1px solid #364759;border-radius:18px;background:#141d29}
   h1{font-size:1.75rem;line-height:1.2;margin:8px 0 16px} p{color:#becee0} ul{padding-left:20px}
+  h2{font-size:1rem;margin:0} li{margin-bottom:6px}
+  .permissions{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:16px}
+  section{padding:16px;border:1px solid #364759;border-radius:10px}
   form{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px} button{cursor:pointer;border:1px solid #576b82;border-radius:8px;background:#192636;color:inherit;padding:10px 15px;font:inherit}
   button:first-of-type{background:#75def2;color:#102434;border-color:#75def2;font-weight:650}
   button:focus-visible{outline:2px solid #fff;outline-offset:4px}
@@ -106,11 +112,11 @@ function consentPage(input: Map<string, string>, scopes: string[]) {
 <main>
   <small>LIFESYSTEM</small>
   <h1>Conectar OpenBot</h1>
-  <p>Permita que o Agente Pessoal consulte os itens abaixo. Confirme somente se você iniciou a conexão no OpenBot.</p>
-  <ul>${list}</ul>
+  <p>Revise as permissões solicitadas para o Agente Pessoal. Confirme somente se você iniciou a conexão no OpenBot.</p>
+  <div class="permissions">${group('Leitura', read)}${group('Escrita', write)}</div>
   <form method="post" action="${OAUTH_PATH}/authorize">
     ${hidden}
-    <button name="decision" value="allow">Autorizar leitura</button>
+    <button name="decision" value="allow">${write.length ? 'Autorizar acesso' : 'Autorizar leitura'}</button>
     <button name="decision" value="deny">Cancelar</button>
   </form>
 </main>
@@ -132,7 +138,7 @@ export async function openBotAuthorizationPage(request: NextRequest) {
   if (!config) return error('not_found', 404);
   const input = request.nextUrl.search.length <= MAX_INPUT && uniqueParameters(request.nextUrl.searchParams);
   if (!input) return error('invalid_request');
-  const authorization = parseAuthorization(input, config.scopes);
+  const authorization = parseAuthorization(input, config);
   if (!authorization) return error('invalid_request');
   if (!await isOwner(request)) {
     const login = new URL('/login', ISSUER);
@@ -156,7 +162,7 @@ export async function openBotOAuthPost(request: NextRequest, operation: string) 
   if (operation === 'authorize') {
     if (request.headers.get('origin') !== ISSUER) return error('access_denied', 403);
     if (!await isOwner(request)) return error('access_denied', 401);
-    const parsed = parseAuthorization(input, config.scopes);
+    const parsed = parseAuthorization(input, config);
     const decision = input.get('decision');
     if (!parsed || (decision !== 'allow' && decision !== 'deny')) return error('invalid_request');
     const callback = new URL(parsed.callback);

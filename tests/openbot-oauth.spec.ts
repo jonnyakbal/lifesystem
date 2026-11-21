@@ -35,7 +35,7 @@ test.beforeEach(async () => {
   const env = {
     AUTH_USER: 'oauth-test-user', AUTH_PASSWORD: 'oauth-test-password-only',
     MCP_API_KEY: 'qa-legacy-only', MCP_API_KEYS: JSON.stringify([
-      { id: 'openbot', key: syntheticKey, scopes: ['tasks:read', 'captures:read', 'tasks:write', 'ai:invoke'] },
+      { id: 'openbot', key: syntheticKey, scopes: ['tasks:read', 'captures:read'] },
     ]),
     LIFESYSTEM_DATA_DIR: dataDir, LIFESYSTEM_STORAGE: 'file',
   };
@@ -92,26 +92,28 @@ function refresh(refreshToken: string) {
   });
 }
 
-function mcp(token?: string) {
+function mcp(token?: string, request: { method: string; params?: Record<string, unknown> } = rpc) {
   return callMcp(new NextRequest(resource, {
     method: 'POST', headers: {
       'content-type': 'application/json', accept: 'application/json, text/event-stream',
       ...(token ? { authorization: 'Bearer ' + token } : {}),
-    }, body: JSON.stringify(rpc),
+    }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, ...request }),
   }));
 }
 
-test('discovers the pinned OpenBot flow and preserves legacy key access', async () => {
+test('discovers the personal catalog and preserves the two-tool Bearer key', async () => {
   const unauthorized = await mcp();
   expect(unauthorized.status).toBe(401);
   expect(unauthorized.headers.get('www-authenticate')).toContain('/.well-known/oauth-protected-resource/api/mcp');
-  expect(await resourceMetadata().json()).toMatchObject({
-    resource, authorization_servers: [origin], scopes_supported: ['tasks:read', 'captures:read'],
-  });
+  const publicResource = await resourceMetadata().json();
+  expect(publicResource).toMatchObject({ resource, authorization_servers: [origin] });
+  expect(publicResource.scopes_supported).toEqual(expect.arrayContaining(['tasks:read', 'captures:read', 'journal:write', 'calendar:write']));
   expect(await discovery().json()).toMatchObject({
     issuer: origin, code_challenge_methods_supported: ['S256'], client_id_metadata_document_supported: true,
   });
   expect((await mcp('qa-legacy-only')).status).toBe(200);
+  const bridge = await (await mcp(syntheticKey)).json();
+  expect(bridge.result.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(['list_captures', 'list_tasks']);
 });
 
 test('requires the owner session and an explicit, same-origin approval', async () => {
@@ -131,7 +133,9 @@ test('requires the owner session and an explicit, same-origin approval', async (
   })).status).toBe(403);
   expect((await approve({ ...requested, redirect_uri: 'https://example.org/mcp-auth' })).status).toBe(400);
   expect((await approve({ ...requested, code_challenge_method: 'plain' })).status).toBe(400);
-  expect((await approve({ ...requested, scope: 'tasks:write' })).status).toBe(400);
+  for (const scope of ['tasks:delete', 'calendar:legacy', 'ai:invoke', 'health:read', 'professional:read', '*']) {
+    expect((await approve({ ...requested, scope })).status).toBe(400);
+  }
   const denied = await form('authorize', { ...requested, decision: 'deny' }, {
     origin, cookie: SESSION_COOKIE + '=' + session,
   });
@@ -202,6 +206,62 @@ test('rotates refresh and revokes the grant on replay or explicit revocation', a
   expect((await mcp(afterReplay.access_token)).status).toBe(401);
 });
 
+test('expansion needs a new consent and exposes only personal operations', async () => {
+  const original = await (await exchange(await consentCode())).json();
+  const renewed = await (await refresh(original.refresh_token)).json();
+  expect(renewed.scope).toBe('tasks:read captures:read');
+  const advertised = (await resourceMetadata().json()).scopes_supported as string[];
+  const request = { ...requested, scope: advertised.join(' ') };
+  const authorizeUrl = oauth + '/authorize?' + new URLSearchParams(request);
+  const consent = await authorize(new NextRequest(authorizeUrl, {
+    headers: { cookie: SESSION_COOKIE + '=' + session },
+  }), context('authorize'));
+  const consentHtml = await consent.text();
+  expect(consentHtml).toContain('Autorizar acesso');
+  expect(consentHtml).toContain('Cancelar eventos gerenciados');
+  expect(consentHtml).toContain('Escrita');
+  const approved = await approve(request);
+  expect(approved.status).toBe(303);
+  const code = new URL(approved.headers.get('location')!).searchParams.get('code')!;
+  expect((await mcp(renewed.access_token)).status).toBe(200);
+  const expanded = await (await exchange(code)).json();
+  expect(expanded.scope).toBe(advertised.join(' '));
+  expect((await mcp(renewed.access_token)).status).toBe(401);
+  const response = await (await mcp(expanded.access_token)).json();
+  const tools = response.result.tools.map((tool: { name: string }) => tool.name) as string[];
+  expect(tools).toEqual(expect.arrayContaining([
+    'list_tasks', 'create_task', 'update_task', 'plan_task_block', 'remove_task_block', 'adopt_task_calendar_event',
+    'create_capture', 'update_capture', 'convert_capture', 'create_project', 'update_pillar', 'create_indicator',
+    'create_content', 'create_content_source', 'update_content_item', 'update_edital', 'list_log_entries',
+    'list_journal_entries', 'save_journal_entry', 'get_financial_summary', 'create_financial_entry', 'list_bills',
+    'list_calendar_events', 'create_managed_calendar_event', 'update_managed_calendar_event', 'cancel_managed_calendar_event',
+    'get_week_availability', 'prepare_weekly_review', 'get_note', 'list_vision_documents',
+  ]));
+  expect(tools.filter(name => /^(delete_|.*health|.*professional|create_calendar_event$)/.test(name))).toEqual([]);
+  expect(tools).toHaveLength(68);
+  const write = await (await mcp(expanded.access_token, {
+    method: 'tools/call',
+    params: { name: 'save_journal_entry', arguments: { entryDate: '2035-11-20', content: 'Entrada sintética' } },
+  })).json();
+  expect(write.result.isError).toBeFalsy();
+  expect(JSON.parse(write.result.content[0].text)).toMatchObject({ created: true, entryDate: '2035-11-20' });
+});
+
+test('a request without scope and a narrowed key stay on baseline permissions', async () => {
+  const baseline = new URLSearchParams(requested);
+  baseline.delete('scope');
+  const approved = await form('authorize', { ...Object.fromEntries(baseline), decision: 'allow' }, {
+    origin, cookie: SESSION_COOKIE + '=' + session,
+  });
+  const code = new URL(approved.headers.get('location')!).searchParams.get('code')!;
+  const result = await (await exchange(code)).json();
+  expect(result.scope).toBe('tasks:read captures:read');
+  process.env.MCP_API_KEYS = JSON.stringify([{ id: 'openbot', key: syntheticKey, scopes: ['tasks:read'] }]);
+  expect((await resourceMetadata().json()).scopes_supported).toEqual(['tasks:read']);
+  expect((await mcp(result.access_token)).status).toBe(401);
+  expect((await approve({ ...requested, scope: 'tasks:read tasks:write' })).status).toBe(400);
+});
+
 test('removing or rotating the dedicated key disables existing grants', async () => {
   const issued = await (await exchange(await consentCode())).json();
   process.env.MCP_API_KEYS = JSON.stringify([
@@ -246,10 +306,13 @@ test('the MCP OAuth SDK discovers, signs in and renews without a client secret',
   expect(await auth(provider, options)).toBe('REDIRECT');
   expect(client?.client_id).toBe(clientId);
   expect(authorization?.searchParams.get('resource')).toBe(resource);
+  const advertised = (await resourceMetadata().json()).scopes_supported as string[];
+  expect(authorization?.searchParams.get('scope')).toBe(advertised.join(' '));
   const consent = await approve(Object.fromEntries(authorization!.searchParams) as typeof requested);
   expect(consent.status).toBe(303);
   const code = new URL(consent.headers.get('location')!).searchParams.get('code')!;
   expect(await auth(provider, { ...options, authorizationCode: code })).toBe('AUTHORIZED');
+  expect(tokens?.scope).toBe(advertised.join(' '));
   expect((await mcp(tokens?.access_token)).status).toBe(200);
   const previousRefresh = tokens?.refresh_token;
   expect(await auth(provider, options)).toBe('AUTHORIZED');
