@@ -17,7 +17,7 @@ Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`
 
 ## Estado atual (24/11/2026, interface do Financeiro)
 
-- `codex/financeiro-painel` parte de `dc7eb8b` e está pronta para revisão local. Publicação pendente.
+- O redesenho de `codex/financeiro-painel` está no commit `4d8efac`, sobre `dc7eb8b`. A publicação foi autorizada em 24/11/2026 pelo fluxo nativo da Hostinger acionado por `main`. O build no domínio deve ser conferido após o push.
 - A Visão Geral destaca o saldo das contas, diferencia os resultados realizado e previsto e compara o resultado com o período anterior quando existem dados. Pontos, barras e categorias dos gráficos abrem os recortes correspondentes.
 - Lançamentos tem totais filtrados, atalhos por situação, ordenação, filtro por dia e uma lista responsiva que exibe conta, cartão, data e situação. A navegação dos gráficos posiciona o foco no início da lista.
 - Build Webpack, ESLint dos arquivos alterados e 40 testes do Financeiro passaram com dados sintéticos. Conferidas as capturas em desktop e viewport móvel. APIs e ferramentas MCP mantêm nomes, entradas e escopos.
