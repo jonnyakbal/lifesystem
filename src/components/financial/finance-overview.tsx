@@ -47,11 +47,13 @@ const FinanceCharts = dynamic(() => import('./finance-charts'), {
 export function FinanceSummary({
   summary,
   totalBalance,
+  accountCount,
   onTransactions,
   onAccounts,
 }: {
   summary: FinancialSummary;
   totalBalance: number;
+  accountCount: number;
   onTransactions: (status: string, type: string) => void;
   onAccounts: () => void;
 }) {
@@ -72,41 +74,40 @@ export function FinanceSummary({
           <span className="absolute bottom-12 left-9 h-2 w-2 rounded-full bg-primary/60 shadow-[0_0_20px_var(--color-primary)]" />
         </div>
         <p className="text-xs font-medium text-muted-foreground">
-          Resultado realizado
+          Saldo total das contas
         </p>
         <p
-          data-testid="financial-realized-result"
+          data-testid="financial-account-balance"
           className={cn(
             'mt-3 break-words font-display text-4xl tracking-tight tabular-nums sm:text-5xl',
-            net < 0 ? 'text-critical' : 'text-foreground'
+            totalBalance < 0 ? 'text-critical' : 'text-foreground'
           )}
         >
-          {formatMoney(net)}
+          {accountCount ? formatMoney(totalBalance) : '—'}
         </p>
-        <div className="mt-5 flex flex-wrap items-baseline justify-between gap-2 border-t border-primary/15 pt-4">
-          <span className="text-xs text-muted-foreground">
-            Se as previsões se confirmarem
-          </span>
-          <strong
-            className={cn(
-              'text-sm tabular-nums',
-              withPlanned < 0 ? 'text-critical' : 'text-money'
-            )}
-          >
-            {formatMoney(withPlanned)}
-          </strong>
-        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {accountCount === 0 ? 'Nenhuma conta ativa com saldo informado' : (
+            <>{accountCount} {accountCount === 1 ? 'conta ativa' : 'contas ativas'} · saldos informados manualmente</>
+          )}
+        </p>
         <button
           onClick={onAccounts}
-          className="mt-4 flex min-h-9 w-full items-center gap-2 text-left text-xs text-muted-foreground hover:text-foreground"
+          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/20 bg-card/50 px-3 text-sm font-medium transition-colors hover:bg-card"
         >
-          <Wallet className="h-3.5 w-3.5" />
-          <span className="flex-1">
-            Saldo informado das contas:{' '}
-            <span className="font-medium">{formatMoney(totalBalance)}</span>
-          </span>
-          <ArrowUpRight className="h-3.5 w-3.5" />
+          <Wallet className="h-3.5 w-3.5" aria-hidden />
+          Ver contas e saldos
+          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
         </button>
+        <dl className="mt-5 grid gap-2 border-t border-primary/15 pt-4 text-xs">
+          <div className="flex flex-wrap items-baseline justify-between gap-1">
+            <dt className="text-muted-foreground">Resultado realizado no período</dt>
+            <dd data-testid="financial-realized-result" className={cn('font-semibold tabular-nums', net < 0 && 'text-critical')}>{formatMoney(net)}</dd>
+          </div>
+          <div className="flex flex-wrap items-baseline justify-between gap-1">
+            <dt className="text-muted-foreground">Resultado com previsões</dt>
+            <dd className={cn('font-semibold tabular-nums', withPlanned < 0 ? 'text-critical' : 'text-money')}>{formatMoney(withPlanned)}</dd>
+          </div>
+        </dl>
       </div>
       <div className="grid grid-cols-2 overflow-hidden rounded-3xl border border-border/70 bg-card/50">
         {[

@@ -15,7 +15,14 @@ A partir de 07/11/2026 o Jonny trabalha principalmente com o **Codex**. O Claude
 
 Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`UPLOAD_DIR`/`BACKUP_DIR`, variáveis do `.github/workflows/ci.yml`, `npm run build` e `npx playwright test --config=playwright.ci.config.ts`. Falha conhecida só no Windows: `office-provenance` (área de transferência). Rodadas com o PC suspendendo geram falhas falsas (`ERR_NETWORK_IO_SUSPENDED`, Chrome sem abrir): repita os arquivos afetados.
 
-## Estado atual (10/11/2026, Claude)
+## Estado atual (23/11/2026, Codex)
+
+- `codex/financeiro-navegacao` parte de `09dc55b`, verificado no GitHub como o mesmo commit de `main`. A alteração está em revisão local. A publicação deste lote está pendente.
+- O Financeiro agora destaca a soma dos saldos informados das contas ativas, separa o resultado do período, reúne cartões e faturas e permite editar os dados de cada cartão. Os filtros de lançamentos incluem conta, cartão e categoria.
+- A edição usa `PATCH /api/cards/[id]`. Os campos opcionais `limit`, `closingDay`, `dueDay` e `accountId` aceitam `null` para limpar o valor. As ferramentas e os escopos MCP seguem os mesmos.
+- Webpack, TypeScript e ESLint dos arquivos alterados passaram. A suíte do Financeiro passou com 37 testes em ambiente isolado e dados sintéticos. A revisão visual cobriu a visão geral no desktop e no celular, além da edição de cartão no celular.
+
+## Histórico (10/11/2026, Claude)
 
 - `main` = `origin/main` em `1e02d4c` (correção de faturas do Codex, no ar segundo o repasse).
 - **Branch `feat/polimento-profissional` rebaseada sobre `1e02d4c` e NÃO publicada.** Nenhum arquivo em comum com a correção financeira. Gate em cópia limpa: tsc 0, build ok, 43 testes (`tests/professional*`, `tests/financial*`) passaram. Falta: autorização do Jonny para publicar (fast-forward).

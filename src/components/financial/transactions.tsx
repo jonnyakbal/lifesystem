@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { type FinancialEntry } from '@/lib/finance-model';
+import type { Account, Card, FinancialEntry } from '@/lib/finance-model';
 import {
   effectiveFinancialDate,
   summarizeFinancialEntries,
@@ -41,10 +41,18 @@ export function FinancialTransactions({
   filterType,
   filterStatus,
   categoryFilter,
+  categories,
+  accounts,
+  cards,
+  accountFilter,
+  cardFilter,
   search,
   today,
   onType,
   onStatus,
+  onCategory,
+  onAccount,
+  onCard,
   onSearch,
   onClear,
   onEdit,
@@ -56,10 +64,18 @@ export function FinancialTransactions({
   filterType: string;
   filterStatus: string;
   categoryFilter: string | null;
+  categories: string[];
+  accounts: Account[];
+  cards: Card[];
+  accountFilter: string;
+  cardFilter: string;
   search: string;
   today: string;
   onType: (v: string) => void;
   onStatus: (v: string) => void;
+  onCategory: (value: string | null) => void;
+  onAccount: (value: string) => void;
+  onCard: (value: string) => void;
   onSearch: (v: string) => void;
   onClear: () => void;
   onEdit: (e: FinancialEntry) => void;
@@ -68,11 +84,15 @@ export function FinancialTransactions({
   onNew: () => void;
 }) {
   const summary = summarizeFinancialEntries(entries);
-  const filtered =
-    filterType !== 'all' ||
-    filterStatus !== 'all' ||
-    !!categoryFilter ||
-    !!search;
+  const filterCount = [
+    filterType !== 'all',
+    filterStatus !== 'all',
+    accountFilter !== 'all',
+    cardFilter !== 'all',
+    Boolean(categoryFilter),
+    Boolean(search.trim()),
+  ].filter(Boolean).length;
+  const filtered = filterCount > 0;
   return (
     <section aria-label="Lista de lançamentos" className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -88,53 +108,81 @@ export function FinancialTransactions({
           </p>
         </div>
       </div>
-      <div className="flex flex-wrap gap-2 rounded-2xl border border-border/70 bg-card/40 p-3">
-        <div className="relative min-w-40 flex-1">
-          <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            aria-label="Buscar lançamentos"
-            value={search}
-            onChange={(e) => onSearch(e.target.value)}
-            placeholder="Buscar descrição, categoria…"
-            className="h-11 pl-9"
-          />
+      <div className="grid gap-3 rounded-2xl border border-border/70 bg-card/40 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-36 flex-1">
+            <Search className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              aria-label="Buscar lançamentos"
+              value={search}
+              onChange={(e) => onSearch(e.target.value)}
+              placeholder="Buscar descrição, categoria ou pessoa…"
+              className="h-11 pl-9"
+            />
+          </div>
+          {filtered && (
+            <Button variant="ghost" className="h-11" onClick={onClear}>
+              <X className="mr-1 h-4 w-4" aria-hidden />
+              Limpar filtros <span className="ml-1 text-muted-foreground" aria-hidden>({filterCount})</span>
+            </Button>
+          )}
         </div>
-        <Select value={filterType} onValueChange={onType}>
-          <SelectTrigger
-            aria-label="Tipo de lançamento"
-            className="h-11 min-w-32 flex-1 sm:flex-none"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os tipos</SelectItem>
-            <SelectItem value="income">Entradas</SelectItem>
-            <SelectItem value="expenses">Todas as despesas</SelectItem>
-            <SelectItem value="expense_fixed">Despesas fixas</SelectItem>
-            <SelectItem value="expense_variable">Despesas variáveis</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={filterStatus} onValueChange={onStatus}>
-          <SelectTrigger
-            aria-label="Situação dos lançamentos"
-            className="h-11 min-w-32 flex-1 sm:flex-none"
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todas as situações</SelectItem>
-            <SelectItem value="paid">Realizados</SelectItem>
-            <SelectItem value="open">Em aberto</SelectItem>
-            <SelectItem value="pending">A vencer</SelectItem>
-            <SelectItem value="overdue">Atrasados</SelectItem>
-          </SelectContent>
-        </Select>
-        {filtered && (
-          <Button variant="ghost" className="h-11" onClick={onClear}>
-            <X className="mr-1 h-4 w-4" />
-            {categoryFilter || 'Limpar filtros'}
-          </Button>
-        )}
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-5">
+          <Select value={filterType} onValueChange={onType}>
+            <SelectTrigger
+              aria-label="Tipo de lançamento"
+              className="h-11 w-full min-w-0"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              <SelectItem value="income">Entradas</SelectItem>
+              <SelectItem value="expenses">Todas as despesas</SelectItem>
+              <SelectItem value="expense_fixed">Despesas fixas</SelectItem>
+              <SelectItem value="expense_variable">Despesas variáveis</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={onStatus}>
+            <SelectTrigger
+              aria-label="Situação dos lançamentos"
+              className="h-11 w-full min-w-0"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as situações</SelectItem>
+              <SelectItem value="paid">Realizados</SelectItem>
+              <SelectItem value="open">Em aberto</SelectItem>
+              <SelectItem value="pending">A vencer</SelectItem>
+              <SelectItem value="overdue">Atrasados</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={categoryFilter ? 'category:' + categoryFilter : 'all'} onValueChange={value => onCategory(value === 'all' ? null : value.slice(9))}>
+            <SelectTrigger aria-label="Categoria dos lançamentos" className="h-11 w-full min-w-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as categorias</SelectItem>
+              {categoryFilter && !categories.includes(categoryFilter) && <SelectItem value={'category:' + categoryFilter}>{categoryFilter}</SelectItem>}
+              {categories.map(category => <SelectItem key={category} value={'category:' + category}>{category}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={accountFilter} onValueChange={onAccount}>
+            <SelectTrigger aria-label="Conta dos lançamentos" className="h-11 w-full min-w-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as contas</SelectItem>
+              <SelectItem value="none">Sem conta vinculada</SelectItem>
+              {accounts.map(account => <SelectItem key={account.id} value={account.id}>{account.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={cardFilter} onValueChange={onCard}>
+            <SelectTrigger aria-label="Cartão dos lançamentos" className="h-11 w-full min-w-0"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os cartões</SelectItem>
+              <SelectItem value="none">Sem cartão vinculado</SelectItem>
+              {cards.map(card => <SelectItem key={card.id} value={card.id}>{card.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       <div
         className="flex flex-wrap gap-x-6 gap-y-2 px-1 text-xs text-muted-foreground"

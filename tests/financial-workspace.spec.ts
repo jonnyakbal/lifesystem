@@ -146,9 +146,7 @@ test('edição escolhe mês do pagamento e desfazer exclusão usa payload válid
       year: 'numeric',
     })
   );
-  await expect(page.getByTestId('financial-paid-expenses')).toContainText(
-    '1.800,00'
-  );
+  await expect(page.getByLabel('Totais dos lançamentos filtrados')).toContainText('1.800,00');
   await page
     .getByRole('button', { name: 'Opções de Espaço de trabalho' })
     .click();
@@ -333,7 +331,7 @@ test('nova fatura respeita o cartão escolhido e o mês futuro', async ({
   );
   await page.goto('/financeiro');
   await page.getByRole('button', { name: 'Próximo mês' }).click();
-  await page.getByRole('button', { name: 'Faturas', exact: true }).click();
+  await page.getByRole('button', { name: 'Cartões e faturas', exact: true }).click();
   await page.getByRole('button', { name: 'Nova Fatura', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('combobox', { name: 'Cartão de crédito' }).click();
@@ -370,7 +368,7 @@ test('adicionar compra pela fatura vincula o lançamento ao cartão', async ({
     })
   );
   await page.goto('/financeiro');
-  await page.getByRole('button', { name: 'Faturas', exact: true }).click();
+  await page.getByRole('button', { name: 'Cartões e faturas', exact: true }).click();
   await page
     .getByRole('button', { name: 'Adicionar compra ao Cartão A' })
     .click();
@@ -472,7 +470,7 @@ test('compra parcelada no cartão mostra a fatura certa e envia as parcelas', as
     route.fulfill({ json: [{ id: 'card-a', name: 'Cartão A', type: 'credit', brand: 'Visa', lastDigits: '1234', isActive: true, closingDay: 10, dueDay: 20 }] })
   );
   await page.goto('/financeiro');
-  await page.getByRole('button', { name: 'Faturas', exact: true }).click();
+  await page.getByRole('button', { name: 'Cartões e faturas', exact: true }).click();
   await page.getByRole('button', { name: 'Adicionar compra ao Cartão A' }).click();
   const dialog = page.getByRole('dialog', { name: 'Novo Lançamento' });
   await expect(dialog.getByRole('group', { name: 'Situação do lançamento' })).toHaveCount(0);
