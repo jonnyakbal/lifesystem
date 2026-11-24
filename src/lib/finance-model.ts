@@ -27,10 +27,21 @@ export interface Account {
   type: 'checking' | 'savings' | 'digital' | 'cash' | 'investment' | 'pj';
   bank?: string;
   balance: number;
+  balanceCheckedAt?: string;
   color: string;
   icon: string;
   isActive: boolean;
   isDefault: boolean;
+}
+
+export interface CashTransfer {
+  id: string;
+  fromAccountId: string;
+  toAccountId: string;
+  fromAccountName: string;
+  toAccountName: string;
+  amount: number;
+  recordedAt: string;
 }
 
 export interface Card {
@@ -54,6 +65,8 @@ export interface Bill {
   month: string;
   amount: number;
   paidAmount: number;
+  paymentAccountId?: string;
+  paymentRecordedAt?: string;
   status: 'open' | 'paid' | 'overdue' | 'partial' | 'closed';
   dueDate: string;
   closeDate: string;

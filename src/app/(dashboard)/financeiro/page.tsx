@@ -8,6 +8,7 @@ import {
   type Card as FinanceCard,
   type Budget,
   type Bill,
+  type CashTransfer,
   type FinancialGoal,
   type Payee,
   accountTypeConfig,
@@ -30,12 +31,14 @@ import {
   Pencil,
   CalendarDays,
   Wallet,
+  ArrowLeftRight,
   Lock,
 } from 'lucide-react';
 import type { FinancialCategory } from '@/lib/financial-categories';
 import { FinancialCategoryDialog } from '@/components/financial/category-dialog';
 import { EntryDialog } from '@/components/financial/entry-dialog';
 import { FinancialCardDialog } from '@/components/financial/card-dialog';
+import { CashMovementDialog } from '@/components/financial/cash-movement-dialog';
 import { WorkspaceContinuations } from '@/components/workspace/workspace-continuations';
 import {
   FinanceOverview,
@@ -98,6 +101,8 @@ export default function FinanceiroPage() {
   const [cards, setCards] = useState<FinanceCard[]>([]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [bills, setBills] = useState<Bill[]>([]);
+  const [transfers, setTransfers] = useState<CashTransfer[] | null>([]);
+  const [cashMovement, setCashMovement] = useState<Bill | 'transfer' | null>(null);
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
   const [payees, setPayees] = useState<Payee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,6 +212,7 @@ export default function FinanceiroPage() {
         payeesData,
         billsData,
         categoriesData,
+        transfersData,
       ] = await Promise.all([
         apiFetch<FinancialEntry[]>('/api/financial'),
         apiFetch<Account[]>('/api/accounts'),
@@ -216,6 +222,7 @@ export default function FinanceiroPage() {
         apiFetch<Payee[]>('/api/payees'),
         apiFetch<Bill[]>('/api/bills'),
         apiFetch<FinancialCategory[]>('/api/financial-categories'),
+        apiFetch<CashTransfer[]>('/api/transfers').catch(() => null),
       ]);
       setEntries(
         entriesData.map((entry) => {
@@ -236,6 +243,7 @@ export default function FinanceiroPage() {
       setPayees(payeesData);
       setBills(billsData);
       setCategoryCatalog(categoriesData);
+      setTransfers(transfersData);
     } catch (err) {
       setLoadError(showError(err));
     } finally {
@@ -343,7 +351,7 @@ export default function FinanceiroPage() {
           name: accountName,
           type: accountType,
           bank: accountBank,
-          balance: parseFloat(accountBalance) || 0,
+          balance: accountBalance.trim() ? Number(accountBalance) : undefined,
           color: accountColor,
           icon: accountIcon,
         }),
@@ -611,28 +619,6 @@ export default function FinanceiroPage() {
     }
   }
 
-  async function handlePayBill(billId: string, amount: number) {
-    const bill = bills.find((b) => b.id === billId);
-    if (!bill) return;
-    const newPaidAmount = Math.min(bill.paidAmount + amount, bill.amount);
-    const newStatus = newPaidAmount >= bill.amount ? 'paid' : 'partial';
-    try {
-      await apiFetch(`/api/bills/${billId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paidAmount: newPaidAmount, status: newStatus }),
-      });
-      loadAll();
-      toast.success(
-        newStatus === 'paid'
-          ? 'Fatura quitada!'
-          : `Pago R$ ${amount.toLocaleString('pt-BR')}`
-      );
-    } catch (err) {
-      toast.error(showError(err));
-    }
-  }
-
   async function handleCreateBill() {
     const card = cards.find(
       (c) =>
@@ -890,11 +876,16 @@ export default function FinanceiroPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
           >
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-2xl font-bold font-display">Contas</h2>
-              <Button onClick={() => setIsAccountDialogOpen(true)} size="lg">
-                <Plus className="mr-2 h-4 w-4" /> Nova Conta
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button variant="outline" onClick={() => setCashMovement('transfer')} disabled={activeAccounts.length < 2}>
+                  <ArrowLeftRight aria-hidden className="mr-2 h-4 w-4" /> Transferir entre contas
+                </Button>
+                <Button onClick={() => setIsAccountDialogOpen(true)}>
+                  <Plus className="mr-2 h-4 w-4" /> Nova Conta
+                </Button>
+              </div>
             </div>
             {isLoading ? (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -974,8 +965,9 @@ export default function FinanceiroPage() {
                             {formatMoney(account.balance)}
                           </div>
                           <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
-                            Saldo informado manualmente. Lançamentos e previsões
-                            não alteram este valor.
+                            Última conferência {account.balanceCheckedAt
+                              ? 'em ' + new Date(account.balanceCheckedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })
+                              : 'ainda não registrada'}
                           </p>
                           <Button
                             variant="outline"
@@ -994,6 +986,26 @@ export default function FinanceiroPage() {
                   })}
                 </div>
               </div>
+            )}
+            {transfers === null ? (
+              <p className="mt-4 text-sm text-muted-foreground">Não foi possível carregar as transferências.</p>
+            ) : transfers.length > 0 && (
+              <section className="mt-6 rounded-2xl border border-border/70 bg-card/45 p-4">
+                <h3 className="font-display text-xl font-semibold">Transferências recentes</h3>
+                <ul className="mt-3 divide-y divide-border/60">
+                  {transfers.map(transfer => (
+                    <li key={transfer.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
+                      <span className="min-w-0 break-words">
+                        {transfer.fromAccountName} → {transfer.toAccountName}
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          {new Date(transfer.recordedAt).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' })}
+                        </span>
+                      </span>
+                      <strong className="tabular-nums">{formatMoney(transfer.amount)}</strong>
+                    </li>
+                  ))}
+                </ul>
+              </section>
             )}
           </motion.div>
         )}
@@ -1187,26 +1199,24 @@ export default function FinanceiroPage() {
                                 </Button>
                               ) : currentBill && currentBill.status !== 'paid' ? (
                                 <Button
-                                  onClick={() =>
-                                    handlePayBill(
-                                      currentBill.id,
-                                      currentBill.amount -
-                                        currentBill.paidAmount
-                                    )
-                                  }
+                                  onClick={() => setCashMovement(currentBill)}
                                   className="flex-1 bg-money hover:bg-money/90"
                                 >
                                   <Check className="mr-2 h-4 w-4" /> Registrar pagamento
                                 </Button>
                               ) : currentBill?.status === 'paid' ? (
                                 <div className="flex-1 text-center py-2 text-sm text-money font-medium">
-                                  Fatura quitada
+                                  Fatura quitada{currentBill.paymentAccountId && (
+                                    <span className="ml-1 block text-xs text-muted-foreground">
+                                      Conta pagadora · {accounts.find(item => item.id === currentBill.paymentAccountId)?.name || 'Conta indisponível'}
+                                    </span>
+                                  )}
                                 </div>
                               ) : null}
                             </div>
                             {currentBill && currentBill.status !== 'open' && currentBill.status !== 'paid' && (
                               <p className="text-xs text-muted-foreground">
-                                A quitação marca as compras associadas como pagas. Atualize o saldo bancário em Contas.
+                                A quitação atualiza o saldo da conta pagadora e marca as compras associadas como pagas.
                               </p>
                             )}
                           </div>}
@@ -1307,26 +1317,19 @@ export default function FinanceiroPage() {
                                           </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
-                                          {bill.status !== 'paid' && (
-                                            <DropdownMenuItem
-                                              onClick={() =>
-                                                handlePayBill(
-                                                  bill.id,
-                                                  bill.amount - bill.paidAmount
-                                                )
-                                              }
-                                            >
-                                              ✅ Pagar
+                                          {bill.status !== 'paid' && bill.status !== 'open' && (
+                                            <DropdownMenuItem onClick={() => setCashMovement(bill)}>
+                                              Registrar pagamento
                                             </DropdownMenuItem>
                                           )}
-                                          <DropdownMenuItem
+                                          {!bill.paymentAccountId && <DropdownMenuItem
                                             onClick={() =>
                                               handleDeleteBill(bill.id)
                                             }
                                             className="text-destructive"
                                           >
                                             🗑️ Excluir
-                                          </DropdownMenuItem>
+                                          </DropdownMenuItem>}
                                         </DropdownMenuContent>
                                       </DropdownMenu>
                                     </div>
@@ -1611,6 +1614,19 @@ export default function FinanceiroPage() {
         </DialogContent>
       </Dialog>
 
+      {cashMovement && (
+        <CashMovementDialog
+          accounts={activeAccounts}
+          bill={cashMovement === 'transfer' ? undefined : cashMovement}
+          defaultAccountId={cashMovement === 'transfer' ? undefined : cards.find(card => card.id === cashMovement.cardId)?.accountId}
+          onClose={() => setCashMovement(null)}
+          onSaved={() => {
+            toast.success(cashMovement === 'transfer' ? 'Transferência registrada.' : 'Fatura quitada.');
+            setCashMovement(null);
+            void loadAll();
+          }}
+        />
+      )}
       {cardEditor && (
         <FinancialCardDialog card={cardEditor.card} accounts={accounts} trigger={cardEditor.trigger}
           onClose={() => setCardEditor(null)}

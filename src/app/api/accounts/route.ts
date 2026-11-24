@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { storage } from '@/lib/storage';
 import { accountSchema } from '@/lib/financial-validation';
+import { balanceCheck } from '@/lib/financial-cash';
 
 export interface Account {
   id: string;
@@ -10,6 +11,7 @@ export interface Account {
   agency?: string;
   accountNumber?: string;
   balance: number;
+  balanceCheckedAt?: string;
   color: string;
   icon: string;
   isActive: boolean;
@@ -34,6 +36,7 @@ export async function POST(request: NextRequest) {
     agency: body.agency,
     accountNumber: body.accountNumber,
     balance: body.balance || 0,
+    ...balanceCheck(body.balance),
     color: body.color || '#64748b',
     icon: body.icon || '🏦',
     isActive: body.isActive !== false,

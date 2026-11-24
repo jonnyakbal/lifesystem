@@ -519,7 +519,7 @@ export function EntryDialog({
             {isPaid
               ? 'Contabilizado na data do pagamento.'
               : 'A previsão aparece no mês do vencimento.'}{' '}
-            O saldo informado da conta permanece manual.
+            Este lançamento não atualiza o saldo da conta.
           </p>
           <Button
             type="submit"

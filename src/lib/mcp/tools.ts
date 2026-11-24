@@ -30,7 +30,8 @@ import { registerPersonalReadTools } from './personal-read';
 import { contentPayloadSchema, validateContentBinding, updateContent } from '@/lib/content-domain';
 import { getFinancialDisplayEntries, getFinancialDisplayBudgets } from '@/lib/financial-categories';
 import { updateEdital } from '@/lib/edital-service';
-import { createFinancialBill, updateFinancialBill } from '@/lib/financial-bills';
+import { createFinancialBill, deleteFinancialBill, updateFinancialBill } from '@/lib/financial-bills';
+import { balanceCheck } from '@/lib/financial-cash';
 
 function textResult(data: unknown) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data, null, 2) }] };
@@ -64,6 +65,7 @@ interface CrudToolsConfig<TCreate extends z.ZodRawShape, TUpdate extends z.ZodRa
   allowDelete?: boolean;
   idempotentCreate?: boolean;
   performUpdate?: (fields: Record<string, unknown>, id: string, expectedUpdatedAt?: string) => Promise<unknown>;
+  performDelete?: (id: string) => Promise<boolean>;
   performCreate?: (fields: Record<string, unknown>, stableId?: string) => Promise<{ id: string; [key: string]: unknown }>;
 }
 
@@ -187,7 +189,7 @@ function registerCrudTools<TCreate extends z.ZodRawShape, TUpdate extends z.ZodR
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       logged(`delete_${entity}`, async (rawInput: any) => {
         const { id } = rawInput as { id: string };
-        const ok = await storage.delete(collection, id);
+        const ok = await (config.performDelete ? config.performDelete(id) : storage.delete(collection, id));
         if (!ok) return errorResult(`Item com id "${id}" não encontrado em ${plural}.`);
         return textResult({ success: true, id });
       }, clientId)
@@ -559,9 +561,15 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     entity: 'account', collection: 'accounts', plural: 'accounts', listFilters: ['type', 'isActive'],
     createShape: { name: z.string(), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() },
     updateShape: { name: z.string().optional(), type: z.enum(['checking', 'savings', 'digital', 'cash', 'investment', 'pj']).optional(), bank: z.string().optional(), agency: z.string().optional(), accountNumber: z.string().optional(), balance: z.number().optional(), color: z.string().optional(), icon: z.string().optional(), isActive: z.boolean().optional(), isDefault: z.boolean().optional() },
-    buildCreatePayload: (input) => ({ ...input, balance: input.balance || 0, color: input.color || '#64748b', icon: input.icon || '🏦', isActive: input.isActive !== false, isDefault: input.isDefault || false }),
-    validateCreate: payload => accountSchema.parse(payload),
-    validateUpdate: fields => accountSchema.partial().parse(fields),
+    buildCreatePayload: (input) => ({ ...input, color: input.color || '#64748b', icon: input.icon || '🏦', isActive: input.isActive !== false, isDefault: input.isDefault || false }),
+    validateCreate: payload => {
+      const account = accountSchema.parse(payload);
+      return { ...account, balance: account.balance ?? 0, ...balanceCheck(account.balance) };
+    },
+    validateUpdate: fields => {
+      const account = accountSchema.partial().parse(fields);
+      return { ...account, ...balanceCheck(account.balance) };
+    },
   }, scopes, clientId);
 
   registerCrudTools(server, {
@@ -603,6 +611,7 @@ export function registerAllTools(server: McpServer, scopes: string[] = ['*'], cl
     validateCreate: payload => billSchema.parse(payload),
     validateUpdate: fields => billSchema.partial().parse(fields),
     performCreate: async (fields, stableId) => ({ ...await createFinancialBill(fields as Parameters<typeof createFinancialBill>[0], stableId) }),
+    performDelete: deleteFinancialBill,
     performUpdate: async (fields, id, expectedUpdatedAt) => {
       const updated = await updateFinancialBill(id, fields as Parameters<typeof updateFinancialBill>[1], expectedUpdatedAt);
       if (!updated) throw new Error('Fatura não encontrada.');

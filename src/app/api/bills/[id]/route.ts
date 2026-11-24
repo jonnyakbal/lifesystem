@@ -1,10 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { storage } from '@/lib/storage';
+import { z } from 'zod';
 import { billSchema } from '@/lib/financial-validation';
 import {
   DuplicateFinancialBillError,
+  deleteFinancialBill,
+  registerBillPayment,
   updateFinancialBill,
 } from '@/lib/financial-bills';
+import { CashOperationError } from '@/lib/financial-cash';
 import { settleInvoiceEntries } from '@/lib/financial-card-purchases';
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,6 +22,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     return NextResponse.json(updated);
   } catch (error) {
+    if (error instanceof CashOperationError) return NextResponse.json({ error: error.message }, { status: error.status });
     if (error instanceof DuplicateFinancialBillError) {
       return NextResponse.json(
         { error: error.message, existingBillId: error.existingBillId },
@@ -29,9 +33,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
+const paymentSchema = z.object({ accountId: z.string().min(1) }).strict();
+
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const parsed = paymentSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) return NextResponse.json({ error: 'Selecione a conta pagadora.' }, { status: 400 });
+  try {
+    return NextResponse.json(await registerBillPayment(id, parsed.data.accountId));
+  } catch (error) {
+    if (error instanceof CashOperationError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: 'Não foi possível concluir a quitação. Você pode tentar novamente com a mesma conta.' }, { status: 500 });
+  }
+}
+
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const deleted = await storage.delete('bills', id);
-  if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  return NextResponse.json({ ok: true });
+  try {
+    const deleted = await deleteFinancialBill(id);
+    if (!deleted) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof CashOperationError) return NextResponse.json({ error: error.message }, { status: error.status });
+    return NextResponse.json({ error: 'Não foi possível excluir a fatura.' }, { status: 500 });
+  }
 }

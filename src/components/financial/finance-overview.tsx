@@ -87,7 +87,7 @@ export function FinanceSummary({
         </p>
         <p className="mt-2 text-xs text-muted-foreground">
           {accountCount === 0 ? 'Nenhuma conta ativa com saldo informado' : (
-            <>{accountCount} {accountCount === 1 ? 'conta ativa' : 'contas ativas'} · saldos informados manualmente</>
+            <>{accountCount} {accountCount === 1 ? 'conta ativa' : 'contas ativas'} · saldo informado e movimentações registradas</>
           )}
         </p>
         <button

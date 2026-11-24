@@ -34,6 +34,11 @@ export function assertTaskDeletionLinks(allItems: unknown[], ids: string[]) {
 }
 
 function assertDeletable(collection: string, items: unknown[], allItems: unknown[] = items) {
+  if (collection === 'accounts' && items.some(item => (item as { cashMovements?: unknown[] }).cashMovements?.length)) {
+    const error = new Error('Esta conta possui movimentações registradas. Desative a conta para preservar o histórico.');
+    error.name = 'CashHistoryError';
+    throw error;
+  }
   if (collection === 'tasks' && items.some(item => Boolean((item as { planning?: { eventId?: string } }).planning?.eventId))) {
     throw new Error('Esta tarefa possui evento espelhado. Remova o bloco em Planejar antes de excluir a tarefa.');
   }

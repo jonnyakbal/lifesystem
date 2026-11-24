@@ -15,7 +15,15 @@ A partir de 07/11/2026 o Jonny trabalha principalmente com o **Codex**. O Claude
 
 Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`UPLOAD_DIR`/`BACKUP_DIR`, variáveis do `.github/workflows/ci.yml`, `npm run build` e `npx playwright test --config=playwright.ci.config.ts`. Falha conhecida só no Windows: `office-provenance` (área de transferência). Rodadas com o PC suspendendo geram falhas falsas (`ERR_NETWORK_IO_SUSPENDED`, Chrome sem abrir): repita os arquivos afetados.
 
-## Estado atual (23/11/2026, Codex)
+## Estado atual (24/11/2026, Codex)
+
+- `codex/financeiro-caixa` inclui `d2e0dd9` (saldo consolidado, filtros, aba única e edição de cartões) e adiciona data da conferência de saldo, transferências entre contas e quitação pela conta pagadora.
+- `PATCH /api/accounts/[id]` marca a conferência quando recebe `balance`. `GET /api/transfers` lista os recibos recentes. `POST /api/transfers` recebe `id`, `fromAccountId`, `toAccountId` e `amount` em reais. `POST /api/bills/[id]` recebe `accountId` e quita o valor restante. Os recibos impedem reaplicação em tentativas repetidas.
+- O MCP mantém nomes, schemas de entrada e escopos. `create_account` e `update_account` registram a conferência quando recebem saldo. `update_bill` e `delete_bill` preservam faturas com débito registrado.
+- O build Webpack, o lint dos arquivos alterados e 51 testes do Financeiro e MCP passaram com dados sintéticos. A suíte cobre repetição de transferência e retomada da quitação após o débito.
+- A projeção de caixa, revisão de duplicatas e importação de extrato seguem no roadmap. A publicação desta remessa usa o deploy nativo do LifeSystem acionado por `main`.
+
+## Histórico (23/11/2026, Codex)
 
 - `codex/financeiro-navegacao` parte de `09dc55b`, verificado no GitHub como o mesmo commit de `main`. A alteração está em revisão local. A publicação deste lote está pendente.
 - O Financeiro agora destaca a soma dos saldos informados das contas ativas, separa o resultado do período, reúne cartões e faturas e permite editar os dados de cada cartão. Os filtros de lançamentos incluem conta, cartão e categoria.

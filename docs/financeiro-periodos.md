@@ -28,9 +28,11 @@ O MCP `get_financial_summary` aplica a mesma regra e devolve `realized`, `projec
 
 ## Contas, cartões e faturas
 
-**Atualizar saldo** substitui o valor informado da conta por um valor exato. Não cria receita, despesa nem conciliação automática. As metas também são manuais.
+**Atualizar saldo** grava o valor informado e a data da conferência. Contas antigas mostram a data a partir da primeira atualização. Lançamentos comuns e previsões continuam separados dos saldos das contas.
 
-Faturas usam o mês de compra selecionado, independentemente do período dos pagamentos. A criação exige escolher um cartão de crédito ou múltiplo. Dias 29–31 são limitados ao último dia do mês correspondente. A interface não recria uma fatura já existente nem fecha novamente uma fatura com pagamentos. O controle de quitação de faturas continua separado: não altera o saldo das contas nem marca compras como pagas, e não entra novamente no resumo financeiro.
+**Transferir entre contas** registra uma movimentação já feita. As duas contas são atualizadas juntas e o recibo fica em **Transferências recentes**. O valor líquido no conjunto das contas é zero.
+
+Faturas usam o mês em que fecham. Em **Registrar pagamento**, selecione a conta que pagou o valor restante da fatura. A quitação desconta esse valor da conta escolhida e marca as compras como pagas. O sistema conserva o débito por fatura para retomar uma tentativa interrompida. O registro da quitação evita uma segunda despesa no resumo financeiro.
 
 ## Interface e referência
 
