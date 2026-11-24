@@ -75,10 +75,31 @@ test('combina filtros de conta e cartão e permite limpar a busca', async ({ pag
   await page.getByRole('option', { name: 'Conta de teste', exact: true }).click();
   await page.getByRole('combobox', { name: 'Cartão dos lançamentos' }).click();
   await page.getByRole('option', { name: 'Cartão de teste', exact: true }).click();
-  await expect(page.getByText('Compra de teste', { exact: true })).toBeVisible();
+  await expect(page.getByText('Fatura · Cartão de teste', { exact: true })).toBeVisible();
+  await expect(page.getByText('Compra de teste', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Receita de teste', { exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Limpar filtros', exact: true }).first().click();
   await expect(page.getByText('Receita de teste', { exact: true })).toBeVisible();
+});
+
+test('lançamentos exibem uma única saída para a fatura e levam às compras', async ({ page }) => {
+  await page.route('**/api/financial', route => route.fulfill({ json: [
+    entries[0],
+    { ...entries[0], id: 'second', description: 'Segunda compra', amount: 35.25 },
+    entries[1],
+  ] }));
+  await page.goto('/financeiro');
+  await expect(page.getByTestId('financial-planned-expenses')).toContainText('55,25');
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  const list = page.getByRole('list', { name: 'Movimentações' });
+  await expect(list.getByRole('listitem')).toHaveCount(2);
+  await expect(list.getByText('Fatura · Cartão de teste', { exact: true })).toBeVisible();
+  await expect(list.getByText(/Compra de teste|Segunda compra/)).toHaveCount(0);
+  await expect(list.getByText(/55,25/)).toBeVisible();
+  await list.getByRole('button', { name: 'Abrir Fatura · Cartão de teste' }).click();
+  await expect(page.getByRole('heading', { name: 'Cartão de teste', exact: true })).toBeFocused();
+  await expect(page.getByText('Compras nesta fatura (2)')).toBeVisible();
+  await expect(page.getByText(/Segunda compra/)).toBeVisible();
 });
 
 test('API permite remover campos opcionais sem sobrescrever os demais', async ({ request }) => {

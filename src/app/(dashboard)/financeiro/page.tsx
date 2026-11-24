@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { entryInvoiceMonth, invoiceCycle } from '@/lib/card-invoice';
+import { invoiceCycle } from '@/lib/card-invoice';
+import { financialMovements, invoiceMonthForExpense, invoiceTotal, type InvoiceMovement } from '@/lib/financial-invoice-movements';
 import {
   type FinancialEntry,
   type Account,
@@ -126,6 +127,7 @@ export default function FinanceiroPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [dayFilter, setDayFilter] = useState<string | null>(null);
   const [focusTransactions, setFocusTransactions] = useState(false);
+  const [focusInvoice, setFocusInvoice] = useState<string | null>(null);
 
   const [entryDialog, setEntryDialog] = useState<FinancialEntry | 'new' | null>(
     null
@@ -161,6 +163,26 @@ export default function FinanceiroPage() {
     setEntryCardId(cardId);
     setEntryDialog('new');
   }
+
+  function openInvoice(invoice: InvoiceMovement) {
+    if (!cards.some(card => card.id === invoice.cardId)) {
+      toast.info('O cartão desta fatura foi removido.');
+      return;
+    }
+    setSelectedMonth(invoice.month);
+    setFocusInvoice(invoice.cardId);
+    setActiveTab('cards');
+  }
+
+  useEffect(() => {
+    if (activeTab !== 'cards' || !focusInvoice || isLoading) return;
+    const frame = requestAnimationFrame(() => {
+      const heading = document.getElementById('finance-card-' + focusInvoice);
+      heading?.focus({ preventScroll: true });
+      heading?.scrollIntoView({ block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeTab, focusInvoice, isLoading]);
 
   // Dialogs
   const [isAccountDialogOpen, setIsAccountDialogOpen] = useState(false);
@@ -262,9 +284,10 @@ export default function FinanceiroPage() {
     () => financialPeriodRange(selectedMonth, dateRange),
     [selectedMonth, dateRange]
   );
+  const movements = useMemo(() => financialMovements(entries, cards, bills), [entries, cards, bills]);
   const periodEntries = useMemo(
-    () => financialEntriesForRange(entries, range),
-    [entries, range]
+    () => financialEntriesForRange(movements, range),
+    [movements, range]
   );
 
   const periodCategories = useMemo(() => [...new Set(periodEntries.map(entry => entry.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [periodEntries]);
@@ -317,9 +340,9 @@ export default function FinanceiroPage() {
   const previousPeriod = useMemo(() => {
     if (activeTab !== 'overview' || dateRange === 'all') return null;
     const anchor = shiftFinancialPeriod(selectedMonth, dateRange, -1);
-    const previous = summarizeFinancialEntries(financialEntriesForRange(entries, financialPeriodRange(anchor, dateRange)));
+    const previous = summarizeFinancialEntries(financialEntriesForRange(movements, financialPeriodRange(anchor, dateRange)));
     return previous.entries > 0 ? previous.realized.balance : null;
-  }, [activeTab, dateRange, entries, selectedMonth]);
+  }, [activeTab, dateRange, movements, selectedMonth]);
   const activeAccounts = accounts.filter(account => account.isActive);
   const totalBalance = activeAccounts.reduce((sum, account) => sum + account.balance, 0);
   const currentMonth = today.slice(0, 7);
@@ -511,7 +534,7 @@ export default function FinanceiroPage() {
       await apiFetch(`/api/financial/${entry.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, paidDate: null }),
+        body: JSON.stringify({ status: newStatus, paidDate: null, dueDate: entry.dueDate || entry.date }),
       });
       loadAll();
       toast.success('Devolvido a previsto.');
@@ -553,8 +576,7 @@ export default function FinanceiroPage() {
     return entries.filter(
       (e) =>
         e.cardId === cardId &&
-        e.type !== 'income' &&
-        entryInvoiceMonth(e, card) === month
+        invoiceMonthForExpense(e, card) === month
     );
   }
 
@@ -728,6 +750,7 @@ export default function FinanceiroPage() {
             key={tab.id}
             onClick={() => {
               setFocusTransactions(false);
+              setFocusInvoice(null);
               setActiveTab(tab.id);
             }}
             aria-pressed={activeTab === tab.id}
@@ -866,7 +889,7 @@ export default function FinanceiroPage() {
       <AnimatePresence mode="wait">
         {activeTab === 'overview' && !isLoading && !loadError && (
           <FinanceOverview
-            entries={entries}
+            entries={movements}
             periodEntries={periodEntries}
             range={range}
             selectedMonth={selectedMonth}
@@ -877,6 +900,7 @@ export default function FinanceiroPage() {
               openTransactions(status, 'expenses', category)
             }
             onDate={day => openTransactions('all', 'all', null, day)}
+            onInvoice={openInvoice}
             onMonth={(month) => {
               setSelectedMonth(month);
               setDateRange('month');
@@ -1078,10 +1102,6 @@ export default function FinanceiroPage() {
                       card.id,
                       currentMonth
                     );
-                    const currentTotal = currentTransactions.reduce(
-                      (a, e) => a + e.amount,
-                      0
-                    );
                     const canAddPurchase = !currentBill || currentBill.status === 'open';
                     const previousBills = bills.filter(bill => bill.cardId === card.id && bill.month < currentMonth)
                       .sort((a, b) => b.month.localeCompare(a.month)).slice(0, 6);
@@ -1091,7 +1111,7 @@ export default function FinanceiroPage() {
                     const closedBill = currentBill?.status === 'open' ? undefined : currentBill;
                     const closeDate = closedBill?.closeDate || cycle.closeDate;
                     const dueDate = closedBill?.dueDate || cycle.dueDate;
-                    const amount = closedBill?.amount ?? (currentTotal || currentBill?.amount || 0);
+                    const amount = invoiceTotal(currentBill, currentTransactions);
 
                     return (
                       <Card key={card.id} className="overflow-hidden">
@@ -1101,7 +1121,8 @@ export default function FinanceiroPage() {
                             <CreditCard className="h-5 w-5 text-primary" aria-hidden />
                           </span>
                           <div className="min-w-0 flex-1 basis-36">
-                            <h3 className="break-words text-lg font-semibold">{card.name}</h3>
+                            <h3 id={'finance-card-' + card.id} tabIndex={-1}
+                              className="scroll-mt-24 break-words text-lg font-semibold focus:outline-none">{card.name}</h3>
                             <p className="text-xs text-muted-foreground">
                               {card.brand} · Final {card.lastDigits} · {card.type === 'multiple' ? 'Múltiplo' : hasCredit ? 'Crédito' : 'Débito'}
                               {!card.isActive && ' · Inativo'}
@@ -1392,6 +1413,7 @@ export default function FinanceiroPage() {
             onSearch={setSearchQuery}
             onClear={() => openTransactions()}
             onEdit={setEntryDialog}
+            onInvoice={openInvoice}
             onPay={handleTogglePaid}
             onDelete={handleDeleteEntry}
             onNew={() => openNewEntry()}

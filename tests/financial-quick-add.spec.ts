@@ -42,7 +42,7 @@ test('formulário móvel mantém detalhes opcionais recolhidos e campos acessív
   await page.getByRole('button', { name: 'Novo lançamento', exact: true }).click();
   const form = page.getByRole('form', { name: 'Novo Lançamento' });
   await expect(form.getByLabel('Valor (R$)')).toBeVisible();
-  await expect(form.getByLabel('Vencimento · opcional')).toBeVisible();
+  await expect(form.getByLabel('Vencimento', { exact: true })).toHaveValue(todayStr());
   await form.getByText('Mais detalhes', { exact: true }).click();
   await expect(form.getByLabel('Pessoa ou empresa · opcional')).toBeVisible();
   const box = await form.boundingBox();
@@ -98,11 +98,31 @@ test('despesa prevista de outro mês não soma como pagamento', async ({ page })
   await form.getByRole('combobox').nth(1).click();
   await page.getByRole('option', { name: 'Alimentação', exact: true }).click();
   await form.getByLabel('Valor (R$)').fill('200');
-  await form.getByLabel('Vencimento · opcional').fill(todayStr(dueDate));
+  await form.getByLabel('Vencimento', { exact: true }).fill(todayStr(dueDate));
   await form.getByRole('button', { name: 'Salvar lançamento' }).click();
   expect(records[0]).toMatchObject({ date: todayStr(today), dueDate: todayStr(dueDate), status: 'pending', amount: 200 });
   expect(records[0].paidDate).toBeUndefined();
   await expect(page.getByTestId('financial-period-label')).toContainText(dueLabel);
   await expect(page.getByTestId('financial-paid-expenses')).toContainText('R$ 0');
   await expect(page.getByTestId('financial-planned-expenses')).toContainText('R$ 200');
+});
+
+test('previsto legado sem vencimento abre com data de referência e permite confirmar outra', async ({ page }) => {
+  await page.clock.install({ time: new Date('2026-11-22T12:00:00Z') });
+  await page.route('**/api/financial', route => route.fulfill({ json: [{
+    id: 'legacy', type: 'expense_variable', category: 'Alimentação', description: 'Compra legada',
+    amount: 16, date: '2026-11-07', status: 'pending', dueDate: null,
+  }] }));
+  await page.route('**/api/financial/legacy', route => route.fulfill({ json: { id: 'legacy' } }));
+  await page.goto('/financeiro');
+  await page.getByRole('button', { name: 'Lançamentos', exact: true }).click();
+  await page.getByRole('button', { name: 'Editar Compra legada' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Editar lançamento' });
+  const dueDate = dialog.getByLabel('Vencimento', { exact: true });
+  await expect(dueDate).toHaveValue('2026-11-07');
+  await expect(dialog.getByText('Sugestão pela data do lançamento', { exact: false })).toBeVisible();
+  await dueDate.fill('2026-11-25');
+  const request = page.waitForRequest(r => r.url().endsWith('/api/financial/legacy') && r.method() === 'PATCH');
+  await dialog.getByRole('button', { name: 'Salvar alterações' }).click();
+  expect((await request).postDataJSON()).toMatchObject({ date: '2026-11-07', dueDate: '2026-11-25' });
 });

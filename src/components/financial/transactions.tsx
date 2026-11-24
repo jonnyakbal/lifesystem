@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { Account, Card, FinancialEntry } from '@/lib/finance-model';
+import type { FinancialMovement, InvoiceMovement } from '@/lib/financial-invoice-movements';
 import { effectiveFinancialDate, summarizeFinancialEntries } from '@/lib/financial-period';
 import { financialDisplayStatus, formatMoney, shortFinancialDate } from '@/lib/financial-insights';
 import { cn } from '@/lib/utils';
@@ -33,9 +34,9 @@ export function FinancialTransactions({
   entries, period, totalInPeriod, focusOnOpen, filterType, filterStatus, categoryFilter, dayFilter,
   categories, accounts, cards, accountFilter, cardFilter, search, today,
   onType, onStatus, onCategory, onAccount, onCard, onSearch, onClear, onClearDay,
-  onEdit, onPay, onDelete, onNew,
+  onEdit, onInvoice, onPay, onDelete, onNew,
 }: {
-  entries: FinancialEntry[];
+  entries: FinancialMovement[];
   period: string;
   totalInPeriod: number;
   focusOnOpen: boolean;
@@ -59,6 +60,7 @@ export function FinancialTransactions({
   onClear: () => void;
   onClearDay: () => void;
   onEdit: (entry: FinancialEntry) => void;
+  onInvoice: (invoice: InvoiceMovement) => void;
   onPay: (entry: FinancialEntry) => void;
   onDelete: (id: string) => void;
   onNew: () => void;
@@ -75,8 +77,9 @@ export function FinancialTransactions({
   const ordered = useMemo(() => [...entries].sort((a, b) => {
     const newest = effectiveFinancialDate(b).localeCompare(effectiveFinancialDate(a));
     if (sortBy === 'oldest') return -newest;
-    if (sortBy === 'highest') return b.amount - a.amount || newest;
-    if (sortBy === 'lowest') return a.amount - b.amount || newest;
+    const amount = (b.invoice?.total ?? b.amount) - (a.invoice?.total ?? a.amount);
+    if (sortBy === 'highest') return amount || newest;
+    if (sortBy === 'lowest') return -amount || newest;
     return newest;
   }), [entries, sortBy]);
   const accountNames = useMemo(() => new Map(accounts.map(account => [account.id, account.name])), [accounts]);
@@ -212,16 +215,20 @@ export function FinancialTransactions({
             {ordered.map(entry => {
               const status = financialDisplayStatus(entry, today);
               const title = entry.description || entry.category;
+              const invoice = entry.invoice;
               const income = entry.type === 'income';
-              const Direction = income ? ArrowDownLeft : ArrowUpRight;
+              const Direction = invoice ? CreditCard : income ? ArrowDownLeft : ArrowUpRight;
               const date = effectiveFinancialDate(entry);
               const account = entry.accountId ? accountNames.get(entry.accountId) || 'Conta indisponível' : '';
               const card = entry.cardId ? cardNames.get(entry.cardId) || 'Cartão indisponível' : '';
-              const dateKind = status === 'paid' ? 'Realizado' : entry.dueDate ? 'Vencimento' : 'Previsto';
+              const dateKind = status === 'paid'
+                ? invoice && !invoice.paymentDateKnown ? 'Vencimento de referência' : 'Realizado'
+                : entry.dueDate ? 'Vencimento' : 'Previsto';
               const statusLabel = status === 'paid' ? (income ? 'Recebido' : 'Pago') : status === 'overdue' ? 'Atrasado' : 'Previsto';
               return (
                 <li key={entry.id} className={cn('group grid grid-cols-[minmax(0,1fr)_auto_2.25rem] items-start gap-x-2 gap-y-2 px-3 py-3 transition-colors hover:bg-muted/30 sm:px-4 lg:items-center lg:gap-x-3', columns)}>
-                  <button type="button" aria-label={'Editar ' + title} onClick={() => onEdit(entry)}
+                  <button type="button" aria-label={(invoice ? 'Abrir ' : 'Editar ') + title}
+                    onClick={() => invoice ? onInvoice(invoice) : onEdit(entry)}
                     className="col-start-1 row-start-1 flex min-w-0 items-start gap-2.5 rounded-lg text-left">
                     <span className={cn('grid size-8 shrink-0 place-items-center rounded-lg border border-border/60 bg-muted/55', income ? 'text-money' : 'text-muted-foreground')}>
                       <Direction aria-hidden className="size-4" />
@@ -230,6 +237,7 @@ export function FinancialTransactions({
                       <span className="block break-words text-sm font-semibold leading-snug group-hover:text-primary">{title}</span>
                       <span className="mt-1 block break-words text-xs leading-snug text-muted-foreground">
                         {entry.category}{entry.payee && ' · ' + entry.payee}
+                        {invoice && status !== 'paid' && invoice.paid > 0 && ' · ' + formatMoney(entry.amount) + ' em aberto'}
                         {entry.installment && ' · ' + entry.installment.current + '/' + entry.installment.total}
                         {entry.recurring && <Repeat2 aria-label="Recorrente" className="ml-1.5 inline size-3" />}
                       </span>
@@ -256,11 +264,16 @@ export function FinancialTransactions({
                   </div>
 
                   <span className={cn('col-start-2 row-start-1 pt-1 text-right text-sm font-semibold tracking-tight tabular-nums lg:col-start-5 lg:pt-0', income && 'text-money')}>
-                    {income ? '+' : '−'} {formatMoney(entry.amount)}
+                    {income ? '+' : '−'} {formatMoney(invoice?.total ?? entry.amount)}
                   </span>
 
                   <div className="col-start-3 row-start-1 -mt-1 justify-self-end lg:col-start-6 lg:mt-0">
-                    <DropdownMenu>
+                    {invoice ? (
+                      <Button variant="ghost" size="icon" aria-label={'Ver detalhes de ' + title} className="h-9 w-9"
+                        onClick={() => onInvoice(invoice)}>
+                        <ArrowUpRight aria-hidden className="size-4" />
+                      </Button>
+                    ) : <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label={'Opções de ' + title} className="h-9 w-9">
                           <MoreHorizontal aria-hidden className="size-4" />
@@ -274,7 +287,7 @@ export function FinancialTransactions({
                         <DropdownMenuSeparator />
                         <DropdownMenuItem className="text-destructive" onClick={() => onDelete(entry.id)}><Trash2 className="mr-2 size-4" /> Excluir</DropdownMenuItem>
                       </DropdownMenuContent>
-                    </DropdownMenu>
+                    </DropdownMenu>}
                   </div>
                 </li>
               );

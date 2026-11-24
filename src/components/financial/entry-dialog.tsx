@@ -69,7 +69,7 @@ export function EntryDialog({
   const [category, setCategory] = useState(entry?.category || '');
   const [customCategory, setCustomCategory] = useState('');
   const [description, setDescription] = useState(entry?.description || '');
-  const [dueDate, setDueDate] = useState(entry?.dueDate || '');
+  const [enteredDueDate, setEnteredDueDate] = useState<string | undefined>(entry?.dueDate || undefined);
   const [paidDate, setPaidDate] = useState(
     entry?.paidDate || (entry?.status === 'paid' ? entry.date : today)
   );
@@ -104,6 +104,9 @@ export function EntryDialog({
       : [];
   const [error, setError] = useState('');
   const isPaid = !isCredit && status === 'paid';
+  const suggestedDueDate = entry?.date || (selectedMonth === today.slice(0, 7) ? today : selectedMonth + '-01');
+  const usesSuggestedDueDate = !isPaid && enteredDueDate === undefined;
+  const dueDate = enteredDueDate ?? (usesSuggestedDueDate ? suggestedDueDate : '');
   const categoryOptions = [
     ...new Set([
       ...categories[type],
@@ -143,8 +146,8 @@ export function EntryDialog({
       setError('Informe uma categoria e um valor maior que zero.');
       return;
     }
-    if (!isCredit && !isPaid && !dueDate && !entry && selectedMonth !== today.slice(0, 7)) {
-      setError('Informe o vencimento para lançar uma previsão neste mês.');
+    if (!isCredit && !isPaid && !dueDate) {
+      setError('Informe o vencimento do lançamento previsto.');
       return;
     }
     if (isPaid && !paidDate) {
@@ -426,14 +429,21 @@ export function EntryDialog({
           )}
           {!isCredit && <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="entry-due">Vencimento · opcional</Label>
+              <Label htmlFor="entry-due">{isPaid ? 'Vencimento · opcional' : 'Vencimento'}</Label>
               <Input
                 id="entry-due"
                 type="date"
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={(e) => setEnteredDueDate(e.target.value)}
+                required={!isPaid}
+                aria-describedby={usesSuggestedDueDate ? 'entry-due-suggestion' : undefined}
                 className="h-11 min-w-0"
               />
+              {usesSuggestedDueDate && (
+                <p id="entry-due-suggestion" className="text-xs text-muted-foreground">
+                  {entry ? 'Sugestão pela data do lançamento.' : 'Data sugerida no período selecionado.'} Você pode ajustar.
+                </p>
+              )}
             </div>
             {isPaid && (
               <div className="space-y-2">
