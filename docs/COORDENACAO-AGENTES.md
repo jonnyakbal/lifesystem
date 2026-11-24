@@ -15,7 +15,14 @@ A partir de 07/11/2026 o Jonny trabalha principalmente com o **Codex**. O Claude
 
 Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`UPLOAD_DIR`/`BACKUP_DIR`, variáveis do `.github/workflows/ci.yml`, `npm run build` e `npx playwright test --config=playwright.ci.config.ts`. Falha conhecida só no Windows: `office-provenance` (área de transferência). Rodadas com o PC suspendendo geram falhas falsas (`ERR_NETWORK_IO_SUSPENDED`, Chrome sem abrir): repita os arquivos afetados.
 
-## Estado atual (24/11/2026, Codex)
+## Estado atual (24/11/2026, interface do Financeiro)
+
+- `codex/financeiro-painel` parte de `dc7eb8b` e está pronta para revisão local. Publicação pendente.
+- A Visão Geral destaca o saldo das contas, diferencia os resultados realizado e previsto e compara o resultado com o período anterior quando existem dados. Pontos, barras e categorias dos gráficos abrem os recortes correspondentes.
+- Lançamentos tem totais filtrados, atalhos por situação, ordenação, filtro por dia e uma lista responsiva que exibe conta, cartão, data e situação. A navegação dos gráficos posiciona o foco no início da lista.
+- Build Webpack, ESLint dos arquivos alterados e 40 testes do Financeiro passaram com dados sintéticos. Conferidas as capturas em desktop e viewport móvel. APIs e ferramentas MCP mantêm nomes, entradas e escopos.
+
+## Histórico (24/11/2026, caixa)
 
 - `codex/financeiro-caixa` inclui `d2e0dd9` (saldo consolidado, filtros, aba única e edição de cartões) e adiciona data da conferência de saldo, transferências entre contas e quitação pela conta pagadora.
 - `PATCH /api/accounts/[id]` marca a conferência quando recebe `balance`. `GET /api/transfers` lista os recibos recentes. `POST /api/transfers` recebe `id`, `fromAccountId`, `toAccountId` e `amount` em reais. `POST /api/bills/[id]` recebe `accountId` e quita o valor restante. Os recibos impedem reaplicação em tentativas repetidas.

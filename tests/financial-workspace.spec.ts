@@ -130,6 +130,41 @@ test('panorama interativo preserva realizado e leva categoria aos lançamentos',
   ).not.toBeVisible();
 });
 
+test('gráfico leva ao dia efetivo e a lista ordena e filtra sem perder o período', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/financeiro');
+  const date = page.getByLabel('Dia no gráfico');
+  await date.selectOption(month + '-05');
+  const plot = page.getByTestId('financial-flow-chart');
+  await plot.evaluate(element => element.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  const chartBounds = (await plot.boundingBox())!;
+  const dotBounds = (await plot.locator('[data-chart-day="' + month + '-08"]').last().boundingBox())!;
+  await plot.click({ position: {
+    x: dotBounds.x + dotBounds.width / 2 - chartBounds.x,
+    y: dotBounds.y + dotBounds.height / 2 - chartBounds.y,
+  } });
+  await expect(date).toHaveValue(month + '-08');
+  await page.getByRole('button', { name: /Ver lançamentos do dia/ }).click();
+  await expect(page.getByRole('heading', { name: 'Lançamentos', exact: true })).toBeFocused();
+  const list = page.getByRole('list', { name: 'Movimentações' });
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await expect(list.getByRole('button', { name: 'Editar Mercado da semana' })).toBeVisible();
+  await page.getByRole('button', { name: /Remover filtro de/ }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  await page.getByRole('combobox', { name: 'Ordenar lançamentos' }).click();
+  await page.getByRole('option', { name: 'Maior valor' }).click();
+  await expect(list.getByRole('listitem').first()).toContainText('Projeto Aurora');
+  await page.getByRole('button', { name: 'Em aberto', exact: true }).click();
+  await expect(list.getByRole('listitem')).toHaveCount(1);
+  await expect(list.getByRole('button', { name: 'Editar Espaço de trabalho' })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+  await page.screenshot({ path: testInfo.outputPath('lancamentos-mobile.png'), fullPage: true });
+  await page.getByRole('button', { name: 'Limpar filtros' }).click();
+  await page.setViewportSize({ width: 1512, height: 1040 });
+  await expect(list.getByRole('listitem')).toHaveCount(3);
+  await page.screenshot({ path: testInfo.outputPath('lancamentos-desktop.png') });
+});
+
 test('edição escolhe mês do pagamento e desfazer exclusão usa payload válido', async ({
   page,
 }) => {

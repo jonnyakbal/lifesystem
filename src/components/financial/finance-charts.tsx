@@ -6,6 +6,7 @@ import {
   Bar,
   CartesianGrid,
   ComposedChart,
+  type DotItemDotProps,
   Line,
   Pie,
   PieChart,
@@ -16,7 +17,8 @@ import {
   YAxis,
 } from 'recharts';
 import { useReducedMotion } from 'motion/react';
-import { ArrowUpRight, ChartNoAxesCombined, Table2 } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, CalendarDays, ChartNoAxesCombined, Table2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   ChartContainer,
   ChartTooltip,
@@ -25,12 +27,13 @@ import {
 } from '@/components/ui/line-charts-1';
 import { cn } from '@/lib/utils';
 import { type FinancialEntry } from '@/lib/finance-model';
-import { type FinancialRange } from '@/lib/financial-period';
+import { effectiveFinancialDate, financialEntriesForRange, summarizeFinancialEntries, type FinancialRange } from '@/lib/financial-period';
 import {
   financialCategoryBreakdown,
   financialFlowSeries,
   financialTrend,
   formatMoney,
+  shortFinancialDate,
 } from '@/lib/financial-insights';
 
 const flowConfig = {
@@ -61,6 +64,10 @@ const compactMoney = (value: number) =>
     maximumFractionDigits: 1,
   }).format(value);
 const chartTick = { fill: 'var(--color-muted-foreground)', fontSize: 11 };
+const chartDate = (day: string) => Date.parse(day + 'T00:00:00Z');
+const timeLabel = (milliseconds: number) => Number.isFinite(milliseconds)
+  ? shortFinancialDate(new Date(milliseconds).toISOString().slice(0, 10))
+  : '';
 const tooltipStyle = {
   background: 'var(--color-popover)',
   border: '1px solid var(--color-border)',
@@ -105,12 +112,14 @@ export default function FinanceCharts({
   range,
   selectedMonth,
   onCategory,
+  onDate,
   onMonth,
 }: {
   entries: FinancialEntry[];
   range: FinancialRange;
   selectedMonth: string;
   onCategory: (category: string, status: 'paid' | 'open') => void;
+  onDate: (day: string) => void;
   onMonth: (month: string) => void;
 }) {
   const reduceMotion = useReducedMotion();
@@ -118,8 +127,9 @@ export default function FinanceCharts({
   const [categoryMode, setCategoryMode] = useState<'paid' | 'open'>('paid');
   const [view, setView] = useState<'flow' | 'history'>('flow');
   const [showPlanned, setShowPlanned] = useState(true);
+  const [selectedDay, setSelectedDay] = useState('');
   const points = useMemo(
-    () => financialFlowSeries(entries, range),
+    () => financialFlowSeries(entries, range).map(point => ({ ...point, time: chartDate(point.date) })),
     [entries, range]
   );
   const history = useMemo(
@@ -127,14 +137,25 @@ export default function FinanceCharts({
     [entries, selectedMonth]
   );
   const periodEntries = useMemo(
-    () =>
-      entries.filter((e) => {
-        const date =
-          e.status === 'paid' ? e.paidDate || e.date : e.dueDate || e.date;
-        return date >= range.start && date <= range.end;
-      }),
+    () => financialEntriesForRange(entries, range),
     [entries, range]
   );
+  const byDay = useMemo(() => {
+    const grouped = new Map<string, FinancialEntry[]>();
+    for (const entry of periodEntries) {
+      const key = effectiveFinancialDate(entry);
+      const items = grouped.get(key);
+      if (items) items.push(entry);
+      else grouped.set(key, [entry]);
+    }
+    return grouped;
+  }, [periodEntries]);
+  const movementDays = [...byDay.keys()].sort();
+  const inspectedDate = byDay.has(selectedDay) ? selectedDay : movementDays.at(-1);
+  const inspected = inspectedDate ? summarizeFinancialEntries(byDay.get(inspectedDate) ?? []) : null;
+  const timeDomain: [number | 'dataMin', number | 'dataMax'] = points.length === 1
+    ? [points[0].time - 86_400_000, points[0].time + 86_400_000]
+    : ['dataMin', 'dataMax'];
   const categories = useMemo(
     () =>
       financialCategoryBreakdown(periodEntries, categoryMode).map((c, i) => ({
@@ -146,6 +167,25 @@ export default function FinanceCharts({
   const total = categories.reduce((sum, c) => sum + c.value, 0);
   const animate = !reduceMotion;
 
+  function renderPoint({ cx, cy, index }: DotItemDotProps, color: string) {
+    const day = points[index]?.date;
+    if (cx == null || cy == null || !day) return null;
+    const selectable = byDay.has(day);
+    return (
+      <g data-chart-day={day} className={selectable ? 'cursor-pointer' : undefined}
+        onClick={selectable ? () => setSelectedDay(day) : undefined}>
+        {selectable && <circle cx={cx} cy={cy} r={10} fill="transparent" />}
+        <circle cx={cx} cy={cy} r={inspectedDate === day ? 5 : 3.5}
+          stroke={color} strokeWidth={2} fill="var(--color-card)" />
+      </g>
+    );
+  }
+
+  function openHistoryMonth(index: number) {
+    const month = history[index];
+    if (month) onMonth(month.month);
+  }
+
   return (
     <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
       <section
@@ -154,16 +194,13 @@ export default function FinanceCharts({
       >
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-muted-foreground">
-              O movimento do dinheiro
-            </p>
             <h2
               id="financial-flow-title"
-              className="mt-2 font-display text-2xl"
+              className="font-display text-2xl"
             >
               {view === 'flow'
-                ? 'Como o período evolui'
-                : 'Um olhar sobre os meses'}
+                ? 'Evolução do resultado'
+                : 'Entradas e saídas por mês'}
             </h2>
           </div>
           <div
@@ -190,15 +227,15 @@ export default function FinanceCharts({
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
           {view === 'flow'
-            ? 'Resultado acumulado dos lançamentos, a partir de zero. Não representa saldo bancário.'
-            : 'Entradas e saídas de cada mês. As parcelas em aberto aparecem com cor suave.'}
+            ? 'Entradas menos saídas acumuladas no período, a partir de zero. Selecione um ponto para ver o dia.'
+            : 'Selecione uma barra ou um mês para abrir o resumo. As previsões aparecem em tom suave.'}
         </p>
-        <div className="my-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="my-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap gap-4">
             <LegendDot color="var(--color-money)">
               {view === 'flow' ? 'Realizado' : 'Recebido'}
             </LegendDot>
-            <LegendDot
+            {(view === 'history' || showPlanned) && <LegendDot
               color={
                 view === 'flow'
                   ? 'var(--color-primary)'
@@ -207,7 +244,7 @@ export default function FinanceCharts({
               dashed={view === 'flow'}
             >
               {view === 'flow' ? 'Com previsões' : 'Pago'}
-            </LegendDot>
+            </LegendDot>}
           </div>
           <label className="flex min-h-8 cursor-pointer items-center gap-2 text-xs text-muted-foreground">
             <input
@@ -223,7 +260,7 @@ export default function FinanceCharts({
           <EmptyChart text="Nenhum movimento neste período. Planeje uma entrada ou despesa para começar." />
         ) : (
           <div
-            className="h-[260px] min-w-0 sm:h-[300px]"
+            className="h-[234px] min-w-0 cursor-crosshair sm:h-[278px]"
             data-testid="financial-flow-chart"
           >
             <ChartContainer
@@ -256,7 +293,12 @@ export default function FinanceCharts({
                     strokeDasharray="3 5"
                   />
                   <XAxis
-                    dataKey="label"
+                    dataKey="time"
+                    type="number"
+                    scale="time"
+                    domain={timeDomain}
+                    tickFormatter={timeLabel}
+                    tickCount={5}
                     tick={chartTick}
                     axisLine={false}
                     tickLine={false}
@@ -272,7 +314,7 @@ export default function FinanceCharts({
                   />
                   <ChartTooltip
                     content={
-                      <ChartTooltipContent valueFormatter={formatMoney} />
+                      <ChartTooltipContent valueFormatter={formatMoney} formatLabel={value => timeLabel(Number(value))} />
                     }
                     cursor={{ stroke: 'var(--color-border)', strokeWidth: 1 }}
                   />
@@ -281,6 +323,9 @@ export default function FinanceCharts({
                     stroke="var(--color-muted-foreground)"
                     strokeOpacity={0.4}
                   />
+                  {inspectedDate && (
+                    <ReferenceLine x={chartDate(inspectedDate)} stroke="var(--color-primary)" strokeDasharray="3 4" strokeOpacity={0.55} />
+                  )}
                   <Area
                     name="Realizado"
                     type="stepAfter"
@@ -288,7 +333,8 @@ export default function FinanceCharts({
                     stroke="var(--color-money)"
                     fill={`url(#${fillId})`}
                     strokeWidth={2.5}
-                    dot={{ r: 4, fill: 'var(--color-card)', strokeWidth: 2 }}
+                    dot={point => renderPoint(point, 'var(--color-money)')}
+                    activeDot={false}
                     isAnimationActive={animate}
                     animationDuration={550}
                   />
@@ -300,13 +346,8 @@ export default function FinanceCharts({
                       stroke="var(--color-primary)"
                       strokeDasharray="5 5"
                       strokeWidth={2}
-                      dot={{
-                        r: 4,
-                        fill: 'var(--color-card)',
-                        strokeWidth: 2,
-                        strokeDasharray: '0',
-                      }}
-                      activeDot={{ r: 6 }}
+                      dot={point => renderPoint(point, 'var(--color-primary)')}
+                      activeDot={false}
                       isAnimationActive={animate}
                       animationDuration={550}
                     />
@@ -345,6 +386,8 @@ export default function FinanceCharts({
                   />
                   <Bar
                     name="Recebido"
+                    onClick={(_, index) => openHistoryMonth(index)}
+                    className="cursor-pointer"
                     dataKey="received"
                     stackId="income"
                     fill="var(--color-money)"
@@ -354,6 +397,8 @@ export default function FinanceCharts({
                   {showPlanned && (
                     <Bar
                       name="A receber"
+                      onClick={(_, index) => openHistoryMonth(index)}
+                      className="cursor-pointer"
                       dataKey="receivable"
                       stackId="income"
                       fill="var(--color-money)"
@@ -365,6 +410,8 @@ export default function FinanceCharts({
                   )}
                   <Bar
                     name="Pago"
+                    onClick={(_, index) => openHistoryMonth(index)}
+                    className="cursor-pointer"
                     dataKey="paid"
                     stackId="expense"
                     fill="var(--color-critical)"
@@ -374,6 +421,8 @@ export default function FinanceCharts({
                   {showPlanned && (
                     <Bar
                       name="A pagar"
+                      onClick={(_, index) => openHistoryMonth(index)}
+                      className="cursor-pointer"
                       dataKey="payable"
                       stackId="expense"
                       fill="var(--color-critical)"
@@ -388,6 +437,31 @@ export default function FinanceCharts({
             </ChartContainer>
           </div>
         )}
+        {view === 'flow' && inspected && inspectedDate && (
+          <div className="mt-4 rounded-2xl border border-border/70 bg-muted/25 p-3 sm:p-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="flex items-center gap-2 text-xs font-medium text-muted-foreground" htmlFor="financial-chart-day">
+                <CalendarDays aria-hidden className="size-3.5" /> Dia no gráfico
+              </label>
+              <select id="financial-chart-day" value={inspectedDate} onChange={event => setSelectedDay(event.target.value)}
+                className="min-h-9 max-w-full rounded-lg border border-border bg-card px-2 text-sm">
+                {movementDays.map(day => <option key={day} value={day}>{shortFinancialDate(day)} · {day.slice(0, 4)}</option>)}
+              </select>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4" aria-live="polite">
+              <div><p className="text-muted-foreground">Recebido</p><strong className="mt-1 block break-words tabular-nums">{formatMoney(inspected.realized.income)}</strong></div>
+              <div><p className="text-muted-foreground">Pago</p><strong className="mt-1 block break-words tabular-nums">{formatMoney(inspected.realized.expenses)}</strong></div>
+              {showPlanned && <>
+                <div><p className="text-muted-foreground">A receber</p><strong className="mt-1 block break-words tabular-nums">{formatMoney(inspected.projected.income)}</strong></div>
+                <div><p className="text-muted-foreground">A pagar</p><strong className="mt-1 block break-words tabular-nums">{formatMoney(inspected.projected.expenses)}</strong></div>
+              </>}
+            </div>
+            <Button type="button" variant="ghost" size="sm" className="mt-2 -ml-2 max-w-full text-primary" onClick={() => onDate(inspectedDate)}>
+              Ver lançamentos do dia <span className="text-xs text-muted-foreground">({inspected.entries})</span>
+              <ArrowRight aria-hidden className="size-3.5" />
+            </Button>
+          </div>
+        )}
         {view === 'history' && (
           <div
             className="mt-4 flex flex-wrap gap-1"
@@ -397,6 +471,7 @@ export default function FinanceCharts({
               <button
                 key={m.month}
                 onClick={() => onMonth(m.month)}
+                aria-pressed={m.month === selectedMonth}
                 className={cn(
                   'min-h-9 rounded-lg px-2 text-xs capitalize text-muted-foreground hover:bg-muted',
                   m.month === selectedMonth && 'bg-primary/10 text-primary'
@@ -471,12 +546,9 @@ export default function FinanceCharts({
         aria-labelledby="financial-category-title"
         className="min-w-0 rounded-3xl border border-border/70 bg-card/60 p-4 sm:p-6"
       >
-        <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-muted-foreground">
-          Cada escolha conta
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 id="financial-category-title" className="font-display text-2xl">
-            Para onde vai
+            Despesas por categoria
           </h2>
           <div
             className="flex rounded-lg bg-muted/60 p-1"
@@ -528,6 +600,11 @@ export default function FinanceCharts({
                     outerRadius={90}
                     paddingAngle={categories.length > 1 ? 3 : 0}
                     stroke="none"
+                    className="cursor-pointer"
+                    onClick={(_, index) => {
+                      const category = categories[index];
+                      if (category) onCategory(category.name, categoryMode);
+                    }}
                     isAnimationActive={animate}
                     animationDuration={550}
                   />

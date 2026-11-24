@@ -124,6 +124,8 @@ export default function FinanceiroPage() {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [dayFilter, setDayFilter] = useState<string | null>(null);
+  const [focusTransactions, setFocusTransactions] = useState(false);
 
   const [entryDialog, setEntryDialog] = useState<FinancialEntry | 'new' | null>(
     null
@@ -141,14 +143,17 @@ export default function FinanceiroPage() {
   function openTransactions(
     status = 'all',
     type = 'all',
-    category: string | null = null
+    category: string | null = null,
+    day: string | null = null
   ) {
     setFilterStatus(status);
     setFilterType(type);
     setCategoryFilter(category);
+    setDayFilter(day);
     setAccountFilter('all');
     setCardFilter('all');
     setSearchQuery('');
+    if (activeTab !== 'transactions') setFocusTransactions(true);
     setActiveTab('transactions');
   }
 
@@ -263,6 +268,7 @@ export default function FinanceiroPage() {
   );
 
   const periodCategories = useMemo(() => [...new Set(periodEntries.map(entry => entry.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [periodEntries]);
+  const selectedDayFilter = dayFilter && dayFilter >= range.start && dayFilter <= range.end ? dayFilter : null;
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/\p{M}/gu, '');
     return periodEntries.filter((e) => {
@@ -280,6 +286,7 @@ export default function FinanceiroPage() {
       )
         return false;
       if (categoryFilter && e.category !== categoryFilter) return false;
+      if (selectedDayFilter && effectiveFinancialDate(e) !== selectedDayFilter) return false;
       if (accountFilter !== 'all' && (e.accountId || 'none') !== accountFilter) return false;
       if (cardFilter !== 'all' && (e.cardId || 'none') !== cardFilter) return false;
       if (query) {
@@ -295,6 +302,7 @@ export default function FinanceiroPage() {
     filterStatus,
     searchQuery,
     categoryFilter,
+    selectedDayFilter,
     accountFilter,
     cardFilter,
     today,
@@ -306,6 +314,12 @@ export default function FinanceiroPage() {
     () => summarizeFinancialEntries(periodEntries),
     [periodEntries]
   );
+  const previousPeriod = useMemo(() => {
+    if (activeTab !== 'overview' || dateRange === 'all') return null;
+    const anchor = shiftFinancialPeriod(selectedMonth, dateRange, -1);
+    const previous = summarizeFinancialEntries(financialEntriesForRange(entries, financialPeriodRange(anchor, dateRange)));
+    return previous.entries > 0 ? previous.realized.balance : null;
+  }, [activeTab, dateRange, entries, selectedMonth]);
   const activeAccounts = accounts.filter(account => account.isActive);
   const totalBalance = activeAccounts.reduce((sum, account) => sum + account.balance, 0);
   const currentMonth = today.slice(0, 7);
@@ -712,7 +726,10 @@ export default function FinanceiroPage() {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setFocusTransactions(false);
+              setActiveTab(tab.id);
+            }}
             aria-pressed={activeTab === tab.id}
             className={cn(
               'flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
@@ -835,6 +852,8 @@ export default function FinanceiroPage() {
         !loadError && (
           <FinanceSummary
             summary={periodSummary}
+            period={range.label}
+            previousResult={previousPeriod}
             totalBalance={totalBalance}
             accountCount={activeAccounts.length}
             onTransactions={openTransactions}
@@ -857,6 +876,7 @@ export default function FinanceiroPage() {
             onCategory={(category, status) =>
               openTransactions(status, 'expenses', category)
             }
+            onDate={day => openTransactions('all', 'all', null, day)}
             onMonth={(month) => {
               setSelectedMonth(month);
               setDateRange('month');
@@ -1352,6 +1372,11 @@ export default function FinanceiroPage() {
             filterType={filterType}
             filterStatus={filterStatus}
             categoryFilter={categoryFilter}
+            dayFilter={selectedDayFilter}
+            onClearDay={() => setDayFilter(null)}
+            focusOnOpen={focusTransactions}
+            period={range.label}
+            totalInPeriod={periodEntries.length}
             categories={periodCategories}
             accounts={accounts}
             cards={cards}

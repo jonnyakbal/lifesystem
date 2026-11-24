@@ -10,9 +10,9 @@ import {
   Check,
   CircleDot,
   Plus,
+  ReceiptText,
   Target,
   Wallet,
-  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -46,144 +46,92 @@ const FinanceCharts = dynamic(() => import('./finance-charts'), {
 
 export function FinanceSummary({
   summary,
+  period,
+  previousResult,
   totalBalance,
   accountCount,
   onTransactions,
   onAccounts,
 }: {
   summary: FinancialSummary;
+  period: string;
+  previousResult: number | null;
   totalBalance: number;
   accountCount: number;
   onTransactions: (status: string, type: string) => void;
   onAccounts: () => void;
 }) {
-  const net = summary.realized.balance;
-  const withPlanned = net + summary.projected.balance;
+  const result = summary.realized.balance;
+  const withPlanned = result + summary.projected.balance;
+  const difference = previousResult === null ? null : Math.round((result - previousResult) * 100) / 100;
+  const metrics = [
+    { label: 'Recebido', value: summary.realized.income, icon: ArrowDownLeft, color: 'text-money', status: 'paid', type: 'income', id: 'financial-paid-income' },
+    { label: 'Despesas pagas', value: summary.realized.expenses, icon: ArrowUpRight, color: 'text-critical', status: 'paid', type: 'expenses', id: 'financial-paid-expenses' },
+    { label: 'A receber', value: summary.projected.income, icon: CalendarClock, color: 'text-qty', status: 'open', type: 'income', id: 'financial-planned-income' },
+    { label: 'A pagar', value: summary.projected.expenses, icon: CalendarClock, color: 'text-primary', status: 'open', type: 'expenses', id: 'financial-planned-expenses' },
+  ];
+
   return (
-    <section
-      aria-label="Resumo financeiro do período"
-      className="mb-6 grid gap-4 lg:grid-cols-[1.05fr_2fr]"
-    >
-      <div className="relative isolate overflow-hidden rounded-3xl border border-primary/25 bg-primary/[.04] p-5 sm:p-6">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -right-20 -top-16 -z-10 h-64 w-64 rounded-full border border-primary/15"
-        >
-          <div className="absolute inset-7 rounded-full border border-primary/10" />
-          <div className="absolute inset-14 rounded-full border border-primary/10" />
-          <span className="absolute bottom-12 left-9 h-2 w-2 rounded-full bg-primary/60 shadow-[0_0_20px_var(--color-primary)]" />
+    <section aria-label="Resumo financeiro do período" className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)]">
+      <div className="relative isolate flex min-w-0 flex-col items-start overflow-hidden rounded-3xl border border-primary/25 bg-card p-5 sm:p-6">
+        <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_right,color-mix(in_srgb,var(--color-primary)_24%,transparent),transparent_65%)]" />
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-20 -z-10 size-64 rounded-full border border-primary/20">
+          <div className="absolute inset-6 rounded-full border border-primary/15" />
+          <div className="absolute inset-12 rounded-full border border-primary/10" />
         </div>
-        <p className="text-xs font-medium text-muted-foreground">
-          Saldo total das contas
+        <p className="flex items-center gap-2 text-sm font-semibold text-primary">
+          <Wallet aria-hidden className="size-4" /> Saldo total das contas
         </p>
-        <p
-          data-testid="financial-account-balance"
-          className={cn(
-            'mt-3 break-words font-display text-4xl tracking-tight tabular-nums sm:text-5xl',
-            totalBalance < 0 ? 'text-critical' : 'text-foreground'
-          )}
-        >
+        <p data-testid="financial-account-balance"
+          className={cn('mt-4 max-w-full break-words font-display text-[clamp(2.3rem,4vw,4.5rem)] leading-[1.05] tracking-tight tabular-nums', totalBalance < 0 && 'text-critical')}>
           {accountCount ? formatMoney(totalBalance) : '—'}
         </p>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {accountCount === 0 ? 'Nenhuma conta ativa com saldo informado' : (
-            <>{accountCount} {accountCount === 1 ? 'conta ativa' : 'contas ativas'} · saldo informado e movimentações registradas</>
-          )}
+        <p className="mb-5 mt-2 text-xs leading-relaxed text-muted-foreground">
+          {accountCount > 0 ? accountCount + (accountCount === 1 ? ' conta ativa' : ' contas ativas') + ' · saldo registrado' : 'Cadastre uma conta para acompanhar seu saldo'}
         </p>
-        <button
-          onClick={onAccounts}
-          className="mt-4 inline-flex min-h-10 items-center gap-2 rounded-lg border border-primary/20 bg-card/50 px-3 text-sm font-medium transition-colors hover:bg-card"
-        >
-          <Wallet className="h-3.5 w-3.5" aria-hidden />
-          Ver contas e saldos
-          <ArrowUpRight className="h-3.5 w-3.5" aria-hidden />
-        </button>
-        <dl className="mt-5 grid gap-2 border-t border-primary/15 pt-4 text-xs">
-          <div className="flex flex-wrap items-baseline justify-between gap-1">
-            <dt className="text-muted-foreground">Resultado realizado no período</dt>
-            <dd data-testid="financial-realized-result" className={cn('font-semibold tabular-nums', net < 0 && 'text-critical')}>{formatMoney(net)}</dd>
-          </div>
-          <div className="flex flex-wrap items-baseline justify-between gap-1">
-            <dt className="text-muted-foreground">Resultado com previsões</dt>
-            <dd className={cn('font-semibold tabular-nums', withPlanned < 0 ? 'text-critical' : 'text-money')}>{formatMoney(withPlanned)}</dd>
-          </div>
-        </dl>
+        <Button variant="outline" className="mt-auto rounded-xl border-primary/25 bg-card/55" onClick={onAccounts}>
+          Ver contas e saldos <ArrowUpRight aria-hidden className="size-3.5" />
+        </Button>
       </div>
-      <div className="grid grid-cols-2 overflow-hidden rounded-3xl border border-border/70 bg-card/50">
-        {[
-          {
-            title: 'Recebido',
-            value: summary.realized.income,
-            caption: 'Entradas realizadas',
-            icon: ArrowDownLeft,
-            color: 'text-money',
-            status: 'paid',
-            type: 'income',
-            testId: 'financial-paid-income',
-          },
-          {
-            title: 'Despesas pagas',
-            value: summary.realized.expenses,
-            caption: 'Saídas realizadas',
-            icon: ArrowUpRight,
-            color: 'text-critical',
-            status: 'paid',
-            type: 'expenses',
-            testId: 'financial-paid-expenses',
-          },
-          {
-            title: 'A receber · previsto',
-            value: summary.projected.income,
-            caption: 'Entradas em aberto',
-            icon: CalendarClock,
-            color: 'text-qty',
-            status: 'open',
-            type: 'income',
-            testId: 'financial-planned-income',
-          },
-          {
-            title: 'A pagar · previsto',
-            value: summary.projected.expenses,
-            caption: 'Saídas em aberto',
-            icon: CalendarClock,
-            color: 'text-primary',
-            status: 'open',
-            type: 'expenses',
-            testId: 'financial-planned-expenses',
-          },
-        ].map((item, i) => (
-          <button
-            key={item.title}
-            onClick={() => onTransactions(item.status, item.type)}
-            className={cn(
-              'group min-w-0 p-4 text-left transition-colors hover:bg-muted/40 sm:p-5',
-              i % 2 === 0 && 'border-r border-border/60',
-              i < 2 && 'border-b border-border/60'
+
+      <div className="min-w-0 overflow-hidden rounded-3xl border border-border/75 bg-card/60">
+        <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted-foreground first-letter:uppercase">{period} · realizado</p>
+            <p data-testid="financial-realized-result"
+              className={cn('mt-1 break-words font-display text-3xl leading-tight tracking-tight tabular-nums', result < 0 && 'text-critical')}>
+              {formatMoney(result)}
+            </p>
+            {difference !== null && summary.entries > 0 && (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {difference === 0 ? 'Igual ao período anterior' : formatMoney(Math.abs(difference)) + (difference > 0 ? ' acima' : ' abaixo') + ' do período anterior'}
+              </p>
             )}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-muted-foreground">
-                {item.title}
-              </span>
-              <item.icon className={cn('h-4 w-4 shrink-0', item.color)} />
-            </div>
-            <p
-              data-testid={item.testId}
-              className="mt-3 break-words text-xl font-semibold tracking-tight tabular-nums sm:text-2xl"
-            >
-              {formatMoney(item.value)}
+          </div>
+          <div className="min-w-0 border-t border-border/70 pt-3 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
+            <p className="text-xs font-medium text-muted-foreground">Resultado com previsões</p>
+            <p className={cn('mt-1 break-words font-display text-2xl leading-tight tracking-tight tabular-nums', withPlanned < 0 ? 'text-critical' : 'text-primary')}>
+              {formatMoney(withPlanned)}
             </p>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              {item.caption}
-              <span
-                className="ml-2 opacity-0 group-hover:opacity-100"
-                aria-hidden
-              >
-                ↗
+            <p className="mt-1 text-xs text-muted-foreground">Realizado + lançamentos em aberto</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 border-t border-border/70 xl:grid-cols-4">
+          {metrics.map((metric, index) => (
+            <button type="button" key={metric.id} onClick={() => onTransactions(metric.status, metric.type)}
+              className={cn('group min-w-0 p-3 text-left transition-colors hover:bg-primary/5 focus-visible:-outline-offset-2 focus-visible:outline-primary sm:p-4',
+                index % 2 === 0 && 'border-r border-border/70',
+                index === 1 && 'xl:border-r xl:border-border/70',
+                index > 1 && 'border-t border-border/70 xl:border-t-0')}>
+              <span className="flex items-center justify-between gap-1 text-xs text-muted-foreground">
+                <span>{metric.label}</span><metric.icon aria-hidden className={cn('size-3.5 shrink-0', metric.color)} />
               </span>
-            </p>
-          </button>
-        ))}
+              <strong data-testid={metric.id} className="mt-2 block break-words text-base tracking-tight tabular-nums sm:text-lg">
+                {formatMoney(metric.value)}
+              </strong>
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -200,6 +148,7 @@ export function FinanceOverview({
   goals,
   budgets,
   onCategory,
+  onDate,
   onMonth,
   onTransactions,
   onPay,
@@ -215,6 +164,7 @@ export function FinanceOverview({
   goals: FinancialGoal[];
   budgets: BudgetProgress[];
   onCategory: (category: string, status: 'paid' | 'open') => void;
+  onDate: (day: string) => void;
   onMonth: (month: string) => void;
   onTransactions: (status: string, type: string) => void;
   onPay: (entry: FinancialEntry) => void;
@@ -243,6 +193,7 @@ export function FinanceOverview({
         range={range}
         selectedMonth={selectedMonth}
         onCategory={onCategory}
+        onDate={onDate}
         onMonth={onMonth}
       />
       <section
@@ -277,21 +228,17 @@ export function FinanceOverview({
             </span>
           </span>
         </button>
-        <div className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/30 p-4">
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-          <div>
-            <strong className="block text-sm font-medium">
-              {insights.summary.entries
-                ? `Resultado com previsões: ${formatMoney(insights.withPlanned)}`
-                : 'Um período para planejar'}
-            </strong>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {insights.summary.entries
-                ? 'Realizado + entradas previstas − saídas previstas. Apenas valores já registrados.'
-                : 'Registre o que espera receber e pagar. As previsões ficam separadas dos pagamentos.'}
-            </p>
-          </div>
-        </div>
+        <button type="button" onClick={() => onTransactions('open', 'all')}
+          className="flex items-start gap-3 rounded-2xl border border-border/60 bg-card/30 p-4 text-left hover:bg-muted/30">
+          <ReceiptText aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1">
+            <strong className="block text-sm font-medium">{pending.length} {pending.length === 1 ? 'lançamento em aberto' : 'lançamentos em aberto'}</strong>
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              {formatMoney(insights.summary.projected.income)} a receber · {formatMoney(insights.summary.projected.expenses)} a pagar
+            </span>
+          </span>
+          <ArrowUpRight aria-hidden className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+        </button>
         <button
           onClick={() =>
             insights.largestCategory
@@ -319,10 +266,7 @@ export function FinanceOverview({
         <section className="min-w-0 rounded-3xl border border-border/70 bg-card/50 p-4 sm:p-6">
           <div className="mb-5 flex items-center justify-between gap-3">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-muted-foreground">
-                O que vem pela frente
-              </p>
-              <h2 className="mt-2 font-display text-2xl">
+              <h2 className="font-display text-2xl">
                 Compromissos do período
               </h2>
             </div>
@@ -413,10 +357,7 @@ export function FinanceOverview({
         <section className="min-w-0 rounded-3xl border border-border/70 bg-card/50 p-4 sm:p-6">
           <div className="mb-5 flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[.2em] text-muted-foreground">
-                Espaço para seus planos
-              </p>
-              <h2 className="mt-2 font-display text-2xl">Reservas & metas</h2>
+              <h2 className="font-display text-2xl">Reservas & metas</h2>
             </div>
             <Button
               variant="ghost"

@@ -50,9 +50,11 @@ export function ChartTooltipContent({
   active,
   payload,
   label,
+  formatLabel,
   valueFormatter = String,
 }: Partial<TooltipContentProps<number, string>> & {
   valueFormatter?: (value: number) => string;
+  formatLabel?: (value: string | number | undefined) => React.ReactNode;
 }) {
   const config = React.useContext(ChartContext);
   if (!active || !payload?.length) return null;
@@ -64,7 +66,7 @@ export function ChartTooltipContent({
   );
   return (
     <div className="min-w-48 rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl">
-      <p className="mb-3 text-xs font-medium text-muted-foreground">{label}</p>
+      <p className="mb-3 text-xs font-medium text-muted-foreground">{formatLabel ? formatLabel(label) : label}</p>
       <div className="space-y-2">
         {visible.map((item) => {
           const series = config[String(item.dataKey)];
