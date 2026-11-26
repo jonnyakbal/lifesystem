@@ -11,6 +11,13 @@ export interface InvoiceMovement {
   total: number;
   paid: number;
   paymentDateKnown: boolean;
+  /** Paid part of a partially paid invoice; the open remainder stays in its own movement. */
+  partialPayment?: boolean;
+}
+
+/** Amount shown for a movement: the full invoice, except for the paid part of a partial one. */
+export function movementDisplayAmount(entry: FinancialMovement) {
+  return entry.invoice && !entry.invoice.partialPayment ? entry.invoice.total : entry.amount;
 }
 
 export type FinancialMovement = FinancialEntry & { invoice?: InvoiceMovement };
@@ -89,6 +96,25 @@ export function financialMovements(entries: FinancialEntry[], cards: Card[], bil
     const closedBill = bill?.status !== 'open' ? bill : undefined;
     const dueDate = closedBill?.dueDate || (!card && (bill?.dueDate || purchases.find(entry => entry.dueDate)?.dueDate)) || cycle.dueDate;
     const actualPaymentDay = settled ? paymentDay(bill, purchases) : '';
+    const accountId = payingAccount(group, card);
+    if (!settled && paid > 0) {
+      // The amount already paid is realized; only the remainder stays projected.
+      const partialDay = paymentDay(bill, purchases);
+      movements.push({
+        id: 'invoice-payment:' + key,
+        category: 'Fatura de cartão',
+        description: 'Pagamento parcial · Fatura · ' + (card?.name || 'Cartão removido'),
+        type: 'expense_variable',
+        status: 'paid',
+        date: closedBill?.closeDate || cycle.closeDate,
+        dueDate,
+        paidDate: partialDay || dueDate,
+        amount: paid / 100,
+        cardId,
+        accountId,
+        invoice: { cardId, month, total, paid: paid / 100, paymentDateKnown: Boolean(partialDay), partialPayment: true },
+      });
+    }
     movements.push({
       id: 'invoice:' + key,
       category: 'Fatura de cartão',
@@ -100,7 +126,7 @@ export function financialMovements(entries: FinancialEntry[], cards: Card[], bil
       paidDate: actualPaymentDay || (settled ? dueDate : undefined),
       amount: (settled ? totalCents : totalCents - paid) / 100,
       cardId,
-      accountId: payingAccount(group, card),
+      accountId,
       invoice: { cardId, month, total, paid: paid / 100, paymentDateKnown: Boolean(actualPaymentDay) },
     });
   }

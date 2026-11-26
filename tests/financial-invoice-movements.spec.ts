@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Bill, Card, FinancialEntry } from '../src/lib/finance-model';
-import { financialMovements } from '../src/lib/financial-invoice-movements';
+import { financialMovements, movementDisplayAmount } from '../src/lib/financial-invoice-movements';
 import { financialEntriesForRange, financialPeriodRange, summarizeFinancialEntries } from '../src/lib/financial-period';
 
 const credit: Card = {
@@ -51,11 +51,16 @@ test('usa o total fechado e a data real da quitação sem somar as compras novam
   expect(summarizeFinancialEntries(result)).toMatchObject({ realized: { expenses: 100.03 }, projected: { expenses: 0 } });
 });
 
-test('mantém uma linha para fatura parcial e soma só o restante em aberto', () => {
+test('fatura parcial conta o pago como realizado e só o restante como previsto', () => {
   const result = financialMovements([], [credit], [
-    { ...bill, status: 'partial', paidAmount: 24.18 },
+    { ...bill, status: 'partial', paidAmount: 24.18, paymentRecordedAt: '2026-11-28T15:00:00.000Z' },
   ]);
-  expect(result).toHaveLength(1);
-  expect(result[0]).toMatchObject({ amount: 75.85, status: 'pending', invoice: { total: 100.03, paid: 24.18 } });
-  expect(summarizeFinancialEntries(result)).toMatchObject({ projected: { expenses: 75.85 } });
+  expect(result).toHaveLength(2);
+  const open = result.find(entry => entry.status === 'pending');
+  const payment = result.find(entry => entry.status === 'paid');
+  expect(open).toMatchObject({ amount: 75.85, invoice: { total: 100.03, paid: 24.18 } });
+  expect(payment).toMatchObject({ amount: 24.18, paidDate: '2026-11-28', invoice: { partialPayment: true } });
+  expect(movementDisplayAmount(open!)).toBe(100.03);
+  expect(movementDisplayAmount(payment!)).toBe(24.18);
+  expect(summarizeFinancialEntries(result)).toMatchObject({ realized: { expenses: 24.18 }, projected: { expenses: 75.85 } });
 });

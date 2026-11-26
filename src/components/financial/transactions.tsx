@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import type { Account, Card, FinancialEntry } from '@/lib/finance-model';
-import type { FinancialMovement, InvoiceMovement } from '@/lib/financial-invoice-movements';
+import { movementDisplayAmount, type FinancialMovement, type InvoiceMovement } from '@/lib/financial-invoice-movements';
 import { effectiveFinancialDate, summarizeFinancialEntries } from '@/lib/financial-period';
 import { financialDisplayStatus, formatMoney, shortFinancialDate } from '@/lib/financial-insights';
 import { cn } from '@/lib/utils';
@@ -77,7 +77,7 @@ export function FinancialTransactions({
   const ordered = useMemo(() => [...entries].sort((a, b) => {
     const newest = effectiveFinancialDate(b).localeCompare(effectiveFinancialDate(a));
     if (sortBy === 'oldest') return -newest;
-    const amount = (b.invoice?.total ?? b.amount) - (a.invoice?.total ?? a.amount);
+    const amount = movementDisplayAmount(b) - movementDisplayAmount(a);
     if (sortBy === 'highest') return amount || newest;
     if (sortBy === 'lowest') return -amount || newest;
     return newest;
@@ -264,7 +264,7 @@ export function FinancialTransactions({
                   </div>
 
                   <span className={cn('col-start-2 row-start-1 pt-1 text-right text-sm font-semibold tracking-tight tabular-nums lg:col-start-5 lg:pt-0', income && 'text-money')}>
-                    {income ? '+' : '−'} {formatMoney(invoice?.total ?? entry.amount)}
+                    {income ? '+' : '−'} {formatMoney(movementDisplayAmount(entry))}
                   </span>
 
                   <div className="col-start-3 row-start-1 -mt-1 justify-self-end lg:col-start-6 lg:mt-0">
