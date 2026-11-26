@@ -33,7 +33,7 @@ function noteStage(capture: Capture) {
 }
 
 function noteTitle(capture: Capture, text: string) {
-  const heading = capture.content.match(/^\s*<h2(?:\s[^>]*)?>([\s\S]*?)<\/h2>/i)?.[1];
+  const heading = (capture.content ?? '').match(/^\s*<h2(?:\s[^>]*)?>([\s\S]*?)<\/h2>/i)?.[1];
   return (heading && htmlToText(heading) || capture.title || text.split('\n')[0] || 'Nova página').slice(0, 300);
 }
 
@@ -81,7 +81,7 @@ async function prepareReview(through: string, limit: number) {
     reviewPath: '/revisao',
     carriedPriorities,
     inbox: { total: inbox.length, items: inbox.slice(0, limit).map(capture => {
-      const text = htmlToText(capture.content);
+      const text = htmlToText(capture.content ?? '');
       return { id: capture.id, title: noteTitle(capture, text) };
     }) },
     dueTasks: { total: dated.length, items: dated.slice(0, limit).map(task => ({
@@ -131,7 +131,7 @@ export function registerPersonalReadTools(server: McpServer, scopes: string[], c
       .filter(capture => (!input.collectionId || capture.category === input.collectionId) && (!input.codeStage || noteStage(capture) === input.codeStage))
       .sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? '') || a.id.localeCompare(b.id))
       .flatMap(capture => {
-        const text = htmlToText(capture.content);
+        const text = htmlToText(capture.content ?? '');
         const summary = noteSummary(capture, text);
         if (query && ![summary.title, capture.essence, text].some(value => value?.toLocaleLowerCase('pt-BR').includes(query))) return [];
         return [summary];
@@ -143,7 +143,7 @@ export function registerPersonalReadTools(server: McpServer, scopes: string[], c
   }, async input => {
     const capture = await storage.getById<Capture>('captures', input.id);
     if (!capture || !isNote(capture)) return null;
-    const text = htmlToText(capture.content);
+    const text = htmlToText(capture.content ?? '');
     return { ...noteSummary(capture, text), content: text, essence: capture.essence ?? null, linkedCaptureIds: capture.linkedCaptureIds ?? [] };
   });
   register('list_wiki_collections', 'Lista coleções da Wiki. Use o ID da coleção em list_notes.', pageShape, async input => {

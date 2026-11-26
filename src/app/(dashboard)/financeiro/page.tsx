@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
-import { invoiceCycle } from '@/lib/card-invoice';
-import { financialMovements, invoiceMonthForExpense, invoiceTotal, type InvoiceMovement } from '@/lib/financial-invoice-movements';
+import { entryInvoiceMonth, invoiceCycle } from '@/lib/card-invoice';
+import { financialMovements, invoiceMonthForExpense, invoiceTotal, movementCategories, movementSearchFields, type InvoiceMovement } from '@/lib/financial-invoice-movements';
 import {
   type FinancialEntry,
   type Account,
@@ -290,7 +290,7 @@ export default function FinanceiroPage() {
     [movements, range]
   );
 
-  const periodCategories = useMemo(() => [...new Set(periodEntries.map(entry => entry.category))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [periodEntries]);
+  const periodCategories = useMemo(() => [...new Set(periodEntries.flatMap(movementCategories))].sort((a, b) => a.localeCompare(b, 'pt-BR')), [periodEntries]);
   const selectedDayFilter = dayFilter && dayFilter >= range.start && dayFilter <= range.end ? dayFilter : null;
   const filteredEntries = useMemo(() => {
     const query = searchQuery.trim().toLocaleLowerCase('pt-BR').normalize('NFD').replace(/\p{M}/gu, '');
@@ -308,12 +308,12 @@ export default function FinanceiroPage() {
             financialDisplayStatus(e, today) !== filterStatus
       )
         return false;
-      if (categoryFilter && e.category !== categoryFilter) return false;
+      if (categoryFilter && !movementCategories(e).includes(categoryFilter)) return false;
       if (selectedDayFilter && effectiveFinancialDate(e) !== selectedDayFilter) return false;
       if (accountFilter !== 'all' && (e.accountId || 'none') !== accountFilter) return false;
       if (cardFilter !== 'all' && (e.cardId || 'none') !== cardFilter) return false;
       if (query) {
-        return [e.category, e.description, e.payee].some(value =>
+        return movementSearchFields(e).some(value =>
           value?.toLocaleLowerCase('pt-BR').normalize('NFD').replace(/\p{M}/gu, '').includes(query)
         );
       }
@@ -576,7 +576,9 @@ export default function FinanceiroPage() {
     return entries.filter(
       (e) =>
         e.cardId === cardId &&
-        invoiceMonthForExpense(e, card) === month
+        e.type !== 'income' &&
+        // Debit purchases have no invoice month of their own; list them by purchase date.
+        (invoiceMonthForExpense(e, card) ?? entryInvoiceMonth(e, card)) === month
     );
   }
 

@@ -51,6 +51,23 @@ test('a intenção sobrevive a erro de recibo e rejeita campos diferentes', asyn
   }
 });
 
+test('criação recusada antes do efeito libera a chave para dados corrigidos', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'ls-mcp-intent-release-'));
+  const previous = process.env.LIFESYSTEM_DATA_DIR;
+  process.env.LIFESYSTEM_DATA_DIR = dir;
+  const run = (input: Record<string, unknown>, action: () => Promise<{ id: string }>) =>
+    runMcpIdempotent('scoped-test', 'create_financial_entry', 'synthetic-release', action, input);
+  try {
+    await expect(run({ category: 'Inexistente' }, async () => { throw new Error('categoria inválida'); })).rejects.toThrow('categoria inválida');
+    await expect(run({ category: 'Teste' }, async () => ({ id: 'synthetic' }))).resolves.toMatchObject({ result: { id: 'synthetic' }, replayed: false });
+    await expect(run({ category: 'Outra' }, async () => ({ id: 'other' }))).rejects.toThrow('dados diferentes');
+  } finally {
+    if (previous === undefined) delete process.env.LIFESYSTEM_DATA_DIR;
+    else process.env.LIFESYSTEM_DATA_DIR = previous;
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
 test.describe('consultas pessoais do MCP', () => {
   let directory: string;
   let previous: string | undefined;
@@ -87,6 +104,13 @@ test.describe('consultas pessoais do MCP', () => {
     const failed = await getWeekAvailability('2030-01-09', 30, async () => { throw new Error('offline'); });
     expect(failed.calendarStatus).toBe('unavailable');
     expect(failed.days[0].freeWindows).toBeNull();
+  });
+
+  test('preferência de jornada inválida usa o padrão em vez de falhar', async () => {
+    await storage.createOnce('planning_preferences', 'default', { preferences: { workStart: 'sem-formato' } });
+    const result = await getWeekAvailability('2030-01-09', 30, async () => []);
+    expect(result.preferencesSource).toBe('invalid');
+    expect(result.days).toHaveLength(7);
   });
 
   test('a rota HTTP autentica, anuncia anotações e consulta sem gravar revisão', async () => {
@@ -128,6 +152,8 @@ test.describe('consultas pessoais do MCP', () => {
 
       const note = await storage.create('captures', { status: 'noted', category: 'wiki', content: '<h2>Plano sintético</h2><p>Teste &amp; contexto</p>' });
       const inbox = await storage.create('captures', { status: 'inbox', content: 'Plano sintético privado no Inbox' });
+      // A legacy note without content must not break the listing.
+      await storage.create('captures', { status: 'noted', category: 'wiki', title: 'Nota sem conteúdo' });
       await storage.create('vision', { section: 'identity', title: 'Visão sintética', content: 'Contexto privado sintético', sortOrder: 0 });
       await storage.createOnce('wiki-collections', 'wiki', { name: 'Wiki sintética', sortOrder: 0 });
 
