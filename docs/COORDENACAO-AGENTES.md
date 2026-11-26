@@ -15,7 +15,14 @@ A partir de 07/11/2026 o Jonny trabalha principalmente com o **Codex**. O Claude
 
 Cópia limpa do commit (worktree), diretórios vazios em `LIFESYSTEM_DATA_DIR`/`UPLOAD_DIR`/`BACKUP_DIR`, variáveis do `.github/workflows/ci.yml`, `npm run build` e `npx playwright test --config=playwright.ci.config.ts`. Falha conhecida só no Windows: `office-provenance` (área de transferência). Rodadas com o PC suspendendo geram falhas falsas (`ERR_NETWORK_IO_SUSPENDED`, Chrome sem abrir): repita os arquivos afetados.
 
-## Estado atual (24/11/2026, interface do Financeiro)
+## Estado atual (24/11/2026, faturas e vencimentos)
+
+- `codex/financeiro-fatura-unica` parte de `ceffe9f`. **Lançamentos** e a Visão Geral usam uma saída por cartão e ciclo. A linha da fatura exibe o valor total e abre as compras e parcelas em **Cartões e faturas**. O previsto de uma fatura parcial considera o valor em aberto.
+- Ao editar um previsto antigo sem vencimento, o formulário sugere a data original do registro. O usuário pode ajustar a data antes de salvar. A edição individual usa a API existente e preserva compras, parcelas, pagamentos e histórico. As ferramentas, schemas e escopos MCP permanecem os mesmos. Sem mudança em aprovações ou recibos.
+- `npm run build`, ESLint dos arquivos alterados e 45 testes do Financeiro no Chromium com a configuração de CI passaram. A verificação usou dados sintéticos e cobriu a linha única, a navegação para a fatura, a quitação e a edição de vencimento.
+- A publicação destes ajustes está pendente. O redesenho anterior segue publicado.
+
+## Histórico (24/11/2026, interface do Financeiro)
 
 - O redesenho de `codex/financeiro-painel` está no commit `4d8efac`, sobre `dc7eb8b`. A publicação foi autorizada em 24/11/2026 pelo fluxo nativo da Hostinger acionado por `main`. O build no domínio deve ser conferido após o push.
 - A Visão Geral destaca o saldo das contas, diferencia os resultados realizado e previsto e compara o resultado com o período anterior quando existem dados. Pontos, barras e categorias dos gráficos abrem os recortes correspondentes.

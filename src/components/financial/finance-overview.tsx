@@ -17,6 +17,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import type { FinancialMovement, InvoiceMovement } from '@/lib/financial-invoice-movements';
 import {
   type FinancialEntry,
   type FinancialGoal,
@@ -149,6 +150,7 @@ export function FinanceOverview({
   budgets,
   onCategory,
   onDate,
+  onInvoice,
   onMonth,
   onTransactions,
   onPay,
@@ -156,8 +158,8 @@ export function FinanceOverview({
   onNewGoal,
   onNewBudget,
 }: {
-  entries: FinancialEntry[];
-  periodEntries: FinancialEntry[];
+  entries: FinancialMovement[];
+  periodEntries: FinancialMovement[];
   range: FinancialRange;
   selectedMonth: string;
   today: string;
@@ -165,6 +167,7 @@ export function FinanceOverview({
   budgets: BudgetProgress[];
   onCategory: (category: string, status: 'paid' | 'open') => void;
   onDate: (day: string) => void;
+  onInvoice: (invoice: InvoiceMovement) => void;
   onMonth: (month: string) => void;
   onTransactions: (status: string, type: string) => void;
   onPay: (entry: FinancialEntry) => void;
@@ -332,10 +335,10 @@ export function FinanceOverview({
                       </p>
                       <button
                         className="mt-1 min-h-8 text-xs text-primary hover:underline"
-                        onClick={() => onPay(e)}
-                        aria-label={`Registrar ${e.type === 'income' ? 'recebimento' : 'pagamento'} de ${e.description || e.category}`}
+                        onClick={() => e.invoice ? onInvoice(e.invoice) : onPay(e)}
+                        aria-label={e.invoice ? 'Abrir ' + e.description : `Registrar ${e.type === 'income' ? 'recebimento' : 'pagamento'} de ${e.description || e.category}`}
                       >
-                        {e.type === 'income' ? 'Receber' : 'Pagar'} ↗
+                        {e.invoice ? 'Ver fatura' : e.type === 'income' ? 'Receber' : 'Pagar'} ↗
                       </button>
                     </div>
                   </li>
