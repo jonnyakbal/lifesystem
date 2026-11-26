@@ -60,13 +60,24 @@ export async function runMcpIdempotent<T>(clientId: string, operation: string, k
       if (prior.fingerprint && prior.fingerprint !== fingerprint) throw new Error('Chave de idempotência usada com dados diferentes.');
       return { result: prior.result as T, replayed: true };
     }
+    const intentId = digest([clientId, parsedKey]);
+    let reservedNow = false;
     if (fingerprint) {
       // Reserve the intent before the effect so recovery cannot accept a changed payload.
-      const intent = await storage.createOnce<McpIntent>('mcp-intents', digest([clientId, parsedKey]), { operation, fingerprint });
+      reservedNow = !(await storage.getById<McpIntent>('mcp-intents', intentId));
+      const intent = await storage.createOnce<McpIntent>('mcp-intents', intentId, { operation, fingerprint });
       if (intent.operation !== operation) throw new Error('Esta chave de idempotência já foi usada por outra operação.');
       if (intent.fingerprint !== fingerprint) throw new Error('Chave de idempotência usada com dados diferentes.');
     }
-    const result = await action();
+    let result: T;
+    try {
+      result = await action();
+    } catch (error) {
+      // A rejected first attempt frees its key, so the caller can correct the data and retry.
+      // An intent left by an earlier attempt stays: that attempt may already have had its effect.
+      if (reservedNow) await storage.delete('mcp-intents', intentId).catch(() => undefined);
+      throw error;
+    }
     await storage.create<McpReceipt>('mcp-receipts', { clientId, operation, key: parsedKey, fingerprint, result });
     return { result, replayed: false };
   });

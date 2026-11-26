@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import type { Bill, Card, FinancialEntry } from '../src/lib/finance-model';
-import { financialMovements, movementDisplayAmount } from '../src/lib/financial-invoice-movements';
+import { financialMovements, movementCategories, movementDisplayAmount, movementSearchFields } from '../src/lib/financial-invoice-movements';
 import { financialEntriesForRange, financialPeriodRange, summarizeFinancialEntries } from '../src/lib/financial-period';
 
 const credit: Card = {
@@ -63,4 +63,14 @@ test('fatura parcial conta o pago como realizado e só o restante como previsto'
   expect(movementDisplayAmount(open!)).toBe(100.03);
   expect(movementDisplayAmount(payment!)).toBe(24.18);
   expect(summarizeFinancialEntries(result)).toMatchObject({ realized: { expenses: 24.18 }, projected: { expenses: 75.85 } });
+});
+
+test('busca e filtro de categoria encontram compras dentro da fatura', () => {
+  const [invoice] = financialMovements([
+    purchase('one', { description: 'Feira do bairro' }),
+    purchase('two', { category: 'Transporte', payee: 'Posto Central' }),
+  ], [credit], []);
+  expect(movementCategories(invoice)).toEqual(expect.arrayContaining(['Fatura de cartão', 'Mercado', 'Transporte']));
+  expect(movementSearchFields(invoice)).toEqual(expect.arrayContaining(['Feira do bairro', 'Posto Central']));
+  expect(movementCategories(purchase('loose', { cardId: undefined }))).toEqual(['Mercado']);
 });

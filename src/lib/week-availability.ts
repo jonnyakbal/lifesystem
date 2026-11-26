@@ -30,7 +30,9 @@ export async function getWeekAvailability(
     storage.getAll<Task>('tasks'),
     storage.getAll<StageConfig>('stage-configs'),
   ]);
-  const preferences = record ? planningPreferencesSchema.parse(record.preferences) : DEFAULT_PLANNING_PREFERENCES;
+  // Preferences saved by an older version fall back to the defaults instead of failing the query.
+  const stored = record ? planningPreferencesSchema.safeParse(record.preferences) : null;
+  const preferences = stored?.success ? stored.data : DEFAULT_PLANNING_PREFERENCES;
   const { timeZone } = preferences;
   const stages = resolveTaskStages(configs.find(config => config.scope === 'tasks')?.stages ?? DEFAULT_STAGES.tasks, tasks);
   const blocks = tasks.flatMap(task => {
@@ -51,7 +53,7 @@ export async function getWeekAvailability(
   return {
     timeZone,
     calendarStatus: events ? 'verified' : 'unavailable',
-    preferencesSource: record ? 'configured' : 'default',
+    preferencesSource: stored?.success ? 'configured' : record ? 'invalid' : 'default',
     days: dates.map(day => {
       const window = workWindowOnDay(day, preferences);
       const localBusy = blocks.flatMap(block => intervalOnDay(block, day, timeZone));

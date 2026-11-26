@@ -13,6 +13,18 @@ export interface InvoiceMovement {
   paymentDateKnown: boolean;
   /** Paid part of a partially paid invoice; the open remainder stays in its own movement. */
   partialPayment?: boolean;
+  /** Purchases in the invoice, so search and category filters still find them. */
+  purchases: Pick<FinancialEntry, 'category' | 'description' | 'payee'>[];
+}
+
+/** Text fields a movement answers to: its own, plus those of the purchases inside an invoice. */
+export function movementSearchFields(entry: FinancialMovement) {
+  return [entry, ...(entry.invoice?.purchases ?? [])].flatMap(item => [item.category, item.description, item.payee]);
+}
+
+/** Categories a movement belongs to: its own, plus those of the purchases inside an invoice. */
+export function movementCategories(entry: FinancialMovement) {
+  return [entry.category, ...(entry.invoice?.purchases.map(purchase => purchase.category) ?? [])];
 }
 
 /** Amount shown for a movement: the full invoice, except for the paid part of a partial one. */
@@ -97,6 +109,7 @@ export function financialMovements(entries: FinancialEntry[], cards: Card[], bil
     const dueDate = closedBill?.dueDate || (!card && (bill?.dueDate || purchases.find(entry => entry.dueDate)?.dueDate)) || cycle.dueDate;
     const actualPaymentDay = settled ? paymentDay(bill, purchases) : '';
     const accountId = payingAccount(group, card);
+    const purchaseFields = purchases.map(({ category, description, payee }) => ({ category, description, payee }));
     if (!settled && paid > 0) {
       // The amount already paid is realized; only the remainder stays projected.
       const partialDay = paymentDay(bill, purchases);
@@ -112,7 +125,7 @@ export function financialMovements(entries: FinancialEntry[], cards: Card[], bil
         amount: paid / 100,
         cardId,
         accountId,
-        invoice: { cardId, month, total, paid: paid / 100, paymentDateKnown: Boolean(partialDay), partialPayment: true },
+        invoice: { cardId, month, total, paid: paid / 100, paymentDateKnown: Boolean(partialDay), partialPayment: true, purchases: purchaseFields },
       });
     }
     movements.push({
@@ -127,7 +140,7 @@ export function financialMovements(entries: FinancialEntry[], cards: Card[], bil
       amount: (settled ? totalCents : totalCents - paid) / 100,
       cardId,
       accountId,
-      invoice: { cardId, month, total, paid: paid / 100, paymentDateKnown: Boolean(actualPaymentDay) },
+      invoice: { cardId, month, total, paid: paid / 100, paymentDateKnown: Boolean(actualPaymentDay), purchases: purchaseFields },
     });
   }
   return movements;

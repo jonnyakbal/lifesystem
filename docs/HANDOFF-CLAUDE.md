@@ -16,6 +16,8 @@ git rev-parse origin/main
 git worktree list
 ```
 
+Atualização 26/11/2026: o checkout local tem só `main`, sem worktrees nem stash. Branches já integradas foram apagadas no PC e no GitHub; `archive/orion-worktree-2026-10-17` e `archive/stash-2026-09-18` ficam apenas no GitHub como backup. Logs, prints, bundles e evidências locais foram reunidos em `C:/dev/jonny/_lifesystem-arquivo/` (fora do Git). O DNS de `oj0nny.com` passou para a Cloudflare em 25/11; `lifesystem` é um registro A para o servidor da Hostinger, sem proxy, porque a CDN da Hostinger está desligada para este site.
+
 Atualização 17/10: os três worktrees abaixo foram removidos; alterações do Orion e stash preservados nas branches locais `archive/*`, ignorados copiados para a pasta privada de evidências. Worktrees observados em 01/10, todos mais antigos que main:
 
 | Diretório | Branch / referência observada | Cuidado |
@@ -166,7 +168,7 @@ Registrar comando, exit code, contagem, duração e limitações. Incluir interf
 
 ## 8. Evidências privadas e acesso futuro
 
-Suplemento local, **fora do Git**: `C:/dev/jonny/lifesystem-task-qa-evidence/HANDOFF-CLAUDE-PRIVADO-2026-10-01.md`. Ele aponta logs, bundles, análise ignorada, demanda original Órion e detalhes da Central de Editais. Não copiar esses arquivos, dados pessoais ou imagens para commits públicos. A inexistência do suplemento em outro computador significa evidência local indisponível, não autorização para fabricar seus dados.
+Suplemento local, **fora do Git**: `C:/dev/jonny/_lifesystem-arquivo/evidencias/lifesystem-task-qa-evidence/HANDOFF-CLAUDE-PRIVADO-2026-10-01.md` (movido em 26/11/2026; caminhos citados dentro dele ainda podem apontar para a raiz antiga `C:/dev/jonny/`, e os arquivos correspondentes estão nas subpastas de `_lifesystem-arquivo/`). Ele aponta logs, bundles, análise ignorada, demanda original Órion e detalhes da Central de Editais. Não copiar esses arquivos, dados pessoais ou imagens para commits públicos. A inexistência do suplemento em outro computador significa evidência local indisponível, não autorização para fabricar seus dados.
 
 Se Jonny pedir acesso ao Hermes/VPS em uma próxima demanda, testar primeiro o alias SSH local `vps`, conforme `C:/dev/jonny/hermes/ACESSO-VPS.md`; não pedir credenciais de novo nem contornar verificação de host. Diagnóstico autorizado inicial: `ssh -o BatchMode=yes -o ConnectTimeout=12 vps "docker ps --format '{{.Names}} {{.Status}}'"`. Só instalação pessoal `hermes-agent-7faz-hermes-agent-1`; **nunca alterar/reiniciar `hermes-agent-tunm-hermes-agent-1`**. Antes de alteração autorizada, reler Compose/mounts/dados sem imprimir variáveis/tokens. Esse procedimento não concede autorização para alterar Hermes durante o trabalho LifeSystem.
 
